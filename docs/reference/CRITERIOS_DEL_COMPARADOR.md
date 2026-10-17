@@ -536,7 +536,7 @@ por dónde falló importa tanto como la regla.
 
 ## Lo que queda desconocido
 
-**No queda ninguna observación sin reproducir**: el banco está en 476/476 con la
+**No queda ninguna observación sin reproducir**: el banco está en 600/600 con la
 lista de pendientes vacía. Eso no quiere decir que el motor sea el mecanismo de
 Hattrick; quiere decir que no hay contraejemplo conocido. Lo que sigue abierto
 es concreto y corto:
@@ -555,7 +555,27 @@ es concreto y corto:
   columna y una migración, y es decisión del producto. Está contado abajo, en «La
   única parte de la regla que no se aplica».
 
-**Y de los 40 números del motor, 36 están clavados por las medidas.** Los otros
+**Y de los 40 números del motor, 39 están clavados por las medidas.** El único
+que falta, `MAXIMO_DE_LA_ESCALA`, no es una regla: es el tope con el que se
+rellena el campo `maximo` de un criterio `>=`, y la cadena no lo enseña.
+
+**Dos cosas más que faltan para que el método esté definido del todo, y ninguna
+es cuestión de medir más celdas:**
+
+- **La plantilla del pasador es inobservable más allá de sus dos primeras
+  posiciones.** El pasador puro sólo existe con las otras seis habilidades
+  **exactamente a cero** (FASE AP4), así que lo único que se le puede ver es
+  `Lateral = nulo` primero y los Pases segundo. Las cuatro posiciones restantes
+  de `PLANTILLAS["passing"]` no se pueden ejercitar con ninguna consulta: en
+  cuanto una compañera sube a 1, el tipo cambia y se usa otra plantilla. No es
+  un hueco por descuido; es infalsable desde el Comparador.
+- **La posición de la Portería en `ORDEN_LLANO` no la sostiene ninguna
+  medición** (0 de 594 en la ablación). En `_tipo` es información muerta,
+  porque la Portería se compara aparte; donde sí se lee es en `criterios_de`,
+  para decidir si el jugador es *pasador* a efectos de la ventana de edad. Ahí
+  su sitio en la tupla importa y no hay medida que lo fije.
+
+Los otros
 cuatro no son reglas: uno es de representación y tres son del tope de días, que
 no se consume.
 ## El listón del dial va por PAREJA, no por tipo
