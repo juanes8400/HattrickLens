@@ -26,6 +26,7 @@ from app.domain.engines.mercado_comparable import (
     GRUPOS,
     OBJETIVO,
     ORDEN_DE_DESEMPATE,
+    PESO_DE_HATTRICK,
     REINTENTOS_DE_RESOLUCION,
     TERCIARIA_ABAJO,
     TERCIARIA_ARRIBA,
@@ -283,13 +284,35 @@ def test_fuera_de_la_escalera_no_hay_peso() -> None:
     assert peso_de(_candidato(edad=29), objetivo) is None
 
 
-def test_la_terciaria_admite_uno_arriba_y_dos_abajo_y_ni_uno_mas() -> None:
-    """Y lo hace ya en el escalón del 100%: la ventana de la terciaria es
-    parte de "exactamente el mismo tipo de jugador"."""
+def test_la_terciaria_admite_uno_arriba_y_dos_abajo_en_NUESTROS_escalones() -> None:
+    """La ventana de la terciaria es NUESTRA, y manda de 95 para abajo.
+
+    HASTA EL 2026-10-21 ESTE TEST DECIA OTRA COSA: que la ventana mandaba
+    «ya en el escalón del 100%». Se escribió el 2026-10-06, CUATRO DIAS ANTES
+    de que el usuario decidiera que el 100 lo pone Hattrick (2026-10-10), y
+    nunca se revisó porque el desempate corría delante del sello y tapaba la
+    contradicción. Al poner el sello primero, salió.
+
+    POR QUE CAMBIA. El objetivo es Anotación 18, Pases 13, Jugadas 7 a los 31.
+    Hattrick le pide «Jugadas entre 6 y 9» --su banda, no la nuestra-- asi que
+    un candidato con Jugadas 9 SI aparece en su Comparador. Afirmar que vale
+    `None` es afirmar que nuestra ventana de ±1 sabe mejor que el juego quién
+    es el mismo jugador, y el 100 es suyo o no lo es.
+
+    Y SU BANDA NO ES FIJA, que es lo que remata el argumento: aquí es 6-9
+    (-1/+2) y en Labraña, medido en vivo el 2026-10-19, el Lateral es 4-6
+    (-1/+1). No hay un ±1 universal que defender.
+
+    `TERCIARIA_ARRIBA`/`ABAJO` no se quedan sin uso: gobiernan los escalones
+    95 a 75, que son los nuestros y no tienen regla de Hattrick detrás.
+    """
     objetivo = _objetivo()
+    # Dentro de la banda de Hattrick (Jugadas 6-9): los sella él, valen 100.
     assert peso_de(_candidato(scoring=18, passing=13, playmaking=8), objetivo) == 100
+    assert peso_de(_candidato(scoring=18, passing=13, playmaking=9), objetivo) == 100
+    # Fuera de su banda pero dentro de la nuestra: cae a NUESTRA escalera.
     assert peso_de(_candidato(scoring=18, passing=13, playmaking=5), objetivo) == 95
-    assert peso_de(_candidato(scoring=18, passing=13, playmaking=9), objetivo) is None
+    # Fuera de las dos: ni él ni nosotros.
     assert peso_de(_candidato(scoring=18, passing=13, playmaking=4), objetivo) is None
 
 
@@ -1120,3 +1143,61 @@ def test_el_tope_de_dias_solo_es_de_los_17(edad: int) -> None:
     candidato = candidato_de(_fila(2, edad=edad, age_days=200, skills=dict(niveles)))
     assert candidato is not None
     assert lo_ensenaria_hattrick(candidato, objetivo) is True
+
+
+#: EL DEFENSA QUE ADEMAS MARCA (jugador 491919135, 2026-10-18). 21 anos,
+#: Defensa 12, Lateral 7, Jugadas 6, Pases 5, Anotacion 9. Hattrick NO usa su
+#: Anotacion de criterio --va quinta en importancia para un defensa y le pone
+#: techo en 10-- asi que su busqueda admite Anotacion de 0 a 10, los once.
+#:
+#: Pero los siete primeros tienen OTRA TERNA: sin Anotacion alta, el Lateral se
+#: les sube al segundo puesto y pasan a ser Def/Lat/Jug. Nuestro desempate los
+#: tiraba ANTES de que el sello pudiera hablar, asi que de once ventas que el
+#: propio juego ensenaria nos quedabamos cuatro --y la busqueda si las pedia,
+#: porque `ventana_de_hattrick` va por los criterios y no por la terna--.
+LA_ANOTACION_QUE_NO_ES_CRITERIO: dict[str, int] = {
+    "defending": 12,
+    "winger": 7,
+    "playmaking": 6,
+    "passing": 5,
+    "keeper": 1,
+    "set_pieces": 7,
+}
+
+
+@pytest.mark.parametrize("anotacion", range(11))
+def test_el_sello_va_delante_del_desempate(anotacion: int) -> None:
+    """Si Hattrick lo ensenaria vale 100, aunque su terna sea otra."""
+    objetivo = _objetivo(edad=21, scoring=9, **LA_ANOTACION_QUE_NO_ES_CRITERIO)
+    candidato = _candidato(edad=21, scoring=anotacion, **LA_ANOTACION_QUE_NO_ES_CRITERIO)
+    assert lo_ensenaria_hattrick(candidato, objetivo) is True
+    assert peso_de(candidato, objetivo) == PESO_DE_HATTRICK
+
+
+#: Lo que NO debe entrar por la puerta que se acaba de abrir. Cada uno rompe un
+#: criterio distinto de los que Hattrick le pondria a ese mismo defensa.
+EL_SELLO_NO_ES_UNA_PUERTA_ABIERTA: list[tuple[str, dict[str, int], int]] = [
+    ("la anotacion se pasa del techo de 10", {"scoring": 11}, 21),
+    ("otra primaria", {"scoring": 9, "defending": 13}, 21),
+    ("el lateral se sale de su banda", {"scoring": 9, "winger": 4}, 21),
+]
+
+
+@pytest.mark.parametrize("motivo,cambio,edad", EL_SELLO_NO_ES_UNA_PUERTA_ABIERTA)
+def test_sin_sello_el_desempate_sigue_mandando(
+    motivo: str, cambio: dict[str, int], edad: int
+) -> None:
+    """Sin sello se vuelve a nuestra escalera, que si exige la misma terna."""
+    objetivo = _objetivo(edad=21, scoring=9, **LA_ANOTACION_QUE_NO_ES_CRITERIO)
+    niveles = {**LA_ANOTACION_QUE_NO_ES_CRITERIO, **cambio}
+    candidato = _candidato(edad=edad, **niveles)
+    assert lo_ensenaria_hattrick(candidato, objetivo) is False, motivo
+    assert peso_de(candidato, objetivo) is None, motivo
+
+
+def test_la_escalera_nuestra_sigue_entera_bajo_el_sello() -> None:
+    """Los peldanos de edad siguen dando 80 y 75 cuando el sello dice que no."""
+    objetivo = _objetivo(edad=21, scoring=9, **LA_ANOTACION_QUE_NO_ES_CRITERIO)
+    niveles = {**LA_ANOTACION_QUE_NO_ES_CRITERIO, "scoring": 9}
+    assert peso_de(_candidato(edad=22, **niveles), objetivo) == 80
+    assert peso_de(_candidato(edad=20, **niveles), objetivo) == 75

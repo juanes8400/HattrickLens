@@ -555,10 +555,10 @@ def lo_ensenaria_hattrick(candidato: Perfilado, objetivo: Objetivo) -> bool:
 def peso_de(candidato: Perfilado, objetivo: Objetivo) -> int | None:
     """Lo que vale este candidato, o `None` si no se le parece lo bastante.
 
-    EL PESO ES NUESTRO, no de Hattrick. Si esta venta es ademas de las que el
-    propio juego ensenaria lo dice `lo_ensenaria_hattrick`, que va aparte y no
-    toca este numero: cambiar lo que significa el 100 % mueve el color de la
-    pantalla y el calendario del escalon exacto, y eso no se decide aqui.
+    EL PESO ES NUESTRO de los 95 para abajo; el 100 lo pone Hattrick. Que el
+    sello mueva el numero es deliberado, y hay que saberlo antes de tocarlo:
+    cambiar lo que significa el 100 % mueve el color de la pantalla y el
+    calendario del escalon exacto.
 
     EL 100 SE LO DA HATTRICK, no nosotros (2026-10-10): se reserva para las
     ventas que el propio juego enseñaría, comprobado contra su regla. Nuestra
@@ -566,11 +566,29 @@ def peso_de(candidato: Perfilado, objetivo: Objetivo) -> int | None:
     que él: él pregunta a su base de traspasos entera y nosotros vamos juntando
     anuncios vivos.
 
-    Las tres habilidades tienen que ser LAS MISMAS y en el mismo orden. Quien
-    tiene los niveles pedidos pero en otras habilidades, o a quien otra
-    habilidad le gana el desempate, es otro jugador: lo que se paga por él no
-    dice nada de lo que se paga por el nuestro.
+    EL SELLO VA DELANTE DEL DESEMPATE, y el orden importa (2026-10-18). Nuestra
+    escalera exige que las tres habilidades mas altas sean LAS MISMAS y en el
+    mismo orden --quien tiene los niveles pedidos en otras habilidades es otro
+    jugador, y lo que se paga por el no dice nada del nuestro--. Pero esa
+    comprobacion es NUESTRA, y hasta hoy corria antes que el sello: una venta
+    que Hattrick SI ensenaria se caia por nuestro desempate sin que nadie le
+    preguntara al sello.
+
+    Se vio con un defensa de 21 anos, Defensa 12 y Lateral 7 (jugador
+    491919135). Hattrick no usa su Anotacion de criterio --va quinta en
+    importancia y le pone techo en 10-- asi que su busqueda admite Anotacion de
+    0 a 10. De esos once perfiles, SIETE --los de Anotacion 0 a 6-- tienen otra
+    terna que la suya, porque sin Anotacion alta el Lateral se les sube al
+    segundo puesto. Los once los ensenaria Hattrick; nosotros nos quedabamos
+    cuatro. Y la busqueda si los pedia: `ventana_de_hattrick` va por los
+    criterios, no por la terna, asi que se gastaba cuota en traerlos para
+    tirarlos al llegar.
+
+    La terna es nuestro modo de decir «es el mismo jugador» cuando no tenemos
+    regla; cuando la hay, manda la regla.
     """
+    if lo_ensenaria_hattrick(candidato, objetivo):
+        return PESO_DE_HATTRICK
     if (
         candidato.primaria.habilidad != objetivo.primaria.habilidad
         or candidato.secundaria.habilidad != objetivo.secundaria.habilidad
@@ -580,8 +598,6 @@ def peso_de(candidato: Perfilado, objetivo: Objetivo) -> int | None:
     distancia_terciaria = candidato.terciaria.nivel - objetivo.terciaria.nivel
     if not -TERCIARIA_ABAJO <= distancia_terciaria <= TERCIARIA_ARRIBA:
         return None
-    if lo_ensenaria_hattrick(candidato, objetivo):
-        return PESO_DE_HATTRICK
     for escalon in ESCALERA:
         edad = candidato.edad - objetivo.edad
         if (
