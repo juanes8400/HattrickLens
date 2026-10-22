@@ -312,8 +312,25 @@ def test_scouting_returns_real_tsi_and_real_lineup_names(
     assert "baja" in wp["confidence"]
 
 
+#: EL RELOJ DE ESTE TEST, CONGELADO (2026-10-22).
+#:
+#: `rivals.py` recorta los partidos del rival a una ventana RELATIVA A HOY
+#: --`start_of_iso_week(now) - SEASON_WEEKS`-- y el fixture es una captura real
+#: de CHPP con fechas ABSOLUTAS. Fechas fijas contra una ventana movil: el test
+#: estaba contando los dias desde que se escribio.
+#:
+#: Le toco el 2026-10-19, cuando la semana ISO movio la frontera de 2026-06-22
+#: a 2026-06-29 y los dos partidos oficiales del rival --24 y 28 de junio-- se
+#: quedaron fuera. `rival` paso de 2 a 1 sin que nadie tocara nada.
+#:
+#: Se congela el reloj en vez de retocar el fixture: su valor esta en ser una
+#: captura de verdad, y moverle las fechas lo degradaria.
+AHORA_DEL_FIXTURE = datetime(2026, 10, 15, 12, 0, tzinfo=UTC)
+
+
 def test_submitted_orders_drive_general_comparison_and_pitch_prediction(
     seeded: tuple[TestClient, int, int, async_sessionmaker],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """El once enviado manda en KPIs y la cancha; el rival sigue histórico."""
     import asyncio
@@ -323,6 +340,13 @@ def test_submitted_orders_drive_general_comparison_and_pitch_prediction(
 
     client, user_id, team_id, factory = seeded
     client.cookies.set("htlens_session", create_session_token(user_id))
+
+    class _Congelado(datetime):
+        @classmethod
+        def now(cls, tz=None):  # type: ignore[override]
+            return AHORA_DEL_FIXTURE if tz else AHORA_DEL_FIXTURE.replace(tzinfo=None)
+
+    monkeypatch.setattr(rivals_module, "datetime", _Congelado)
 
     async def add_submitted_match() -> None:
         async with factory() as s:
@@ -340,7 +364,7 @@ def test_submitted_orders_drive_general_comparison_and_pitch_prediction(
             s.add(
                 m.Match(
                     ht_match_id=900000001,
-                    played_at=datetime.now(UTC) + timedelta(days=2),
+                    played_at=AHORA_DEL_FIXTURE + timedelta(days=2),
                     match_type=1,
                     status="UPCOMING",
                     home_team_ht_id=OWN_HT_TEAM_ID,
