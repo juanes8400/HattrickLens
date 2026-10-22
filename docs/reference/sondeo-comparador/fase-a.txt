@@ -3004,3 +3004,117 @@ resta, asi que la constante se queda sin uso. Quitada, que una constante muerta
 es peor que no tenerla (la leccion de FASE AC).
 
   banco 597/597 -> 600/600
+
+--- AP13. EL SELLO IBA DETRAS DEL DESEMPATE, Y ESO TIRABA VENTAS ----------
+
+No es una medida del juego: es un fallo NUESTRO que la regla destapo. Lo saco
+el usuario probando una ficha real, el defensa 491919135 --21 anos, Defensa 12,
+Lateral 7, Jugadas 6, Pases 5, Anotacion 9--.
+
+Hattrick NO usa su Anotacion de criterio aunque sea su segunda habilidad mas
+alta: va quinta en importancia para un defensa y necesita mucho mas nivel para
+adelantar al Lateral. Lo que pide es
+
+  Edad 21 | Defensa = 12 | Lateral = 7 | Jugadas 5-7 | Pases 4-6
+         | Anotacion <= 10 | Porteria <= 4
+
+O sea que su busqueda admite Anotacion de 0 a 10, los once valores. Pero los
+SIETE primeros tienen otra TERNA que la suya --sin Anotacion alta el Lateral se
+les sube al segundo puesto, Def/Lat/Jug en vez de Def/Ano/Lat-- y `peso_de`
+comprobaba la terna ANTES de consultar el sello. Resultado medido:
+
+  Anotacion 0-6  -> lo_ensenaria_hattrick SI, peso_de None   (7 tirados)
+  Anotacion 7-10 -> lo_ensenaria_hattrick SI, peso_de 100     (4 guardados)
+
+Y la busqueda SI los pedia: `ventana_de_hattrick` va por los criterios y no por
+la terna, asi que mandaba Def 12, Lat 7, Jug 5-7 --lo correcto-- y se gastaba
+cuota en traerse once filas para tirar siete al llegar a casa.
+
+ARREGLADO poniendo el sello delante: si el juego lo ensenaria vale 100 y la
+terna no opina. El desempate se queda para NUESTROS peldanos, que son los que
+no tienen regla detras. La terna es como decimos «es el mismo jugador» cuando
+no hay regla; cuando la hay, manda la regla.
+
+SOBRE EL FONDO DE HOY NO CAMBIA NADA, y conviene saberlo: las 33 ventas
+guardadas son anteriores a la columna de habilidades (migracion 0102) y sin las
+siete el sello devuelve falso por diseno. Esto solo surte efecto en lo que se
+coseche a partir de ahora. Despliegue de riesgo cero.
+
+LA LECCION, que es la de siempre al reves: el banco no podia ver esto porque
+mide `criterios_hattrick` contra el juego, y el fallo estaba en quien CONSUME
+los criterios. Un motor puede tener la regla perfecta y tirarla en la linea
+siguiente. Lo destapo una ficha real, no una barrida.
+
+--- AP14. SU RESPUESTA, MEDIDA POR FIN (Labrana, 2026-10-19) --------------
+
+Hasta hoy habiamos derivado y verificado su PREGUNTA (600/600) y nunca su
+RESPUESTA. El usuario abrio el Comparador de su propio jugador 490889449
+--Javier Labrana Martinez, 24a 14d, Def11 Pas5 Lat5 Jug4 Ano3 Por1 BP7-- y
+paso la pantalla entera.
+
+### LA REGLA, VALIDADA EN VIVO: 6 de 6, exacto
+
+  predicho                          en pantalla
+  Edad 24-24                        Edad = 24
+  defending  =    brillante         Defensa = brillante
+  passing    =    insuficiente      Pases = insuficiente
+  winger     banda debil-aceptable  Lateral entre debil y aceptable
+  playmaking <=   debil             Jugadas <= debil
+  scoring    <=   debil             Anotacion <= debil
+  keeper     <=   debil             Porteria <= debil
+
+Perfil nunca sondeado, y con el empate Lat5/Pas5 que es donde podia romperse.
+
+### SU ESTADISTICO ES LLANO. Seis comprobaciones, una sola hipotesis:
+
+  precio  media  231.488  = media llana de los diez   -> cuadra al centimo
+  precio  mediana 207.610 = (200.000+215.220)/2       -> cuadra
+  TSI     media   10.925  / mediana 10.835            -> cuadran
+  dias    media       38  / mediana     31            -> cuadran
+
+NO PONDERA. Nuestra media va ponderada por parecido; la suya no, y tiene
+sentido: sus diez son homogeneos --todos pasan los mismos criterios-- asi que
+no hay nada que ponderar. NUESTRA PONDERACION EXISTE SOLO PORQUE NUESTRO
+FONDO ES IMPURO (mezclamos 100, 95, 90, 80 y 75).
+
+### CUATRO COSAS MAS QUE SE VEN EN LA MISMA PANTALLA
+
+1. SON DIEZ. Ya estaba anotado el 2026-10-10 y nunca se reconcilio con
+   nuestro OBJETIVO = 8.
+
+2. SE INCLUYE A SI MISMO. La segunda fila de la lista es el propio Labrana,
+   14-10-2026, 200.000 US$: su traspaso anterior, contado como comparable y
+   metido en la media. Nosotros excluimos a los nuestros de raiz en `cosecha`.
+   EL JUEGO AVALA USAR LAS VENTAS PROPIAS.
+   (Y aparece ademas como fila de cabecera, con asterisco, igual que la fila
+   `propio=True` que pedimos el 2026-10-09. Converge con lo que ya haciamos.)
+
+3. NO DEDUPLICA POR JUGADOR. El id 490357848 sale DOS VECES: 215.220 el
+   08-09 y 125.000 el 18-10. Son dos ventas y cuentan las dos. Nuestro
+   `guardar` hace upsert por ht_player_id --una fila por jugador-- con el
+   comentario «es otra venta, y la de antes ya cumplio su funcion». Pues no.
+
+4. LA MAS VIEJA ES DE NUEVE SEMANAS (11-08). Nuestra VIDA son siete. Coincide
+   con el caso Llauge de 25 semanas: no hay corte duro.
+
+### Y UN EXPERIMENTO REGALADO, en esa misma fila repetida
+
+  490357848  08-09  forma bueno         TSI 10.650  ->  215.220
+  490357848  18-10  forma insuficiente  TSI  8.610  ->  125.000
+
+El mismo jugador, seis semanas despues, un 42% menos, con peor forma y menos
+TSI. Labrana entra a su subasta con forma HORRIBLE y TSI 5.610, el mas bajo
+de los once de la tabla (los diez van de 6.400 a 17.390).
+
+### LO QUE SIGUE SIN SABERSE
+
+· Si los diez son «los diez mas recientes» o diez elegidos de otro modo. En
+  pantalla van por fecha descendente y hay enlace «Mostrar mas transferencias»,
+  asi que se contesta con UN CLIC: si el undecimo es anterior al 11-08, es
+  recencia pura.
+· Cuantos hay detras de ese enlace, y si la media cambia al ampliarlo.
+· Si el 10 es fijo o depende de cuantos encuentre.
+
+TODO ESTO ES UNA SOLA PANTALLA, UN SOLO JUGADOR. La aritmetica esta forzada
+--seis columnas cuadrando al centimo no es casualidad-- pero el resto son
+observaciones de n=1 y hay que tratarlas como tales.

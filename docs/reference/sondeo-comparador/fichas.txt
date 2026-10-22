@@ -1,0 +1,20 @@
+# Las fichas de la tanda ciega. Una por linea:
+#
+#     nombre | edad | por def jug lat pas ano bp
+#
+# LA MUESTRA SE ELIGE ANTES de ver ninguna pantalla, y no se quita ninguna
+# porque salga mal. Anuncios del mercado cualesquiera sirven: en el anuncio
+# estan las siete habilidades y la edad, y cada uno tiene su Comparador.
+#
+# NO sirven los 24 jugadores de la plantilla: con ellos se encontraron y
+# arreglaron tres reglas el 2026-10-11 (FASE M), asi que ya son material de
+# desarrollo. Volver a pasarlos mide si los parches aguantan, que esta bien,
+# pero no es el error sobre material nuevo.
+
+# LABRANA NO CUENTA, y por eso va comentado. Su pantalla ya se vio el
+# 2026-10-19 (AP14), asi que predecirlo no es ciego: seria un acierto regalado
+# que infla la tanda. Se deja solo como ejemplo del formato.
+#
+#   Labrana | 24 | 1 11 4 5 5 3 7
+
+# --- la tanda empieza aqui ---

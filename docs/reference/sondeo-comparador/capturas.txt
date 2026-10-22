@@ -1,0 +1,16 @@
+# El bloque «Criterios de busqueda» de cada jugador, PEGADO TAL CUAL de la
+# pantalla de Hattrick. El nombre va delante con `==` y tiene que coincidir
+# con el de fichas.txt.
+#
+# Se pega literal a proposito: transcribir a mano es donde entran los errores,
+# y en este proyecto ya ha pasado --«Def 5-8» por «Def 5-7», confundiendo
+# bueno con excelente, con horas perdidas detras--.
+
+== Labrana
+Edad = 24
+Defensa = brillante
+Pases = insuficiente
+Lateral entre débil y aceptable
+Jugadas <= débil
+Anotación <= débil
+Portería <= débil
