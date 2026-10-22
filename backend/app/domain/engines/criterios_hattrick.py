@@ -315,7 +315,13 @@ EXCLUIDAS: dict[str, frozenset[str]] = {
 #: Esto explica cuatro de los seis contraejemplos de FASE Q que se quedaron sin
 #: explicar: con Lateral 16, «Pases 9 Anotacion 8 Defensa 7» no saca criterio
 #: de la Defensa y «Pases 9 Anotacion 7 Defensa 8» si.
-DEFENSA_DEL_EXTREMO_PIDE_LA_ANOTACION = True
+#:
+#: LA REGLA VIVE EN `_fuera`, no aqui. Hasta el 2026-10-18 habia ademas una
+#: constante `DEFENSA_DEL_EXTREMO_PIDE_LA_ANOTACION = True` que NADIE leia: ni
+#: el motor, ni los tests, ni la ablacion. La medida es buena y se queda escrita;
+#: el `True` se fue. Una constante muerta es peor que no tenerla, porque invita a
+#: creer que hay un interruptor donde no lo hay --la leccion de FASE AC, y la
+#: misma por la que se quito `UMBRAL_CON_EMPATE_ARRIBA` en AP12--.
 
 
 #: EL LATERAL DEL MEDIOCENTRO PIDE MAS QUE LOS DEMAS. Entra como criterio con
@@ -728,18 +734,16 @@ class Criterios:
     holgado: bool
     #: El tope de días, sólo a los 17 años. `None` en cualquier otro caso.
     #:
-    #: NADIE LO APLICA TODAVÍA, y conviene saberlo antes de fiarse. La búsqueda
-    #: no lo manda porque `transfersearch` no acepta días --sólo años-- y pedir
-    #: un superconjunto no hace daño. Pero `lo_ensenaria_hattrick` tampoco lo
-    #: comprueba, y ahí sí importa: a un jugador de 17 años y 80 días Hattrick
-    #: NO lo ensenaria y nosotros le damos el sello del 100 %.
+    #: LO APLICA `lo_ensenaria_hattrick` desde la migración `0103`, que añadió
+    #: `market_sales.age_days`: a un jugador de 17 años y 80 días Hattrick no lo
+    #: enseñaría, y antes de la `0103` nosotros le dábamos el sello del 100 %.
+    #: Las ventas guardadas antes traen `-1` --«no los sabemos»-- y el tope no se
+    #: les aplica; no se pueden rellenar porque CHPP no publica los días que
+    #: tenía el vendido el día de la venta.
     #:
-    #: No se arregla aquí porque hace falta el dato: ni `Candidato` ni
-    #: `market_sales` guardan los días, aunque el parser de CHPP ya los lee
-    #: (`age_days`). Arreglarlo es una columna nueva y una migración, igual que
-    #: se hizo con `skills_json`, y aplicarlo sólo a los vivos dejaría a la
-    #: misma venta con sello antes de guardarse y sin sello después, que es peor
-    #: que la inexactitud. Afecta sólo a comparables de 17 años.
+    #: LA BÚSQUEDA SÍ SIGUE SIN MANDARLO, y eso es a propósito:
+    #: `transfersearch` sólo acepta años, así que pedir el superconjunto de todo
+    #: el año no hace daño --lo que sobra lo descarta el sello--.
     tope_de_dias: int | None = None
 
 
