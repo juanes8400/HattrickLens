@@ -43,6 +43,35 @@ export const clienteValido = (valor: string = CLIENTE_ADSENSE): boolean =>
  */
 export const hayAnuncios = (): boolean => clienteValido();
 
+/** QUIÉN PREGUNTA POR LAS COOKIES. Dos modos, y la diferencia importa.
+ *
+ *  `"propia"` (por defecto) — pregunta nuestra barra, y el script de Google
+ *  NO se carga hasta que alguien dice que sí. Es lo más conservador que se
+ *  puede hacer, y vale para tráfico fuera del EEE, el Reino Unido y Suiza.
+ *
+ *  `"google"` — manda la plataforma CERTIFICADA de Google («Privacidad y
+ *  mensajes», dentro de la cuenta de AdSense). Nuestra barra desaparece para
+ *  no preguntar dos veces.
+ *
+ *  Y AQUÍ ESTÁ LA VUELTA DE TUERCA QUE HAY QUE ENTENDER ANTES DE CAMBIARLO:
+ *  la plataforma de Google VIAJA DENTRO del propio script de AdSense, así que
+ *  en ese modo el script se carga ANTES de preguntar. No es una contradicción
+ *  ni un descuido: para eso existe el Modo de consentimiento v2 de
+ *  `index.html`, que arranca con las cuatro señales en `denied`. Google carga,
+ *  pregunta, y no pone cookies de publicidad ni personaliza hasta que la
+ *  respuesta llega. Sin esos valores por defecto esto sí sería una fuga.
+ *
+ *  Para el EEE hace falta una certificada: desde el 16-01-2024 Google sólo
+ *  sirve «anuncios limitados» sin ella. Nuestra barra NO lo es.
+ */
+export type QuienPregunta = "propia" | "google";
+
+export const CMP: QuienPregunta =
+  import.meta.env.VITE_ADSENSE_CMP === "google" ? "google" : "propia";
+
+/** Si quien pregunta es la plataforma certificada de Google. */
+export const preguntaGoogle = (): boolean => hayAnuncios() && CMP === "google";
+
 /** Los huecos declarados, con el identificador que les da AdSense.
  *
  *  Se declaran aquí y no en cada pantalla para que se vea de un vistazo

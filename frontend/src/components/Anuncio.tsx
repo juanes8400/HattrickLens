@@ -17,7 +17,12 @@
  */
 import { useEffect, useRef } from "react";
 
-import { CLIENTE_ADSENSE, hayAnuncios, huecoPorId } from "../config/anuncios";
+import {
+  CLIENTE_ADSENSE,
+  hayAnuncios,
+  huecoPorId,
+  preguntaGoogle,
+} from "../config/anuncios";
 import { useConsentimiento } from "./Consentimiento";
 
 const URL_ADSENSE =
@@ -52,7 +57,14 @@ export function Anuncio({ hueco, className }: Props) {
   const puesto = useRef<HTMLModElement | null>(null);
   const empujado = useRef(false);
 
-  const activo = hayAnuncios() && decision === "concedido" && !!declarado?.slot;
+  // CON LA PLATAFORMA DE GOOGLE no se espera a nuestra decision: la suya
+  // viaja dentro del script, asi que hay que cargarlo para que pueda
+  // preguntar. Lo que impide la fuga son los `denied` por defecto del Modo
+  // de consentimiento, puestos en `index.html` antes que nada.
+  const activo =
+    hayAnuncios() &&
+    !!declarado?.slot &&
+    (preguntaGoogle() || decision === "concedido");
 
   useEffect(() => {
     if (!activo || empujado.current) return;

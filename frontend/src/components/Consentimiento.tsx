@@ -18,7 +18,7 @@ import {
   decisionGuardada,
   type Decision,
 } from "../config/consentimiento";
-import { hayAnuncios } from "../config/anuncios";
+import { hayAnuncios, preguntaGoogle } from "../config/anuncios";
 import { tx } from "../i18n/tx";
 
 /** La decisión actual, viva: si se cambia en otra pantalla, ésta se entera. */
@@ -33,7 +33,12 @@ export function useConsentimiento(): Decision {
 
 export function BarraDeConsentimiento() {
   const decision = useConsentimiento();
-  if (!hayAnuncios() || decision !== "sin-decidir") return null;
+  // SI PREGUNTA GOOGLE, NOSOTROS NOS CALLAMOS. Dos barras seguidas pidiendo
+  // lo mismo no es el doble de cumplimiento: es un sitio que parece roto, y
+  // la respuesta que cuenta es la de la plataforma certificada.
+  if (!hayAnuncios() || preguntaGoogle() || decision !== "sin-decidir") {
+    return null;
+  }
 
   return (
     <div

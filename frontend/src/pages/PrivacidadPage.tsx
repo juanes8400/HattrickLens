@@ -14,7 +14,7 @@ import { Link } from "react-router-dom";
 
 import { Panel } from "../components/Panels";
 import { useConsentimiento } from "../components/Consentimiento";
-import { hayAnuncios } from "../config/anuncios";
+import { hayAnuncios, preguntaGoogle } from "../config/anuncios";
 import { decidir, olvidarLaDecision } from "../config/consentimiento";
 import { tx } from "../i18n/tx";
 
@@ -47,9 +47,7 @@ export function PrivacidadPage() {
       </Link>
 
       <header>
-        <h1 className="text-xl font-semibold">
-          {tx("Privacidad y cookies")}
-        </h1>
+        <h1 className="text-xl font-semibold">{tx("Privacidad y cookies")}</h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
           {tx(
             "Qué datos se piden, dónde se guardan y qué puedes hacer con ellos.",
@@ -110,51 +108,62 @@ export function PrivacidadPage() {
               )}
             </p>
             <p>
-              {tx(
-                "No se cargan hasta que dices que sí. Mientras no decidas, o si dices que no, no se trae ni un solo script de Google y HT Lens funciona exactamente igual.",
-              )}
+              {preguntaGoogle()
+                ? tx(
+                    "Tu elección la gestiona el panel de consentimiento de Google, que es el que te preguntó. Desde él puedes cambiarla cuando quieras. Hasta que respondes, Google tiene prohibido usar cookies de publicidad y personalizar lo que ves.",
+                  )
+                : tx(
+                    "No se cargan hasta que dices que sí. Mientras no decidas, o si dices que no, no se trae ni un solo script de Google y HT Lens funciona exactamente igual.",
+                  )}
             </p>
-            <p>
-              {tx(
-                "Tu decisión ahora mismo es:",
-              )}{" "}
-              <strong>
-                {decision === "concedido"
-                  ? tx("aceptadas")
-                  : decision === "denegado"
-                    ? tx("rechazadas")
-                    : tx("sin decidir")}
-              </strong>
-            </p>
-            <div className="flex flex-wrap gap-2 pt-1">
-              {decision !== "denegado" && (
-                <button
-                  type="button"
-                  onClick={() => decidir("denegado")}
-                  className="rounded border border-[var(--border)] px-3 py-1.5 text-xs"
-                >
-                  {tx("Rechazar las cookies de publicidad")}
-                </button>
-              )}
-              {decision !== "concedido" && (
-                <button
-                  type="button"
-                  onClick={() => decidir("concedido")}
-                  className="rounded border border-[var(--border)] px-3 py-1.5 text-xs"
-                >
-                  {tx("Aceptar las cookies de publicidad")}
-                </button>
-              )}
-              {decision !== "sin-decidir" && (
-                <button
-                  type="button"
-                  onClick={olvidarLaDecision}
-                  className="rounded border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)]"
-                >
-                  {tx("Volver a preguntarme")}
-                </button>
-              )}
-            </div>
+            {/* LOS MANDOS SON NUESTROS Y SÓLO VALEN SI PREGUNTAMOS NOSOTROS.
+                Con la plataforma de Google al mando, estos botones escribirían
+                una decisión paralela a la suya: dos registros del mismo
+                consentimiento que pueden decir cosas distintas, que es peor que
+                no tener botón. Quien pregunta es quien manda. */}
+            {!preguntaGoogle() && (
+              <>
+                <p>
+                  {tx("Tu decisión ahora mismo es:")}{" "}
+                  <strong>
+                    {decision === "concedido"
+                      ? tx("aceptadas")
+                      : decision === "denegado"
+                        ? tx("rechazadas")
+                        : tx("sin decidir")}
+                  </strong>
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {decision !== "denegado" && (
+                    <button
+                      type="button"
+                      onClick={() => decidir("denegado")}
+                      className="rounded border border-[var(--border)] px-3 py-1.5 text-xs"
+                    >
+                      {tx("Rechazar las cookies de publicidad")}
+                    </button>
+                  )}
+                  {decision !== "concedido" && (
+                    <button
+                      type="button"
+                      onClick={() => decidir("concedido")}
+                      className="rounded border border-[var(--border)] px-3 py-1.5 text-xs"
+                    >
+                      {tx("Aceptar las cookies de publicidad")}
+                    </button>
+                  )}
+                  {decision !== "sin-decidir" && (
+                    <button
+                      type="button"
+                      onClick={olvidarLaDecision}
+                      className="rounded border border-[var(--border)] px-3 py-1.5 text-xs text-[var(--muted)]"
+                    >
+                      {tx("Volver a preguntarme")}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </>
         ) : (
           <p>
