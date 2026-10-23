@@ -238,7 +238,13 @@ export function WelcomePage() {
             politica de privacidad alcanzable, y el rastreador de anuncios
             llega hasta aqui porque esta pantalla es de las pocas publicas.
             `a` y no `Link` por la misma razon que el boton de apoyo. */}
-        <div className="mt-6 flex justify-center gap-4 text-xs text-[var(--muted)]">
+        {/* LA GUIA VA PRIMERO, y no es cosmetica: es el unico contenido que
+            alguien puede leer sin conectar su club, y hasta hoy no habia
+            forma de llegar a el desde fuera. */}
+        <div className="mt-6 flex flex-wrap justify-center gap-4 text-xs text-[var(--muted)]">
+          <a href="/guia" className="hover:text-[var(--text)]">
+            {tx("Cómo funciona HT Lens")}
+          </a>
           <a href="/privacidad" className="hover:text-[var(--text)]">
             {tx("Privacidad y cookies")}
           </a>

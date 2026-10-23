@@ -96,6 +96,12 @@ export const HUECOS: HuecoDeAnuncio[] = [
     donde: "Bajo la presentación, en la pantalla pública de bienvenida.",
     slot: import.meta.env.VITE_ADSENSE_SLOT_BIENVENIDA ?? "",
   },
+  {
+    id: "guia",
+    donde:
+      "Al pie de la Guía pública, que es la única pantalla abierta con contenido largo.",
+    slot: import.meta.env.VITE_ADSENSE_SLOT_GUIA ?? "",
+  },
 ];
 
 export const huecoPorId = (id: string): HuecoDeAnuncio | undefined =>

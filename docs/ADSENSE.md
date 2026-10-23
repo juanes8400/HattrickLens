@@ -98,14 +98,30 @@ Fuente: [AdSense: CMP certificada](https://support.google.com/adsense/answer/135
 
 ---
 
-## 4. El muro de login
+## 4. El muro de login, y el contenido público
 
-Casi toda la aplicación está detrás del OAuth de Hattrick, así que el
-rastreador de anuncios sólo ve la bienvenida, `/apoyar` y las páginas legales.
+Casi toda la aplicación está detrás del OAuth de Hattrick. **No descalifica**:
+Google documenta un *crawler login* para enseñar anuncios en páginas
+protegidas, y hay que configurarlo en la cuenta.
 
-**No descalifica**: Google documenta un *crawler login* para enseñar anuncios
-en páginas protegidas, y hay que configurarlo en la cuenta. Pero más contenido
-público ayudaría a la aprobación — hoy es poco.
+Pero la falta de contenido propio sí es la causa más común de rechazo, y era
+la nuestra: el rastreador veía una pantalla de «conecta tu club» y dos páginas
+legales. **Resuelto el 2026-10-23 abriendo la Wiki en `/guia`**: mil
+ochocientas líneas que explican mecánicas de Hattrick y cómo calcula HT Lens,
+sin pedir sesión. Medido en el navegador: **57.681 caracteres de texto y 39
+encabezados**.
+
+`/wiki` --la de dentro, con barra lateral-- no se tocó. Misma materia, dos
+públicos, y cero riesgo para lo que ya funcionaba.
+
+Lo público queda así, todo enlazado desde la bienvenida:
+
+| ruta | qué es |
+|---|---|
+| `/welcome` | la entrada |
+| `/guia` | la Wiki en abierto, el contenido largo |
+| `/privacidad` y `/cookies` | las legales |
+| `/apoyar` | las formas de apoyar |
 
 Fuente: [AdSense: rastreador bloqueado por login](https://support.google.com/adsense/answer/10035)
 
@@ -117,7 +133,8 @@ Cuando estén resueltos 1 a 4, en el entorno de Render:
 
 ```
 VITE_ADSENSE_CLIENT=ca-pub-0000000000000000   # el tuyo, 16 dígitos
-VITE_ADSENSE_SLOT_BIENVENIDA=0000000000       # el del hueco, desde AdSense
+VITE_ADSENSE_SLOT_BIENVENIDA=0000000000       # el hueco de la bienvenida
+VITE_ADSENSE_SLOT_GUIA=0000000000             # el hueco de la Guía
 VITE_ADSENSE_CMP=google                       # si usas la CMP de Google
 ```
 

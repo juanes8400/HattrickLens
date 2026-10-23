@@ -43,6 +43,7 @@ const PositionsPage = diferida(
 );
 const SkillsPage = diferida(() => import("./pages/SkillsPage"), "SkillsPage");
 const WikiPage = diferida(() => import("./pages/WikiPage"), "WikiPage");
+const GuiaPage = diferida(() => import("./pages/GuiaPage"), "GuiaPage");
 const LineupPage = diferida(() => import("./pages/LineupPage"), "LineupPage");
 const TrainingPage = diferida(
   () => import("./pages/TrainingPage"),
@@ -153,6 +154,11 @@ export function App() {
             haya conectado su club. Dos rutas para la misma pagina porque
             «/cookies» es el enlace que la gente busca y «/privacidad» el que
             piden las politicas. */}
+        {/* LA GUIA, EN ABIERTO. Es el unico contenido largo que un visitante
+            --o el rastreador de anuncios, que nunca inicia sesion-- puede
+            leer sin conectar su club. `/wiki`, la de dentro, se queda como
+            estaba: misma materia, dos publicos. */}
+        <Route path="guia" element={<GuiaPage />} />
         <Route path="privacidad" element={<PrivacidadPage />} />
         <Route path="cookies" element={<PrivacidadPage />} />
         {/* FUERA del guardián a propósito. La bienvenida invita a apoyar, y
