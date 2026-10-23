@@ -15,6 +15,8 @@ import { SetupPage } from "./pages/SetupPage";
 import { arrancarTelemetria, verPagina } from "./services/telemetria";
 import { hasActiveTeam, useDashboard } from "./hooks/useTeam";
 import { ErrorState, Loading } from "./components/Panels";
+import { BarraDeConsentimiento } from "./components/Consentimiento";
+import { PrivacidadPage } from "./pages/PrivacidadPage";
 
 /** Una pantalla que se descarga al abrirla, no al entrar en la app.
  *
@@ -145,6 +147,14 @@ export function App() {
       <Routes>
         <Route path="connected" element={<ConnectedPage />} />
         <Route path="welcome" element={<WelcomePage />} />
+        {/* PUBLICAS Y SIN GUARDIAN, a proposito. Las lee el rastreador de
+            anuncios --que nunca inicia sesion-- y tienen que poder
+            alcanzarse desde la barra de cookies, que sale antes de que nadie
+            haya conectado su club. Dos rutas para la misma pagina porque
+            «/cookies» es el enlace que la gente busca y «/privacidad» el que
+            piden las politicas. */}
+        <Route path="privacidad" element={<PrivacidadPage />} />
+        <Route path="cookies" element={<PrivacidadPage />} />
         {/* FUERA del guardián a propósito. La bienvenida invita a apoyar, y
             con esta ruta protegida ese enlace devolvía a la bienvenida: un
             enlace muerto en la primera pantalla que ve alguien. Quien todavía
@@ -400,6 +410,10 @@ export function App() {
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Route>
       </Routes>
+      {/* FUERA de <Routes>: la pregunta por las cookies no es de una
+          pantalla, es del sitio. No pinta nada si no hay publicidad
+          configurada o si ya esta decidido. */}
+      <BarraDeConsentimiento />
     </>
   );
 }

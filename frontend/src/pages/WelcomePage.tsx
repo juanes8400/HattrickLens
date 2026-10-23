@@ -8,6 +8,8 @@ import { SelectorDeIdioma } from "../components/SelectorDeIdioma";
 import { setActiveTeamId, useSessionProfile } from "../hooks/useTeam";
 import { ImagenOpcional, SELLO_PROVEEDOR } from "../components/ImagenOpcional";
 import { hayApoyo } from "../config/apoyo";
+import { Anuncio } from "../components/Anuncio";
+import { tx } from "../i18n/tx";
 
 function messageFor(error: unknown): string {
   if (error instanceof ApiError) {
@@ -231,6 +233,21 @@ export function WelcomePage() {
             className="h-14 w-auto object-contain"
           />
         </div>
+
+        {/* EL PIE LEGAL, y no es decoracion: AdSense no acepta un sitio sin
+            politica de privacidad alcanzable, y el rastreador de anuncios
+            llega hasta aqui porque esta pantalla es de las pocas publicas.
+            `a` y no `Link` por la misma razon que el boton de apoyo. */}
+        <div className="mt-6 flex justify-center gap-4 text-xs text-[var(--muted)]">
+          <a href="/privacidad" className="hover:text-[var(--text)]">
+            {tx("Privacidad y cookies")}
+          </a>
+        </div>
+
+        {/* El anuncio, DEBAJO del contenido y nunca encima: lo primero que
+            tiene que ver quien llega es para que sirve esto. No pinta nada
+            si no hay publicidad configurada o no se ha consentido. */}
+        <Anuncio hueco="bienvenida" className="mt-6" />
       </section>
     </main>
   );

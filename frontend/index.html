@@ -5,6 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HT Lens</title>
     <!--
+      La descripción, para quien no ha entrado todavía: buscadores, el
+      rastreador de anuncios y las tarjetas que pintan WhatsApp o Discord
+      cuando alguien comparte el enlace. Sin esto, lo que se veía era la URL
+      pelada.
+    -->
+    <meta
+      name="description"
+      content="HT Lens es un cuadro de mando para managers de Hattrick: entrenamiento, plantilla, alineación, finanzas y precio de mercado por ventas comparables."
+    />
+    <!--
       El icono de la pestaña. Sin esto el navegador pintaba un globo genérico
       y HT Lens no se distinguía de las otras veinte pestañas abiertas.
 
@@ -31,6 +41,39 @@
       } catch (e) {
         /* Sin almacenamiento: se sigue al sistema. */
       }
+    </script>
+    <!--
+      MODO DE CONSENTIMIENTO v2 de Google, con TODO DENEGADO de entrada.
+
+      Va aquí, en el HTML, y no en React: estas señales tienen que estar
+      puestas ANTES de que cargue cualquier script de Google. Si llegaran
+      después, el primer instante de la visita contaría como consentido, que
+      es justo lo que la norma prohíbe.
+
+      Desde el 16-01-2024 Google exige a sus editores una plataforma de
+      consentimiento CERTIFICADA para el tráfico del EEE y el Reino Unido
+      --Suiza desde el 31-07-2024--; sin ella sólo sirve «anuncios limitados».
+      Este bloque es el cimiento, el estado denegado por defecto, NO la
+      plataforma: la certificada se enchufa encima y es quien debe conceder.
+
+      El script de AdSense NO se carga aquí a propósito. Lo carga el
+      componente del hueco, y sólo cuando hay cliente configurado Y
+      consentimiento, para que un despliegue sin publicidad no traiga ni un
+      byte ajeno.
+    -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        window.dataLayer.push(arguments);
+      }
+      window.gtag = gtag;
+      gtag("consent", "default", {
+        ad_storage: "denied",
+        ad_user_data: "denied",
+        ad_personalization: "denied",
+        analytics_storage: "denied",
+        wait_for_update: 500,
+      });
     </script>
   </head>
   <body>
