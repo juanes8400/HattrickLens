@@ -127,6 +127,26 @@ Fuente: [AdSense: rastreador bloqueado por login](https://support.google.com/ads
 
 ---
 
+## 4 bis. Los tres ficheros de la raíz, generados
+
+`ads.txt`, `robots.txt` y `sitemap.xml` los escribe el build, no viven en
+`public/`. El motivo es el mismo en los tres: **sólo valen si llevan un dato
+real**, y un dato de ejemplo hace daño en silencio.
+
+| sin configurar | con `VITE_SITIO_URL` / `VITE_ADSENSE_CLIENT` |
+|---|---|
+| `robots.txt` sin línea `Sitemap:` | con ella, apuntando al dominio |
+| sin `sitemap.xml` | las cuatro rutas públicas |
+| sin `ads.txt` | `google.com, pub-…, DIRECT, f08c47fec0942fa0` |
+
+Un `ads.txt` con un identificador de ejemplo le dice a Google que **nadie está
+autorizado a vender este inventario**, y deja de servir anuncios sin romper
+nada visible. Y un `Sitemap:` que apunte a un dominio equivocado manda al
+rastreador a leer otra cosa. Por eso: o el dato real, o nada.
+
+**Si se abre una pantalla pública nueva**, va en `PUBLICAS` de
+`vite.config.ts`. Si no, no la encuentra nadie.
+
 ## 5. Encenderlo
 
 Cuando estén resueltos 1 a 4, en el entorno de Render:
@@ -136,6 +156,7 @@ VITE_ADSENSE_CLIENT=ca-pub-0000000000000000   # el tuyo, 16 dígitos
 VITE_ADSENSE_SLOT_BIENVENIDA=0000000000       # el hueco de la bienvenida
 VITE_ADSENSE_SLOT_GUIA=0000000000             # el hueco de la Guía
 VITE_ADSENSE_CMP=google                       # si usas la CMP de Google
+VITE_SITIO_URL=https://tu-dominio.com         # sin barra final: robots y sitemap
 ```
 
 `ads.txt` se genera solo en el build, con el prefijo correcto (`pub-`, no
@@ -154,8 +175,9 @@ nada visible.
 | `frontend/src/components/Anuncio.tsx` | el hueco |
 | `frontend/src/pages/PrivacidadPage.tsx` | `/privacidad` y `/cookies` |
 | `frontend/index.html` | los `denied` por defecto, antes que nada |
-| `frontend/vite.config.ts` | genera `ads.txt` |
-| `frontend/public/robots.txt` | sin bloqueos |
+| `frontend/vite.config.ts` | genera `ads.txt`, `robots.txt` y `sitemap.xml` |
+| `frontend/src/config/consentimiento.test.ts` | 11 pruebas de la regla que no puede romperse |
+| `frontend/src/components/Anuncio.test.tsx` | 6 pruebas de que sin configurar no se pinta nada |
 
 ## 7. Añadir un hueco nuevo
 

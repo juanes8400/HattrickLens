@@ -39,6 +39,67 @@ function commit(): string {
  *  OJO CON EL PREFIJO: en el código el cliente va como `ca-pub-…` y en
  *  `ads.txt` va como `pub-…`. Es la fuente de error más tonta de todo esto.
  */
+/** Las paginas que un visitante --o un rastreador-- puede ver sin sesion.
+ *
+ *  Es la lista entera de lo publico. Si se abre una pantalla mas, va aqui, y
+ *  si no, no la encuentra nadie.
+ */
+const PUBLICAS = ["/welcome", "/guia", "/privacidad", "/apoyar"];
+
+/** Escribe `robots.txt` y, si se sabe el dominio, `sitemap.xml`.
+ *
+ *  GENERADOS Y NO ESTATICOS por lo mismo que `ads.txt`: la linea `Sitemap:`
+ *  pide una URL ABSOLUTA, y un sitemap que apunte a un dominio equivocado es
+ *  peor que no tenerlo --manda al rastreador a leer otra cosa--. Con el
+ *  dominio en el entorno hay una sola fuente de verdad.
+ *
+ *  SIN `VITE_SITIO_URL` sale un `robots.txt` sin linea de sitemap y ningun
+ *  `sitemap.xml`. Es lo correcto mientras el sitio viva en un subdominio
+ *  prestado: no se afirma una direccion que no es nuestra.
+ *
+ *  NO SE BLOQUEA NADA. Lo privado ya lo protege la sesion, y una regla de mas
+ *  solo serviria para que el rastreador de anuncios no pudiera revisar lo que
+ *  SI es publico, que es lo que necesita para aprobar el sitio.
+ */
+function robotsYSitemap(sitio: string): Plugin {
+  const raiz = sitio.trim().replace(/\/+$/, "");
+  return {
+    name: "htlens-robots-sitemap",
+    apply: "build",
+    generateBundle() {
+      const lineas = [
+        "# HT Lens",
+        "User-agent: *",
+        "Allow: /",
+        "",
+        "# Mediapartners-Google es el rastreador de AdSense. Se nombra aparte",
+        "# para dejar dicho que su acceso es deliberado y no un descuido.",
+        "User-agent: Mediapartners-Google",
+        "Allow: /",
+      ];
+      if (/^https?:\/\/[^/]+$/.test(raiz)) {
+        lineas.push("", `Sitemap: ${raiz}/sitemap.xml`);
+        this.emitFile({
+          type: "asset",
+          fileName: "sitemap.xml",
+          source: [
+            `<?xml version="1.0" encoding="UTF-8"?>`,
+            `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`,
+            ...PUBLICAS.map((r) => `  <url><loc>${raiz}${r}</loc></url>`),
+            `</urlset>`,
+            "",
+          ].join("\n"),
+        });
+      }
+      this.emitFile({
+        type: "asset",
+        fileName: "robots.txt",
+        source: lineas.join("\n") + "\n",
+      });
+    },
+  };
+}
+
 function adsTxt(cliente: string): Plugin {
   return {
     name: "htlens-ads-txt",
@@ -60,7 +121,11 @@ function adsTxt(cliente: string): Plugin {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "VITE_");
   return {
-    plugins: [react(), adsTxt(env.VITE_ADSENSE_CLIENT ?? "")],
+    plugins: [
+      react(),
+      adsTxt(env.VITE_ADSENSE_CLIENT ?? ""),
+      robotsYSitemap(env.VITE_SITIO_URL ?? ""),
+    ],
     define: {
       __VERSION__: JSON.stringify(paquete.version),
       __COMMIT__: JSON.stringify(commit()),

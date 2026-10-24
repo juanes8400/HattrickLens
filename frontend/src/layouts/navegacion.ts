@@ -94,6 +94,14 @@ const FUERA_DEL_MENU: Record<string, { label: string; clave: string }> = {
   "/welcome": { label: "Conectar tu club", clave: "conectar" },
   "/setup": { label: "Configuración de tu club", clave: "configuracion" },
   "/connected": { label: "Club conectado", clave: "conectado" },
+  // LAS PUBLICAS. Sin su titulo salian todas como «HT Lens» a secas, y el
+  // titulo es lo primero que lee un buscador --y el rastreador de anuncios--
+  // de una pagina. Son las unicas que alguien puede encontrar sin tener
+  // cuenta, asi que es justo donde mas importaba (2026-10-23).
+  "/guia": { label: "Cómo funciona HT Lens", clave: "guia" },
+  "/privacidad": { label: "Privacidad y cookies", clave: "privacidad" },
+  "/cookies": { label: "Privacidad y cookies", clave: "privacidad" },
+  "/apoyar": { label: "Apoyar el proyecto", clave: "apoyar" },
 };
 
 export function tituloDeRuta(pathname: string): string {
