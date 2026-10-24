@@ -115,6 +115,29 @@ const VISTAS_DEL_MAPA = [
 ] as const;
 type VistaDelMapa = (typeof VISTAS_DEL_MAPA)[number]["key"];
 
+/** Las tres partes de «Personas», cada una en su pestaña.
+ *
+ *  2026-10-24, pedido del usuario. La sección había crecido a cuatro bloques
+ *  apilados --las cifras, la serie, un mapa del mundo y una tabla de nueve
+ *  columnas-- y eso es mucho scroll para llegar a lo último. Son tres
+ *  preguntas distintas y ninguna necesita a las otras en pantalla:
+ *
+ *    En el tiempo  · ¿cuánta gente hay, y crece?
+ *    De dónde      · ¿a qué países llegó esto?
+ *    Quién usa qué · ¿qué hace cada uno?
+ *
+ *  Las cifras de arriba NO entran en el reparto: son el resumen de la sección
+ *  entera --cuánta gente activa, cuánta registrada, cuánta no ha vuelto-- y
+ *  esconderlas detrás de una pestaña obligaría a elegir una vista para saber
+ *  cuánta gente hay, que es lo primero que se viene a mirar.
+ */
+const PARTES_DE_PERSONAS = [
+  { key: "tiempo", label: tx("En el tiempo") },
+  { key: "donde", label: tx("De dónde") },
+  { key: "quien", label: tx("Quién usa qué") },
+] as const;
+type ParteDePersonas = (typeof PARTES_DE_PERSONAS)[number]["key"];
+
 const SECCIONES = [
   { key: "resumen", label: tx("Resumen") },
   { key: "personas", label: tx("Personas") },
@@ -446,6 +469,10 @@ function Personas({
     "uso.mapa.vista",
     "users",
   );
+  const [parte, setParte] = usePersistido<ParteDePersonas>(
+    "uso.personas.parte",
+    "tiempo",
+  );
   const paisDe = useMemo(
     () =>
       Object.fromEntries(
@@ -505,94 +532,110 @@ function Personas({
         />
       </div>
 
-      {/* Antes del mapa a propósito: «cuánta gente hay y si crece» es la
-          pregunta de la sección, y «de dónde es» la de después. */}
-      <PersonasEnElTiempo series={data.overTime} />
+      <Tabs
+        tabs={[...PARTES_DE_PERSONAS]}
+        active={parte}
+        onChange={setParte}
+        grupo="uso-personas"
+        label={tx("Partes de Personas")}
+      />
 
-      <Suspense
-        fallback={
-          <p className="text-sm text-[var(--muted)]">{tx("Cargando…")}</p>
-        }
+      <PanelDePestanas
+        grupo="uso-personas"
+        activa={parte}
+        className="space-y-4"
       >
-        {vista === "vivo" ? (
-          <MapaEnVivo
-            paisDe={paisDe}
-            dias={dias}
-            excluirme={excluirme}
-            selector={selectorDeMapa}
-          />
-        ) : (
-          <MapaDeUso
-            paises={data.byCountry}
-            magnitud={vista}
-            selector={selectorDeMapa}
-          />
+        {parte === "tiempo" && <PersonasEnElTiempo series={data.overTime} />}
+
+        {parte === "donde" && (
+          <Suspense
+            fallback={
+              <p className="text-sm text-[var(--muted)]">{tx("Cargando…")}</p>
+            }
+          >
+            {vista === "vivo" ? (
+              <MapaEnVivo
+                paisDe={paisDe}
+                dias={dias}
+                excluirme={excluirme}
+                selector={selectorDeMapa}
+              />
+            ) : (
+              <MapaDeUso
+                paises={data.byCountry}
+                magnitud={vista}
+                selector={selectorDeMapa}
+              />
+            )}
+          </Suspense>
         )}
-      </Suspense>
 
-      <Panel
-        title={tx("Quién usa qué")}
-        meta={tx("pulsa una fila para ver su desglose por pantalla")}
-      >
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-[var(--surface-2)]">
-              <tr>
-                <th scope="col" className={`${th} text-left`}>
-                  {tx("Persona")}
-                </th>
-                <th scope="col" className={`${th} text-right`}>
-                  {tx("Sesiones")}
-                </th>
-                <th
-                  scope="col"
-                  className={`${th} text-right`}
-                  title={tx("días distintos con actividad, no visitas")}
-                >
-                  {tx("Días activos")}
-                </th>
-                <th scope="col" className={`${th} text-right`}>
-                  {tx("Páginas")}
-                </th>
-                <th scope="col" className={`${th} text-right`}>
-                  {tx("Clics")}
-                </th>
-                <th
-                  scope="col"
-                  className={`${th} text-right`}
-                  title={tx(
-                    "mirar o trabajar: cuántas cosas toca cada vez que entra",
-                  )}
-                >
-                  {tx("Clics/página")}
-                </th>
-                <th scope="col" className={`${th} text-right`}>
-                  {tx("Tiempo")}
-                </th>
-                <th scope="col" className={`${th} text-left`}>
-                  {tx("Donde vive")}
-                </th>
-                <th scope="col" className={`${th} text-left`}>
-                  {tx("Última vez")}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.byUser.map((u) => (
-                <FilaDePersona
-                  key={u.userId}
-                  u={u}
-                  abierta={abierta === u.userId}
-                  alAbrir={() =>
-                    setAbierta(abierta === u.userId ? null : u.userId)
-                  }
-                  maxMinutos={maxMinutos}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
+        {parte === "quien" && (
+          <Panel
+            title={tx("Quién usa qué")}
+            meta={tx("pulsa una fila para ver su desglose por pantalla")}
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-[var(--surface-2)]">
+                  <tr>
+                    <th scope="col" className={`${th} text-left`}>
+                      {tx("Persona")}
+                    </th>
+                    <th scope="col" className={`${th} text-right`}>
+                      {tx("Sesiones")}
+                    </th>
+                    <th
+                      scope="col"
+                      className={`${th} text-right`}
+                      title={tx("días distintos con actividad, no visitas")}
+                    >
+                      {tx("Días activos")}
+                    </th>
+                    <th scope="col" className={`${th} text-right`}>
+                      {tx("Páginas")}
+                    </th>
+                    <th scope="col" className={`${th} text-right`}>
+                      {tx("Clics")}
+                    </th>
+                    <th
+                      scope="col"
+                      className={`${th} text-right`}
+                      title={tx(
+                        "mirar o trabajar: cuántas cosas toca cada vez que entra",
+                      )}
+                    >
+                      {tx("Clics/página")}
+                    </th>
+                    <th scope="col" className={`${th} text-right`}>
+                      {tx("Tiempo")}
+                    </th>
+                    <th scope="col" className={`${th} text-left`}>
+                      {tx("Donde vive")}
+                    </th>
+                    <th scope="col" className={`${th} text-left`}>
+                      {tx("Última vez")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.byUser.map((u) => (
+                    <FilaDePersona
+                      key={u.userId}
+                      u={u}
+                      abierta={abierta === u.userId}
+                      alAbrir={() =>
+                        setAbierta(abierta === u.userId ? null : u.userId)
+                      }
+                      maxMinutos={maxMinutos}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        )}
+      </PanelDePestanas>
     </>
   );
 }
