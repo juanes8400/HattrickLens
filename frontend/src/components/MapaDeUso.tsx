@@ -9,6 +9,13 @@ import { CountryFlag } from "./CountryFlag";
 import { Panel } from "./Panels";
 import { nombreDePais } from "../utils/countryCodes";
 import { cifra } from "../hooks/useFormat";
+import {
+  leyendaDe,
+  pasoDeColor,
+  tono,
+  valorDe,
+} from "../utils/mapaDeUso";
+import type { Magnitud, UsoPorPais } from "../utils/mapaDeUso";
 import { usePersistido } from "../hooks/usePersistido";
 import { tx } from "../i18n/tx";
 
@@ -32,76 +39,17 @@ import { tx } from "../i18n/tx";
  *  cambia lo que colorea. Lo que cambió es cuál sale al entrar.
  */
 
-export interface UsoPorPais {
-  code: string;
-  name: string;
-  users: number;
-  sessions: number;
-  pages: number;
-  clicks: number;
-  minutes: number;
-}
+/** Se reexporta para que quien ya importaba el tipo de aquí siga igual; la
+ *  aritmética del color vive en `utils/mapaDeUso`, donde se puede probar sin
+ *  montar un mapa del mundo. */
+export type { UsoPorPais } from "../utils/mapaDeUso";
 
-/** Los cinco tonos del mapa: UN solo color, de claro a oscuro.
- *
- *  Una escala de magnitud no se pinta con colores distintos --eso dice
- *  «categorías», no «más y menos»--, así que son cinco mezclas del acento de la
- *  aplicación sobre el fondo. Se escriben con `color-mix` para que el tema
- *  oscuro salga solo: el acento y el fondo ya cambian con él.
- */
-const TONOS = [20, 38, 56, 74, 92] as const;
-const tono = (paso: number) =>
-  `color-mix(in srgb, var(--accent) ${TONOS[paso]}%, var(--surface-2))`;
-
-/** Qué colorea el mapa. PERSONAS por defecto, desde el 2026-10-23.
- *
- *  Las dos lecturas contestan preguntas distintas y ninguna sobra: «personas»
- *  dice a cuántos países llegó esto, y «clics» cuáles trabajan dentro. Lo que
- *  no se puede es pintarlas a la vez.
- */
+/** Las dos lecturas, con su rótulo. Los rótulos se quedan aquí --y no en el
+ *  módulo de aritmética-- porque son texto de pantalla, no cuentas. */
 const MAGNITUDES = [
   { key: "users", label: tx("Personas") },
   { key: "clicks", label: tx("Clics") },
 ] as const;
-type Magnitud = (typeof MAGNITUDES)[number]["key"];
-
-const valorDe = (p: UsoPorPais, cual: Magnitud): number =>
-  cual === "users" ? p.users : p.clicks;
-
-/** En qué tono cae un país.
- *
- *  Sobre la RAÍZ del valor, no sobre el valor. El reparto está siempre muy
- *  torcido --el país del autor multiplica por diez al segundo-- y en escala
- *  lineal todo lo demás cae en el primer tono y el mapa queda en blanco y
- *  negro, que es no decir nada.
- */
-function pasoDeColor(valor: number, maximo: number): number {
-  if (maximo <= 0 || valor <= 0) return 0;
-  const parte = Math.sqrt(valor) / Math.sqrt(maximo);
-  return Math.min(TONOS.length - 1, Math.floor(parte * TONOS.length));
-}
-
-/** La leyenda, construida DESDE LOS DATOS: un renglón por tono que de verdad
- *  sale en el mapa, rotulado con el valor más bajo que cae en él.
- *
- *  Antes se invertía la fórmula del color para sacar el corte de cada tono, y
- *  eso se rompía en cuanto el máximo era pequeño --que es justo lo que pasa al
- *  colorear por PERSONAS--. Con cinco países y cinco tonos salían dos
- *  etiquetas «1+» iguales y dos tonos que no aparecían en ningún sitio: una
- *  leyenda que explica colores que no están y no distingue los que sí.
- *
- *  Leyéndola de los datos no hay forma de que discrepe del dibujo.
- */
-function leyendaDe(paises: UsoPorPais[], cual: Magnitud, maximo: number) {
-  const minimoDel: Map<number, number> = new Map();
-  for (const p of paises) {
-    const v = valorDe(p, cual);
-    const paso = pasoDeColor(v, maximo);
-    const ya = minimoDel.get(paso);
-    if (ya === undefined || v < ya) minimoDel.set(paso, v);
-  }
-  return [...minimoDel.entries()].sort((a, b) => a[0] - b[0]);
-}
 
 export function MapaDeUso({ paises }: { paises: UsoPorPais[] }) {
   const [encima, setEncima] = useState<string | null>(null);

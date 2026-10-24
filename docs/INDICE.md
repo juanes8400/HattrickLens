@@ -51,10 +51,10 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1533 | 16413 | jugadores, player_balance, precio_comparable, jugadores | 15 | 41 |
 | `/positions` | [PositionsPage.tsx](../frontend/src/pages/PositionsPage.tsx) | 349 | 4184 | plantilla | 3 | 14 |
 | `/lineup` | [LineupPage.tsx](../frontend/src/pages/LineupPage.tsx) | 825 | 7010 | alineacion, plantilla | 8 | 19 |
-| `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 2064 | 13748 | entrenamiento, jugadores, club | 10 | 33 |
+| `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 2138 | 13822 | entrenamiento, jugadores, club | 10 | 33 |
 | `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3245 | 11971 | player_balance, jugadores, plantilla | 8 | 25 |
 | `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1195 | libro | 0 | 1 |
-| `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4020 | 15508 | academy | 12 | 27 |
+| `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4020 | 15518 | academy | 12 | 27 |
 | `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 684 | 5772 | matches | 4 | 12 |
 | `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1600 | 16908 | league | 13 | 63 |
 | `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1082 | 16524 | cup, rivals | 16 | 70 |
@@ -67,7 +67,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 868 | 13207 | player_balance, cambios, partidos, plantilla | 10 | 35 |
 | `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 980 | 13923 | entrenamiento, modelos, modelos | 14 | 28 |
 | `/wiki` | [WikiPage.tsx](../frontend/src/pages/WikiPage.tsx) | 171 | - | - | 0 | 0 |
-| `/uso` | [UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) | 1024 | 3366 | uso | 1 | 4 |
+| `/uso` | [UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) | 1061 | 3413 | uso | 1 | 5 |
 | `/autor` | [AutorPage.tsx](../frontend/src/pages/AutorPage.tsx) | 331 | - | - | 0 | 0 |
 | `/*` | [frontend/src/components/Consentimiento.tsx](../frontend/src/components/Consentimiento.tsx) | 77 | - | - | 0 | 0 |
 
@@ -447,7 +447,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/training`
 
-- **Página:** [frontend/src/pages/TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) (2064 líneas)
+- **Página:** [frontend/src/pages/TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) (2138 líneas)
 - **Componentes y hooks suyos (21):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
@@ -862,7 +862,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/uso`
 
-- **Página:** [frontend/src/pages/UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) (1024 líneas)
+- **Página:** [frontend/src/pages/UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) (1061 líneas)
 - **Componentes y hooks suyos (10):**
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/CountryFlag.tsx](../frontend/src/components/CountryFlag.tsx)
@@ -879,7 +879,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 - **Rutas HTTP:** `/usage`, `/usage/log`
 - **Endpoints:** [backend/app/api/v1/endpoints/uso.py](../backend/app/api/v1/endpoints/uso.py)
 - **Dominio:** `app.domain.engines` (23 rutas)
-- **Tests (4):** `tests/test_uso_endpoint.py`, `tests/test_uso_por_pais.py`, `tests/test_uso_por_usuario.py`, `tests/test_uso_registro.py`
+- **Tests (5):** `tests/test_uso_en_el_tiempo.py`, `tests/test_uso_endpoint.py`, `tests/test_uso_por_pais.py`, `tests/test_uso_por_usuario.py`, `tests/test_uso_registro.py`
 
 ### `/autor`
 
@@ -917,7 +917,7 @@ ello, y correr los tests generales enteros.
 - `app.infrastructure.db.session`
 - `app.infrastructure.security.jwt`
 
-**Tests que cubren esa parte compartida (71):** correrlos al tocarla.
+**Tests que cubren esa parte compartida (72):** correrlos al tocarla.
 
 ## Qué conviene partir
 

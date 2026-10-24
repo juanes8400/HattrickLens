@@ -1,5 +1,5 @@
 import { dateTime, cifra } from "../hooks/useFormat";
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useMemo, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ErrorState, Panel } from "../components/Panels";
 import { PanelDePestanas, Tabs } from "../components/Tabs";
@@ -37,6 +37,12 @@ import { tx } from "../i18n/tx";
  *  mirar el resumen y no pasa de ahí. */
 const MapaDeUso = lazy(() =>
   import("../components/MapaDeUso").then((m) => ({ default: m.MapaDeUso })),
+);
+
+/** El de los destellos viaja aparte igual, y comparte el trozo de las
+ *  siluetas con el de arriba: el navegador lo descarga una vez. */
+const MapaEnVivo = lazy(() =>
+  import("../components/MapaEnVivo").then((m) => ({ default: m.MapaEnVivo })),
 );
 
 function duracion(segundos: number): string {
@@ -194,7 +200,9 @@ export function UsagePage() {
           />
           <PanelDePestanas grupo="uso" activa={seccion} className="space-y-4">
             {seccion === "resumen" && <Resumen data={data} />}
-            {seccion === "personas" && <Personas data={data} />}
+            {seccion === "personas" && (
+              <Personas data={data} dias={dias} excluirme={excluirme} />
+            )}
             {seccion === "adopcion" && <Adopcion data={data} />}
             {seccion === "registro" && (
               <Registro dias={dias} excluirme={excluirme} />
@@ -398,10 +406,31 @@ function Resumen({ data }: { data: UsageSummary }) {
 
 // ── Personas ───────────────────────────────────────────────────────────────
 
-function Personas({ data }: { data: UsageSummary }) {
+function Personas({
+  data,
+  dias,
+  excluirme,
+}: {
+  data: UsageSummary;
+  dias: number;
+  excluirme: boolean;
+}) {
   const [abierta, setAbierta] = useState<number | null>(null);
   const maxMinutos = Math.max(...data.byUser.map((u) => u.minutes), 1);
   const callados = data.registeredUsers - data.activeUsers;
+  // El país de cada persona, para el mapa de destellos. Se arma de `byUser`,
+  // que ya lo trae: el registro crudo sólo da el id, y pedir los países otra
+  // vez sería una consulta para nada.
+  const paisDe = useMemo(
+    () =>
+      Object.fromEntries(
+        data.byUser.map((u) => [
+          u.userId,
+          { code: u.countryCode, name: u.countryName },
+        ]),
+      ),
+    [data.byUser],
+  );
 
   return (
     <>
@@ -434,6 +463,14 @@ function Personas({ data }: { data: UsageSummary }) {
         }
       >
         <MapaDeUso paises={data.byCountry} />
+      </Suspense>
+
+      <Suspense
+        fallback={
+          <p className="text-sm text-[var(--muted)]">{tx("Cargando…")}</p>
+        }
+      >
+        <MapaEnVivo paisDe={paisDe} dias={dias} excluirme={excluirme} />
       </Suspense>
 
       <Panel

@@ -39,11 +39,21 @@ export function usePersistido<T>(clave: string, porDefecto: T) {
  *  El `catch` no es paranoia: basta con que alguien haya guardado texto plano
  *  bajo esa clave en una versión anterior para que `JSON.parse` reviente, y
  *  reventar al arrancar por un ajuste es peor que ignorarlo.
+ *
+ *  2026-10-23: LA LECTURA TAMBIÉN VA DENTRO DEL `try`. Estaba fuera, y era el
+ *  mismo fallo que ya se arregló abajo para `setItem` --«en privado o con los
+ *  datos del sitio bloqueados, guardar lanza»-- dejado a medias: leer lanza
+ *  exactamente igual, y `localStorage` no existe en absoluto fuera del
+ *  navegador. Y esta mitad era la peor de las dos: el `setItem` vive en un
+ *  efecto, que falla después de pintar, mientras que esto es el valor inicial
+ *  del `useState` y se ejecuta ANTES del primer render. Reventaba la pantalla
+ *  entera por un ajuste, que es justo lo que el otro `catch` existe para
+ *  evitar.
  */
 export function recordado<T>(clave: string, porDefecto: T): T {
-  const guardado = localStorage.getItem(clave);
-  if (guardado === null) return porDefecto;
   try {
+    const guardado = localStorage.getItem(clave);
+    if (guardado === null) return porDefecto;
     return JSON.parse(guardado) as T;
   } catch {
     return porDefecto;
