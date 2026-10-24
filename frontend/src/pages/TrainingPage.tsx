@@ -105,6 +105,25 @@ const dias = (n: number) =>
     : t("entrenamiento.nDias", "{{n}} días", { n: number(n) });
 
 const sinReferencia = () => t("entrenamiento.sinReferencia", "Sin referencia");
+
+/** La meta, o `null` si no hay meta que enseñar. Sin unidad: la usan las
+ *  semanas de la tabla de habilidad y los puntos de la de experiencia.
+ *
+ *  El tipo dice `number`, pero una meta sólo significa algo si es un número
+ *  finito y positivo: un cero o un `NaN` --un entrenamiento que no toca esa
+ *  habilidad, una división sin datos-- escrito como «≤ 0 sem» o «≤ NaN pts»
+ *  afirmaría algo que nadie calculó. En ese caso se vuelve al hueco honesto.
+ */
+const metaUtil = (total: number): number | null =>
+  Number.isFinite(total) && total > 0 ? total : null;
+
+/** Por qué la celda da un techo y no una medida. Es el mismo motivo en las dos
+ *  tablas, así que el texto es uno. */
+const porQueSoloElTecho = () =>
+  t(
+    "entrenamiento.sinPuntoPartidaPorque",
+    "No consta desde qué nivel empezó, así que no se puede medir lo acumulado: la meta del nivel entero es el máximo que puede faltarle.",
+  );
 const maximoAlcanzado = () =>
   t("entrenamiento.maximoAlcanzado", "Máximo alcanzado");
 
@@ -384,20 +403,44 @@ function squadColumns(): Column<TrainingSquadPlayerRow>[] {
     {
       key: "remaining",
       header: t("entrenamiento.falta", "Falta / próximo nivel"),
+      // Sin punto de partida se ordena por LA META, que es la cota de lo que
+      // puede faltar. Antes iba con `MAX_SAFE_INTEGER` y los mandaba a todos
+      // al final en bloque: con la meta a la vista en la celda, eso dejaba la
+      // columna contradiciéndose --un 5.2 escrito ordenado como infinito--.
       value: (r) =>
         r.hasReference && r.weeksElapsed != null
           ? Math.max(r.weeksTotal - r.weeksElapsed, 0)
-          : Number.MAX_SAFE_INTEGER,
+          : (metaUtil(r.weeksTotal) ?? Number.MAX_SAFE_INTEGER),
       render: (r) => {
         if (r.level >= 20)
           return (
             <span className="text-[var(--positive)]">{maximoAlcanzado()}</span>
           );
         if (!r.hasReference || r.weeksElapsed == null) {
+          // 2026-10-24, pedido del usuario: DECIR LA META. «Sin punto de
+          // partida» era verdad y era inútil: contaba lo que el servidor NO
+          // sabe --cuánto lleva acumulado-- y se callaba lo que sí sabe, que
+          // es cuánto cuesta el nivel entero. Y el número estaba ahí al lado,
+          // en «Acumulado / meta», así que la celda se quedaba muda teniéndolo
+          // a un centímetro.
+          //
+          // Va con «≤» y no a secas porque NO es lo que falta: sin saber
+          // cuánto lleva, la meta completa es el TECHO de lo que puede
+          // faltar. Escribir «5.2 sem» como si fuera una medición sería
+          // cambiar un hueco honesto por una cifra falsa.
+          const meta = metaUtil(r.weeksTotal);
           return (
-            <span className="whitespace-nowrap text-[var(--muted)]">
-              {t("entrenamiento.sinPuntoPartida", "Sin punto de partida")} ·{" "}
-              {skillLevelLabel(r.level + 1)} ({r.level + 1})
+            <span
+              className="whitespace-nowrap text-[var(--muted)]"
+              title={porQueSoloElTecho()}
+            >
+              {meta == null
+                ? t("entrenamiento.sinPuntoPartida", "Sin punto de partida")
+                : `≤ ${semanas(decimal(meta, 1))}`}
+              <span className="text-xs">
+                {" "}
+                · {skillLevelLabel(r.level + 1)} ({r.level + 1})
+              </span>
             </span>
           );
         }
@@ -489,14 +532,45 @@ function experienceColumns(): Column<TrainingExperienceRow>[] {
     {
       key: "remaining",
       header: t("entrenamiento.falta", "Falta / próximo nivel"),
-      value: (r) => r.remainingPoints ?? Number.MAX_SAFE_INTEGER,
+      // Igual que en la tabla de habilidad: sin referencia se ordena por la
+      // meta, que es la cota de lo que puede faltar, y no por infinito.
+      value: (r) =>
+        r.remainingPoints ??
+        metaUtil(r.pointsPerLevel) ??
+        Number.MAX_SAFE_INTEGER,
       render: (r) => {
         if (r.level >= 20)
           return (
             <span className="text-[var(--positive)]">{maximoAlcanzado()}</span>
           );
-        if (r.remainingPoints == null)
-          return <span className="text-[var(--muted)]">{sinReferencia()}</span>;
+        if (r.remainingPoints == null) {
+          // El mismo arreglo que en la tabla de habilidad (2026-10-24): los
+          // puntos de un nivel entero se saben siempre --salen de la fórmula,
+          // no del historial-- así que decir «Sin referencia» a secas era
+          // callarse un número que ya estaba calculado.
+          const meta = metaUtil(r.pointsPerLevel);
+          return (
+            <span
+              className="whitespace-nowrap text-[var(--muted)]"
+              title={porQueSoloElTecho()}
+            >
+              {meta == null ? (
+                sinReferencia()
+              ) : (
+                <span className="tabular-nums">
+                  {"≤ "}
+                  {t("entrenamiento.pts", "{{n}} pts", {
+                    n: decimal(meta, 1),
+                  })}
+                </span>
+              )}
+              <span className="text-xs">
+                {" "}
+                · {skillLevelLabel(r.level + 1)} ({r.level + 1})
+              </span>
+            </span>
+          );
+        }
         return (
           <span className="whitespace-nowrap tabular-nums">
             {t("entrenamiento.pts", "{{n}} pts", {

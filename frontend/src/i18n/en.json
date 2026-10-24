@@ -275,6 +275,7 @@
     "acumulado": "Accumulated / target",
     "falta": "Remaining / next level",
     "sinPuntoPartida": "No starting point",
+    "sinPuntoPartidaPorque": "There is no record of which level the training started from, so the accumulated amount cannot be measured: the whole level's target is the most that can be left.",
     "evidencia": "Evidence",
     "historialSemana": "Observed history · {{semana}}",
     "historialReal": "Real observed history",

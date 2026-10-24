@@ -414,6 +414,7 @@
     "sinPartidosObservados": "Brak zaobserwowanych meczów",
     "sinPrevision": "Brak prognozy: potrzebny jest co najmniej jeden tydzień treningu.",
     "sinPuntoPartida": "Brak punktu wyjścia",
+    "sinPuntoPartidaPorque": "Nie wiadomo, od jakiego poziomu się zaczęło, więc nie da się zmierzyć nagromadzonego postępu: cel całego poziomu to maksimum, jakie może brakowac.",
     "sinRecomendacion": "Brak zalecenia",
     "sinReferencia": "Brak odniesienia",
     "sinResistencia": "Brak zawodników do obliczenia kondycji.",

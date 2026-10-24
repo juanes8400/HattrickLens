@@ -275,6 +275,7 @@
     "acumulado": "Angesammelt / Ziel",
     "falta": "Fehlt / nächste Stufe",
     "sinPuntoPartida": "Kein Ausgangspunkt",
+    "sinPuntoPartidaPorque": "Es ist nicht erfasst, von welchem Niveau aus begonnen wurde, daher lässt sich das Angesammelte nicht messen: das Ziel der ganzen Stufe ist das Höchste, was noch fehlen kann.",
     "evidencia": "Belege",
     "historialSemana": "Beobachteter Verlauf · {{semana}}",
     "historialReal": "Echter beobachteter Verlauf",
