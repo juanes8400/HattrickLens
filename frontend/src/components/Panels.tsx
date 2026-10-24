@@ -47,6 +47,7 @@ export function Panel({
   title,
   meta,
   ayuda,
+  acciones,
   children,
 }: {
   title: string;
@@ -56,16 +57,28 @@ export function Panel({
   meta?: React.ReactNode;
   /** Un «?» junto al título que explica qué enseña el panel. */
   ayuda?: string;
+  /** Controles que cambian lo que el panel enseña, a la derecha del título.
+   *
+   *  Existe desde el 2026-10-23, para el selector del mapa y el del grano de
+   *  la serie de personas. Van en la cabecera y no sobre el contenido por dos
+   *  razones: encima de un mapa un botón tapa un país, y encima de un gráfico
+   *  se lee después de haber mirado, cuando saber qué se está pintando ya
+   *  llega tarde.
+   */
+  acciones?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section className="rounded-lg border border-[var(--border)] bg-[var(--surface)]">
-      <header className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] px-4 py-3">
         <h2 className="flex items-center gap-1.5 text-sm font-semibold">
           {title}
           {ayuda && <Ayuda texto={ayuda} />}
         </h2>
-        {meta && <span className="text-xs text-[var(--muted)]">{meta}</span>}
+        <div className="flex items-center gap-3">
+          {meta && <span className="text-xs text-[var(--muted)]">{meta}</span>}
+          {acciones}
+        </div>
       </header>
       {children}
     </section>

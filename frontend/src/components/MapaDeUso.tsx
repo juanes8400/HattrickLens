@@ -9,6 +9,7 @@ import { CountryFlag } from "./CountryFlag";
 import { Panel } from "./Panels";
 import { nombreDePais } from "../utils/countryCodes";
 import { cifra } from "../hooks/useFormat";
+import { usePersistido } from "../hooks/usePersistido";
 import { tx } from "../i18n/tx";
 
 /** De dónde es la gente y cuánto usa la aplicación, sobre el mapa.
@@ -19,10 +20,16 @@ import { tx } from "../i18n/tx";
  *  país. El país sale de la liga del club, que Hattrick ya publica; aquí no se
  *  mira de dónde viene la conexión ni se pregunta nada.
  *
- *  El color va por CLICS, que es lo que el usuario pidió: no por personas ni
- *  por tiempo. Un país con cuatro managers que abren y cierran colorea menos
- *  que uno con dos que trabajan dentro, y eso es justo la diferencia que la
- *  pantalla viene a enseñar.
+ *  2026-10-23, pedido del usuario: EL COLOR VA POR PERSONAS. Nació por clics y
+ *  la razón de entonces sigue siendo verdad --un país con cuatro managers que
+ *  abren y cierran colorea menos que uno con dos que trabajan dentro-- pero no
+ *  es la pregunta que este mapa contesta. «¿A qué países llegó HT Lens?» se
+ *  contesta con gente; con clics, el país del autor se come el mapa entero y
+ *  los demás quedan en el primer tono, porque una sola persona muy activa
+ *  acumula más clics que cinco recién llegadas.
+ *
+ *  Las dos lecturas siguen estando, porque las dos eran buenas: el selector
+ *  cambia lo que colorea. Lo que cambió es cuál sale al entrar.
  */
 
 export interface UsoPorPais {
@@ -46,34 +53,73 @@ const TONOS = [20, 38, 56, 74, 92] as const;
 const tono = (paso: number) =>
   `color-mix(in srgb, var(--accent) ${TONOS[paso]}%, var(--surface-2))`;
 
+/** Qué colorea el mapa. PERSONAS por defecto, desde el 2026-10-23.
+ *
+ *  Las dos lecturas contestan preguntas distintas y ninguna sobra: «personas»
+ *  dice a cuántos países llegó esto, y «clics» cuáles trabajan dentro. Lo que
+ *  no se puede es pintarlas a la vez.
+ */
+const MAGNITUDES = [
+  { key: "users", label: tx("Personas") },
+  { key: "clicks", label: tx("Clics") },
+] as const;
+type Magnitud = (typeof MAGNITUDES)[number]["key"];
+
+const valorDe = (p: UsoPorPais, cual: Magnitud): number =>
+  cual === "users" ? p.users : p.clicks;
+
 /** En qué tono cae un país.
  *
- *  Sobre la RAÍZ de los clics, no sobre los clics. El reparto está siempre muy
+ *  Sobre la RAÍZ del valor, no sobre el valor. El reparto está siempre muy
  *  torcido --el país del autor multiplica por diez al segundo-- y en escala
  *  lineal todo lo demás cae en el primer tono y el mapa queda en blanco y
  *  negro, que es no decir nada.
  */
-function pasoDeColor(clics: number, maximo: number): number {
-  if (maximo <= 0 || clics <= 0) return 0;
-  const parte = Math.sqrt(clics) / Math.sqrt(maximo);
+function pasoDeColor(valor: number, maximo: number): number {
+  if (maximo <= 0 || valor <= 0) return 0;
+  const parte = Math.sqrt(valor) / Math.sqrt(maximo);
   return Math.min(TONOS.length - 1, Math.floor(parte * TONOS.length));
 }
 
-/** Los cortes de clics de cada tono, para poder rotular la leyenda con números
- *  y no con «poco / mucho». Es la operación de arriba al revés. */
-function corteDeTono(paso: number, maximo: number): number {
-  return Math.ceil(((paso / TONOS.length) * Math.sqrt(maximo)) ** 2);
+/** La leyenda, construida DESDE LOS DATOS: un renglón por tono que de verdad
+ *  sale en el mapa, rotulado con el valor más bajo que cae en él.
+ *
+ *  Antes se invertía la fórmula del color para sacar el corte de cada tono, y
+ *  eso se rompía en cuanto el máximo era pequeño --que es justo lo que pasa al
+ *  colorear por PERSONAS--. Con cinco países y cinco tonos salían dos
+ *  etiquetas «1+» iguales y dos tonos que no aparecían en ningún sitio: una
+ *  leyenda que explica colores que no están y no distingue los que sí.
+ *
+ *  Leyéndola de los datos no hay forma de que discrepe del dibujo.
+ */
+function leyendaDe(paises: UsoPorPais[], cual: Magnitud, maximo: number) {
+  const minimoDel: Map<number, number> = new Map();
+  for (const p of paises) {
+    const v = valorDe(p, cual);
+    const paso = pasoDeColor(v, maximo);
+    const ya = minimoDel.get(paso);
+    if (ya === undefined || v < ya) minimoDel.set(paso, v);
+  }
+  return [...minimoDel.entries()].sort((a, b) => a[0] - b[0]);
 }
 
 export function MapaDeUso({ paises }: { paises: UsoPorPais[] }) {
   const [encima, setEncima] = useState<string | null>(null);
+  // Persistido, como el plazo y «sin mis visitas»: es una forma de mirar, no
+  // un estado de pantalla, y quien viene a ver personas las quiere ver manana
+  // tambien.
+  const [magnitud, setMagnitud] = usePersistido<Magnitud>(
+    "uso.mapa.magnitud",
+    "users",
+  );
+  const comoPersonas = magnitud === "users";
 
   // Sin código no hay sitio en el mapa: son las ligas internacionales y quien
   // se registró sin sincronizar nunca. Se cuentan aparte, no se esconden.
   const situados = paises.filter((p) => p.code);
   const sinSitio = paises.find((p) => !p.code);
   const porCodigo = new Map(situados.map((p) => [p.code, p]));
-  const maximo = Math.max(...situados.map((p) => p.clicks), 0);
+  const maximo = Math.max(...situados.map((p) => valorDe(p, magnitud)), 0);
 
   if (situados.length === 0) {
     return (
@@ -88,6 +134,13 @@ export function MapaDeUso({ paises }: { paises: UsoPorPais[] }) {
   }
 
   const señalado = encima ? porCodigo.get(encima) : undefined;
+  const leyenda = leyendaDe(situados, magnitud, maximo);
+  // La tabla se ordena por LO MISMO que colorea el mapa. El servidor la manda
+  // por clics; si el mapa pinta personas y la tabla ordena por clics, las dos
+  // mitades del panel dicen cosas distintas sobre el mismo dato.
+  const enOrden = [...paises].sort(
+    (a, b) => valorDe(b, magnitud) - valorDe(a, magnitud) || b.users - a.users,
+  );
 
   return (
     <Panel
@@ -95,9 +148,29 @@ export function MapaDeUso({ paises }: { paises: UsoPorPais[] }) {
       meta={
         // Con un solo país «1 países» canta, y el sistema de textos traduce
         // frases enteras, no plurales.
-        situados.length === 1
-          ? tx("1 país · color por clics")
-          : tx("{{v0}} países · color por clics", { v0: situados.length })
+        situados.length === 1 ? tx("1 país") : tx("{{v0}} países", { v0: situados.length })
+      }
+      acciones={
+        // El selector va en la cabecera y no sobre el dibujo: encima del mapa
+        // taparía un país, y aquí se lee antes de mirar, que es el orden en
+        // que hace falta saber qué colorea.
+        <div className="flex items-center gap-1" role="group" aria-label={tx("Qué colorea el mapa")}>
+          {MAGNITUDES.map((m) => (
+            <button
+              key={m.key}
+              onClick={() => setMagnitud(m.key)}
+              aria-pressed={magnitud === m.key}
+              data-track={`Uso: mapa por ${m.key}`}
+              className={`rounded-md border px-2 py-1 text-xs ${
+                magnitud === m.key
+                  ? "border-[var(--accent)] text-[var(--accent)]"
+                  : "border-[var(--border)] text-[var(--muted)]"
+              }`}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
       }
       ayuda={tx(
         "El país no se pregunta ni se deduce de la conexión: es el de la liga del club, que Hattrick ya publica. Quien lleva varios clubes cuenta por el principal.",
@@ -108,9 +181,15 @@ export function MapaDeUso({ paises }: { paises: UsoPorPais[] }) {
           <svg
             viewBox={`0 0 ${ANCHO_DEL_MUNDO} ${ALTO_DEL_MUNDO}`}
             role="img"
-            aria-label={tx(
-              "Mapa del mundo con los países de donde son los usuarios, más oscuros cuantos más clics",
-            )}
+            aria-label={
+              comoPersonas
+                ? tx(
+                    "Mapa del mundo con los países de donde son los usuarios, más oscuros cuanta más gente",
+                  )
+                : tx(
+                    "Mapa del mundo con los países de donde son los usuarios, más oscuros cuantos más clics",
+                  )
+            }
             className="block h-auto w-full min-w-[520px]"
             onMouseLeave={() => setEncima(null)}
           >
@@ -122,7 +201,7 @@ export function MapaDeUso({ paises }: { paises: UsoPorPais[] }) {
                   d={pais.d}
                   fill={
                     dato
-                      ? tono(pasoDeColor(dato.clicks, maximo))
+                      ? tono(pasoDeColor(valorDe(dato, magnitud), maximo))
                       : "var(--surface-2)"
                   }
                   stroke="var(--surface)"
@@ -131,7 +210,7 @@ export function MapaDeUso({ paises }: { paises: UsoPorPais[] }) {
                   className={dato ? "cursor-help" : undefined}
                 >
                   {dato && (
-                    <title>{`${nombreDePais(dato.code, dato.name) ?? dato.name}: ${dato.clicks} ${tx("clics")}`}</title>
+                    <title>{`${nombreDePais(dato.code, dato.name) ?? dato.name}: ${valorDe(dato, magnitud)} ${comoPersonas ? tx("personas") : tx("clics")}`}</title>
                   )}
                 </path>
               );
@@ -152,13 +231,13 @@ export function MapaDeUso({ paises }: { paises: UsoPorPais[] }) {
                   cx={centro[0]}
                   cy={centro[1]}
                   r={encima === p.code ? 6 : 4}
-                  fill={tono(Math.max(2, pasoDeColor(p.clicks, maximo)))}
+                  fill={tono(Math.max(2, pasoDeColor(valorDe(p, magnitud), maximo)))}
                   stroke="var(--surface)"
                   strokeWidth={1.5}
                   onMouseEnter={() => setEncima(p.code)}
                   className="cursor-help"
                 >
-                  <title>{`${nombreDePais(p.code, p.name) ?? p.name}: ${p.clicks} ${tx("clics")}`}</title>
+                  <title>{`${nombreDePais(p.code, p.name) ?? p.name}: ${valorDe(p, magnitud)} ${comoPersonas ? tx("personas") : tx("clics")}`}</title>
                 </circle>
               );
             })}
@@ -169,8 +248,10 @@ export function MapaDeUso({ paises }: { paises: UsoPorPais[] }) {
             sin cifras no deja comparar dos mapas ni saber qué es «mucho». */}
         <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-[var(--muted)]">{tx("Clics")}</span>
-            {TONOS.map((_, paso) => (
+            <span className="text-xs text-[var(--muted)]">
+              {comoPersonas ? tx("Personas") : tx("Clics")}
+            </span>
+            {leyenda.map(([paso, desde]) => (
               <span key={paso} className="flex items-center gap-1">
                 <span
                   aria-hidden
@@ -178,7 +259,7 @@ export function MapaDeUso({ paises }: { paises: UsoPorPais[] }) {
                   style={{ background: tono(paso) }}
                 />
                 <span className="text-xs tabular-nums text-[var(--muted)]">
-                  {corteDeTono(paso, maximo)}+
+                  {desde}+
                 </span>
               </span>
             ))}
@@ -188,7 +269,7 @@ export function MapaDeUso({ paises }: { paises: UsoPorPais[] }) {
             <span className="text-xs text-[var(--muted)]">
               {tx("{{v0}} sin país conocido ({{v1}} clics)", {
                 v0: sinSitio.users,
-                v1: sinSitio.clicks,
+                v1: cifra(sinSitio.clicks),
               })}
             </span>
           )}
@@ -265,7 +346,7 @@ export function MapaDeUso({ paises }: { paises: UsoPorPais[] }) {
             </tr>
           </thead>
           <tbody>
-            {paises.map((p) => (
+            {enOrden.map((p) => (
               <tr
                 key={p.code || "sin-pais"}
                 onMouseEnter={() => setEncima(p.code || null)}

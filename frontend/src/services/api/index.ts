@@ -190,6 +190,8 @@ export type {
   TransfersHistorySyncResult,
 } from "./transferencias";
 export type {
+  Grano,
+  TramoDeUso,
   UsageLog,
   UsageLogFiltros,
   UsageSummary,

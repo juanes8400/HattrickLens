@@ -27,6 +27,14 @@ export interface UsageSummary {
   }[];
   topControls: { label: string; clicks: number }[];
   byHour: Record<string, number>;
+  /** Cuanta gente DISTINTA hubo en cada tramo, en los tres granos.
+   *
+   *  Los tres viajan juntos porque LA GENTE NO SE SUMA: quien entra lunes y
+   *  martes son dos dias y UNA persona en la semana, asi que esta pantalla no
+   *  puede agrupar por su cuenta sin inflar el numero. Cambiar el grano no
+   *  vuelve al servidor.
+   */
+  overTime: Record<Grano, TramoDeUso[]>;
   recentSessions: {
     id: string;
     startedAt: string;
@@ -75,6 +83,23 @@ export interface UsageSummary {
   }[];
 }
 
+/** Los tres granos de la serie. */
+export type Grano = "day" | "week" | "month";
+
+export interface TramoDeUso {
+  /** La fecha de comienzo del tramo, en ISO. */
+  from: string;
+  /** Personas distintas con actividad. */
+  users: number;
+  /** De esas, las que aparecen por PRIMERA VEZ DE SIEMPRE, no la primera vez
+   *  dentro del plazo elegido. Por eso no cambia al acortar el plazo. */
+  newUsers: number;
+  sessions: number;
+  pages: number;
+  clicks: number;
+  minutes: number;
+}
+
 export interface UsageUserModule {
   module: string;
   visits: number;
@@ -87,6 +112,10 @@ export interface UsageUserModule {
 export interface UsageUser {
   userId: number;
   name: string;
+  /** Su pais, para la bandera. Sale de la liga del club, igual que el del
+   *  mapa; vacio es «no consta», que es lo de quien no ha sincronizado. */
+  countryCode: string;
+  countryName: string;
   sessions: number;
   pages: number;
   clicks: number;

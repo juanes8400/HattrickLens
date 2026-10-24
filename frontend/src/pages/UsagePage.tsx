@@ -3,6 +3,8 @@ import { Suspense, lazy, useState } from "react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ErrorState, Panel } from "../components/Panels";
 import { PanelDePestanas, Tabs } from "../components/Tabs";
+import { CountryFlag } from "../components/CountryFlag";
+import { PersonasEnElTiempo } from "../components/PersonasEnElTiempo";
 import { api } from "../services/api";
 import type { UsageSummary, UsageUser } from "../services/api";
 import { usePersistido } from "../hooks/usePersistido";
@@ -422,6 +424,10 @@ function Personas({ data }: { data: UsageSummary }) {
         />
       </div>
 
+      {/* Antes del mapa a propósito: «cuánta gente hay y si crece» es la
+          pregunta de la sección, y «de dónde es» la de después. */}
+      <PersonasEnElTiempo series={data.overTime} />
+
       <Suspense
         fallback={
           <p className="text-sm text-[var(--muted)]">{tx("Cargando…")}</p>
@@ -530,6 +536,17 @@ function FilaDePersona({
             >
               ›
             </span>
+            {/* La bandera al lado del nombre (2026-10-23, pedido del usuario).
+                Sale del MISMO sitio que la del mapa --la liga del club-- y no
+                de la conexión. Un nombre de Hattrick no dice de dónde es
+                nadie, así que hasta hoy había que cruzar esta tabla con el
+                mapa a ojo para saber a quién se estaba mirando.
+
+                Se pinta SIEMPRE, aunque no conste: `CountryFlag` ya pone en
+                ese caso un hueco del mismo ancho con un punto, así que los
+                nombres de quien no ha sincronizado no quedan desalineados con
+                el resto de la columna. */}
+            <CountryFlag code={u.countryCode} country={u.countryName} />
             {u.name}
           </button>
         </td>

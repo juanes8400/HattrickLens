@@ -190,6 +190,23 @@ async def _paises_de_usuario(session: AsyncSession) -> dict[int, tuple[str, str]
     return de
 
 
+async def _estreno_de_usuario(session: AsyncSession) -> dict[int, datetime]:
+    """Cuándo apareció cada persona POR PRIMERA VEZ, sin corte por fecha.
+
+    Va aparte de la consulta principal a propósito. Es lo que hace que la
+    columna «primera vez» de la serie signifique lo mismo mirando siete días
+    que mirando todo: calculada sobre los eventos ya filtrados, un plazo de
+    treinta días estrenaría de golpe a los doce de siempre y el gráfico diría
+    que la aplicación acaba de nacer cada vez que se acorta el plazo.
+
+    Es un `min` agrupado sobre la tabla entera, no una lectura fila a fila.
+    """
+    filas = await session.execute(
+        select(m.UiEvent.user_id, func.min(m.UiEvent.at)).group_by(m.UiEvent.user_id)
+    )
+    return {fila[0]: fila[1] for fila in filas if fila[0] and fila[1]}
+
+
 #: Quitar al dueño de la instalación de sus propias estadísticas.
 #:
 #: Pedido el 2026-09-05. Mientras la aplicación tenga pocos usuarios, el que la
@@ -235,6 +252,7 @@ async def resumen(
     )
     nombres = await _nombres_de_usuario(session)
     paises = await _paises_de_usuario(session)
+    estrenos = await _estreno_de_usuario(session)
     eventos = [
         uso.Evento(
             sesion=f.session_id,
@@ -277,6 +295,27 @@ async def resumen(
             {"label": etiqueta, "clicks": n} for etiqueta, n in uso.mas_pulsado(eventos)
         ],
         "byHour": uso.por_hora(eventos),
+        # Cuánta gente distinta hubo en cada tramo. Los tres granos viajan
+        # juntos porque LA GENTE NO SE SUMA: quien entra lunes y martes son dos
+        # días y UNA persona en la semana, así que la pantalla no puede agrupar
+        # por su cuenta sin inflar el número. Son tres pasadas sobre la misma
+        # lista y unas pocas decenas de filas; traerlas de una evita que mover
+        # el selector vaya otra vez al servidor.
+        "overTime": {
+            grano: [
+                {
+                    "from": t.desde,
+                    "users": t.usuarios,
+                    "newUsers": t.nuevos,
+                    "sessions": t.sesiones,
+                    "pages": t.paginas,
+                    "clicks": t.clics,
+                    "minutes": t.minutos,
+                }
+                for t in uso.en_el_tiempo(eventos, grano, estrenos)
+            ]
+            for grano in uso.GRANOS
+        },
         "recentSessions": [
             {
                 "id": s.sesion,
@@ -296,6 +335,12 @@ async def resumen(
             {
                 "userId": u.usuario,
                 "name": u.nombre,
+                # 2026-10-23, pedido del usuario: la bandera al lado del
+                # nombre. Sale del MISMO sitio que la del mapa --la liga del
+                # club-- y no de la conexión; vacío es «no consta», que es lo
+                # que le pasa a quien no ha sincronizado todavía.
+                "countryCode": paises.get(u.usuario, ("", ""))[0],
+                "countryName": paises.get(u.usuario, ("", ""))[1],
                 "sessions": u.sesiones,
                 "pages": u.paginas,
                 "clicks": u.clics,

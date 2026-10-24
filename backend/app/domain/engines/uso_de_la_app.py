@@ -404,3 +404,121 @@ def nunca_tocado(eventos: list[Evento], todos_los_modulos: list[str]) -> list[st
     """
     vistos = {e.modulo for e in eventos}
     return sorted(m for m in todos_los_modulos if m not in vistos)
+
+
+# ── En el tiempo ─────────────────────────────────────────────────────────────
+#
+# 2026-10-23, pedido del usuario: «número de usuarios en el tiempo (personas
+# activas vs tiempo)». Todo lo de arriba contesta cuánto se usa y quién; nada
+# contestaba si eso CRECE. Con un solo número por plazo, doce personas estables
+# y doce que llegaron la semana pasada se leen igual.
+#
+# LA GENTE NO SE SUMA. Es la trampa de esta tabla y la razón de que el grano lo
+# calcule el servidor y no la pantalla: quien entra lunes y martes son dos
+# renglones diarios y UNA persona en la semana. Agrupar sumando los días daría
+# siempre más gente de la que hay, y el error crece justo cuando alguien usa la
+# aplicación todos los días, que es el caso que se quiere ver.
+
+#: Los tres granos, con cuánto dura cada uno.
+GRANOS = ("day", "week", "month")
+
+
+def _cubo(cuando: datetime, grano: str) -> str:
+    """En qué casilla cae un instante. La clave es la fecha de su comienzo."""
+    d = cuando.date()
+    if grano == "month":
+        return d.replace(day=1).isoformat()
+    if grano == "week":
+        return (d - timedelta(days=d.weekday())).isoformat()
+    return d.isoformat()
+
+
+def _siguiente(clave: str, grano: str) -> str:
+    """La casilla de después, para rellenar los huecos."""
+    d = datetime.fromisoformat(clave).date()
+    if grano == "month":
+        return (d.replace(day=28) + timedelta(days=7)).replace(day=1).isoformat()
+    if grano == "week":
+        return (d + timedelta(days=7)).isoformat()
+    return (d + timedelta(days=1)).isoformat()
+
+
+@dataclass
+class Tramo:
+    """Una casilla de la serie: un día, una semana o un mes."""
+
+    #: La fecha de comienzo, en ISO. Es la etiqueta y la clave de orden.
+    desde: str
+    #: Personas DISTINTAS con actividad. Lo que se pidió.
+    usuarios: int = 0
+    #: De ésas, las que aparecen por primera vez.
+    nuevos: int = 0
+    sesiones: int = 0
+    paginas: int = 0
+    clics: int = 0
+    visible_ms: int = 0
+
+    @property
+    def minutos(self) -> float:
+        return round(self.visible_ms / 60_000, 1)
+
+
+def en_el_tiempo(
+    eventos: list[Evento],
+    grano: str = "day",
+    estreno_de: dict[int, datetime] | None = None,
+) -> list[Tramo]:
+    """La serie de personas activas, del tramo más viejo al más nuevo.
+
+    LOS HUECOS SE RELLENAN CON CEROS. Un fin de semana sin nadie no es un tramo
+    que no exista: es un cero, y tiene que ocupar su sitio. Sin rellenar, una
+    serie de barras a paso fijo pinta tres días sueltos de un mes como si
+    fueran tres días seguidos, y eso no es un gráfico incompleto sino uno que
+    dice algo falso.
+
+    `estreno_de` lleva la PRIMERA VEZ DE SIEMPRE de cada persona, no la primera
+    dentro de estos eventos. Es lo que hace que «nuevos» signifique lo mismo
+    mirando siete días o mirando todo: con el primer evento de la lista
+    filtrada, un plazo de treinta días estrenaría de golpe a todo el mundo.
+    Sin ese dato la columna se queda en cero antes que mentir.
+    """
+    if grano not in GRANOS:
+        grano = "day"
+    tramos: dict[str, Tramo] = {}
+    gente: dict[str, set[int]] = defaultdict(set)
+    sesiones_de: dict[str, set[str]] = defaultdict(set)
+
+    for e in eventos:
+        clave = _cubo(e.cuando, grano)
+        t = tramos.setdefault(clave, Tramo(desde=clave))
+        gente[clave].add(e.usuario)
+        sesiones_de[clave].add(e.sesion)
+        if e.tipo == "page":
+            t.paginas += 1
+            t.visible_ms += max(0, e.visible_ms)
+        elif e.tipo == "click":
+            t.clics += 1
+
+    for clave, t in tramos.items():
+        t.usuarios = len(gente[clave])
+        t.sesiones = len(sesiones_de[clave])
+
+    if estreno_de:
+        for usuario, cuando in estreno_de.items():
+            clave = _cubo(cuando, grano)
+            if clave in tramos and usuario in gente[clave]:
+                tramos[clave].nuevos += 1
+
+    if not tramos:
+        return []
+
+    salida: list[Tramo] = []
+    clave = min(tramos)
+    ultima = max(tramos)
+    # Un tope por si acaso: la serie sale de lo que hay guardado, y lo guardado
+    # se poda, pero un dato con la fecha torcida no debe poder pedir un millón
+    # de casillas vacías.
+    while clave <= ultima and len(salida) < 1200:
+        salida.append(tramos.get(clave) or Tramo(desde=clave))
+        clave = _siguiente(clave, grano)
+    return salida
