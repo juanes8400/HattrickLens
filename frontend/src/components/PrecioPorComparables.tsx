@@ -276,7 +276,8 @@ function columnasDe(
       // que no existe no es «hace mucho», es que ya no aplica.
       // Lo ya firme va al final tambien aqui: su plazo es historia, no una
       // espera, y ordenar por el mezclaba lo cerrado entre lo que falta.
-      value: (f) => (f.firme || !f.cierra ? Infinity : new Date(f.cierra).getTime()),
+      value: (f) =>
+        f.firme || !f.cierra ? Infinity : new Date(f.cierra).getTime(),
       render: (f) =>
         f.propio ? (
           <span className="text-[var(--muted)]">—</span>
@@ -504,21 +505,49 @@ export function PrecioPorComparables({
 
       {/* LA SERIE, entre el número y la tabla: es el puente. El número dice
           cuánto; la tabla, de dónde sale; esto, si puedes fiarte todavía.
-          Desde dos lecturas, porque con una no hay nada que unir. */}
+          Desde dos lecturas, porque con una no hay nada que unir.
+          
+          SIN LÍNEA CUANDO NO HAY NÚMERO (2026-10-24). Esta gráfica se pintaba
+          mirando sólo cuántas lecturas había, sin mirar si el panel tenía
+          precio que dar. El resultado era una pantalla que se contradecía a sí
+          misma: arriba «hay 6 y hacen falta 2 más», y justo debajo una línea
+          subiendo hasta 530.327 US$ rotulada «Media de las ventas cerradas».
+          Quien mira se queda con el número, no con la advertencia.
+          
+          Y no era la cifra del panel sino OTRA: la línea es la media simple de
+          lo que se ve en cada lectura, mientras que el número de arriba es una
+          media ponderada que exige llegar al objetivo. Dos reglas distintas
+          dando dos respuestas, una de ellas negada por el texto.
+          
+          Los puntos se quedan: son ventas que existieron a precios que se
+          pagaron, y enseñarlas es lo que deja ver cómo se va llenando el
+          fondo. Lo que se va es la respuesta que todavía no toca. */}
       {datos.serie.length >= MINIMO_PARA_LA_SERIE && (
         <div className="px-4 pb-2">
           <Chart
             height={200}
-            ariaLabel={tx("Cómo ha ido cambiando el precio de sus comparables")}
+            ariaLabel={
+              hayNumero
+                ? tx("Cómo ha ido cambiando el precio de sus comparables")
+                : tx("Las ventas encontradas hasta ahora, sin media todavía")
+            }
             option={serieDePuntosOption(datos.serie, {
               etiqueta: (iso) => date(iso),
               detalle: (v) => money(v, datos.moneda),
               soloCerradas,
+              conMedia: hayNumero,
               etiquetaMedia: soloCerradas
                 ? tx("Media de las ventas cerradas")
                 : tx("Media de todo lo de la lista"),
             })}
           />
+          {!hayNumero && (
+            <p className="prosa text-xs text-[var(--muted)]">
+              {tx(
+                "Son las ventas encontradas hasta ahora, una por punto. La línea de la media aparece cuando haya bastantes para dar un precio.",
+              )}
+            </p>
+          )}
         </div>
       )}
 

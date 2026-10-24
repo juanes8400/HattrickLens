@@ -565,6 +565,13 @@ function corto(v: number): string {
  *
  * Relleno es venta cerrada y hueco es subasta todavía abierta: el estado
  * importa tanto como el número, porque una puja sólo puede subir.
+ *
+ * LA LÍNEA ES OPCIONAL desde el 2026-10-24, y ésa es la parte importante.
+ * Los puntos son HECHOS --ventas que existieron, a precios que se pagaron-- y
+ * se pueden enseñar siempre. La línea no: es una respuesta, y el panel que
+ * dibuja esto tiene estados en los que afirma, con todas las letras, que
+ * TODAVÍA NO HAY RESPUESTA. Enseñar la línea ahí convierte el gráfico en la
+ * contradicción de su propio titular. Ver `conMedia`.
  */
 export function serieDePuntosOption(
   lecturas: {
@@ -577,8 +584,13 @@ export function serieDePuntosOption(
     detalle: (v: number) => string;
     soloCerradas: boolean;
     etiquetaMedia: string;
+    /** Si se dibuja la línea de medias. `false` cuando el panel dice que
+     *  todavía no hay precio: los puntos siguen, que son hechos, pero no la
+     *  línea, que se lee como la respuesta que el texto acaba de negar. */
+    conMedia?: boolean;
   },
 ): EChartsOption {
+  const conMedia = opciones.conMedia !== false;
   // LA LINEA DE TIEMPO SE DIBUJA CON VENTAS CERRADAS (2026-10-09, decision
   // del usuario). Una puja no es un precio: ese mismo dia, en la tabla de
   // Imam Ece, Edu Fuenllana figuraba con 6.000 US$ de puja y se vendio en
@@ -589,7 +601,11 @@ export function serieDePuntosOption(
   // TIENE ninguna venta cerrada, se enseñan sus pujas. Esconderlas dejaria la
   // columna vacia, y una columna vacia se lee como «aquel dia no habia nada»,
   // que es distinto de «aquel dia todo estaba sin cerrar».
-  type Punto = { value: [number, number]; symbolSize: number; itemStyle: { opacity: number } };
+  type Punto = {
+    value: [number, number];
+    symbolSize: number;
+    itemStyle: { opacity: number };
+  };
   const punto = (i: number, precio: number, peso: number): Punto => {
     const { symbolSize, opacity } = segunElParecido(peso ?? 100, 8);
     return { value: [i, precio], symbolSize, itemStyle: { opacity } };
@@ -615,7 +631,8 @@ export function serieDePuntosOption(
       return;
     }
     if (firmes.length > 0) {
-      for (const [precio, , peso] of firmes) cerradas.push(punto(i, precio, peso));
+      for (const [precio, , peso] of firmes)
+        cerradas.push(punto(i, precio, peso));
       // LA LINEA ES LA MEDIA DE LO QUE SE VE (2026-10-09, decision del
       // usuario). Antes era la media ponderada del panel --la cifra grande de
       // arriba-- y al quitar las pujas de los puntos dejaba de describir el
@@ -623,7 +640,9 @@ export function serieDePuntosOption(
       // 595.000, 792.000 y 1.241.000 y la linea pasaba por 436.144, por debajo
       // de los tres. Una media por debajo de todos los puntos se lee como un
       // error aunque sea correcta.
-      medias.push(firmes.reduce((s, [precio]) => s + precio, 0) / firmes.length);
+      medias.push(
+        firmes.reduce((s, [precio]) => s + precio, 0) / firmes.length,
+      );
       return;
     }
     for (const [precio, , peso] of l.precios) nube.push(punto(i, precio, peso));
@@ -648,16 +667,24 @@ export function serieDePuntosOption(
       splitLine: { lineStyle: { opacity: 0.15 } },
     },
     series: [
-      {
-        type: "line",
-        name: opciones.etiquetaMedia,
-        data: medias,
-        symbol: "none",
-        lineStyle: { width: 2, color: LINEA_DE_LA_MEDIA },
-        itemStyle: { color: LINEA_DE_LA_MEDIA },
-        connectNulls: false,
-        z: 1,
-      },
+      // Fuera del array cuando no toca, y no con `show: false`: una serie
+      // oculta sigue saliendo en la leyenda, y una leyenda que dice «Media de
+      // las ventas cerradas» sin línea que enseñar es la misma afirmación con
+      // otra letra.
+      ...(conMedia
+        ? [
+            {
+              type: "line" as const,
+              name: opciones.etiquetaMedia,
+              data: medias,
+              symbol: "none" as const,
+              lineStyle: { width: 2, color: LINEA_DE_LA_MEDIA },
+              itemStyle: { color: LINEA_DE_LA_MEDIA },
+              connectNulls: false,
+              z: 1,
+            },
+          ]
+        : []),
       {
         type: "scatter",
         name: tx("Subasta abierta"),
@@ -727,7 +754,11 @@ export function tiraDePuntosOption(
   // alguna vez vuelve a cambiar, esto cambia con él.
   const juntos = Math.max((maximo - minimo) * 0.025, 1);
 
-  type Punto = { value: [number, number]; symbolSize: number; itemStyle: { opacity: number } };
+  type Punto = {
+    value: [number, number];
+    symbolSize: number;
+    itemStyle: { opacity: number };
+  };
   const abiertas: Punto[] = [];
   const cerradas: Punto[] = [];
   let anterior = -Infinity;
