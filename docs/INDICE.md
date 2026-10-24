@@ -36,7 +36,10 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | Ruta | Página | Líneas | Leer | Endpoints | Dominio | Tests |
 | --- | --- | --: | --: | --- | --: | --: |
 | `/connected` | [ConnectedPage.tsx](../frontend/src/pages/ConnectedPage.tsx) | 59 | - | - | 0 | 0 |
-| `/welcome` | [WelcomePage.tsx](../frontend/src/pages/WelcomePage.tsx) | 237 | 1585 | auth_chpp | 0 | 0 |
+| `/welcome` | [WelcomePage.tsx](../frontend/src/pages/WelcomePage.tsx) | 260 | 2004 | auth_chpp | 0 | 0 |
+| `/guia` | [GuiaPage.tsx](../frontend/src/pages/GuiaPage.tsx) | 52 | - | - | 0 | 0 |
+| `/privacidad` | [PrivacidadPage.tsx](../frontend/src/pages/PrivacidadPage.tsx) | 194 | - | - | 0 | 0 |
+| `/cookies` | [PrivacidadPage.tsx](../frontend/src/pages/PrivacidadPage.tsx) | 194 | - | - | 0 | 0 |
 | `/apoyar` | [ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) | 154 | 9145 | dashboard | 10 | 33 |
 | `/setup` | [SetupPage.tsx](../frontend/src/pages/SetupPage.tsx) | 428 | 9686 | auth_chpp, dashboard | 10 | 33 |
 | `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 876 | 32697 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard | 26 | 94 |
@@ -45,7 +48,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 254 | 5431 | resumen | 5 | 18 |
 | `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 503 | 4609 | plantilla | 3 | 14 |
 | `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1079 | 9403 | resumen, skills | 9 | 27 |
-| `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1533 | 15561 | jugadores, player_balance, precio_comparable, jugadores | 15 | 41 |
+| `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1533 | 16400 | jugadores, player_balance, precio_comparable, jugadores | 15 | 41 |
 | `/positions` | [PositionsPage.tsx](../frontend/src/pages/PositionsPage.tsx) | 349 | 4171 | plantilla | 3 | 14 |
 | `/lineup` | [LineupPage.tsx](../frontend/src/pages/LineupPage.tsx) | 825 | 6997 | alineacion, plantilla | 8 | 19 |
 | `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 2064 | 13735 | entrenamiento, jugadores, club | 10 | 33 |
@@ -66,6 +69,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/wiki` | [WikiPage.tsx](../frontend/src/pages/WikiPage.tsx) | 171 | - | - | 0 | 0 |
 | `/uso` | [UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) | 1007 | 2813 | uso | 1 | 4 |
 | `/autor` | [AutorPage.tsx](../frontend/src/pages/AutorPage.tsx) | 331 | - | - | 0 | 0 |
+| `/*` | [frontend/src/components/Consentimiento.tsx](../frontend/src/components/Consentimiento.tsx) | 77 | - | - | 0 | 0 |
 
 ## Ruta por ruta
 
@@ -79,20 +83,65 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/welcome`
 
-- **Página:** [frontend/src/pages/WelcomePage.tsx](../frontend/src/pages/WelcomePage.tsx) (237 líneas)
-- **Componentes y hooks suyos (7):**
+- **Página:** [frontend/src/pages/WelcomePage.tsx](../frontend/src/pages/WelcomePage.tsx) (260 líneas)
+- **Componentes y hooks suyos (12):**
+  - [frontend/src/components/Anuncio.tsx](../frontend/src/components/Anuncio.tsx)
+  - [frontend/src/components/Consentimiento.tsx](../frontend/src/components/Consentimiento.tsx)
   - [frontend/src/components/ImagenOpcional.tsx](../frontend/src/components/ImagenOpcional.tsx)
   - [frontend/src/components/SelectorDeIdioma.tsx](../frontend/src/components/SelectorDeIdioma.tsx)
+  - [frontend/src/config/anuncios.ts](../frontend/src/config/anuncios.ts)
   - [frontend/src/config/apoyo.ts](../frontend/src/config/apoyo.ts)
+  - [frontend/src/config/consentimiento.ts](../frontend/src/config/consentimiento.ts)
   - [frontend/src/hooks/useTeam/auth.ts](../frontend/src/hooks/useTeam/auth.ts)
   - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
   - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
+  - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - **Pide a `api.`:** `connectChpp`, `sessionProfile`
 - **Donde se escriben esas llamadas:** [frontend/src/services/api/auth.ts](../frontend/src/services/api/auth.ts)
 - **Rutas HTTP:** `/auth/chpp/connect`, `/auth/chpp/session`
 - **Endpoints:** [backend/app/api/v1/endpoints/auth_chpp.py](../backend/app/api/v1/endpoints/auth_chpp.py)
 - **Infraestructura:** `app.infrastructure.chpp.client` (8 rutas)
+
+### `/guia`
+
+- **Página:** [frontend/src/pages/GuiaPage.tsx](../frontend/src/pages/GuiaPage.tsx) (52 líneas)
+- **Componentes y hooks suyos (8):**
+  - [frontend/src/components/Anuncio.tsx](../frontend/src/components/Anuncio.tsx)
+  - [frontend/src/components/Consentimiento.tsx](../frontend/src/components/Consentimiento.tsx)
+  - [frontend/src/config/anuncios.ts](../frontend/src/config/anuncios.ts)
+  - [frontend/src/config/consentimiento.ts](../frontend/src/config/consentimiento.ts)
+  - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
+  - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
+  - [frontend/src/pages/WikiPage.tsx](../frontend/src/pages/WikiPage.tsx)
+  - [frontend/src/pages/wiki/contenido.ts](../frontend/src/pages/wiki/contenido.ts)
+- Sin datos del servidor: esta pantalla no pide nada al backend.
+
+### `/privacidad`
+
+- **Página:** [frontend/src/pages/PrivacidadPage.tsx](../frontend/src/pages/PrivacidadPage.tsx) (194 líneas)
+- **Componentes y hooks suyos (7):**
+  - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
+  - [frontend/src/components/Consentimiento.tsx](../frontend/src/components/Consentimiento.tsx)
+  - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
+  - [frontend/src/config/anuncios.ts](../frontend/src/config/anuncios.ts)
+  - [frontend/src/config/consentimiento.ts](../frontend/src/config/consentimiento.ts)
+  - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
+  - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
+- Sin datos del servidor: esta pantalla no pide nada al backend.
+
+### `/cookies`
+
+- **Página:** [frontend/src/pages/PrivacidadPage.tsx](../frontend/src/pages/PrivacidadPage.tsx) (194 líneas)
+- **Componentes y hooks suyos (7):**
+  - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
+  - [frontend/src/components/Consentimiento.tsx](../frontend/src/components/Consentimiento.tsx)
+  - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
+  - [frontend/src/config/anuncios.ts](../frontend/src/config/anuncios.ts)
+  - [frontend/src/config/consentimiento.ts](../frontend/src/config/consentimiento.ts)
+  - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
+  - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
+- Sin datos del servidor: esta pantalla no pide nada al backend.
 
 ### `/apoyar`
 
@@ -838,6 +887,16 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
   - [frontend/src/components/ImagenOpcional.tsx](../frontend/src/components/ImagenOpcional.tsx)
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
   - [frontend/src/config/apoyo.ts](../frontend/src/config/apoyo.ts)
+  - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
+  - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
+- Sin datos del servidor: esta pantalla no pide nada al backend.
+
+### `/*`
+
+- **Página:** [frontend/src/components/Consentimiento.tsx](../frontend/src/components/Consentimiento.tsx) (77 líneas)
+- **Componentes y hooks suyos (4):**
+  - [frontend/src/config/anuncios.ts](../frontend/src/config/anuncios.ts)
+  - [frontend/src/config/consentimiento.ts](../frontend/src/config/consentimiento.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
 - Sin datos del servidor: esta pantalla no pide nada al backend.
