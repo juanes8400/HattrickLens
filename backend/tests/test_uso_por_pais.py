@@ -228,3 +228,40 @@ def test_sin_club_sincronizado_se_cuenta_pero_sin_sitio_en_el_mapa(cliente) -> N
 
     paises = client.get("/api/v1/usage?dias=0").json()["byCountry"]
     assert [(p["code"], p["clicks"]) for p in paises] == [("", 1)]
+
+
+# ── El pais, tambien en el registro ──────────────────────────────────────────
+
+
+def test_el_registro_dice_de_que_pais_es_cada_uno(cliente) -> None:
+    """2026-10-24, pedido del usuario: la bandera al lado del nombre.
+
+    Las filas del registro solo traen el id y el nombre, y un nombre de
+    Hattrick no dice de donde es nadie. El pais viaja en `users`, que ya se
+    mandaba para llenar el desplegable del filtro, asi que la pantalla pone la
+    bandera en cada fila --y situa los destellos del mapa-- sin una consulta
+    mas.
+
+    En MINUSCULAS, igual que el del mapa, porque es lo que pide la libreria de
+    banderas: en mayusculas no se pintaria ninguna y no fallaria nada.
+    """
+    client, factory, user_id = cliente
+    _clubes(factory, user_id, [(1, 19, True)])
+    _mandar_un_clic(client)
+
+    gente = client.get("/api/v1/usage/log?dias=0").json()["users"]
+    assert len(gente) == 1
+    assert gente[0]["countryCode"] == "co"
+    assert gente[0]["countryName"] == "Colombia"
+
+
+def test_en_el_registro_tambien_sale_vacio_quien_no_tiene_club(cliente) -> None:
+    # Vacio y NO ausente: la pantalla pinta el hueco de la bandera con lo que
+    # llegue, y una clave que falta seria `undefined` en una propiedad que el
+    # tipo declara como texto.
+    client, _factory, _user_id = cliente
+    _mandar_un_clic(client)
+
+    gente = client.get("/api/v1/usage/log?dias=0").json()["users"]
+    assert gente[0]["countryCode"] == ""
+    assert gente[0]["countryName"] == ""

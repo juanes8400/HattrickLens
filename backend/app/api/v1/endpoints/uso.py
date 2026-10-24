@@ -541,6 +541,7 @@ async def registro(
         .all()
     )
     nombres = await _nombres_de_usuario(session)
+    paises = await _paises_de_usuario(session)
 
     return {
         "total": total,
@@ -565,8 +566,21 @@ async def registro(
         # Para llenar los desplegables del filtro sin una ruta más.
         # Sin quien pregunta si se excluyó: si no, podía elegirse a sí mismo en
         # el filtro y volver a ver lo que acababa de quitar.
+        #
+        # 2026-10-24: va también el PAÍS de cada uno, y no es para el
+        # desplegable. Las filas del registro traen el id y el nombre, y un
+        # nombre de Hattrick no dice de dónde es nadie; con esta lista la
+        # pantalla puede poner la bandera en cada fila --como ya hace la tabla
+        # de personas-- y situar los destellos del mapa en vivo, sin pedir los
+        # países en una consulta aparte. Mismo origen que siempre: la liga del
+        # club, nunca la conexión.
         "users": [
-            {"userId": i, "name": n}
+            {
+                "userId": i,
+                "name": n,
+                "countryCode": paises.get(i, ("", ""))[0],
+                "countryName": paises.get(i, ("", ""))[1],
+            }
             for i, n in sorted(nombres.items(), key=lambda x: x[1])
             if not (excluirme and i == admin.id)
         ],

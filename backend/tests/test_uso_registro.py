@@ -276,3 +276,36 @@ def test_la_lista_de_pantallas_no_se_queda_atras() -> None:
         + " | faltan aquí: "
         + ", ".join(sorted(del_frontend - MODULOS_CONOCIDOS))
     )
+
+
+# ── El pais de cada uno, en el registro ──────────────────────────────────────
+#
+# 2026-10-24, pedido del usuario: la bandera al lado del nombre en la columna
+# «Persona», y el mapa de destellos tambien en esta seccion. Las dos cosas
+# necesitan lo mismo --de que pais es cada id-- y las filas del registro solo
+# traen el id y el nombre. Va en `users`, que ya se mandaba para llenar el
+# desplegable del filtro.
+
+
+def test_quien_no_tiene_club_trae_el_pais_vacio_y_no_falta_la_clave(cliente) -> None:
+    # Vacio y NO ausente: la pantalla pinta el hueco de la bandera con lo que
+    # llegue, y una clave que falta seria `undefined` en una propiedad que el
+    # tipo declara como texto. Beto nunca sincronizo.
+    client, quien, ana, beto = cliente
+    _sembrar(client, quien, ana, beto)
+
+    gente = client.get("/api/v1/usage/log?dias=0").json()["users"]
+    de_beto = next(u for u in gente if u["name"] == "Beto")
+    assert de_beto["countryCode"] == ""
+    assert de_beto["countryName"] == ""
+
+
+def test_el_pais_llega_a_TODOS_los_del_desplegable(cliente) -> None:
+    # La pantalla arma el mapa de id a pais con esta lista entera, asi que una
+    # sola fila sin las claves dejaria una bandera en blanco sin motivo.
+    client, quien, ana, beto = cliente
+    _sembrar(client, quien, ana, beto)
+
+    for u in client.get("/api/v1/usage/log?dias=0").json()["users"]:
+        assert "countryCode" in u, u
+        assert "countryName" in u, u

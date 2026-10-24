@@ -145,7 +145,15 @@ export interface UsageLog {
     label: string | null;
     visibleMs: number;
   }[];
-  users: { userId: number; name: string }[];
+  /** Quién aparece, para el desplegable del filtro Y para la bandera de cada
+   *  fila: el registro trae el id y el nombre, y un nombre de Hattrick no dice
+   *  de dónde es nadie. También sitúa los destellos del mapa en vivo. */
+  users: {
+    userId: number;
+    name: string;
+    countryCode: string;
+    countryName: string;
+  }[];
   modules: string[];
 }
 

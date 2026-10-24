@@ -138,6 +138,19 @@ const PARTES_DE_PERSONAS = [
 ] as const;
 type ParteDePersonas = (typeof PARTES_DE_PERSONAS)[number]["key"];
 
+/** Las dos caras del registro. 2026-10-24, pedido del usuario.
+ *
+ *  Son LOS MISMOS EVENTOS, y por eso el mapa recibe los filtros de la tabla:
+ *  si la tabla enseña los de una persona y el mapa los de todas, el
+ *  conmutador promete «lo mismo de otra forma» y entrega otra cosa. El filo
+ *  no se ve mirando cada panel por separado, que es lo que lo hace peligroso.
+ */
+const CARAS_DEL_REGISTRO = [
+  { key: "tabla", label: tx("Tabla") },
+  { key: "mapa", label: tx("Mapa") },
+] as const;
+type CaraDelRegistro = (typeof CARAS_DEL_REGISTRO)[number]["key"];
+
 const SECCIONES = [
   { key: "resumen", label: tx("Resumen") },
   { key: "personas", label: tx("Personas") },
@@ -928,6 +941,10 @@ function Adopcion({ data }: { data: UsageSummary }) {
 const POR_PAGINA = 100;
 
 function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
+  const [cara, setCara] = usePersistido<CaraDelRegistro>(
+    "uso.registro.cara",
+    "tabla",
+  );
   const [usuario, setUsuario] = useState<number | null>(null);
   const [modulo, setModulo] = useState<string>("");
   const [tipo, setTipo] = useState<"" | "page" | "click">("");
@@ -963,6 +980,17 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
     placeholderData: keepPreviousData,
   });
 
+  // El país de cada uno, para la bandera de cada fila y para situar los
+  // destellos. Sale de `users`, que ya viene para llenar el desplegable; una
+  // consulta más para esto mismo sería trabajo de balde.
+  const paisDe: Record<number, { code: string; name: string }> =
+    Object.fromEntries(
+      (data?.users ?? []).map((u) => [
+        u.userId,
+        { code: u.countryCode, name: u.countryName },
+      ]),
+    );
+
   if (error) return <ErrorState error={error} />;
 
   /** Cualquier filtro nuevo devuelve a la primera página: si no, se pide la
@@ -977,19 +1005,12 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
   const hasta = Math.min(desdeFila + POR_PAGINA, data?.total ?? 0);
 
   return (
-    <Panel
-      title={tx("Registro")}
-      meta={
-        data
-          ? tx("{{v0}} eventos · viendo {{v1}}–{{v2}}", {
-              v0: data.total,
-              v1: data.total === 0 ? 0 : desdeFila + 1,
-              v2: hasta,
-            })
-          : undefined
-      }
-    >
-      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border)] p-3">
+    <>
+      {/* LOS FILTROS VAN FUERA, encima de las dos caras. Valen para las dos
+          --esa es la razón de que el mapa los reciba-- así que meterlos dentro
+          de una obligaría a repetirlos en la otra, y dos copias de un filtro
+          es la forma segura de que un día discrepen. */}
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
         <label className="text-xs text-[var(--muted)]">
           {tx("Persona")}
           <select
@@ -1068,94 +1089,147 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
         )}
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-[var(--surface-2)]">
-            <tr>
-              <th scope="col" className={`${th} text-left`}>
-                {tx("Cuándo")}
-              </th>
-              <th scope="col" className={`${th} text-left`}>
-                {tx("Persona")}
-              </th>
-              <th scope="col" className={`${th} text-left`}>
-                {tx("Qué")}
-              </th>
-              <th scope="col" className={`${th} text-left`}>
-                {tx("Pantalla")}
-              </th>
-              <th scope="col" className={`${th} text-left`}>
-                {tx("Control")}
-              </th>
-              <th scope="col" className={`${th} text-right`}>
-                {tx("Visible")}
-              </th>
-              <th scope="col" className={`${th} text-left`}>
-                {tx("Sesión")}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {(data?.rows ?? []).map((f) => (
-              <tr key={f.id} className="border-t border-[var(--border)]">
-                <td className={`${td} tabular-nums whitespace-nowrap`}>
-                  {dateTime(f.at)}
-                </td>
-                <td className={td}>{f.name}</td>
-                <td className={`${td} text-[var(--muted)]`}>
-                  {f.kind === "page" ? tx("Visita") : tx("Clic")}
-                </td>
-                <td className={td}>{f.module}</td>
-                <td className={td}>{f.label ?? "-"}</td>
-                <td className={`${td} text-right tabular-nums`}>
-                  {f.visibleMs > 0
-                    ? duracion(Math.round(f.visibleMs / 1000))
-                    : "-"}
-                </td>
-                {/* Los ocho primeros caracteres bastan para ver si dos
+      <Tabs
+        tabs={[...CARAS_DEL_REGISTRO]}
+        active={cara}
+        onChange={setCara}
+        grupo="uso-registro"
+        label={tx("Caras del registro")}
+      />
+
+      <PanelDePestanas grupo="uso-registro" activa={cara}>
+        {cara === "mapa" ? (
+          <Suspense
+            fallback={
+              <p className="text-sm text-[var(--muted)]">{tx("Cargando…")}</p>
+            }
+          >
+            <MapaEnVivo
+              paisDe={paisDe}
+              dias={dias}
+              excluirme={excluirme}
+              filtros={{ usuario, modulo, buscar, tipo }}
+            />
+          </Suspense>
+        ) : (
+          <Panel
+            title={tx("Registro")}
+            meta={
+              data
+                ? tx("{{v0}} eventos · viendo {{v1}}–{{v2}}", {
+                    v0: data.total,
+                    v1: data.total === 0 ? 0 : desdeFila + 1,
+                    v2: hasta,
+                  })
+                : undefined
+            }
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-[var(--surface-2)]">
+                  <tr>
+                    <th scope="col" className={`${th} text-left`}>
+                      {tx("Cuándo")}
+                    </th>
+                    <th scope="col" className={`${th} text-left`}>
+                      {tx("Persona")}
+                    </th>
+                    <th scope="col" className={`${th} text-left`}>
+                      {tx("Qué")}
+                    </th>
+                    <th scope="col" className={`${th} text-left`}>
+                      {tx("Pantalla")}
+                    </th>
+                    <th scope="col" className={`${th} text-left`}>
+                      {tx("Control")}
+                    </th>
+                    <th scope="col" className={`${th} text-right`}>
+                      {tx("Visible")}
+                    </th>
+                    <th scope="col" className={`${th} text-left`}>
+                      {tx("Sesión")}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data?.rows ?? []).map((f) => (
+                    <tr key={f.id} className="border-t border-[var(--border)]">
+                      <td className={`${td} tabular-nums whitespace-nowrap`}>
+                        {dateTime(f.at)}
+                      </td>
+                      {/* La bandera, como en la tabla de personas: un nombre de
+                    Hattrick no dice de dónde es nadie, y aquí hay una fila por
+                    evento, así que cruzarlo a ojo con el mapa es peor todavía.
+                    `CountryFlag` pone un hueco del mismo ancho cuando no
+                    consta, así que la columna no se desalinea. */}
+                      <td className={td}>
+                        <span className="inline-flex items-center gap-2">
+                          <CountryFlag
+                            code={paisDe[f.userId]?.code ?? ""}
+                            country={paisDe[f.userId]?.name ?? ""}
+                          />
+                          {f.name}
+                        </span>
+                      </td>
+                      <td className={`${td} text-[var(--muted)]`}>
+                        {f.kind === "page" ? tx("Visita") : tx("Clic")}
+                      </td>
+                      <td className={td}>{f.module}</td>
+                      <td className={td}>{f.label ?? "-"}</td>
+                      <td className={`${td} text-right tabular-nums`}>
+                        {f.visibleMs > 0
+                          ? duracion(Math.round(f.visibleMs / 1000))
+                          : "-"}
+                      </td>
+                      {/* Los ocho primeros caracteres bastan para ver si dos
                     eventos son de la misma visita, que es para lo único que
                     se mira. */}
-                <td
-                  className={`${td} font-mono text-xs text-[var(--muted)]`}
-                  title={f.session}
+                      <td
+                        className={`${td} font-mono text-xs text-[var(--muted)]`}
+                        title={f.session}
+                      >
+                        {f.session.slice(0, 8)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {data && data.total === 0 && (
+              <p className="p-4 text-sm text-[var(--muted)]">
+                {tx("Nada que cumpla ese filtro.")}
+              </p>
+            )}
+
+            {data && data.total > POR_PAGINA && (
+              <div className="flex items-center justify-between gap-3 border-t border-[var(--border)] p-3">
+                <button
+                  onClick={() =>
+                    setDesdeFila(Math.max(0, desdeFila - POR_PAGINA))
+                  }
+                  disabled={desdeFila === 0}
+                  data-track="Uso: registro anterior"
+                  className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] disabled:opacity-40"
                 >
-                  {f.session.slice(0, 8)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {data && data.total === 0 && (
-        <p className="p-4 text-sm text-[var(--muted)]">
-          {tx("Nada que cumpla ese filtro.")}
-        </p>
-      )}
-
-      {data && data.total > POR_PAGINA && (
-        <div className="flex items-center justify-between gap-3 border-t border-[var(--border)] p-3">
-          <button
-            onClick={() => setDesdeFila(Math.max(0, desdeFila - POR_PAGINA))}
-            disabled={desdeFila === 0}
-            data-track="Uso: registro anterior"
-            className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] disabled:opacity-40"
-          >
-            {tx("Anteriores")}
-          </button>
-          <span className="text-xs tabular-nums text-[var(--muted)]">
-            {desdeFila + 1}–{hasta} {tx("de")} {data.total}
-          </span>
-          <button
-            onClick={() => setDesdeFila(desdeFila + POR_PAGINA)}
-            disabled={hasta >= data.total}
-            data-track="Uso: registro siguiente"
-            className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] disabled:opacity-40"
-          >
-            {tx("Siguientes")}
-          </button>
-        </div>
-      )}
-    </Panel>
+                  {tx("Anteriores")}
+                </button>
+                <span className="text-xs tabular-nums text-[var(--muted)]">
+                  {desdeFila + 1}–{hasta} {tx("de")} {data.total}
+                </span>
+                <button
+                  onClick={() => setDesdeFila(desdeFila + POR_PAGINA)}
+                  disabled={hasta >= data.total}
+                  data-track="Uso: registro siguiente"
+                  className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] disabled:opacity-40"
+                >
+                  {tx("Siguientes")}
+                </button>
+              </div>
+            )}
+          </Panel>
+        )}
+      </PanelDePestanas>
+    </>
   );
 }

@@ -86,17 +86,36 @@ export function MapaEnVivo({
   dias,
   excluirme,
   selector,
+  filtros,
 }: {
   /** El país de cada persona, por su id de fila. Viene de `byUser`, que es
    *  quien ya lo trae; pedirlo otra vez sería una consulta para nada. */
   paisDe: Record<number, PaisDeCadaUno>;
   dias: number;
   excluirme: boolean;
+  /** Los filtros de la pantalla que lo monta, si los tiene.
+   *
+   *  Existe porque en «Registro» el mapa y la tabla son DOS CARAS DE UN
+   *  CONMUTADOR: si la tabla enseña los eventos de una persona y el mapa los
+   *  de todas, el conmutador promete «lo mismo de otra forma» y entrega otra
+   *  cosa. Sin esto el filo no se ve --los dos paneles parecen correctos por
+   *  separado-- y por eso se pasan.
+   *
+   *  `tipo` NO viaja: un destello es un clic por definición, y alumbrar las
+   *  visitas haría de este un mapa distinto. Cuando el filtro pide visitas, el
+   *  panel lo dice en vez de enseñar un mapa que no le corresponde.
+   */
+  filtros?: {
+    usuario?: number | null;
+    modulo?: string | null;
+    buscar?: string | null;
+    /** Lo que el filtro pide ver; sólo para avisar cuando no son clics. */
+    tipo?: "" | "page" | "click";
+  };
   /** El selector de vista, para la cabecera del panel. Lo pasa la pantalla:
    *  es el mismo que elige entre este mapa y el de magnitud. */
   selector?: React.ReactNode;
 }) {
-
   // Los destellos viven FUERA de React, en un almacén con su propio reloj, y
   // esta pantalla se suscribe. No es un rodeo: el efecto que mira si llegaron
   // clics nuevos tiene que encender países, y hacerlo con `setState` desde
@@ -145,7 +164,15 @@ export function MapaEnVivo({
   // ── En vivo ──────────────────────────────────────────────────────────────
 
   const { data: nuevos, isFetching } = useQuery({
-    queryKey: ["uso-en-vivo", excluirme],
+    // Los filtros van en la clave: sin ellos, cambiar de persona en el
+    // desplegable no pedía nada y el mapa seguía con lo de antes en caché.
+    queryKey: [
+      "uso-en-vivo",
+      excluirme,
+      filtros?.usuario ?? null,
+      filtros?.modulo ?? null,
+      filtros?.buscar ?? null,
+    ],
     queryFn: () =>
       api.usageLog({
         // Un día, no el plazo de la pantalla: «en vivo» es ahora, y pedir
@@ -155,6 +182,9 @@ export function MapaEnVivo({
         tipo: "click",
         cuantas: CUANTOS_EN_VIVO,
         excluirme,
+        usuario: filtros?.usuario ?? null,
+        modulo: filtros?.modulo ?? null,
+        buscar: filtros?.buscar ?? null,
       }),
     refetchInterval: CADA_CUANTO_SE_PREGUNTA,
     // Sin esto el sondeo sigue con la pestaña en segundo plano, y al volver
@@ -201,6 +231,9 @@ export function MapaEnVivo({
         tipo: "click",
         cuantas: CUANTOS_EN_REPETICION,
         excluirme,
+        usuario: filtros?.usuario ?? null,
+        modulo: filtros?.modulo ?? null,
+        buscar: filtros?.buscar ?? null,
       });
       // Entre pedir y recibir pueden haber pasado cosas: que lo apagaran, o
       // que pulsaran «Repetición» otra vez. En los dos casos esta película ya
@@ -229,7 +262,10 @@ export function MapaEnVivo({
         await new Promise((listo) =>
           setTimeout(
             listo,
-            Math.min(SILENCIO_MAXIMO, Math.max(SILENCIO_MINIMO, hueco * factor)),
+            Math.min(
+              SILENCIO_MAXIMO,
+              Math.max(SILENCIO_MINIMO, hueco * factor),
+            ),
           ),
         );
       }
@@ -238,7 +274,7 @@ export function MapaEnVivo({
       // mientras, apagarle el botón sería apagárselo a ella.
       if (mio === corte.current) setRepitiendo(false);
     }
-  }, [apagarTodo, dias, excluirme, paisDe, destellos]);
+  }, [apagarTodo, dias, excluirme, paisDe, destellos, filtros]);
 
   // ── El dibujo ────────────────────────────────────────────────────────────
 
@@ -247,9 +283,7 @@ export function MapaEnVivo({
   return (
     <Panel
       title={tx("El mapa que alumbra")}
-      meta={
-        vistos === 1 ? tx("1 clic") : tx("{{v0}} clics", { v0: vistos })
-      }
+      meta={vistos === 1 ? tx("1 clic") : tx("{{v0}} clics", { v0: vistos })}
       ayuda={tx(
         "Cada destello es un clic de alguien de ese país. En vivo sondea lo nuevo cada cinco segundos; en repetición recorre los clics ya guardados del plazo elegido, con su ritmo comprimido. No se mide nada nuevo: sale del mismo registro y del mismo país de la liga del club.",
       )}
@@ -341,7 +375,9 @@ export function MapaEnVivo({
                       stroke="var(--accent)"
                       strokeWidth={1.5}
                       className="motion-safe:animate-ping"
-                      style={{ transformOrigin: `${centro[0]}px ${centro[1]}px` }}
+                      style={{
+                        transformOrigin: `${centro[0]}px ${centro[1]}px`,
+                      }}
                     />
                   </g>
                 );
@@ -375,6 +411,17 @@ export function MapaEnVivo({
               </span>
             )}
           </p>
+
+          {/* El único filtro que este mapa NO puede cumplir, dicho donde se
+              nota. Callarlo dejaría dos paneles que se contradicen sin que
+              nada lo explique. */}
+          {filtros?.tipo === "page" && (
+            <p className="text-xs text-[var(--warning)]">
+              {tx(
+                "El filtro pide visitas, pero un destello es un clic: este mapa sigue enseñando clics.",
+              )}
+            </p>
+          )}
         </div>
       )}
     </Panel>
