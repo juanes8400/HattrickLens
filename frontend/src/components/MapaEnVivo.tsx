@@ -17,10 +17,13 @@
  *      única de las dos que deja ver la forma de un día: las rachas salen como
  *      rachas y los huecos como huecos.
  *
- *  NACE APAGADO, y no por cortesía: encenderlo monta un segundo mapa del mundo
- *  entero --otras ciento ochenta siluetas en el DOM-- y pone un sondeo en
- *  marcha. Quien entra a leer la tabla de personas no tiene por qué pagar
- *  ninguna de las dos cosas.
+ *  SÓLO EXISTE MIENTRAS SE MIRA. Hasta el 2026-10-24 traía su propio botón de
+ *  encendido, porque montarlo cuesta un mapa del mundo entero --otras ciento
+ *  ochenta siluetas en el DOM-- y un sondeo cada cinco segundos. Desde que la
+ *  pantalla elige UN mapa con un solo selector, eso lo da el montaje: este
+ *  componente no existe mientras no se escoja, y al escoger otra vista se
+ *  desmonta y se lleva el sondeo con él. Un interruptor menos para la misma
+ *  garantía.
  *
  *  NO HAY NADA NUEVO QUE MEDIR. Sale del mismo registro de siempre y del mismo
  *  país de la liga del club; aquí no se pregunta nada ni se mira de dónde viene
@@ -73,8 +76,6 @@ const LO_QUE_DURA_UNA_REPETICION = 25_000;
 const SILENCIO_MAXIMO = 700;
 const SILENCIO_MINIMO = 30;
 
-type Modo = "apagado" | "vivo" | "repeticion";
-
 export interface PaisDeCadaUno {
   code: string;
   name: string;
@@ -84,14 +85,17 @@ export function MapaEnVivo({
   paisDe,
   dias,
   excluirme,
+  selector,
 }: {
   /** El país de cada persona, por su id de fila. Viene de `byUser`, que es
    *  quien ya lo trae; pedirlo otra vez sería una consulta para nada. */
   paisDe: Record<number, PaisDeCadaUno>;
   dias: number;
   excluirme: boolean;
+  /** El selector de vista, para la cabecera del panel. Lo pasa la pantalla:
+   *  es el mismo que elige entre este mapa y el de magnitud. */
+  selector?: React.ReactNode;
 }) {
-  const [modo, setModo] = useState<Modo>("apagado");
 
   // Los destellos viven FUERA de React, en un almacén con su propio reloj, y
   // esta pantalla se suscribe. No es un rodeo: el efecto que mira si llegaron
@@ -117,8 +121,9 @@ export function MapaEnVivo({
   // cambiar de pestaña, salir de la pantalla-- puede interrumpir un `await`.
   // Sin esto, apagar el mapa lo dejaba destellando hasta que la película
   // acabara sola, y salir de la pantalla acababa escribiendo estado de un
-  // componente que ya no existe. Cada cambio de modo sube el número; la
-  // repetición se queda con el suyo y se calla en cuanto deja de coincidir.
+  // componente que ya no existe. Desmontar y empezar otra película suben el
+  // número; la que corre se queda con el suyo y se calla en cuanto deja de
+  // coincidir.
   const corte = useRef(0);
 
   /** Apaga todo y corta lo que estuviera en marcha. */
@@ -151,15 +156,14 @@ export function MapaEnVivo({
         cuantas: CUANTOS_EN_VIVO,
         excluirme,
       }),
-    enabled: modo === "vivo",
-    refetchInterval: modo === "vivo" ? CADA_CUANTO_SE_PREGUNTA : false,
+    refetchInterval: CADA_CUANTO_SE_PREGUNTA,
     // Sin esto el sondeo sigue con la pestaña en segundo plano, y al volver
     // caerían de golpe todos los destellos de un rato en el que nadie miraba.
     refetchIntervalInBackground: false,
   });
 
   useEffect(() => {
-    if (modo !== "vivo" || !nuevos) return;
+    if (!nuevos) return;
     // El registro viene del más nuevo al más viejo; para encender en el orden
     // en que pasaron hay que recorrerlo al revés.
     const filas = [...nuevos.rows].reverse();
@@ -179,7 +183,7 @@ export function MapaEnVivo({
       destellos.encender(pais.code, f.at);
     }
     hastaAqui.current = Math.max(hastaAqui.current, tope);
-  }, [nuevos, modo, paisDe, destellos]);
+  }, [nuevos, paisDe, destellos]);
 
   // ── Repetición ───────────────────────────────────────────────────────────
 
@@ -238,89 +242,42 @@ export function MapaEnVivo({
 
   // ── El dibujo ────────────────────────────────────────────────────────────
 
-  const cambiarModo = (nuevo: Modo) => {
-    apagarTodo();
-    hastaAqui.current = 0;
-    setModo(nuevo);
-  };
-
   const cuantosConPais = Object.values(paisDe).filter((p) => p.code).length;
 
   return (
     <Panel
       title={tx("El mapa que alumbra")}
       meta={
-        modo === "apagado"
-          ? undefined
-          : vistos === 1
-            ? tx("1 clic")
-            : tx("{{v0}} clics", { v0: vistos })
+        vistos === 1 ? tx("1 clic") : tx("{{v0}} clics", { v0: vistos })
       }
       ayuda={tx(
         "Cada destello es un clic de alguien de ese país. En vivo sondea lo nuevo cada cinco segundos; en repetición recorre los clics ya guardados del plazo elegido, con su ritmo comprimido. No se mide nada nuevo: sale del mismo registro y del mismo país de la liga del club.",
       )}
       acciones={
+        // El selector de vista lo pone la pantalla; «Repetición» es de este
+        // mapa y va al lado, porque es una ACCIÓN --reproduce una vez y
+        // termina-- y no una tercera forma de mirar.
         <div className="flex items-center gap-1">
-          {modo !== "apagado" && (
-            <button
-              onClick={() => cambiarModo("apagado")}
-              data-track="Uso: mapa en vivo apagar"
-              className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)]"
-            >
-              {tx("Apagar")}
-            </button>
-          )}
+          {selector}
           <button
-            onClick={() => cambiarModo("vivo")}
-            aria-pressed={modo === "vivo"}
-            data-track="Uso: mapa en vivo"
-            className={`rounded-md border px-2 py-1 text-xs ${
-              modo === "vivo"
-                ? "border-[var(--accent)] text-[var(--accent)]"
-                : "border-[var(--border)] text-[var(--muted)]"
-            }`}
-          >
-            {tx("En vivo")}
-          </button>
-          <button
-            onClick={() => {
-              if (modo !== "repeticion") cambiarModo("repeticion");
-              void repetir();
-            }}
+            onClick={() => void repetir()}
             disabled={repitiendo}
-            aria-pressed={modo === "repeticion"}
             data-track="Uso: mapa repeticion"
-            className={`rounded-md border px-2 py-1 text-xs disabled:opacity-50 ${
-              modo === "repeticion"
-                ? "border-[var(--accent)] text-[var(--accent)]"
-                : "border-[var(--border)] text-[var(--muted)]"
-            }`}
+            className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] disabled:opacity-50"
           >
             {repitiendo ? tx("Reproduciendo…") : tx("Repetición")}
           </button>
         </div>
       }
     >
-      {modo === "apagado" ? (
-        /* Apagado no pinta el mapa: son otras ciento ochenta siluetas en el
-           DOM y un sondeo en marcha, y quien viene a leer la tabla de personas
-           no tiene por qué pagarlos. */
-        <div className="space-y-2 p-4 text-sm text-[var(--muted)]">
-          <p>
-            {tx(
-              "Un destello por cada clic, en el país de quien lo dio. Nace apagado porque enciende un segundo mapa del mundo y un sondeo cada cinco segundos.",
-            )}
-          </p>
-          <p className="text-xs">
-            {cuantosConPais === 0
-              ? tx(
-                  "Todavía no consta el país de nadie, así que no habría dónde alumbrar: sale de la liga del club y aparece en cuanto alguien sincroniza.",
-                )
-              : tx(
-                  "Con el tráfico de hoy, «En vivo» va a estar en negro casi todo el tiempo. «Repetición» recorre lo ya guardado y siempre tiene algo que enseñar.",
-                )}
-          </p>
-        </div>
+      {/* Sin país de nadie no hay dónde alumbrar, y un mapa entero en negro
+          sin explicación se lee como una avería. */}
+      {cuantosConPais === 0 ? (
+        <p className="p-4 text-sm text-[var(--muted)]">
+          {tx(
+            "Todavía no consta el país de nadie, así que no habría dónde alumbrar: sale de la liga del club y aparece en cuanto alguien sincroniza.",
+          )}
+        </p>
       ) : (
         <div className="p-4">
           <div className="overflow-x-auto">
@@ -410,13 +367,11 @@ export function MapaEnVivo({
               </span>
             ) : (
               <span className="text-xs text-[var(--muted)]">
-                {modo === "vivo"
-                  ? isFetching
-                    ? tx("Escuchando…")
-                    : tx(
-                        "Sin clics nuevos todavía. Con doce personas, esto pasa la mayor parte del tiempo.",
-                      )
-                  : tx("Pulsa «Repetición» para recorrer lo guardado.")}
+                {isFetching
+                  ? tx("Escuchando…")
+                  : tx(
+                      "Sin clics nuevos todavía. Con doce personas, esto pasa la mayor parte del tiempo.",
+                    )}
               </span>
             )}
           </p>

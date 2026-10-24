@@ -97,6 +97,24 @@ const SIEMPRE = 0;
 const th = "px-3 py-2 text-xs font-medium text-[var(--muted)]";
 const td = "px-3 py-2 text-sm";
 
+/** Las tres formas de mirar el mapa, en UN solo selector.
+ *
+ *  2026-10-24, pedido del usuario. Eran dos mapas del mundo apilados en la
+ *  misma pestaña, cada uno con su grupo de botones: mucho sitio y dos
+ *  controles que se parecen para decidir una sola cosa. Ahora se monta uno a
+ *  la vez, y eso da gratis lo que antes costaba un interruptor: el de los
+ *  destellos no existe --ni sondea-- mientras no se escoja.
+ *
+ *  Las tres contestan preguntas distintas sobre el mismo sitio: a cuántos
+ *  países llegó esto, cuáles trabajan dentro, y qué está pasando ahora.
+ */
+const VISTAS_DEL_MAPA = [
+  { key: "users", label: tx("Personas") },
+  { key: "clicks", label: tx("Clics") },
+  { key: "vivo", label: tx("En vivo") },
+] as const;
+type VistaDelMapa = (typeof VISTAS_DEL_MAPA)[number]["key"];
+
 const SECCIONES = [
   { key: "resumen", label: tx("Resumen") },
   { key: "personas", label: tx("Personas") },
@@ -421,6 +439,13 @@ function Personas({
   // El país de cada persona, para el mapa de destellos. Se arma de `byUser`,
   // que ya lo trae: el registro crudo sólo da el id, y pedir los países otra
   // vez sería una consulta para nada.
+  // Persistido, como el plazo y «sin mis visitas»: es una forma de mirar, no
+  // un estado de pantalla, y quien viene a ver personas las quiere ver mañana
+  // también.
+  const [vista, setVista] = usePersistido<VistaDelMapa>(
+    "uso.mapa.vista",
+    "users",
+  );
   const paisDe = useMemo(
     () =>
       Object.fromEntries(
@@ -430,6 +455,33 @@ function Personas({
         ]),
       ),
     [data.byUser],
+  );
+
+  // El selector lo arma la pantalla y lo pinta el mapa que esté puesto, en la
+  // cabecera de su panel: así los tres botones no se mueven de sitio al
+  // cambiar de vista.
+  const selectorDeMapa = (
+    <div
+      className="flex items-center gap-1"
+      role="group"
+      aria-label={tx("Qué enseña el mapa")}
+    >
+      {VISTAS_DEL_MAPA.map((v) => (
+        <button
+          key={v.key}
+          onClick={() => setVista(v.key)}
+          aria-pressed={vista === v.key}
+          data-track={`Uso: mapa ${v.key}`}
+          className={`rounded-md border px-2 py-1 text-xs ${
+            vista === v.key
+              ? "border-[var(--accent)] text-[var(--accent)]"
+              : "border-[var(--border)] text-[var(--muted)]"
+          }`}
+        >
+          {v.label}
+        </button>
+      ))}
+    </div>
   );
 
   return (
@@ -462,15 +514,20 @@ function Personas({
           <p className="text-sm text-[var(--muted)]">{tx("Cargando…")}</p>
         }
       >
-        <MapaDeUso paises={data.byCountry} />
-      </Suspense>
-
-      <Suspense
-        fallback={
-          <p className="text-sm text-[var(--muted)]">{tx("Cargando…")}</p>
-        }
-      >
-        <MapaEnVivo paisDe={paisDe} dias={dias} excluirme={excluirme} />
+        {vista === "vivo" ? (
+          <MapaEnVivo
+            paisDe={paisDe}
+            dias={dias}
+            excluirme={excluirme}
+            selector={selectorDeMapa}
+          />
+        ) : (
+          <MapaDeUso
+            paises={data.byCountry}
+            magnitud={vista}
+            selector={selectorDeMapa}
+          />
+        )}
       </Suspense>
 
       <Panel

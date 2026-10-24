@@ -86,12 +86,17 @@ export function PersonasEnElTiempo({
     <Panel
       title={tx("Personas en el tiempo")}
       meta={
-        estrenos > 0
-          ? tx("máximo {{v0}} a la vez · {{v1}} estrenos", {
-              v0: punta,
-              v1: estrenos,
-            })
-          : tx("máximo {{v0}} a la vez", { v0: punta })
+        // Con un solo estreno «1 estrenos» canta, y el sistema de textos
+        // traduce frases enteras, no plurales. Mismo caso que «1 país» en el
+        // mapa.
+        estrenos === 0
+          ? tx("máximo {{v0}} a la vez", { v0: punta })
+          : estrenos === 1
+            ? tx("máximo {{v0}} a la vez · 1 estreno", { v0: punta })
+            : tx("máximo {{v0}} a la vez · {{v1}} estrenos", {
+                v0: punta,
+                v1: estrenos,
+              })
       }
       ayuda={tx(
         "Personas DISTINTAS con actividad en cada tramo. No se suman entre tramos: quien entra lunes y martes es una sola persona en la semana. El tramo relleno más oscuro son las que aparecen por primera vez.",

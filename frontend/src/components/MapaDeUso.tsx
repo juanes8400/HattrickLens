@@ -16,7 +16,6 @@ import {
   valorDe,
 } from "../utils/mapaDeUso";
 import type { Magnitud, UsoPorPais } from "../utils/mapaDeUso";
-import { usePersistido } from "../hooks/usePersistido";
 import { tx } from "../i18n/tx";
 
 /** De dónde es la gente y cuánto usa la aplicación, sobre el mapa.
@@ -37,6 +36,12 @@ import { tx } from "../i18n/tx";
  *
  *  Las dos lecturas siguen estando, porque las dos eran buenas: el selector
  *  cambia lo que colorea. Lo que cambió es cuál sale al entrar.
+ *
+ *  2026-10-24: EL SELECTOR YA NO ES SUYO. Lo pasa la pantalla, y es el mismo
+ *  que elige entre este mapa y el de los destellos. Eran dos mapas del mundo
+ *  apilados en la misma pestaña, cada uno con su propio grupo de botones, y
+ *  eso es mucho sitio y dos controles que se parecen para decidir una sola
+ *  cosa: cómo mirar de dónde es la gente. Ahora se monta uno a la vez.
  */
 
 /** Se reexporta para que quien ya importaba el tipo de aquí siga igual; la
@@ -44,22 +49,18 @@ import { tx } from "../i18n/tx";
  *  montar un mapa del mundo. */
 export type { UsoPorPais } from "../utils/mapaDeUso";
 
-/** Las dos lecturas, con su rótulo. Los rótulos se quedan aquí --y no en el
- *  módulo de aritmética-- porque son texto de pantalla, no cuentas. */
-const MAGNITUDES = [
-  { key: "users", label: tx("Personas") },
-  { key: "clicks", label: tx("Clics") },
-] as const;
-
-export function MapaDeUso({ paises }: { paises: UsoPorPais[] }) {
+export function MapaDeUso({
+  paises,
+  magnitud,
+  selector,
+}: {
+  paises: UsoPorPais[];
+  /** Qué colorea. Lo decide la pantalla, que es quien tiene el selector. */
+  magnitud: Magnitud;
+  /** El selector de vista, para la cabecera del panel. */
+  selector?: React.ReactNode;
+}) {
   const [encima, setEncima] = useState<string | null>(null);
-  // Persistido, como el plazo y «sin mis visitas»: es una forma de mirar, no
-  // un estado de pantalla, y quien viene a ver personas las quiere ver manana
-  // tambien.
-  const [magnitud, setMagnitud] = usePersistido<Magnitud>(
-    "uso.mapa.magnitud",
-    "users",
-  );
   const comoPersonas = magnitud === "users";
 
   // Sin código no hay sitio en el mapa: son las ligas internacionales y quien
@@ -98,28 +99,10 @@ export function MapaDeUso({ paises }: { paises: UsoPorPais[] }) {
         // frases enteras, no plurales.
         situados.length === 1 ? tx("1 país") : tx("{{v0}} países", { v0: situados.length })
       }
-      acciones={
-        // El selector va en la cabecera y no sobre el dibujo: encima del mapa
-        // taparía un país, y aquí se lee antes de mirar, que es el orden en
-        // que hace falta saber qué colorea.
-        <div className="flex items-center gap-1" role="group" aria-label={tx("Qué colorea el mapa")}>
-          {MAGNITUDES.map((m) => (
-            <button
-              key={m.key}
-              onClick={() => setMagnitud(m.key)}
-              aria-pressed={magnitud === m.key}
-              data-track={`Uso: mapa por ${m.key}`}
-              className={`rounded-md border px-2 py-1 text-xs ${
-                magnitud === m.key
-                  ? "border-[var(--accent)] text-[var(--accent)]"
-                  : "border-[var(--border)] text-[var(--muted)]"
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-      }
+      // El selector va en la cabecera y no sobre el dibujo: encima del mapa
+      // taparía un país, y aquí se lee antes de mirar, que es el orden en que
+      // hace falta saber qué colorea.
+      acciones={selector}
       ayuda={tx(
         "El país no se pregunta ni se deduce de la conexión: es el de la liga del club, que Hattrick ya publica. Quien lleva varios clubes cuenta por el principal.",
       )}
