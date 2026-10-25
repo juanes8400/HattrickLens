@@ -1,6 +1,10 @@
 import { dateTime, cifra } from "../hooks/useFormat";
 import { Suspense, lazy, useMemo, useState } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { ErrorState, Panel } from "../components/Panels";
 import { PanelDePestanas, Tabs } from "../components/Tabs";
 import { CountryFlag } from "../components/CountryFlag";
@@ -156,6 +160,10 @@ const SECCIONES = [
   { key: "personas", label: tx("Personas") },
   { key: "adopcion", label: tx("Adopción") },
   { key: "registro", label: tx("Registro") },
+  // 2026-10-25: los fallos que cuenta la gente. Va aquí y no en una pantalla
+  // propia porque es la misma pregunta que el resto --qué le pasa a quien usa
+  // esto-- y porque una pantalla más en el menú por doce reportes es ruido.
+  { key: "reportes", label: tx("Reportes") },
 ] as const;
 type Seccion = (typeof SECCIONES)[number]["key"];
 
@@ -261,6 +269,7 @@ export function UsagePage() {
             {seccion === "registro" && (
               <Registro dias={dias} excluirme={excluirme} />
             )}
+            {seccion === "reportes" && <Reportes />}
           </PanelDePestanas>
         </>
       )}
@@ -1231,5 +1240,116 @@ function Registro({ dias, excluirme }: { dias: number; excluirme: boolean }) {
         )}
       </PanelDePestanas>
     </>
+  );
+}
+
+// ── Reportes ───────────────────────────────────────────────────────────────
+
+/** Los fallos que cuenta la gente, desde el botón del menú.
+ *
+ *  2026-10-25. Sin esta pestaña el botón escribiría en un cajón que nadie
+ *  abre, que es peor que no tener botón: promete que alguien lee.
+ *
+ *  DEL MÁS NUEVO AL MÁS VIEJO, y lo ordena el servidor. Un reporte recién
+ *  llegado es el que todavía se puede reproducir; los viejos ya se arreglaron
+ *  o ya no pasan.
+ */
+function Reportes() {
+  const [soloPendientes, setSoloPendientes] = usePersistido(
+    "uso.reportes.pendientes",
+    true,
+  );
+  const cliente = useQueryClient();
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["reportes-de-fallos", soloPendientes],
+    queryFn: () => api.reportes(soloPendientes),
+  });
+
+  const marcar = async (id: number, atendido: boolean) => {
+    await api.atenderReporte(id, atendido);
+    await cliente.invalidateQueries({ queryKey: ["reportes-de-fallos"] });
+  };
+
+  if (error) return <ErrorState error={error} />;
+
+  return (
+    <Panel
+      title={tx("Lo que cuenta la gente")}
+      meta={
+        data
+          ? data.pending === 1
+            ? tx("1 sin atender")
+            : tx("{{v0}} sin atender", { v0: data.pending })
+          : undefined
+      }
+      ayuda={tx(
+        "Los fallos que la gente cuenta desde el botón del menú. Se guarda el texto, la pantalla desde la que se escribió y el navegador; nada más. Para contestar está Hattrick.",
+      )}
+      acciones={
+        <label className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
+          <input
+            type="checkbox"
+            checked={soloPendientes}
+            onChange={(e) => setSoloPendientes(e.target.checked)}
+            data-track="Uso: solo reportes pendientes"
+            className="accent-[var(--accent)]"
+          />
+          {tx("Sólo sin atender")}
+        </label>
+      }
+    >
+      {isLoading && (
+        <p className="p-4 text-sm text-[var(--muted)]">{tx("Cargando…")}</p>
+      )}
+
+      {data && data.rows.length === 0 && (
+        <p className="p-4 text-sm text-[var(--muted)]">
+          {soloPendientes
+            ? tx("Nada sin atender.")
+            : tx("Todavía no ha escrito nadie.")}
+        </p>
+      )}
+
+      <ul className="divide-y divide-[var(--border)]">
+        {(data?.rows ?? []).map((r) => (
+          <li key={r.id} className="space-y-2 p-4">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
+              <span className="font-medium text-[var(--text)]">{r.name}</span>
+              <span className="tabular-nums">{dateTime(r.at)}</span>
+              {r.module && (
+                <span>
+                  {tx("desde")} «{r.module}»
+                </span>
+              )}
+              {r.atendido && (
+                <span className="text-[var(--positive)]">{tx("atendido")}</span>
+              )}
+            </div>
+            {/* `whitespace-pre-wrap`: un reporte con pasos numerados pierde la
+                mitad de su valor si se le quitan los saltos de línea. */}
+            <p className="prosa whitespace-pre-wrap text-sm">{r.text}</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => void marcar(r.id, !r.atendido)}
+                data-track="Uso: atender reporte"
+                className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)]"
+              >
+                {r.atendido ? tx("Reabrir") : tx("Marcar como atendido")}
+              </button>
+              {/* El navegador, a la vista y no en un globo: media docena de
+                  fallos de esta aplicación han sido de uno concreto. */}
+              {r.userAgent && (
+                <span
+                  className="truncate text-[11px] text-[var(--muted)]"
+                  title={r.userAgent}
+                >
+                  {r.userAgent}
+                </span>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Panel>
   );
 }

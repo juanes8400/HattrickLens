@@ -191,6 +191,8 @@ export type {
 } from "./transferencias";
 export type {
   Grano,
+  ReporteDeFallo,
+  ReportesDeFallos,
   TramoDeUso,
   UsageLog,
   UsageLogFiltros,

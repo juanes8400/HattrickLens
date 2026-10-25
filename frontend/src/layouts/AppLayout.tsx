@@ -7,13 +7,12 @@ import { api, errorMessage } from "../services/api";
 import { useDashboard, useSessionProfile } from "../hooks/useTeam";
 import { relative } from "../hooks/useFormat";
 import { ApoyarProyecto } from "../components/ApoyarProyecto";
+import { ReportarFallo } from "../components/ReportarFallo";
 import { SelectorDeClub } from "../components/SelectorDeClub";
 import { SelectorDeIdioma } from "../components/SelectorDeIdioma";
 import { ImagenOpcional, SELLO_PROVEEDOR } from "../components/ImagenOpcional";
 import { NAV, USO, agrupar, nombreNav } from "./navegacion";
 import { SIGUIENTE_TEMA, useTema, type Tema } from "../hooks/useTheme";
-
-
 
 function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
   // Suscribe el menú al idioma: al cambiarlo se vuelve a pintar.
@@ -78,6 +77,11 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         ))}
       </nav>
+      {/* AL PIE Y NO FLOTANDO (2026-10-25). Un botón fijo sobre el contenido
+          tapa algo en todas las pantallas para servir en una; aquí se
+          encuentra cuando se busca, que es cuando hace falta. Y va al final
+          del menú a propósito: es una salida, no una sección. */}
+      <ReportarFallo />
     </>
   );
 }

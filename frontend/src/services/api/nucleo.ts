@@ -147,5 +147,17 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
     }
     throw new ApiError(`${res.status} ${res.statusText}`, res.status, detail);
   }
+  // UNA RESPUESTA SIN CUERPO NO ES UN FALLO. `res.json()` sobre un 204 lanza
+  // «Unexpected end of JSON input», y como eso pasa DESPUÉS de que el servidor
+  // haya hecho el trabajo, el resultado es el peor de los fallos posibles: la
+  // acción se completa y la pantalla dice que no se pudo.
+  //
+  // Se vio el 2026-10-25 estrenando el botón de reportar fallos: el reporte se
+  // guardaba y salía «No se pudo enviar». Hasta hoy no se había notado porque
+  // ninguna llamada que pasa por aquí devolvía 204 --la telemetría, que sí,
+  // usa `fetch` directamente--.
+  if (res.status === 204 || res.headers.get("content-length") === "0") {
+    return undefined as T;
+  }
   return res.json() as Promise<T>;
 }

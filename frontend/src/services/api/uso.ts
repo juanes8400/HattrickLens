@@ -169,6 +169,25 @@ export interface UsageLogFiltros {
   excluirme?: boolean;
 }
 
+/** Un fallo reportado desde dentro de la aplicación. */
+export interface ReporteDeFallo {
+  id: number;
+  at: string;
+  userId: number;
+  name: string;
+  /** La pantalla desde la que se escribió, rellenada sola. */
+  module: string;
+  text: string;
+  userAgent: string;
+  atendido: boolean;
+}
+
+export interface ReportesDeFallos {
+  /** Cuántos faltan por atender EN TOTAL, no en esta página. */
+  pending: number;
+  rows: ReporteDeFallo[];
+}
+
 export const apiUso = {
   usage: (dias = 0, excluirme = false) =>
     request<UsageSummary>(
@@ -187,4 +206,22 @@ export const apiUso = {
     return request<UsageLog>(`/usage/log?${q}`);
   },
   /** Anota cuantas veces vieron al jugador, o ignora la pregunta. */
+
+  /** Cuenta un fallo. LO PUEDE MANDAR CUALQUIERA que haya entrado, no sólo el
+   *  administrador: un canal de reportes que sólo usa el dueño no es un canal
+   *  de reportes. */
+  reportarFallo: (texto: string, pantalla: string) =>
+    request<void>(`/feedback`, {
+      method: "POST",
+      body: JSON.stringify({ text: texto, module: pantalla }),
+    }),
+  /** Los reportes recibidos. Sólo el administrador. */
+  reportes: (soloPendientes = false) =>
+    request<ReportesDeFallos>(
+      `/feedback${soloPendientes ? "?pendientes=true" : ""}`,
+    ),
+  atenderReporte: (id: number, atendido: boolean) =>
+    request<void>(`/feedback/${id}/atendido?atendido=${atendido}`, {
+      method: "POST",
+    }),
 };

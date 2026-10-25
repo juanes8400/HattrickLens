@@ -425,6 +425,38 @@ class UiEvent(Base):
     visible_ms: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class BugReport(Base):
+    """Un fallo contado por quien lo sufre, desde dentro de la aplicación.
+
+    2026-10-25, cerrando un reporte que terminaba con «I didn't see any "report
+    bug" or such button on the site itself». No lo había.
+
+    SE GUARDA AQUÍ Y NO EN GITHUB a propósito. El repositorio es público y
+    tiene las incidencias abiertas, así que un enlace habría costado cero; pero
+    quien usa esto es un manager de Hattrick, no un programador, y pedirle una
+    cuenta de GitHub para contar que el sincronizador se le corta es casi no
+    darle el botón.
+
+    NO se guarda nada que no haya escrito: ni correo, ni IP, ni nada de la
+    sesión. Para contestar está Hattrick, que es donde ya se le conoce.
+    """
+
+    __tablename__ = "bug_reports"
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    at: Mapped[datetime] = mapped_column(UtcDateTime(), index=True)
+    #: Desde qué pantalla se escribió, rellenado solo. Es el dato que más veces
+    #: falta en un reporte y el único que no hay que pedir.
+    module: Mapped[str] = mapped_column(String(64), default="")
+    text: Mapped[str] = mapped_column(Text)
+    #: Qué navegador. Media docena de fallos de esta aplicación han sido de uno
+    #: concreto, así que preguntarlo después cuesta un viaje de ida y vuelta.
+    user_agent: Mapped[str] = mapped_column(String(300), default="")
+    #: Sí o no, sin estados intermedios: es para no llevar la lista de
+    #: pendientes en la cabeza, no para montar un gestor de incidencias.
+    atendido: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
 class SyncChange(Base):
     """Qué cambió en un sync respecto al anterior, HL-140. Se calcula una
     sola vez, en el momento del sync (cuando el old/new ya están en memoria),

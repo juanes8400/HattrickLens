@@ -20,7 +20,7 @@ import io
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select
@@ -586,3 +586,130 @@ async def registro(
         ],
         "modules": sorted(MODULOS_CONOCIDOS),
     }
+
+
+# ── Reportar un fallo ────────────────────────────────────────────────────────
+#
+# 2026-10-25, cerrando un reporte de usuario que terminaba asi: «By the way, I
+# didn't see any "report bug" or such button on the site itself». No lo habia.
+#
+# Vive en este modulo y no en uno propio porque es la misma materia --lo que la
+# gente hace con la aplicacion, medido en el propio servidor-- y comparte el
+# `require_admin` para leerlos.
+
+#: Tope del texto. Largo a proposito: un reporte util trae pasos para
+#: reproducir, y recortarlo a dos lineas obliga a pedirlo otra vez.
+MAXIMO_DEL_REPORTE = 4000
+
+#: Cuantos se devuelven de una. No se pagina: son reportes de una aplicacion
+#: con doce usuarios, no un gestor de incidencias.
+REPORTES_POR_PAGINA = 100
+
+
+class ReporteEntrante(BaseModel):
+    """Lo que manda el formulario. Nada mas que esto."""
+
+    text: str = Field(min_length=1, max_length=MAXIMO_DEL_REPORTE)
+    #: La pantalla desde la que se escribe, que la rellena el navegador. Es el
+    #: dato que mas veces falta en un reporte y el unico que no hay que pedir.
+    module: str = Field(default="", max_length=64)
+
+
+@router.post("/feedback", status_code=204)
+async def reportar(
+    reporte: ReporteEntrante,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    user: m.User = Depends(get_current_user),
+) -> None:
+    """Guarda un fallo contado por quien lo sufre.
+
+    LO PUEDE MANDAR CUALQUIERA que haya entrado, no solo el administrador: es
+    justo lo contrario del resto de este modulo. Un reporte que solo puede
+    escribir el dueño no es un canal de reportes.
+
+    El navegador se toma de la cabecera y recortado. No se guarda la IP ni
+    nada de la sesion: solo lo que la persona escribio.
+    """
+    texto = reporte.text.strip()
+    if not texto:
+        raise HTTPException(status_code=422, detail="El reporte viene vacío")
+    session.add(
+        m.BugReport(
+            user_id=user.id,
+            at=datetime.now(UTC).replace(tzinfo=None),
+            module=reporte.module.strip()[:64],
+            text=texto[:MAXIMO_DEL_REPORTE],
+            user_agent=(request.headers.get("user-agent") or "")[:300],
+        )
+    )
+    await session.commit()
+
+
+@router.get("/feedback")
+async def reportes(
+    pendientes: bool = Query(False, description="Solo los que falta atender"),
+    session: AsyncSession = Depends(get_session),
+    admin: m.User = Depends(require_admin),
+) -> dict[str, Any]:
+    """Los fallos reportados, del mas nuevo al mas viejo.
+
+    Del mas nuevo porque un reporte recien llegado es el que todavia se puede
+    reproducir; los viejos ya se arreglaron o ya no pasan.
+    """
+    nombres = await _nombres_de_usuario(session)
+    condiciones: list[Any] = []
+    if pendientes:
+        condiciones.append(m.BugReport.atendido.is_(False))
+    filas = (
+        (
+            await session.execute(
+                select(m.BugReport)
+                .where(*condiciones)
+                .order_by(m.BugReport.at.desc(), m.BugReport.id.desc())
+                .limit(REPORTES_POR_PAGINA)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    sin_atender = (
+        await session.execute(
+            select(func.count()).select_from(m.BugReport).where(m.BugReport.atendido.is_(False))
+        )
+    ).scalar_one()
+    return {
+        "pending": sin_atender,
+        "rows": [
+            {
+                "id": f.id,
+                "at": f.at.isoformat(),
+                "userId": f.user_id,
+                "name": nombres.get(f.user_id, f"usuario {f.user_id}"),
+                "module": f.module,
+                "text": f.text,
+                "userAgent": f.user_agent,
+                "atendido": f.atendido,
+            }
+            for f in filas
+        ],
+    }
+
+
+@router.post("/feedback/{reporte_id}/atendido", status_code=204)
+async def atender(
+    reporte_id: int,
+    atendido: bool = Query(True),
+    session: AsyncSession = Depends(get_session),
+    admin: m.User = Depends(require_admin),
+) -> None:
+    """Marca un reporte como atendido, o lo desmarca.
+
+    No se borra nunca: un reporte atendido sigue diciendo que eso paso, y es lo
+    unico que queda para saber si vuelve a pasar.
+    """
+    fila = await session.get(m.BugReport, reporte_id)
+    if fila is None:
+        raise HTTPException(status_code=404, detail="Ese reporte no existe")
+    fila.atendido = atendido
+    await session.commit()

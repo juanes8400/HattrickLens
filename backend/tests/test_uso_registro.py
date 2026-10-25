@@ -309,3 +309,98 @@ def test_el_pais_llega_a_TODOS_los_del_desplegable(cliente) -> None:
     for u in client.get("/api/v1/usage/log?dias=0").json()["users"]:
         assert "countryCode" in u, u
         assert "countryName" in u, u
+
+
+# ── El boton de reportar fallos (2026-10-25) ─────────────────────────────────
+#
+# Cerrando un reporte que terminaba con «I didn't see any "report bug" or such
+# button on the site itself». No lo habia.
+
+
+def test_CUALQUIERA_puede_reportar_no_solo_el_administrador(cliente) -> None:
+    """La asimetria de este endpoint, y es a proposito.
+
+    Todo lo demas de este modulo lo lee solo el administrador; ESTO lo escribe
+    cualquiera que haya entrado. Un canal de reportes que solo puede usar el
+    dueño no es un canal de reportes.
+
+    Se comprueba rompiendo `require_admin`: si el POST siguiera dependiendo de
+    el, esta prueba fallaria. Es la forma de que nadie se lo añada mas adelante
+    «por coherencia» con el resto del fichero.
+    """
+    client, quien, ana, _beto = cliente
+
+    def no_es_admin():
+        raise AssertionError("reportar no puede depender de require_admin")
+
+    app.dependency_overrides[require_admin] = no_es_admin
+    try:
+        r = client.post("/api/v1/feedback", json={"text": "se corta al sincronizar"})
+        assert r.status_code == 204, r.text
+    finally:
+        del app.dependency_overrides[require_admin]
+
+
+def test_el_reporte_llega_entero_con_su_pantalla(cliente) -> None:
+    client, quien, ana, _beto = cliente
+    texto = "Primera linea.\nSegunda linea, para ver si sobreviven los saltos."
+    assert (
+        client.post(
+            "/api/v1/feedback", json={"text": texto, "module": "Entrenamiento"}
+        ).status_code
+        == 204
+    )
+
+    datos = client.get("/api/v1/feedback").json()
+    assert datos["pending"] == 1
+    fila = datos["rows"][0]
+    # El salto de linea entero: un reporte con pasos numerados pierde la mitad
+    # de su valor si se le aplastan.
+    assert fila["text"] == texto
+    assert fila["module"] == "Entrenamiento"
+    assert fila["name"] == "Ana"
+    assert fila["atendido"] is False
+
+
+def test_un_reporte_vacio_no_se_guarda(cliente) -> None:
+    client, _quien, _ana, _beto = cliente
+    # Ni vacio ni solo espacios: una fila en blanco en la bandeja es ruido que
+    # hay que abrir para descubrir que no dice nada.
+    assert client.post("/api/v1/feedback", json={"text": ""}).status_code == 422
+    assert client.post("/api/v1/feedback", json={"text": "   "}).status_code == 422
+    assert client.get("/api/v1/feedback").json()["pending"] == 0
+
+
+def test_atender_un_reporte_no_lo_borra(cliente) -> None:
+    """Marcar no es borrar: un reporte atendido sigue diciendo que eso paso, y
+    es lo unico que queda para saber si vuelve a pasar."""
+    client, _quien, _ana, _beto = cliente
+    client.post("/api/v1/feedback", json={"text": "algo"})
+    id_ = client.get("/api/v1/feedback").json()["rows"][0]["id"]
+
+    assert client.post(f"/api/v1/feedback/{id_}/atendido").status_code == 204
+    datos = client.get("/api/v1/feedback").json()
+    assert datos["pending"] == 0
+    assert datos["rows"][0]["atendido"] is True, "sigue ahi, marcado"
+
+    # Y se puede reabrir: un fallo que vuelve no obliga a reescribirlo.
+    assert (
+        client.post(f"/api/v1/feedback/{id_}/atendido?atendido=false").status_code == 204
+    )
+    assert client.get("/api/v1/feedback").json()["pending"] == 1
+
+
+def test_solo_pendientes_filtra_de_verdad(cliente) -> None:
+    client, _quien, _ana, _beto = cliente
+    client.post("/api/v1/feedback", json={"text": "uno"})
+    client.post("/api/v1/feedback", json={"text": "dos"})
+    primero = client.get("/api/v1/feedback").json()["rows"][0]["id"]
+    client.post(f"/api/v1/feedback/{primero}/atendido")
+
+    assert len(client.get("/api/v1/feedback").json()["rows"]) == 2
+    assert len(client.get("/api/v1/feedback?pendientes=true").json()["rows"]) == 1
+
+
+def test_atender_uno_que_no_existe_no_revienta(cliente) -> None:
+    client, _quien, _ana, _beto = cliente
+    assert client.post("/api/v1/feedback/99999/atendido").status_code == 404
