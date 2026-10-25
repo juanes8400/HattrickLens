@@ -40,6 +40,7 @@ from app.domain.value_objects.formations import (
     resolve_split,
     slots_for,
 )
+from app.domain.value_objects.ht_constants import TRAINING_TYPES
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 
@@ -302,6 +303,14 @@ async def _lineup_sin_cache(
                     solo = set(formaciones_que_lo_aprovechan(clave))
                     plazas_filtro = {
                         "training": clave,
+                        # El nombre humano, desde aquí y no desde el navegador.
+                        # Al probarlo salía «passing_defenders» en crudo: la
+                        # pantalla tiraba de una clave de traducción que no
+                        # existe. El nombre ya lo tiene `TRAINING_TYPES`, que
+                        # es el mismo que usa el resto de la aplicación, así
+                        # que inventar una segunda lista de nombres sería
+                        # garantizar que un día no coincidan.
+                        "label": TRAINING_TYPES.get(entrenamiento_actual or -1, clave),
                         # Las plazas de cada una y cuántas desperdicia frente a
                         # la mejor. Lo segundo es lo que convierte la lista en
                         # una explicación: «deja 1 sin usar» dice por qué no

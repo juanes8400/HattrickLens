@@ -817,7 +817,15 @@
     "lineaCoinciden": "{{a}}/{{b}} match",
     "optimizadorCoincide": "the optimiser agrees",
     "pondriaA": "The optimiser would put here {{jugadores}}",
-    "mismosJugadores": "The optimiser would have used the same players in every line."
+    "mismosJugadores": "The optimiser would have used the same players in every line.",
+    "mirarElEntrenamiento": "Make it use the training",
+    "avisoEntrenamiento": "Training “{{entrenamiento}}” there are {{max}} spots to train. The chosen one uses them all; below, what changing would cost.",
+    "rating": "Rating",
+    "diferencia": "Difference",
+    "plazasQueEntrena": "Trains",
+    "elegida": "chosen",
+    "dejaSinEntrenar": "Leaves {{n}} untrained",
+    "plazasDeMax": "{{n}} of {{max}}"
   },
   "juveniles": {
     "intro": "Who deserves a place, who you'll lose soon and whether the academy pays off",

@@ -123,7 +123,15 @@
     "seReanudara": "Strona nadal działa. Optymalizacja wróci, gdy dostępnych będzie co najmniej {{minimo}} zawodników.",
     "sigues": "Zostajesz przy {{formacion}}: lukę wypełnia inny zawodnik, a ocena zmienia się z {{antes}} na {{ahora}}.",
     "sinEnviada": "Nie wysłałeś składu na żaden najbliższy mecz.",
-    "sinPlantilla": "Brak zsynchronizowanej kadry."
+    "sinPlantilla": "Brak zsynchronizowanej kadry.",
+    "mirarElEntrenamiento": "Niech wykorzysta trening",
+    "avisoEntrenamiento": "Przy treningu „{{entrenamiento}}” jest {{max}} miejsc do trenowania. Wybrana wykorzystuje wszystkie; poniżej, ile kosztowałaby zmiana.",
+    "rating": "Rating",
+    "diferencia": "Różnica",
+    "plazasQueEntrena": "Trenuje",
+    "elegida": "wybrana",
+    "dejaSinEntrenar": "Zostawia {{n}} bez treningu",
+    "plazasDeMax": "{{n}} z {{max}}"
   },
   "apoyo": {
     "boton": "Postaw mi kawę",

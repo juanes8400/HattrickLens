@@ -3,8 +3,9 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 import { useQuery } from "@tanstack/react-query";
-import { api, type LineupHindsight } from "../services/api";
+import { api, type Lineup, type LineupHindsight } from "../services/api";
 import { TEAM_ID, useLineup, useSquad } from "../hooks/useTeam";
+import { usePersistido } from "../hooks/usePersistido";
 import {
   Empty,
   ErrorState,
@@ -22,7 +23,7 @@ import {
 } from "../components/PitchField";
 import { SplitSelector } from "../components/SplitSelector";
 import { barOption } from "../charts/chartOptions";
-import { number } from "../hooks/useFormat";
+import { decimal, number } from "../hooks/useFormat";
 import { LineupAvailabilityNotice } from "../components/LineupAvailabilityNotice";
 import {
   MINIMUM_LINEUP_PLAYERS,
@@ -79,6 +80,18 @@ export function LineupPage() {
   const plantillaLista = squad.data != null;
   const puedeOptimizarActual =
     plantillaLista && disponiblesTrasExclusiones >= MINIMUM_LINEUP_PLAYERS;
+  // «MIRAR EL ENTRENAMIENTO» (2026-10-25, reporte de un usuario). No es una
+  // formación más del desplegable aunque así se pidiera: desde que se decidió
+  // que avise en vez de restringir, no elige UNA cosa --cambia cuál sale
+  // recomendada y añade el desperdicio al ranking-- así que ponerlo entre las
+  // diez prometería algo que no es.
+  //
+  // Sólo tiene sentido con «Mejor formación»: con una formación elegida no hay
+  // nada que recomendar, y el aviso de plazas se enseña igual.
+  const [mirarElEntrenamiento, setMirarElEntrenamiento] = usePersistido(
+    "alineacion.mirarElEntrenamiento",
+    false,
+  );
   const { data, isLoading, isError, error } = useLineup(
     formation || undefined,
     centrales,
@@ -86,6 +99,7 @@ export function LineupPage() {
     ordenes,
     fuera.map((f) => f.htPlayerId),
     puedeOptimizarActual,
+    mirarElEntrenamiento,
   );
 
   // El once de referencia es esta misma consulta SIN exclusiones. No hace
@@ -99,6 +113,10 @@ export function LineupPage() {
     ordenes,
     undefined,
     plantillaLista && disponiblesIds.size >= MINIMUM_LINEUP_PLAYERS,
+    // El mismo modo que la principal: si una mira el entrenamiento y la otra
+    // no, el «antes y después» de sacar a alguien compararía dos cosas
+    // distintas y la diferencia que enseñara no sería la de la exclusión.
+    mirarElEntrenamiento,
   );
   const base = referencia.data
     ? {
@@ -347,6 +365,23 @@ export function LineupPage() {
               <option key={f}>{f}</option>
             ))}
           </select>
+          {/* Sólo con «Mejor formación»: con una formación elegida no hay nada
+              que recomendar. El aviso de plazas se sigue viendo abajo. */}
+          {!formation && (
+            <label className="flex items-center gap-1.5 self-center text-xs text-[var(--muted)]">
+              <input
+                type="checkbox"
+                checked={mirarElEntrenamiento}
+                onChange={(e) => setMirarElEntrenamiento(e.target.checked)}
+                data-track="Alineación: mirar el entrenamiento"
+                className="accent-[var(--accent)]"
+              />
+              {t(
+                "alineacion.mirarElEntrenamiento",
+                "Que aproveche el entrenamiento",
+              )}
+            </label>
+          )}
           {/* El mismo control que en el once ideal de la liga: solo se
               pregunta por los del centro y las bandas salen por resta. Con
               "Mejor formación" no se ofrece, porque ahí se comparan las diez
@@ -604,6 +639,17 @@ export function LineupPage() {
             "Rating",
           )}
         />
+        {/* EL AVISO DEL ENTRENAMIENTO, debajo del ranking y no en vez de él.
+            Las diez siguen ahí arriba con su valoración; esto dice cuántas
+            plazas deja sin entrenar cada una, que es el dato que faltaba para
+            decidir. */}
+        {data.trainingSlots && (
+          <AvisoDelEntrenamiento
+            aviso={data.trainingSlots}
+            ranking={data.formationRanking}
+            elegida={data.formation}
+          />
+        )}
       </Panel>
 
       <Panel
@@ -821,5 +867,146 @@ function HindsightPanel({ data }: { data: LineupHindsight }) {
         </Note>
       )}
     </Panel>
+  );
+}
+
+/** El aviso del entrenamiento: qué formación aprovecha las plazas y cuánto
+ *  cuesta elegir otra.
+ *
+ *  2026-10-25, reporte de un usuario: «"Best Training" which would exclude a
+ *  formation that doesn't use all training spots... I consider training to be
+ *  critical in this phase, so will not play 442 no matter the ratings
+ *  difference».
+ *
+ *  AVISA, NO QUITA (decisión del usuario): «siempre y cuando todo esté
+ *  disponible y el mejor entrenamiento solo sea un aviso, no hay problema».
+ *  Y menos mal, porque la primera versión excluía: entrenando «Pases (defensas
+ *  y centro del campo completo)» la única que aprovecha las diez plazas es el
+ *  5-5-0, así que la pantalla se habría quedado con UNA opción.
+ *
+ *  LO QUE DE VERDAD HACE FALTA SABER no es cuál aprovecha más --eso ya lo dice
+ *  cuál sale elegida-- sino CUÁNTO CUESTA la alternativa. Por eso la tabla
+ *  pone, una al lado de otra, la diferencia de valoración y las plazas que se
+ *  pierden: «el 5-4-1 rinde ocho puntos más y deja una sin entrenar» es una
+ *  frase con la que se puede decidir; «el 5-5-0 es el mejor para entrenar», no.
+ */
+function AvisoDelEntrenamiento({
+  aviso,
+  ranking,
+  elegida,
+}: {
+  aviso: NonNullable<Lineup["trainingSlots"]>;
+  ranking: Record<string, number>;
+  elegida: string;
+}) {
+  const { t } = useTranslation();
+  const base = ranking[elegida] ?? 0;
+  // Ordenadas por valoración, que es el orden del ranking de arriba: la tabla
+  // es su continuación, no otra lista.
+  const filas = Object.entries(ranking)
+    .sort(([, a], [, b]) => b - a)
+    .map(([formacion, rating]) => ({
+      formacion,
+      rating,
+      // Frente a la elegida, con signo: «+8.2» se lee como «esto ganarías».
+      diferencia: rating - base,
+      desperdicia: aviso.wasted[formacion] ?? 0,
+      plazas: aviso.slots[formacion] ?? 0,
+    }));
+
+  return (
+    <div className="border-t border-[var(--border)] px-4 py-3">
+      <p className="prosa text-sm">
+        {t(
+          "alineacion.avisoEntrenamiento",
+          "Entrenando «{{entrenamiento}}» hay {{max}} plazas que entrenar. La elegida las aprovecha todas; abajo, lo que costaría cambiar.",
+          {
+            entrenamiento: aviso.label,
+            max: aviso.max,
+          },
+        )}
+      </p>
+      <div className="mt-2 overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr>
+              {[
+                t("dashboard.formacion", "Formación"),
+                t("alineacion.rating", "Rating"),
+                t("alineacion.diferencia", "Diferencia"),
+                t("alineacion.plazasQueEntrena", "Entrena"),
+              ].map((h, i) => (
+                <th
+                  key={h}
+                  scope="col"
+                  className={`px-2 py-1 text-xs font-medium text-[var(--muted)] ${
+                    i === 0 ? "text-left" : "text-right"
+                  }`}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filas.map((f) => (
+              <tr
+                key={f.formacion}
+                className={`border-t border-[var(--border)] ${
+                  f.formacion === elegida ? "font-medium" : ""
+                }`}
+              >
+                <td className="px-2 py-1 text-sm">
+                  {f.formacion}
+                  {f.formacion === elegida && (
+                    <span className="ml-1.5 text-xs text-[var(--accent)]">
+                      {t("alineacion.elegida", "elegida")}
+                    </span>
+                  )}
+                </td>
+                <td className="px-2 py-1 text-right text-sm tabular-nums">
+                  {decimal(f.rating, 2)}
+                </td>
+                {/* La diferencia contra la elegida. Cero en la propia fila, así
+                    que se deja en blanco en vez de poner «+0.00». */}
+                <td
+                  className={`px-2 py-1 text-right text-sm tabular-nums ${
+                    f.diferencia > 0
+                      ? "text-[var(--positive)]"
+                      : "text-[var(--muted)]"
+                  }`}
+                >
+                  {f.formacion === elegida
+                    ? ""
+                    : `${f.diferencia > 0 ? "+" : ""}${decimal(f.diferencia, 2)}`}
+                </td>
+                {/* Las plazas que entrena, y en rojo las que pierde. Se dice lo
+                    que SE GANA y no solo lo que se pierde: «8 de 10» informa
+                    mejor que «desperdicia 2». */}
+                <td
+                  className={`px-2 py-1 text-right text-sm tabular-nums ${
+                    f.desperdicia > 0 ? "text-[var(--warning)]" : ""
+                  }`}
+                  title={
+                    f.desperdicia > 0
+                      ? t(
+                          "alineacion.dejaSinEntrenar",
+                          "Deja {{n}} sin entrenar",
+                          { n: f.desperdicia },
+                        )
+                      : undefined
+                  }
+                >
+                  {t("alineacion.plazasDeMax", "{{n}} de {{max}}", {
+                    n: f.plazas,
+                    max: aviso.max,
+                  })}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }

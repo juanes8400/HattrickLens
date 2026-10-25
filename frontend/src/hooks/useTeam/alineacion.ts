@@ -15,6 +15,9 @@ export const useLineup = (
   orders?: Record<number, string>,
   exclude?: number[],
   enabled = true,
+  /** Pedir el aviso del entrenamiento. Va en la clave: sin él, encenderlo no
+   *  pedía nada y la pantalla seguía con lo de antes en caché. */
+  entrenando = false,
 ) =>
   useQuery({
     queryKey: [
@@ -28,6 +31,7 @@ export const useLineup = (
       // mismo once que sacar a B y luego a A, y sin ordenar serían dos
       // entradas distintas de caché para el mismo resultado.
       [...(exclude ?? [])].sort((a, b) => a - b).join(",") || null,
+      entrenando,
     ],
     queryFn: () =>
       api.lineup(
@@ -37,6 +41,7 @@ export const useLineup = (
         innerMidfielders,
         orders,
         exclude,
+        entrenando,
       ),
     // Alineación usa este interruptor después de leer la plantilla: si hay
     // menos de once disponibles no manda al servidor un problema que no se

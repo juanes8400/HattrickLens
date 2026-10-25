@@ -636,6 +636,23 @@ export const ARTICULOS: Articulo[] = [
           tx(
             "Formación elegida: fijas una y dentro de ella cuántos Defensas Centrales y cuántos Mediocentros juegan por dentro; el resto va a las bandas. El motor optimiza jugadores y órdenes sin salir de esa estructura.",
           ),
+          tx(
+            "«Que aproveche el entrenamiento» no es un tercer modo sino un añadido al primero: la ganadora pasa a ser la que no deja plazas de entrenamiento sin usar, y bajo el ranking aparece lo que costaría elegir otra. No quita ninguna formación de la lista.",
+          ),
+        ],
+      },
+      {
+        titulo: tx("Qué es una plaza de entrenamiento"),
+        puntos: [
+          tx(
+            "Cada entrenamiento de Hattrick llega sólo a ciertos puestos: Anotación entrena a los delanteros, Jugadas a mediocentros y extremos, Defensa a centrales y laterales. Las casillas de tu once que están en esos puestos son las plazas que esa semana entrenan.",
+          ),
+          tx(
+            "Un extremo cuenta como plaza aunque Jugadas lo entrene a media ración. Con esa regla, las plazas de Jugadas, Defensa y Anotación son líneas enteras y no dependen de cómo repartas entre dentro y banda; Lateral es la única donde el reparto cambia la cuenta.",
+          ),
+          tx(
+            "Por eso un 4-4-2 entrenando Anotación deja una plaza sin usar: tiene dos delanteros y se pueden entrenar tres. Esa plaza no vuelve esa semana, y por eso se avisa en vez de dejarla pasar.",
+          ),
         ],
       },
       {

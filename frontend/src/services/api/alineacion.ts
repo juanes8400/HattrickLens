@@ -74,6 +74,22 @@ export interface Lineup {
   formation: string;
   totalRating: number;
   formationRanking: Record<string, number>;
+  /** El AVISO del entrenamiento, cuando se pidió. `null` si no.
+   *
+   *  No quita formaciones de `formationRanking`: informa. Lleva cuántas
+   *  plazas da cada una y cuántas DESPERDICIA frente a la mejor, que es lo
+   *  que convierte la lista en una explicación. */
+  trainingSlots: {
+    /** El entrenamiento con el que se midió, tal como lo tiene el equipo. */
+    training: string;
+    /** Su nombre, el mismo que usa el resto de la aplicación. */
+    label: string;
+    slots: Record<string, number>;
+    wasted: Record<string, number>;
+    /** Las que llegan al máximo. */
+    best: string[];
+    max: number;
+  } | null;
   lineup: {
     slot: number;
     /** La posicion CON su orden individual: "wingback_offensive". */
@@ -131,8 +147,12 @@ export const apiAlineacion = {
      *  vuelve a resolver el once entero con el resto, no deja su casilla
      *  vacía. */
     exclude?: number[],
+    /** Pedir el aviso del entrenamiento: cuántas plazas aprovecha cada
+     *  formación, y que gane la que más. NO quita ninguna del ranking. */
+    entrenando?: boolean,
   ) => {
     const q = new URLSearchParams();
+    if (entrenando) q.set("entrenando", "true");
     if (formation) q.set("formation", formation);
     if (centralDefenders != null)
       q.set("central_defenders", String(centralDefenders));

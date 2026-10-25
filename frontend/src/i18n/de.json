@@ -817,7 +817,15 @@
     "lineaCoinciden": "{{a}}/{{b}} stimmen überein",
     "optimizadorCoincide": "der Optimierer stimmt überein",
     "pondriaA": "Der Optimierer würde hier {{jugadores}} aufstellen",
-    "mismosJugadores": "Der Optimierer hätte auf allen Linien dieselben Spieler aufgestellt."
+    "mismosJugadores": "Der Optimierer hätte auf allen Linien dieselben Spieler aufgestellt.",
+    "mirarElEntrenamiento": "Soll das Training ausnutzen",
+    "avisoEntrenamiento": "Beim Training „{{entrenamiento}}“ gibt es {{max}} Plätze zu trainieren. Die gewählte nutzt alle; unten, was ein Wechsel kosten würde.",
+    "rating": "Rating",
+    "diferencia": "Differenz",
+    "plazasQueEntrena": "Trainiert",
+    "elegida": "gewählt",
+    "dejaSinEntrenar": "Lässt {{n}} untrainiert",
+    "plazasDeMax": "{{n}} von {{max}}"
   },
   "juveniles": {
     "intro": "Wer einen Platz verdient, wer bald verloren geht und ob sich die Jugendabteilung rechnet",

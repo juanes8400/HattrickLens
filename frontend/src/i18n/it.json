@@ -817,7 +817,15 @@
     "sigues": "Resti con {{formacion}}: il vuoto lo copre un altro giocatore e l'indice passa da {{antes}} a {{ahora}}.",
     "sinEnviada": "Non hai inviato la formazione per nessuna partita in programma.",
     "sinPlantilla": "Nessuna rosa sincronizzata.",
-    "noPuedesSacar": "Non puoi togliere {{jugador}}: restano solo 11 giocatori disponibili e la formazione ne richiede 11."
+    "noPuedesSacar": "Non puoi togliere {{jugador}}: restano solo 11 giocatori disponibili e la formazione ne richiede 11.",
+    "mirarElEntrenamiento": "Che sfrutti l'allenamento",
+    "avisoEntrenamiento": "Allenando «{{entrenamiento}}» ci sono {{max}} posti da allenare. Quella scelta li sfrutta tutti; sotto, quanto costerebbe cambiare.",
+    "rating": "Rating",
+    "diferencia": "Differenza",
+    "plazasQueEntrena": "Allena",
+    "elegida": "scelta",
+    "dejaSinEntrenar": "Lascia {{n}} senza allenare",
+    "plazasDeMax": "{{n}} di {{max}}"
   },
   "juveniles": {
     "aDeLosB": "{{a}} dei {{b}}",
