@@ -497,16 +497,22 @@ def best_formation(
     Cada una con su reparto por defecto: comparar un 5-3-2 con tres
     mediocentros contra un 4-4-2 con el suyo no compararía lo mismo.
 
-    `solo` limita la comparación a unas cuantas. Lo usa «Mejor para entrenar»
-    (2026-10-25), que descarta las que dejan plazas de entrenamiento sin usar
-    antes de mirar ninguna valoración: una plaza perdida no vuelve esa semana y
-    ninguna diferencia de rating la compensa. Las descartadas no salen tampoco
-    en el ranking, porque el ranking es el argumento de la elección y meter
-    dentro a las que no competían lo haría ilegible.
+    `solo` dice entre cuáles se elige la GANADORA, no cuáles se comparan. Lo usa
+    «Mejor para entrenar» (2026-10-25), que prefiere las que aprovechan todas
+    las plazas de entrenamiento: una plaza perdida no vuelve esa semana y
+    ninguna diferencia de rating la compensa.
+
+    PERO EL RANKING SALE ENTERO, y eso es una decisión del usuario del mismo
+    día: «siempre y cuando todo esté disponible y el mejor entrenamiento solo
+    sea un aviso, no hay problema». La primera versión de esto descartaba las
+    demás del ranking, y eso se rompía solo: entrenando «Pases (defensas y
+    centro del campo completo)» la única que aprovecha las diez plazas es el
+    5-5-0, así que la pantalla se habría quedado con UNA opción y sin nada que
+    comparar. Enseñarlas todas y señalar cuál aprovecha más informa igual sin
+    quitarle la decisión a nadie.
     """
     results: dict[str, Lineup] = {}
-    candidatas = [f for f in FORMATIONS if solo is None or f in solo] or list(FORMATIONS)
-    for f in candidatas:
+    for f in FORMATIONS:
         try:
             results[f] = best_lineup(players, f, exclude)
         except ValueError:
@@ -516,7 +522,11 @@ def best_formation(
     ranking = {
         f: lu.total_rating for f, lu in sorted(results.items(), key=lambda kv: -kv[1].total_rating)
     }
-    best = results[next(iter(ranking))]
+    # La ganadora, de entre las que `solo` admite; si ninguna de ésas pudo
+    # armarse --no hay gente para ellas-- gana la mejor de todas, que es mejor
+    # que no devolver once.
+    elegibles = [f for f in ranking if solo is None or f in solo] or list(ranking)
+    best = results[elegibles[0]]
     return best, ranking
 
 

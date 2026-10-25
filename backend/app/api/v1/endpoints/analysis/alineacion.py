@@ -297,11 +297,19 @@ async def _lineup_sin_cache(
                 entrenamiento_actual = await _entrenamiento_del_equipo(session, team_id)
                 clave = entrenamiento_de_chpp(entrenamiento_actual)
                 if clave:
+                    cuentas = plazas_por_formacion(clave)
+                    tope = max(cuentas.values(), default=0)
                     solo = set(formaciones_que_lo_aprovechan(clave))
                     plazas_filtro = {
                         "training": clave,
-                        "slots": plazas_por_formacion(clave),
-                        "kept": sorted(solo),
+                        # Las plazas de cada una y cuántas desperdicia frente a
+                        # la mejor. Lo segundo es lo que convierte la lista en
+                        # una explicación: «deja 1 sin usar» dice por qué no
+                        # sale recomendada.
+                        "slots": cuentas,
+                        "wasted": {f: tope - n for f, n in cuentas.items()},
+                        "best": sorted(solo),
+                        "max": tope,
                     }
             lu, ranking = best_formation(players, solo=solo)
             # Las órdenes fijadas se refieren a las casillas de la formación
@@ -344,10 +352,12 @@ async def _lineup_sin_cache(
         "requiredCount": LINEUP_REQUIRED_COUNT,
         "warning": None,
         "optimizationObjective": _lineup_optimization_objective(lu.total_rating),
-        # Con qué entrenamiento se filtró y cuántas plazas da cada formación.
-        # `null` cuando no se filtró. Va en la respuesta para que la pantalla
-        # pueda DECIR por qué falta el 4-4-2 en vez de que parezca que se
-        # perdió.
+        # El AVISO del entrenamiento: con cuál se midió, cuántas plazas da cada
+        # formación y cuántas desperdicia. `null` cuando no se pidió.
+        #
+        # No se quita ninguna formación de `ranking` (decisión del usuario,
+        # 2026-10-25): esto informa, no restringe. Va en la respuesta para que
+        # la pantalla pueda decirlo sin volver a calcularlo.
         "trainingSlots": plazas_filtro,
         "lineup": [
             {

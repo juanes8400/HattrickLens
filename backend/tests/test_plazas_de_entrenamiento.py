@@ -140,3 +140,79 @@ def test_cada_pareja_apunta_a_un_entrenamiento_que_existe() -> None:
         clave = P.entrenamiento_de_chpp(codigo)
         assert clave is not None
         assert P.puestos_que_entrena(clave), f"{codigo} -> {clave} no toca ningun puesto"
+
+
+# ── Informa, no restringe (2026-10-25, decision del usuario) ─────────────────
+#
+# «Siempre y cuando todo este disponible y el mejor entrenamiento solo sea un
+# aviso, no hay problema».
+#
+# La primera version descartaba del ranking las que desperdician plazas, y eso
+# se rompia solo: entrenando «Pases (defensas y centro del campo completo)» la
+# unica que aprovecha las diez es el 5-5-0, asi que la pantalla se habria
+# quedado con UNA opcion y sin nada que comparar.
+
+
+def _once_de_prueba() -> list[dict[str, object]]:
+    """Veinte jugadores iguales: basta para armar las diez formaciones.
+
+    Lo que se mide aqui es QUE FORMACIONES SALEN, no cual gana, asi que da
+    igual lo buenos que sean mientras alcancen para once en cualquiera.
+    """
+    habilidades = {
+        "keeper": 10,
+        "defending": 10,
+        "playmaking": 10,
+        "winger": 10,
+        "passing": 10,
+        "scoring": 10,
+        "set_pieces": 10,
+        "stamina": 10,
+        "experience": 10,
+        "form": 7,
+        "loyalty": 10,
+    }
+    return [
+        {"ht_player_id": 1000 + i, "name": f"j{i}", "injury_level": -1, **habilidades}
+        for i in range(20)
+    ]
+
+
+def test_el_ranking_SALE_ENTERO_aunque_solo_una_aproveche_las_plazas() -> None:
+    from app.domain.engines.lineup_optimizer import FORMATIONS, best_formation
+
+    # El caso que lo destapo: con este entrenamiento solo el 5-5-0 llega al tope.
+    solo = set(P.formaciones_que_lo_aprovechan("passing_defenders"))
+    assert solo == {"5-5-0"}, "si esto cambia, la prueba ya no mide lo que cree"
+
+    _ganadora, ranking = best_formation(_once_de_prueba(), solo=solo)
+    assert len(ranking) == len(FORMATIONS), "se perdieron formaciones del ranking"
+    assert "4-4-2" in ranking, "la pantalla tiene que poder seguir ofreciendo el 4-4-2"
+
+
+def test_la_ganadora_SI_respeta_el_entrenamiento() -> None:
+    """Las dos mitades: todo disponible, pero la recomendada aprovecha."""
+    from app.domain.engines.lineup_optimizer import best_formation
+
+    solo = set(P.formaciones_que_lo_aprovechan("scoring"))
+    ganadora, ranking = best_formation(_once_de_prueba(), solo=solo)
+    assert ganadora.formation in solo
+    # Y las descartadas siguen en el ranking, con su valoracion, para poder
+    # enseñar «esta rinde mas pero desperdicia una plaza».
+    assert "4-4-2" in ranking
+
+
+def test_sin_pedir_entrenamiento_gana_la_mejor_de_todas() -> None:
+    # Que lo de arriba no haya cambiado el comportamiento de siempre.
+    from app.domain.engines.lineup_optimizer import best_formation
+
+    ganadora, ranking = best_formation(_once_de_prueba())
+    assert ganadora.formation == next(iter(ranking))
+
+
+def test_el_desperdicio_es_cero_en_las_recomendadas_y_mas_en_las_demas() -> None:
+    # Es el numero que convierte la lista en una explicacion.
+    for formacion in P.formaciones_que_lo_aprovechan("scoring"):
+        assert P.desperdicio("scoring", formacion) == 0
+    assert P.desperdicio("scoring", "4-4-2") == 1
+    assert P.desperdicio("scoring", "5-5-0") == 3  # sin delanteros, ni una plaza
