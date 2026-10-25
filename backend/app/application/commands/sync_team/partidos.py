@@ -13,6 +13,7 @@ from app.application.commands.sync_team.comun import (
     AUTOMATIC_MATCH_DETAILS_WINDOW,
     DETALLES_HISTORICOS_EN_PARALELO,
     FILE_VERSIONS,
+    HORIZONTE_DEL_ARCHIVO,
     MATCH_ARCHIVE_FALLBACK_START,
     MATCH_ARCHIVE_INCREMENTAL_OVERLAP,
     MATCH_ARCHIVE_MIN_WINDOW,
@@ -290,7 +291,6 @@ class PartidosMixin(BaseDeSync):
         no oficiales fuera), así que el almacenamiento no destruye datos que
         otra funcionalidad pueda necesitar después.
         """
-        from sqlalchemy import select
 
         from app.infrastructure.db import models as m
 
@@ -310,14 +310,28 @@ class PartidosMixin(BaseDeSync):
         if founded is None or founded > until:
             founded = MATCH_ARCHIVE_FALLBACK_START
 
-        # Un historial sellado con reglas viejas no está completo, lo diga o no
-        # la marca: se relee entero una vez y se vuelve a sellar.
-        initial = (
-            not team.matches_history_complete
-            or cursor is None
-            or (team.matches_history_version or 0) < VERSION_DEL_ARCHIVO
+        # DESDE DÓNDE. Un historial leído con reglas viejas se relee entero una
+        # vez; uno que se quedó a medias SE REANUDA.
+        #
+        # 2026-10-25, reporte de un usuario: «it tries to download 2000+ old
+        # matches, and then interrupts». La marca de completo iba en la misma
+        # frase que el cursor, al final del barrido, así que un corte a mitad
+        # --un tiempo de espera, la pestaña cerrada, un fallo de CHPP-- no
+        # dejaba NADA escrito y el intento siguiente volvía a empezar por la
+        # fundación. Con dos mil partidos eso no termina nunca, se intente las
+        # veces que se intente.
+        #
+        # La condición de reanudar es la VERSIÓN, no la marca de completo: la
+        # versión dice con qué reglas se leyó --si cambian, lo de antes no
+        # sirve-- y el cursor dice hasta dónde se llegó con ellas. La marca
+        # pasa a significar sólo «el barrido alcanzó el presente».
+        al_dia = (team.matches_history_version or 0) >= VERSION_DEL_ARCHIVO
+        initial = cursor is None or not al_dia
+        since = (
+            max(founded, until - HORIZONTE_DEL_ARCHIVO)
+            if initial
+            else max(founded, cursor - MATCH_ARCHIVE_INCREMENTAL_OVERLAP)
         )
-        since = founded if initial else max(founded, cursor - MATCH_ARCHIVE_INCREMENTAL_OVERLAP)
         await _report(
             on_progress,
             (
@@ -327,19 +341,75 @@ class PartidosMixin(BaseDeSync):
             ),
         )
 
+        # VENTANA A VENTANA, GUARDANDO AL CERRAR CADA UNA. Es el arreglo del
+        # reporte: lo descargado se escribe y el cursor avanza antes de pedir
+        # la siguiente, así que un corte deja hecho lo hecho y el siguiente
+        # intento sigue por donde iba en vez de empezar de cero.
+        #
+        # El cursor sólo puede avanzar porque las ventanas van de la más
+        # VIEJA a la más nueva: «todo lo anterior a esta fecha está» sólo es
+        # cierto si no queda nada por detrás.
+        inicio = since
         try:
-            archived = await self._fetch_match_archive_range(ht_team_id, since, until, on_progress)
+            while inicio < until:
+                fin = min(inicio + MATCH_ARCHIVE_WINDOW, until)
+                tanda = await self._fetch_match_archive_interval(
+                    ht_team_id, inicio, fin, on_progress
+                )
+                await self._guardar_del_archivo(uow, tanda, until, result)
+                team.matches_history_synced_until = fin
+                team.matches_history_version = VERSION_DEL_ARCHIVO
+                # Al disco antes de pedir la siguiente: si la próxima llamada
+                # revienta, esto ya no depende de ella.
+                await uow.session.flush()
+                inicio = fin
         except Exception as exc:  # noqa: BLE001, el resto del sync sigue siendo útil
+            # Sin `raise`: lo guardado hasta aquí se queda, y el resto de la
+            # sincronización sigue sirviendo. La marca de completo NO se pone,
+            # que es lo que hace que la próxima vez continúe.
             result.errors.append(f"{_nombre_legible('matchesarchive')}: {exc}")
             result.status = "partial"
+            await _report(
+                on_progress,
+                f"Historial interrumpido en {inicio:%Y-%m-%d}; "
+                "la próxima sincronización sigue desde ahí.",
+            )
             return
 
-        # Una respuesta partida repite bordes; además un proveedor de prueba
-        # puede repetir filas. Ninguno debe llegar dos veces al índice UNIQUE.
-        # El archivo puede alcanzar el partido que se está jugando: en ese
-        # caso no trae goles y no permite distinguir UPCOMING de ONGOING. Lo
-        # deja manejar a matches.xml y el solape incremental lo recogerá ya
-        # terminado; jamás se fabrica FINISHED -1:-1.
+        team.matches_history_complete = True
+        await _report(
+            on_progress,
+            (
+                f"Historial de partidos completo: {result.rescued_matches} nuevos guardados."
+                if initial
+                else f"Partidos actualizados: {result.rescued_matches} nuevos guardados."
+            ),
+        )
+
+    async def _guardar_del_archivo(
+        self,
+        uow: UnitOfWork,
+        archived: list[dict[str, Any]],
+        until: datetime,
+        result: SyncResult,
+    ) -> None:
+        """Escribe los partidos de UNA ventana del archivo.
+
+        Estaba dentro del barrido, al final y de una sola vez. Sale aparte
+        para poder llamarlo al cerrar cada ventana, que es lo que deja el
+        historial a medias en vez de perderlo entero (2026-10-25).
+
+        Una respuesta partida repite bordes; además un proveedor de prueba
+        puede repetir filas. Ninguno debe llegar dos veces al índice UNIQUE.
+        El archivo puede alcanzar el partido que se está jugando: en ese caso
+        no trae goles y no permite distinguir UPCOMING de ONGOING. Lo deja
+        manejar a matches.xml y el solape incremental lo recogerá ya
+        terminado; jamás se fabrica FINISHED -1:-1.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
         by_id = {
             mt["ht_match_id"]: mt
             for mt in archived
@@ -348,17 +418,17 @@ class PartidosMixin(BaseDeSync):
             and mt.get("away_goals", -1) >= 0
         }
         ids = list(by_id)
-        existing: set[int] = set()
-        if ids:
-            existing = set(
-                (
-                    await uow.session.execute(
-                        select(m.Match.ht_match_id).where(m.Match.ht_match_id.in_(ids))
-                    )
+        if not ids:
+            return
+        existing = set(
+            (
+                await uow.session.execute(
+                    select(m.Match.ht_match_id).where(m.Match.ht_match_id.in_(ids))
                 )
-                .scalars()
-                .all()
             )
+            .scalars()
+            .all()
+        )
 
         detail_cutoff = until - AUTOMATIC_MATCH_DETAILS_WINDOW
         for ht_match_id, mt in by_id.items():
@@ -385,18 +455,6 @@ class PartidosMixin(BaseDeSync):
             )
             result.snapshots_written += 1
             result.rescued_matches += 1
-
-        team.matches_history_complete = True
-        team.matches_history_synced_until = until
-        team.matches_history_version = VERSION_DEL_ARCHIVO
-        await _report(
-            on_progress,
-            (
-                f"Historial de partidos completo: {result.rescued_matches} nuevos guardados."
-                if initial
-                else f"Partidos actualizados: {result.rescued_matches} nuevos guardados."
-            ),
-        )
 
     async def _backfill_missing_match_details(
         self,
@@ -685,29 +743,6 @@ class PartidosMixin(BaseDeSync):
         left = await self._fetch_match_archive_interval(ht_team_id, since, midpoint, on_progress)
         right = await self._fetch_match_archive_interval(ht_team_id, midpoint, until, on_progress)
         return list({mt["ht_match_id"]: mt for mt in (*left, *right)}.values())
-
-    async def _fetch_match_archive_range(
-        self,
-        ht_team_id: int,
-        since: datetime,
-        until: datetime,
-        on_progress: ProgressReporter | None,
-    ) -> list[dict[str, Any]]:
-        """Un rango de cualquier largo, en ventanas de `MATCH_ARCHIVE_WINDOW`.
-
-        Cada ventana pasa por `_fetch_match_archive_interval`, que además la
-        biseca si llega al tope de 50. Las ventanas comparten el borde y el
-        solape se elimina por MatchID."""
-        vistos: dict[int, dict[str, Any]] = {}
-        inicio = since
-        while inicio < until:
-            fin = min(inicio + MATCH_ARCHIVE_WINDOW, until)
-            for mt in await self._fetch_match_archive_interval(
-                ht_team_id, inicio, fin, on_progress
-            ):
-                vistos[mt["ht_match_id"]] = mt
-            inicio = fin
-        return list(vistos.values())
 
     async def _backfill_foreign_match_type(
         self,

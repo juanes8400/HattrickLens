@@ -184,3 +184,138 @@ def test_un_club_del_que_no_consta_si_es_principal_no_se_castiga() -> None:
 
     equipo = asyncio.run(caso())
     assert equipo.currency_name == "US$"
+
+
+# ── La moneda del MANAGER, no la del pais del club (2026-10-25) ──────────────
+#
+# Reporte de un usuario: «I have multiple clubs, but in HT I see all money
+# amounts in my home currency C$. In HT Lens however, when I look at my other
+# clubs, the amounts are displayed in those countries' currency (e.g., Maccabi
+# Oradea shows in NIS)».
+#
+# Lo de arriba cubre el RESPALDO: un club sin moneda propia hereda la del
+# principal. Nunca cubrio el caso reportado, que es el contrario: un club que
+# SI tiene la suya y aun asi tiene que enseñar la del manager.
+
+
+async def _con_liga_propia(principal: int | None = PRINCIPAL[0]):
+    """Un club secundario con pais y moneda propios: el caso del reporte."""
+    engine = create_async_engine(
+        "sqlite+aiosqlite://", poolclass=StaticPool, connect_args={"check_same_thread": False}
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(m.Base.metadata.create_all)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with factory() as s:
+        s.add(m.User(id=DUENO, ht_user_id=10857807, login_name="juanes840"))
+        await s.flush()
+        # Israel existe en el catalogo con su moneda, asi que la primera via
+        # --la liga propia-- SI da resultado. Ahi estaba el fallo.
+        s.add(m.WorldContext(ht_league_id=36, country_code="IL", country_name="Israel",
+                             league_name="Israel", currency_name="NIS", currency_rate=4.0))
+        # El principal CON SU PAIS. Sin esto la prueba montaba un caso que no
+        # existe --un club principal sin liga-- y el principal acababa copiando
+        # la moneda de su propio hermano, que es justo lo que no puede pasar.
+        s.add(m.WorldContext(ht_league_id=19, country_code="CO", country_name="Colombia",
+                             league_name="Colombia", currency_name="US$", currency_rate=10.0))
+        s.add(
+            m.Team(
+                ht_team_id=PRINCIPAL[0],
+                name="club principal",
+                owner_user_id=DUENO,
+                founded_at=PRINCIPAL[1],
+                ht_league_id=19,
+                league_name="Colombia",
+                currency_name=PRINCIPAL[2],
+                currency_rate=PRINCIPAL[3],
+                is_primary_club=(None if principal is None else PRINCIPAL[0] == principal),
+            )
+        )
+        await s.flush()
+        oradea = m.Team(
+            ht_team_id=800001,
+            name="Maccabi Oradea",
+            owner_user_id=DUENO,
+            founded_at=datetime(2026, 2, 1, tzinfo=UTC),
+            ht_league_id=36,
+            league_name="Israel",
+            currency_name="NIS",
+            currency_rate=4.0,
+            is_primary_club=(None if principal is None else False),
+        )
+        s.add(oradea)
+        await s.commit()
+        return factory, oradea.id
+
+
+def test_un_club_con_moneda_propia_ENSEÑA_LA_DEL_MANAGER() -> None:
+    """El reporte, tal cual: Maccabi Oradea tiene que salir en US$, no en NIS.
+
+    No es cosmetico. La aplicacion DIVIDE por la tasa para enseñar, asi que con
+    la tasa que no es las cifras no cuadran con las que el juego enseña al lado
+    y dejan de poder compararse entre los clubes del mismo manager.
+    """
+
+    async def run() -> None:
+        factory, team_id = await _con_liga_propia()
+        handler = SyncTeamHandler(SqlAlchemyUnitOfWork(factory), None)
+        async with SqlAlchemyUnitOfWork(factory) as uow:
+            await handler._resolver_moneda(uow, team_id)
+            await uow.commit()
+        async with factory() as s:
+            oradea = await s.scalar(select(m.Team).where(m.Team.id == team_id))
+            assert oradea.currency_name == "US$", "sigue enseñando la moneda de su propio pais"
+            assert oradea.currency_rate == 10.0
+
+    asyncio.run(run())
+
+
+def test_sincronizar_el_principal_alinea_a_los_hermanos() -> None:
+    """La segunda mitad: no hay que sincronizar club por club.
+
+    Sin esto, el arreglo solo llega al club que se sincroniza, y quien reporto
+    esto seguiria viendo el NIS hasta acordarse de sincronizar ese club.
+    """
+
+    async def run() -> None:
+        factory, oradea_id = await _con_liga_propia()
+        async with factory() as s:
+            principal_id = await s.scalar(
+                select(m.Team.id).where(m.Team.ht_team_id == PRINCIPAL[0])
+            )
+
+        handler = SyncTeamHandler(SqlAlchemyUnitOfWork(factory), None)
+        async with SqlAlchemyUnitOfWork(factory) as uow:
+            # Se sincroniza EL PRINCIPAL, no Oradea.
+            await handler._resolver_moneda(uow, principal_id)
+            await uow.commit()
+
+        async with factory() as s:
+            oradea = await s.scalar(select(m.Team).where(m.Team.id == oradea_id))
+            assert oradea.currency_name == "US$"
+            assert oradea.currency_rate == 10.0
+
+    asyncio.run(run())
+
+
+def test_el_club_principal_conserva_la_moneda_de_su_pais() -> None:
+    # El otro lado del filo: el principal NO puede heredar de nadie, porque es
+    # el que define cual es la moneda del manager. Si se copiara a si mismo de
+    # un hermano, un secundario podria arrastrar a todos.
+    async def run() -> None:
+        factory, _oradea = await _con_liga_propia()
+        async with factory() as s:
+            principal_id = await s.scalar(
+                select(m.Team.id).where(m.Team.ht_team_id == PRINCIPAL[0])
+            )
+        handler = SyncTeamHandler(SqlAlchemyUnitOfWork(factory), None)
+        async with SqlAlchemyUnitOfWork(factory) as uow:
+            await handler._resolver_moneda(uow, principal_id)
+            await uow.commit()
+        async with factory() as s:
+            principal = await s.scalar(select(m.Team).where(m.Team.id == principal_id))
+            assert principal.currency_name == "US$"
+            assert principal.currency_rate == 10.0
+
+    asyncio.run(run())

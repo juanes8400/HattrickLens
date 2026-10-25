@@ -82,6 +82,24 @@ MATCH_ARCHIVE_RANGE_TOLERANCE = timedelta(days=2)
 # práctica sólo trajo tres meses; subirla obliga a releerlo entero UNA vez, como
 # `transfers_import_version` con el libro de transferencias.
 VERSION_DEL_ARCHIVO = 2
+#: HASTA DÓNDE SE MIRA HACIA ATRÁS en la primera importación.
+#:
+#: 2026-10-25, reporte de un usuario: «it tries to download 2000+ old matches,
+#: and then interrupts. Maybe you could limit downloading only matches from the
+#: last, say, 25 seasons?». Un club de los viejos puede llevar veinte años
+#: jugando, y la fundación como punto de partida lo hace pagar los veinte el
+#: primer día: son cientos de llamadas a CHPP antes de que la aplicación sirva
+#: para nada.
+#:
+#: Veinticinco temporadas de dieciséis semanas. No es un número medido, es la
+#: cifra que propuso quien lo reportó, y se deja a la vista por eso: subirla
+#: sólo cuesta tiempo de importación, y el barrido ya reanuda, así que
+#: ampliarla más adelante no obliga a reimportar lo que ya está.
+#:
+#: NO ES UN BORRADO: lo anterior a este horizonte no se pide, pero nada de lo
+#: ya guardado se toca.
+TEMPORADAS_DEL_HORIZONTE = 25
+HORIZONTE_DEL_ARCHIVO = timedelta(weeks=16 * TEMPORADAS_DEL_HORIZONTE)
 # Respaldo para equipos cuyo teamdetails antiguo todavía no tenga FoundedDate.
 # Hattrick nació después de esta fecha, por lo que no puede dejar partidos por
 # fuera; en cuanto llegue teamdetails 3.6 se usa la fundación exacta.

@@ -120,7 +120,26 @@ class EconomiaMixin(BaseDeSync):
             result.snapshots_written += 1
 
     async def _resolver_moneda(self, uow: UnitOfWork, team_id: int) -> None:
-        """Deja el equipo con la moneda de su pais, sea cual sea.
+        """Deja el equipo con LA MONEDA DEL MANAGER, no con la de su pais.
+
+        2026-10-25, reporte de un usuario: «I have multiple clubs, but in HT I
+        see all money amounts in my home currency C$. In HT Lens however, when
+        I look at my other clubs, the amounts are displayed in those countries'
+        currency (e.g., Maccabi Oradea shows in NIS)».
+
+        Tiene razon y es un error de DATO, no de presentacion: Hattrick le
+        ensena a cada manager todo su dinero en la moneda de su pais, sea cual
+        sea el club que mire. Enseñar cada club en la suya no es otra forma de
+        decir lo mismo --las cifras dejan de poder compararse entre clubes, y
+        no cuadran con las que el juego le enseña al lado--.
+
+        Asi que el orden se invirtio: manda la moneda del CLUB PRINCIPAL, y la
+        del pais del propio club queda de respaldo para cuando aun no se sabe
+        cual es el principal. Antes era al reves.
+
+        Y CUANDO SE SINCRONIZA EL PRINCIPAL SE ESTAMPAN LOS HERMANOS. Sin eso,
+        arreglar la moneda de un club secundario exigiria sincronizar ese club,
+        y quien reporto esto veria el NIS hasta que se acordara de hacerlo.
 
         Se hacia solo dentro del paso de `worlddetails`, y solo si el id de
         liga del equipo coincidia con el de la fila que se estaba escribiendo.
@@ -151,6 +170,30 @@ class EconomiaMixin(BaseDeSync):
             )
             return ctx
 
+        # LA MONEDA DEL MANAGER, que es la de su club principal. Va primero
+        # porque es la que Hattrick enseña en todas sus pantallas.
+        principal: m.Team | None = None
+        if equipo.owner_user_id is not None:
+            principal = await uow.session.scalar(
+                select(m.Team)
+                .where(m.Team.owner_user_id == equipo.owner_user_id)
+                # La misma regla que el pais del mapa de Uso; vive en `models`
+                # porque escrita dos veces se arreglo una sola (PR #7).
+                .order_by(*m.orden_del_club_principal())
+                .limit(1)
+            )
+        if principal is not None and principal.id != equipo.id and principal.currency_name:
+            equipo.currency_name = principal.currency_name
+            equipo.currency_rate = principal.currency_rate or 1.0
+            _log.info(
+                "moneda de %s tomada del club principal %s (%s, tasa %s)",
+                equipo.ht_team_id,
+                principal.ht_team_id,
+                principal.currency_name,
+                principal.currency_rate,
+            )
+            return
+
         candidatos: list[m.WorldContext | None] = []
         if equipo.ht_league_id is not None:
             candidatos.append(await _contexto(m.WorldContext.ht_league_id == equipo.ht_league_id))
@@ -160,6 +203,11 @@ class EconomiaMixin(BaseDeSync):
             if fila is not None and fila.currency_name:
                 equipo.currency_name = fila.currency_name
                 equipo.currency_rate = fila.currency_rate or 1.0
+                # Si este ES el principal, su moneda es la del manager: se
+                # estampa en los hermanos para que no haya que sincronizarlos
+                # uno a uno para dejar de ver la moneda equivocada.
+                if principal is not None and principal.id == equipo.id:
+                    await self._estampar_en_los_hermanos(uow, equipo)
                 return
 
         # Ligas internacionales (Hattrick Femme y compañia): no tienen moneda
@@ -213,3 +261,47 @@ class EconomiaMixin(BaseDeSync):
                     primero.currency_name,
                     primero.currency_rate,
                 )
+
+    async def _estampar_en_los_hermanos(self, uow: UnitOfWork, principal: Any) -> None:
+        """La moneda del club principal, puesta en los demas clubes del manager.
+
+        Es la segunda mitad del reporte del 2026-10-25. La primera --que mande
+        la moneda del manager-- se resuelve al sincronizar CADA club, asi que
+        sin esto un club secundario seguiria con la suya hasta que a su dueño se
+        le ocurriera sincronizarlo. Con esto, una sola sincronizacion del club
+        principal arregla todas sus pantallas.
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        if not principal.currency_name or principal.owner_user_id is None:
+            return
+        tasa = principal.currency_rate or 1.0
+        hermanos = (
+            (
+                await uow.session.execute(
+                    select(m.Team).where(
+                        m.Team.owner_user_id == principal.owner_user_id,
+                        m.Team.id != principal.id,
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for hermano in hermanos:
+            if (
+                hermano.currency_name == principal.currency_name
+                and (hermano.currency_rate or 1.0) == tasa
+            ):
+                continue
+            _log.info(
+                "moneda de %s alineada con la del manager: %s -> %s (tasa %s)",
+                hermano.ht_team_id,
+                hermano.currency_name,
+                principal.currency_name,
+                tasa,
+            )
+            hermano.currency_name = principal.currency_name
+            hermano.currency_rate = tasa
