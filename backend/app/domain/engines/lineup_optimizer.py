@@ -490,14 +490,23 @@ def _banquillo(restantes: list[dict[str, Any]]) -> list[BenchPick]:
 def best_formation(
     players: list[dict[str, Any]],
     exclude: set[int] | None = None,
+    solo: set[str] | None = None,
 ) -> tuple[Lineup, dict[str, float]]:
     """Prueba TODAS las del catálogo y devuelve la mejor, con el ranking.
 
     Cada una con su reparto por defecto: comparar un 5-3-2 con tres
     mediocentros contra un 4-4-2 con el suyo no compararía lo mismo.
+
+    `solo` limita la comparación a unas cuantas. Lo usa «Mejor para entrenar»
+    (2026-10-25), que descarta las que dejan plazas de entrenamiento sin usar
+    antes de mirar ninguna valoración: una plaza perdida no vuelve esa semana y
+    ninguna diferencia de rating la compensa. Las descartadas no salen tampoco
+    en el ranking, porque el ranking es el argumento de la elección y meter
+    dentro a las que no competían lo haría ilegible.
     """
     results: dict[str, Lineup] = {}
-    for f in FORMATIONS:
+    candidatas = [f for f in FORMATIONS if solo is None or f in solo] or list(FORMATIONS)
+    for f in candidatas:
         try:
             results[f] = best_lineup(players, f, exclude)
         except ValueError:

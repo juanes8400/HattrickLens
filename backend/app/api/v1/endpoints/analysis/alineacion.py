@@ -22,6 +22,11 @@ from app.domain.engines.lineup_optimizer import (
     best_lineup,
     variantes_de_casilla,
 )
+from app.domain.engines.plazas_de_entrenamiento import (
+    entrenamiento_de_chpp,
+    formaciones_que_lo_aprovechan,
+    plazas_por_formacion,
+)
 from app.domain.engines.position_engine import positions as _positions
 from app.domain.engines.team_rating_engine import (
     SECTOR_LABELS,
@@ -92,6 +97,13 @@ def _lineup_optimization_objective(value: float) -> dict[str, Any]:
 async def lineup(
     team_id: int,
     formation: str | None = Query(None, description="Si se omite, prueba todas las del catálogo"),
+    entrenando: bool = Query(
+        False,
+        description=(
+            "Deja fuera las formaciones que no aprovechan todas las plazas "
+            "del entrenamiento actual. Solo aplica sin formación elegida."
+        ),
+    ),
     central_defenders: int | None = None,
     inner_midfielders: int | None = None,
     orders: str | None = Query(
@@ -119,10 +131,44 @@ async def lineup(
         session,
         team_id,
         "mejor-once",
-        (formation, central_defenders, inner_midfielders, orders, exclude),
+        (formation, central_defenders, inner_midfielders, orders, exclude, entrenando),
+        # POR NOMBRE Y NO POR POSICION. Iba posicional y al meter `entrenando`
+        # en la firma de dentro se desplazo todo: `session` acabo siendo el
+        # booleano y la pantalla reventaba con «'bool' object has no attribute
+        # 'get'», que no se parece en nada a su causa. Con nombres, añadir un
+        # parametro no puede volver a romper esto.
         lambda: _lineup_sin_cache(
-            team_id, formation, central_defenders, inner_midfielders, orders, exclude, session
+            team_id,
+            formation=formation,
+            central_defenders=central_defenders,
+            inner_midfielders=inner_midfielders,
+            orders=orders,
+            exclude=exclude,
+            session=session,
+            entrenando=entrenando,
         ),
+    )
+
+
+async def _entrenamiento_del_equipo(session: AsyncSession, team_id: int) -> int | None:
+    """El tipo de entrenamiento que Hattrick reportó la última vez.
+
+    Se lee del servidor y no se acepta por parámetro a propósito: un parámetro
+    sería una segunda versión de la verdad, y la pantalla acabaría recomendando
+    para un entrenamiento que el equipo no tiene puesto.
+
+    `None` cuando no hay ninguna sincronización todavía: ahí no se filtra, que
+    es mejor que filtrar por una suposición.
+    """
+    from sqlalchemy import select
+
+    from app.infrastructure.db import models as m
+
+    return await session.scalar(
+        select(m.TrainingSnapshot.training_type)
+        .where(m.TrainingSnapshot.team_id == team_id)
+        .order_by(m.TrainingSnapshot.captured_at.desc())
+        .limit(1)
     )
 
 
@@ -132,6 +178,13 @@ async def _lineup_sin_cache(
     # El reparto de cada línea: cuántos juegan por dentro. El resto va a las
     # bandas. Solo tiene sentido con una formación concreta; sin ella se usa
     # el reparto por defecto de cada una para poder compararlas.
+    entrenando: bool = Query(
+        False,
+        description=(
+            "Deja fuera las formaciones que no aprovechan todas las plazas "
+            "del entrenamiento actual. Solo aplica sin formación elegida."
+        ),
+    ),
     central_defenders: int | None = None,
     inner_midfielders: int | None = None,
     orders: str | None = Query(
@@ -152,6 +205,9 @@ async def _lineup_sin_cache(
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     players, _ = await roster(session, team_id)
+    # Lo que la pantalla necesita para explicarse: con qué entrenamiento se
+    # filtró y cuántas plazas da cada formación. Vacío cuando no se filtró.
+    plazas_filtro: dict[str, Any] | None = None
 
     if formation and formation not in FORMATIONS:
         raise HTTPException(400, f"formación desconocida: {formation}")
@@ -224,7 +280,30 @@ async def _lineup_sin_cache(
             )
             ranking = {formation: lu.total_rating}
         else:
-            lu, ranking = best_formation(players)
+            # «MEJOR PARA ENTRENAR» (2026-10-25, reporte de un usuario): antes
+            # de mirar ninguna valoración, fuera las que dejan plazas de
+            # entrenamiento sin usar. «I consider training to be critical in
+            # this phase, so will not play 442 no matter the ratings
+            # difference»: una plaza perdida no vuelve esa semana, así que no
+            # es una preferencia que se pueda pesar contra unas décimas de
+            # rating, es una restricción.
+            #
+            # El entrenamiento NO viene del navegador: se lee de lo último que
+            # Hattrick reportó. Un parámetro sería una segunda versión de la
+            # verdad, y la pantalla recomendaría para un entrenamiento que el
+            # equipo no tiene puesto.
+            solo = None
+            if entrenando:
+                entrenamiento_actual = await _entrenamiento_del_equipo(session, team_id)
+                clave = entrenamiento_de_chpp(entrenamiento_actual)
+                if clave:
+                    solo = set(formaciones_que_lo_aprovechan(clave))
+                    plazas_filtro = {
+                        "training": clave,
+                        "slots": plazas_por_formacion(clave),
+                        "kept": sorted(solo),
+                    }
+            lu, ranking = best_formation(players, solo=solo)
             # Las órdenes fijadas se refieren a las casillas de la formación
             # que se está viendo. Sin formación elegida esa es la ganadora, así
             # que se aplican sobre ella en una segunda pasada. Si alguna no
@@ -265,6 +344,11 @@ async def _lineup_sin_cache(
         "requiredCount": LINEUP_REQUIRED_COUNT,
         "warning": None,
         "optimizationObjective": _lineup_optimization_objective(lu.total_rating),
+        # Con qué entrenamiento se filtró y cuántas plazas da cada formación.
+        # `null` cuando no se filtró. Va en la respuesta para que la pantalla
+        # pueda DECIR por qué falta el 4-4-2 en vez de que parezca que se
+        # perdió.
+        "trainingSlots": plazas_filtro,
         "lineup": [
             {
                 "slot": a.slot,
