@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 
+import { usePersistido } from "../hooks/usePersistido";
+import { tx } from "../i18n/tx";
+
 /**
  * Fondo de cancha reutilizable, dimensiones tomadas literalmente de "Mejor
  * alineación" (LeaguePage.tsx, Comparativa), pedido explícito 2026-08-14
@@ -75,6 +78,19 @@ export const PITCH_COLUMNS = PITCH_MAX.wingbacks + PITCH_MAX.centralDefenders;
  * fila sin gente de banda se centra sobre el ancho completo, así que dos
  * delanteros quedan simétricos respecto al eje del campo y no pegados a un
  * lado.
+ *
+ * EL PORTERO, ARRIBA O ABAJO (2026-10-25, reporte de un usuario): «In my HT
+ * match screens, my keeper is at the top, Lens Lineup shows him at the bottom».
+ *
+ * POR DEFECTO ARRIBA, COMO EL JUEGO. Es un cambio para todo el mundo y se toma
+ * a conciencia: quien mira las dos pantallas a la vez --que es lo que hace
+ * cualquiera al preparar un partido-- las tiene espejadas, y el error de leer
+ * la defensa como la delantera no avisa de que es un error.
+ *
+ * LA VUELTA VIVE AQUÍ Y NO EN LAS CUATRO PANTALLAS que dibujan canchas. Cada
+ * una arma sus filas por su cuenta --`[delanteros, medio, defensa, portero]`--
+ * y repetir la vuelta en todas sería garantizar que un día discrepen. Con el
+ * interruptor dentro, el ajuste y lo que ajusta no se pueden separar.
  */
 export function PitchGrid<T>({
   rows,
@@ -87,6 +103,17 @@ export function PitchGrid<T>({
   isFlank?: (item: T) => boolean;
   render: (item: T) => ReactNode;
 }) {
+  // Persistido, como el resto de formas de mirar: quien lo pone de una
+  // manera lo quiere igual manana.
+  const [porteroArriba, setPorteroArriba] = usePersistido(
+    "cancha.porteroArriba",
+    true,
+  );
+  // Las filas llegan SIEMPRE con el portero al final --asi las arman las
+  // cuatro pantallas-- y se dan la vuelta aqui. Copia y no `reverse()` a
+  // secas: `reverse` muta el array que le pasaron, y ese array es de quien
+  // lo paso.
+  const filas = porteroArriba ? [...rows].reverse() : rows;
   const marca = isFlank ?? (() => false);
   const franja = (items: T[], desde: number, hasta: number, clave: string) => (
     <div
@@ -102,8 +129,21 @@ export function PitchGrid<T>({
     // Un solo contenedor con scroll para TODAS las filas: si cada una se
     // desplazara por su cuenta, al mover una se perdería la vertical.
     <div className="cancha overflow-x-auto">
-      <div className="mx-auto flex w-max flex-col gap-2 px-2 py-4 sm:gap-3 sm:px-4 sm:py-6">
-        {rows.map((fila, i) => {
+      {/* El interruptor, dentro de la cancha y pequeno: es un ajuste que se
+          toca una vez, no una decision que haya que anunciar. */}
+      <div className="flex justify-end px-2 pt-2 sm:px-4">
+        <button
+          onClick={() => setPorteroArriba(!porteroArriba)}
+          aria-pressed={porteroArriba}
+          data-track="Cancha: dar la vuelta"
+          title={tx("Cambia si el portero sale arriba o abajo")}
+          className="rounded-md bg-black/20 px-2 py-0.5 text-[11px] text-white/70 hover:text-white"
+        >
+          {porteroArriba ? tx("Portero arriba") : tx("Portero abajo")}
+        </button>
+      </div>
+      <div className="mx-auto flex w-max flex-col gap-2 px-2 pb-4 pt-2 sm:gap-3 sm:px-4 sm:pb-6">
+        {filas.map((fila, i) => {
           if (fila.length === 0) return null;
           const bandas = fila.filter(marca);
           const centro = fila.filter((item) => !marca(item));
