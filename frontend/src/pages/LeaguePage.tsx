@@ -17,6 +17,7 @@ import {
 } from "../components/Panels";
 import {
   PITCH_CARD_CLASS,
+  OrientacionDeLaCancha,
   PitchField,
   PitchGrid,
 } from "../components/PitchField";
@@ -1531,6 +1532,9 @@ function TeamOfTheWeekPanel() {
       {isError && <ErrorState error={error} />}
       {data && (
         <>
+          <div className="mb-2 flex justify-end">
+            <OrientacionDeLaCancha />
+          </div>
           <PitchField
             ariaLabel={tx(
               "Mejor alineación {{v0}}, formación {{v1}}, por rating real",

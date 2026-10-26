@@ -3,6 +3,76 @@ import type { ReactNode } from "react";
 import { usePersistido } from "../hooks/usePersistido";
 import { tx } from "../i18n/tx";
 
+/** Dónde se guarda la orientación. Una sola para toda la aplicación: quien la
+ *  pone de una manera la quiere igual en Equipo, en Liga y en Alineación. */
+const CLAVE_DE_ORIENTACION = "cancha.porteroArriba";
+
+/**
+ * Si la cancha se dibuja con el portero arriba. Persistido, como el resto de
+ * formas de mirar.
+ *
+ * ESTO ES UN HOOK Y NO UN PROP a propósito: el que DIBUJA la cancha
+ * (`PitchGrid`) y el que la ELIGE (`OrientacionDeLaCancha`) están en sitios
+ * distintos de la pantalla --uno dentro del verde y otro fuera-- y pasarlo de
+ * mano en mano obligaría a cada página a llevar un estado que no es suyo.
+ */
+export function useOrientacionDeLaCancha() {
+  return usePersistido(CLAVE_DE_ORIENTACION, true);
+}
+
+/**
+ * El selector de orientación: «portero arriba» o «portero abajo».
+ *
+ * FUERA DE LA CANCHA, y eso es lo único que lo hace servir (2026-10-26). Vivió
+ * dos días dentro del verde, arriba a la derecha y en letra de once píxeles, y
+ * el usuario preguntó tres veces dónde estaba. Un ajuste que no se encuentra es
+ * un ajuste que no existe, por mucho que esté.
+ *
+ * Las DOS opciones siempre a la vista. Un botón que enseña el estado actual se
+ * lee como etiqueta: no se ve que haya nada que elegir hasta que lo pulsas.
+ */
+export function OrientacionDeLaCancha({
+  className = "",
+}: {
+  className?: string;
+}) {
+  const [porteroArriba, setPorteroArriba] = useOrientacionDeLaCancha();
+  return (
+    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+      {/* CON ROTULO, y no sólo los dos botones. Sin él hay que deducir para
+          qué sirven, y lo que se pidió fue poder ELEGIR cómo se mira la
+          cancha: el rótulo es la mitad que dice que hay una elección. */}
+      <span className="text-xs font-medium text-slate-600 dark:text-slate-300">
+        {tx("Ver la cancha")}
+      </span>
+      <div
+        role="group"
+        aria-label={tx("Cómo se mira la cancha")}
+        title={tx("Cambia si el portero sale arriba o abajo")}
+        className="inline-flex gap-0.5 rounded-md bg-slate-200/70 p-0.5 dark:bg-slate-700/60"
+      >
+        {([true, false] as const).map((arriba) => (
+          <button
+            key={String(arriba)}
+            onClick={() => setPorteroArriba(arriba)}
+            aria-pressed={porteroArriba === arriba}
+            data-track="Cancha: dar la vuelta"
+            className={
+              porteroArriba === arriba
+                ? "rounded bg-white px-3 py-1 text-xs font-semibold text-slate-900 shadow-sm dark:bg-slate-900 dark:text-slate-100"
+                : "rounded px-3 py-1 text-xs text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
+            }
+          >
+            {arriba
+              ? `↑ ${tx("Portero arriba")}`
+              : `↓ ${tx("Portero abajo")}`}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Fondo de cancha reutilizable, dimensiones tomadas literalmente de "Mejor
  * alineación" (LeaguePage.tsx, Comparativa), pedido explícito 2026-08-14
@@ -109,12 +179,7 @@ export function PitchGrid<T>({
   isFlank?: (item: T) => boolean;
   render: (item: T) => ReactNode;
 }) {
-  // Persistido, como el resto de formas de mirar: quien lo pone de una
-  // manera lo quiere igual manana.
-  const [porteroArriba, setPorteroArriba] = usePersistido(
-    "cancha.porteroArriba",
-    true,
-  );
+  const [porteroArriba] = useOrientacionDeLaCancha();
   // Las filas llegan SIEMPRE con el portero al final --asi las arman las
   // cuatro pantallas-- y se dan la vuelta aqui. Copia y no `reverse()` a
   // secas: `reverse` muta el array que le pasaron, y ese array es de quien
@@ -135,38 +200,6 @@ export function PitchGrid<T>({
     // Un solo contenedor con scroll para TODAS las filas: si cada una se
     // desplazara por su cuenta, al mover una se perdería la vertical.
     <div className="cancha overflow-x-auto">
-      {/* LAS DOS OPCIONES A LA VISTA (2026-10-25, el usuario: «yo debo
-          seleccionar si veo la cancha de arriba hacia abajo o de abajo hacia
-          arriba»). Antes era un boton pequeno que ensenaba el estado actual, y
-          eso se lee como ETIQUETA: no se ve que haya nada que elegir hasta que
-          lo pulsas, asi que quien queria darle la vuelta no encontraba donde.
-          Sigue siendo pequeno --es un ajuste, no el contenido-- pero ahora se
-          ve la eleccion y se ve cual esta puesta. */}
-      <div
-        role="group"
-        aria-label={tx("Cómo se mira la cancha")}
-        title={tx("Cambia si el portero sale arriba o abajo")}
-        className="flex justify-end gap-0.5 px-2 pt-2 sm:px-4"
-      >
-        {/* El `title` va en el GRUPO y no en cada boton: puesto en los dos,
-            los dos se anuncian con la misma frase y de oido no se distingue
-            cual es cual. Asi cada uno se llama por su texto. */}
-        {([true, false] as const).map((arriba) => (
-          <button
-            key={String(arriba)}
-            onClick={() => setPorteroArriba(arriba)}
-            aria-pressed={porteroArriba === arriba}
-            data-track="Cancha: dar la vuelta"
-            className={
-              porteroArriba === arriba
-                ? "rounded-md bg-white/25 px-2 py-0.5 text-[11px] font-medium text-white"
-                : "rounded-md bg-black/20 px-2 py-0.5 text-[11px] text-white/60 hover:text-white"
-            }
-          >
-            {arriba ? `↑ ${tx("Portero arriba")}` : `↓ ${tx("Portero abajo")}`}
-          </button>
-        ))}
-      </div>
       <div className="mx-auto flex w-max flex-col gap-2 px-2 pb-4 pt-2 sm:gap-3 sm:px-4 sm:pb-6">
         {filas.map((fila, i) => {
           if (fila.length === 0) return null;

@@ -18,6 +18,7 @@ import { PlayerLink } from "../components/PlayerLink";
 import { Chart } from "../charts/Chart";
 import {
   PITCH_CARD_CLASS,
+  OrientacionDeLaCancha,
   PitchField,
   PitchGrid,
 } from "../components/PitchField";
@@ -450,6 +451,12 @@ export function LineupPage() {
               "«Mejor formación» compara las diez estructuras con el reparto base de cada una. Para estudiar una formación con tus órdenes, elige primero la formación y después fija las órdenes por casilla.",
             )}
       </Note>
+
+      {/* El selector de orientación, FUERA del verde y a la vista. Dentro de
+          la cancha no se encontraba. */}
+      <div className="mb-2 flex justify-end">
+        <OrientacionDeLaCancha />
+      </div>
 
       {/* La misma cancha que usan Equipo y la Comparativa de liga: un once se
           lee de un vistazo cuando está puesto sobre el campo, y de tres

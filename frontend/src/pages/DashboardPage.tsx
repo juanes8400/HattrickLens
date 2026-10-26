@@ -22,6 +22,7 @@ import { InsightRow, SeverityTally } from "../components/Insights";
 import { Chart } from "../charts/Chart";
 import {
   PITCH_CARD_CLASS,
+  OrientacionDeLaCancha,
   PitchField,
   PitchGrid,
 } from "../components/PitchField";
@@ -235,13 +236,17 @@ export function BestElevenPitch({
     lineup.filter((a) => a.position === "keeper"),
   ];
   return (
-    <PitchField
-      ariaLabel={t(
-        "dashboard.mejorOnceAria",
-        "Mejor once en formación {{formacion}}",
-        { formacion: formation },
-      )}
-    >
+    <>
+      <div className="mb-2 flex justify-end">
+        <OrientacionDeLaCancha />
+      </div>
+      <PitchField
+        ariaLabel={t(
+          "dashboard.mejorOnceAria",
+          "Mejor once en formación {{formacion}}",
+          { formacion: formation },
+        )}
+      >
       <PitchGrid
         rows={lineas}
         // Gente de banda: extremos arriba y laterales atrás. Son los que
@@ -262,8 +267,9 @@ export function BestElevenPitch({
             </div>
           </div>
         )}
-      />
-    </PitchField>
+        />
+      </PitchField>
+    </>
   );
 }
 
