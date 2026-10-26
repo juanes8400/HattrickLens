@@ -133,6 +133,24 @@ EDAD_MINIMA = 17
 #: con el plazo desviado trece segundos--.
 MARGEN_TRAS_EL_PLAZO = timedelta(0)
 
+#: Hasta cuándo se le sigue preguntando a una venta por su precio: TRES DÍAS
+#: desde el cierre de la subasta (2026-10-26, decisión del usuario: «resolverlo
+#: a los 3 días; lo que fue, fue»).
+#:
+#: ES UN PLAZO Y NO UNA CUENTA DE INTENTOS, y la diferencia importa. Los
+#: intentos van a uno por día, pero sólo se gastan cuando hay sincronización:
+#: cinco intentos de alguien que entra una vez por semana son cinco semanas de
+#: fila pendiente. El plazo mide lo que el usuario dijo --días desde el
+#: cierre-- y no depende de cuánto entre nadie.
+#:
+#: Y NO SE PIERDE NADA AL RENDIRSE. La venta se queda con su puja, que es lo
+#: que ya tenía, y sigue contando como comparable provisional. Con puja la
+#: venta está garantizada en Hattrick, así que no encontrarla a los tres días
+#: no es que no ocurriera: es que no la vamos a ver. La puja se queda corta
+#: --Valerio Cataldi: 65.000.000 de puja, 77.720.000 de cierre-- y por eso la
+#: pantalla sigue diciendo que ese número es provisional.
+VENTANA_DE_RESOLUCION = timedelta(days=3)
+
 #: Cuántas veces se reintenta una resolución que no encontró la venta.
 #:
 #: Eran dos intentos hasta el 2026-10-07, con el argumento de que insistir
@@ -211,6 +229,18 @@ class Escalon:
 #: por una cuarta habilidad alta que nosotros no mirábamos y a él le basta para
 #: descartarlo. Era uno de cada seis de los que antes llamábamos 100 %.
 PESO_DE_HATTRICK = 100
+
+#: EL CLAVADO TAMBIÉN VALE 100 (2026-10-26, decisión del usuario): «100 =
+#: coincidencia exacta de Edad + 3 habilidades». Hasta hoy el 100 era sólo el
+#: sello de Hattrick y un clavado nuestro valía 95.
+#:
+#: Y los dos comparten el 100 a propósito --se le preguntó--: son las dos
+#: maneras de ser el mejor comparable que puede existir, y ninguna de las dos
+#: mejora con nada más fresco. Lo que queda por debajo es lo que hubo que
+#: mover: «el 95 es si no coincide exactamente sino si tengo que mover la edad
+#: y las habilidades top 3 en rangos», palabras suyas del mismo día. Por eso la
+#: escalera de abajo no se toca: ya decía eso.
+PESO_DEL_CLAVADO = 100
 
 #: Por encima de esto un comparable no caduca. Son dos: el que avala Hattrick y
 #: nuestro exacto. Ninguno de los dos puede mejorarse con nada más fresco.
@@ -552,19 +582,47 @@ def lo_ensenaria_hattrick(candidato: Perfilado, objetivo: Objetivo) -> bool:
     )
 
 
+def esta_clavado(candidato: Perfilado, objetivo: Objetivo) -> bool:
+    """Misma edad y las tres habilidades en el mismo nivel.
+
+    No comprueba que la terna sea la misma: eso ya lo mira quien llama, y
+    repetirlo aquí invitaría a usar esta función suelta creyendo que lo hace.
+
+    LA EDAD EN AÑOS Y NO EN DÍAS, por la misma razón que la busca en años la
+    propia búsqueda: `transfersearch` filtra por años cumplidos, así que pedir
+    los días estrecharía por un criterio que el mercado no sabe aplicar y
+    dejaría el clavado en algo casi inalcanzable.
+    """
+    return (
+        candidato.edad == objetivo.edad
+        and candidato.primaria.nivel == objetivo.primaria.nivel
+        and candidato.secundaria.nivel == objetivo.secundaria.nivel
+        and candidato.terciaria.nivel == objetivo.terciaria.nivel
+    )
+
+
 def peso_de(candidato: Perfilado, objetivo: Objetivo) -> int | None:
     """Lo que vale este candidato, o `None` si no se le parece lo bastante.
 
-    EL PESO ES NUESTRO de los 95 para abajo; el 100 lo pone Hattrick. Que el
-    sello mueva el numero es deliberado, y hay que saberlo antes de tocarlo:
-    cambiar lo que significa el 100 % mueve el color de la pantalla y el
-    calendario del escalon exacto.
+    AL 100 SE LLEGA POR DOS CAMINOS, y los dos valen igual:
 
-    EL 100 SE LO DA HATTRICK, no nosotros (2026-10-10): se reserva para las
-    ventas que el propio juego enseñaría, comprobado contra su regla. Nuestra
-    escalera va por debajo, y es más ancha porque vemos muchísimo menos mercado
-    que él: él pregunta a su base de traspasos entera y nosotros vamos juntando
-    anuncios vivos.
+      · que lo enseñaría Hattrick, comprobado contra su regla (2026-10-10);
+      · que está CLAVADO: misma edad y las tres habilidades en el mismo nivel
+        (2026-10-26, «100 = coincidencia exacta de Edad + 3 habilidades»).
+
+    Hasta el 2026-10-26 el clavado valía 95 y el 100 estaba reservado al sello.
+    Lo cambió el usuario, y que los dos compartan el número es cosa suya
+    también: le pregunté si prefería bajar el sello a 95 y dijo que no, los dos
+    a 100. Tiene sentido --son las dos maneras de ser el mejor comparable que
+    puede existir-- pero cambia lo que significa el 100 %, o sea el color de la
+    pantalla y el calendario del escalón exacto. Hay que saberlo antes de
+    tocarlo.
+
+    De los 95 para abajo el peso es NUESTRO, y mide lo que hubo que mover: «el
+    95 es si no coincide exactamente sino si tengo que mover la edad y las
+    habilidades top 3 en rangos». La escalera es más ancha que la de Hattrick
+    porque vemos muchísimo menos mercado que él: él pregunta a su base de
+    traspasos entera y nosotros vamos juntando anuncios vivos.
 
     EL SELLO VA DELANTE DEL DESEMPATE, y el orden importa (2026-10-18). Nuestra
     escalera exige que las tres habilidades mas altas sean LAS MISMAS y en el
@@ -595,6 +653,8 @@ def peso_de(candidato: Perfilado, objetivo: Objetivo) -> int | None:
         or candidato.terciaria.habilidad != objetivo.terciaria.habilidad
     ):
         return None
+    if esta_clavado(candidato, objetivo):
+        return PESO_DEL_CLAVADO
     distancia_terciaria = candidato.terciaria.nivel - objetivo.terciaria.nivel
     if not -TERCIARIA_ABAJO <= distancia_terciaria <= TERCIARIA_ARRIBA:
         return None
@@ -932,14 +992,23 @@ def _mediana_ponderada(comparables: Sequence[Comparable]) -> int:
 
 
 def se_puede_resolver(plazo: datetime | None, ahora: datetime) -> bool:
-    """Si ya ha cerrado la subasta y Hattrick ha tenido tiempo de anotarla.
+    """Si ya ha cerrado la subasta y todavía estamos a tiempo de preguntar.
 
-    Sin plazo no se puede saber, y preguntar a ciegas gastaría una llamada por
-    cada intento.
+    Dos bordes, uno por cada lado:
+
+    · ANTES DEL CIERRE no hay nada que preguntar, y preguntar a ciegas gastaría
+      una llamada por cada intento.
+    · PASADOS TRES DÍAS se deja de preguntar, «lo que fue, fue». La venta se
+      queda con su puja y sigue contando como provisional.
+
+    Sin plazo no se puede saber ninguna de las dos cosas, así que no se
+    pregunta.
     """
     if plazo is None:
         return False
-    return _aware(ahora) >= _aware(plazo) + MARGEN_TRAS_EL_PLAZO
+    cierre = _aware(plazo)
+    momento = _aware(ahora)
+    return cierre + MARGEN_TRAS_EL_PLAZO <= momento <= cierre + VENTANA_DE_RESOLUCION
 
 
 @dataclass(frozen=True, slots=True)

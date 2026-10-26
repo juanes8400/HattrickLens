@@ -24,6 +24,7 @@ from app.domain.engines.mercado_comparable import (
     GRUPOS,
     MARGEN_TRAS_EL_PLAZO,
     REINTENTOS_DE_RESOLUCION,
+    VENTANA_DE_RESOLUCION,
     Traspaso,
     precio_cerrado,
     se_puede_resolver,
@@ -120,6 +121,35 @@ def test_se_pregunta_EN_CUANTO_pasa_el_plazo_anotado() -> None:
 def test_sin_plazo_no_se_pregunta() -> None:
     """A ciegas se gastaria una llamada por cada intento."""
     assert se_puede_resolver(None, PLAZO + timedelta(days=9)) is False
+
+
+def test_a_los_TRES_DIAS_se_deja_de_preguntar() -> None:
+    """«Resolverlo a los 3 dias. Lo que fue, fue» (2026-10-26, el usuario).
+
+    Hace falta desde que el barrido es diario: antes el tope era de cinco
+    INTENTOS, y los intentos van a uno por dia pero solo se gastan cuando hay
+    sincronizacion, asi que cinco intentos de quien entra una vez por semana
+    eran cinco semanas de fila pendiente.
+    """
+    assert VENTANA_DE_RESOLUCION == timedelta(days=3)
+    assert se_puede_resolver(PLAZO, PLAZO + timedelta(days=3)) is True
+    assert se_puede_resolver(PLAZO, PLAZO + timedelta(days=3, seconds=1)) is False
+    assert se_puede_resolver(PLAZO, PLAZO + timedelta(days=9)) is False
+
+
+def test_rendirse_no_borra_la_venta_ni_su_puja() -> None:
+    """Lo que fue, fue: se queda con lo que tenia y sigue contando.
+
+    Con puja la venta esta GARANTIZADA en Hattrick, asi que no encontrarla no
+    significa que no ocurriera, significa que no la vamos a ver. La puja se
+    queda corta --Valerio Cataldi, 65.000.000 de puja y 77.720.000 de cierre--
+    y por eso el numero sigue marcado como provisional, no como cierto.
+    """
+    fila = _fila()
+    assert se_puede_resolver(fila.deadline, PLAZO + timedelta(days=4)) is False
+    # Nadie la toca: sigue con su puja y sigue sin ser firme.
+    assert fila.price == 65_000_000
+    assert fila.is_final is False
 
 
 # --------------------------------------------------------------------------

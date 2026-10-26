@@ -188,32 +188,58 @@ async def guardar(
 ) -> int:
     """Mete en el fondo lo que trajo un turno.
 
-    Si el mismo jugador vuelve a aparecer en otra subasta, su fila se
-    actualiza con la nueva puja y el nuevo plazo y vuelve a quedar pendiente:
-    es otra venta, y la de antes ya cumplió su función.
+    UNA FILA ES UNA SUBASTA: jugador MÁS plazo (2026-10-26, decisión del
+    usuario). Volver a ver el mismo anuncio --cosa de todos los días desde que
+    el barrido es diario-- actualiza su fila; una venta NUEVA del mismo jugador
+    abre otra, porque es otra venta y Hattrick también las cuenta por separado.
+
+    Hasta hoy la clave era sólo el jugador y la segunda venta pisaba a la
+    primera. Ver la migración 0105 para lo que eso costaba.
+
+    SIN PLAZO SE CAE AL JUGADOR SOLO. No debería pasar --el plazo viene en el
+    anuncio-- pero si llegara vacío, la restricción de la base no protegería:
+    en SQL dos nulos son distintos, así que cada barrido abriría otra fila y en
+    una semana habría siete copias del mismo anuncio. Agrupar por el jugador es
+    peor clave, pero acotada; duplicar sin freno no lo está.
     """
     nuevas = 0
     for venta in ventas:
-        fila = (
-            await session.execute(
-                select(m.MarketSale).where(
-                    m.MarketSale.team_id == team_id,
-                    m.MarketSale.ht_player_id == venta.ht_player_id,
-                )
-            )
-        ).scalar_one_or_none()
         plazo = ht_to_utc(plazos.get(venta.ht_player_id, ""))
+        condiciones = [
+            m.MarketSale.team_id == team_id,
+            m.MarketSale.ht_player_id == venta.ht_player_id,
+        ]
+        if plazo is not None:
+            condiciones.append(m.MarketSale.deadline == plazo)
+        fila = (
+            await session.execute(select(m.MarketSale).where(*condiciones).limit(1))
+        ).scalar_one_or_none()
+        nueva = fila is None
         if fila is None:
             fila = m.MarketSale(team_id=team_id, ht_player_id=venta.ht_player_id)
             session.add(fila)
             nuevas += 1
+        elif fila.is_final:
+            # UN PRECIO DE VERDAD NO SE PISA CON UNA PUJA. Antes no hacía falta
+            # mirarlo: la fila se buscaba por jugador y una venta resuelta ya
+            # no volvía a verse. Ahora las filas duran, y si el mercado nos
+            # devolviera la misma subasta ya cerrada --un fichero rancio, un
+            # plazo corrido-- el precio de cierre se cambiaría por la puja, que
+            # es justo lo que se resolvió para no tener que usar.
+            continue
         fila.name = venta.nombre
         fila.price = venta.precio
         fila.is_final = venta.firme
         fila.bid_price = venta.puja
         fila.deadline = plazo
         fila.seen_at = venta.visto_el
-        fila.resolve_attempts = 0
+        # LOS INTENTOS SOLO SE REINICIAN EN UNA FILA NUEVA. Antes se ponían a
+        # cero en cada guardado, que con una búsqueda semanal daba igual: la
+        # fila era nueva casi siempre. Con el barrido diario, volver a ver el
+        # mismo anuncio borraría la cuenta de intentos todos los días y una
+        # venta que Hattrick nunca publica no se abandonaría jamás.
+        if nueva:
+            fila.resolve_attempts = 0
         fila.age_years = venta.edad
         fila.age_days = venta.dias
         fila.primary_skill = venta.primaria.habilidad

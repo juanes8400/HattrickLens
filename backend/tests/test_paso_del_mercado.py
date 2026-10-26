@@ -234,7 +234,7 @@ async def test_la_puja_se_convierte_en_el_precio_de_verdad(base) -> None:
 
     # Cuatro dias: el margen tras el plazo paso de dos horas a TRES DIAS el
     # 2026-10-09, «cuando se sabe que debio terminar».
-    despues = AHORA + timedelta(days=4)
+    despues = AHORA + timedelta(days=2)
     paso = await correr_el_paso_semanal(
         session, equipo, buscar=_MercadoFalso(), historial_de=historial, ahora=despues
     )
@@ -342,7 +342,7 @@ async def test_un_chpp_caido_no_gasta_intentos_de_resolucion(base) -> None:
 
     # Cuatro dias: el margen tras el plazo paso de dos horas a TRES DIAS el
     # 2026-10-09, «cuando se sabe que debio terminar».
-    despues = AHORA + timedelta(days=4)
+    despues = AHORA + timedelta(days=2)
     for _ in range(REINTENTOS_DE_RESOLUCION + 3):
         paso = await correr_el_paso_semanal(
             session, equipo, buscar=_MercadoFalso(), historial_de=se_cae, ahora=despues
@@ -444,7 +444,7 @@ async def test_al_resolverse_una_puja_la_serie_anota_el_cambio(base) -> None:
 
     # Cuatro dias: el margen tras el plazo paso de dos horas a TRES DIAS el
     # 2026-10-09, «cuando se sabe que debio terminar».
-    despues = AHORA + timedelta(days=4)
+    despues = AHORA + timedelta(days=2)
     paso = await correr_el_paso_semanal(
         session, equipo, buscar=_MercadoFalso(), historial_de=historial, ahora=despues
     )

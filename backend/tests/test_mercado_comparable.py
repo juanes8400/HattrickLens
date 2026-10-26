@@ -442,7 +442,7 @@ def test_una_venta_se_vuelve_a_medir_contra_quien_pregunte() -> None:
     al que se parece y 90% para otro con un nivel menos de pases, sin
     gastar una sola llamada."""
     venta = _guardado(1)
-    assert _medidos(venta)[0].peso == 95
+    assert _medidos(venta)[0].peso == 100
     otro = _objetivo(scoring=18, passing=12, playmaking=7)
     assert _medidos(venta, objetivo=otro)[0].peso == 90
 
@@ -454,13 +454,13 @@ def test_una_venta_que_no_se_parece_a_quien_pregunta_no_entra() -> None:
 
 def test_el_peso_manda_por_encima_de_la_frescura() -> None:
     """El usuario dijo que un comparable nunca se reemplaza por algo de menor
-    peso, asi que una venta caducada al 95% va por delante de una recien
+    peso, asi que una venta caducada al 100% va por delante de una recien
     encontrada al 90%."""
     vieja = _guardado(1, semanas=9)
     reciente = _guardado(2, semanas=0, scoring=18, passing=12, playmaking=7)
     elegidos = _medidos(reciente, vieja)
     assert [c.venta.ht_player_id for c in elegidos] == [1, 2]
-    assert [c.peso for c in elegidos] == [95, 90]
+    assert [c.peso for c in elegidos] == [100, 90]
     # Y la de veinte semanas NO cuenta como vieja, porque es un 100%: desde
     # el 2026-10-07 la caducidad solo alcanza a los parecidos.
     assert elegidos[0].viejo is False
@@ -572,8 +572,8 @@ def test_los_pesos_mueven_la_media_y_se_comprueba_a_mano() -> None:
             *(_guardado(i, precio=20_000_000, **flojo) for i in range(3, 9)),
         )
     )
-    # (2*95*10M + 6*90*20M) / (2*95 + 6*90) = 12.700M / 730 = 17.397.260
-    assert e.media == 17_397_260
+    # (2*100*10M + 6*90*20M) / (2*100 + 6*90) = 12.800M / 740 = 17.297.297
+    assert e.media == 17_297_297
     assert e.peso_minimo == 90
 
 
@@ -585,8 +585,8 @@ def test_la_mediana_tambien_va_ponderada() -> None:
         *(_guardado(i, precio=i * 10) for i in range(1, 8)),
         _guardado(8, precio=80, **flojo),
     )
-    # Peso total 7*95 + 90 = 755, mitad 377,5. Acumulando por precio: 95, 190,
-    # 285, 380 pasa de la mitad en el cuarto, asi que la mediana es 40 y no 45.
+    # Peso total 7*100 + 90 = 790, mitad 395. Acumulando por precio: 100, 200,
+    # 300, 400 pasa de la mitad en el cuarto, asi que la mediana es 40 y no 45.
     assert estimar(pesados).mediana == 40
     assert estimar(pesados).media != 30
 
@@ -834,7 +834,7 @@ def test_un_comparable_exacto_no_envejece() -> None:
     clavado = _guardado(1, semanas=9)
     assert reemplazable(clavado, AHORA) is True, "la venta SI cumplio su vida"
     medido = _medidos(clavado)[0]
-    assert medido.peso == 95
+    assert medido.peso == 100
     assert medido.viejo is False, "pero al 100% no cuenta como vieja"
 
 
@@ -853,7 +853,7 @@ def test_la_misma_venta_caduca_para_uno_y_no_para_el_otro() -> None:
     para_el_clavado = _medidos(venta)[0]
     otro = _objetivo(scoring=18, passing=12, playmaking=7)
     para_el_primo = _medidos(venta, objetivo=otro)[0]
-    assert para_el_clavado.peso == 95 and para_el_clavado.viejo is False
+    assert para_el_clavado.peso == 100 and para_el_clavado.viejo is False
     assert para_el_primo.peso < 100 and para_el_primo.viejo is True
 
 
@@ -954,7 +954,7 @@ def test_una_cuarta_habilidad_alta_lo_tumba_aunque_nuestra_escalera_lo_apruebe()
         {"defending": 14, "passing": 13, "winger": 11, "playmaking": 8, "scoring": 1}
     )
     objetivo = _llauge()
-    assert peso_de(con_jugadas, objetivo) == 95
+    assert peso_de(con_jugadas, objetivo) == 100
     assert not lo_ensenaria_hattrick(con_jugadas, objetivo)
 
 
@@ -967,7 +967,7 @@ def test_sin_las_siete_habilidades_no_hay_sello() -> None:
     sin_ellas = replace(_venta({"defending": 14, "passing": 13, "winger": 11}), habilidades={})
     assert not lo_ensenaria_hattrick(sin_ellas, _llauge())
     # Pero sigue midiendose con nuestra escalera, como siempre.
-    assert peso_de(sin_ellas, _llauge()) == 95
+    assert peso_de(sin_ellas, _llauge()) == 100
 
 
 def test_el_sello_viaja_en_el_comparable() -> None:
@@ -976,8 +976,11 @@ def test_el_sello_viaja_en_el_comparable() -> None:
     ahora = datetime(2026, 10, 10, tzinfo=UTC)
     medidos = comparables_de([avalado, crudo], _llauge(), ahora)
     assert [c.avalado_por_hattrick for c in medidos] == [True, False]
-    # El sello NO toca el peso: los dos siguen valiendo 100 para la escalera.
-    assert {c.peso for c in medidos} == {95, 100}
+    # EL SELLO NO TOCA EL PESO, y desde el 2026-10-26 se ve mejor que antes:
+    # los dos valen 100 --el uno porque Hattrick lo avala, el otro porque esta
+    # clavado-- y aun asi uno lleva sello y el otro no. Mismo numero, distinta
+    # respuesta a «¿esto lo ensenaria el juego?».
+    assert {c.peso for c in medidos} == {100}
 
 
 # --- Que lo que dice la regla se pueda MANDAR de verdad --------------------

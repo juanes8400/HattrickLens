@@ -1741,7 +1741,12 @@ class MarketSale(Base):
 
     __tablename__ = "market_sales"
     __table_args__ = (
-        UniqueConstraint("team_id", "ht_player_id", name="uq_market_sale_por_equipo"),
+        # UNA FILA ES UNA SUBASTA, no un jugador (2026-10-26). El mismo jugador
+        # puede tener dos ventas, y Hattrick cuenta las dos: el 490357848 sale
+        # dos veces en su propio Comparador, a 215.220 y a 125.000. Y el mismo
+        # anuncio aparece días seguidos en el barrido diario, que con esta clave
+        # sigue siendo una fila. Ver la migración 0105.
+        UniqueConstraint("team_id", "ht_player_id", "deadline", name="uq_market_sale_por_subasta"),
         Index("ix_market_sales_pendientes", "team_id", "is_final", "deadline"),
     )
 
