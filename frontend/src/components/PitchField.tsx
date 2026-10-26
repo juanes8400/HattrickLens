@@ -37,10 +37,16 @@ export function PitchField({
       className={`relative overflow-hidden ${className}`}
       aria-label={ariaLabel}
     >
-      <div className="absolute inset-0 bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-950" />
-      <div className="absolute inset-4 rounded-[1.5rem] border-2 border-white/25" />
-      <div className="absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/20" />
-      <div className="absolute left-4 right-4 top-1/2 border-t-2 border-white/20" />
+      {/* LAS LINEAS DE LA CANCHA NO RECIBEN CLICS (2026-10-25). Son `absolute`
+          y los hijos no, asi que pintan ENCIMA aunque vayan antes en el
+          marcado, y sin esto se comen lo que tapan: el borde cubria casi todo
+          el selector de orientacion --por eso no se podia cambiar-- y el
+          circulo central y la linea de medio campo caen sobre las fichas.
+          Son adorno: no tienen nada que atender. */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-950" />
+      <div className="pointer-events-none absolute inset-4 rounded-[1.5rem] border-2 border-white/25" />
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-20 w-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/20" />
+      <div className="pointer-events-none absolute left-4 right-4 top-1/2 border-t-2 border-white/20" />
       {children}
     </div>
   );
@@ -129,18 +135,37 @@ export function PitchGrid<T>({
     // Un solo contenedor con scroll para TODAS las filas: si cada una se
     // desplazara por su cuenta, al mover una se perdería la vertical.
     <div className="cancha overflow-x-auto">
-      {/* El interruptor, dentro de la cancha y pequeno: es un ajuste que se
-          toca una vez, no una decision que haya que anunciar. */}
-      <div className="flex justify-end px-2 pt-2 sm:px-4">
-        <button
-          onClick={() => setPorteroArriba(!porteroArriba)}
-          aria-pressed={porteroArriba}
-          data-track="Cancha: dar la vuelta"
-          title={tx("Cambia si el portero sale arriba o abajo")}
-          className="rounded-md bg-black/20 px-2 py-0.5 text-[11px] text-white/70 hover:text-white"
-        >
-          {porteroArriba ? tx("Portero arriba") : tx("Portero abajo")}
-        </button>
+      {/* LAS DOS OPCIONES A LA VISTA (2026-10-25, el usuario: «yo debo
+          seleccionar si veo la cancha de arriba hacia abajo o de abajo hacia
+          arriba»). Antes era un boton pequeno que ensenaba el estado actual, y
+          eso se lee como ETIQUETA: no se ve que haya nada que elegir hasta que
+          lo pulsas, asi que quien queria darle la vuelta no encontraba donde.
+          Sigue siendo pequeno --es un ajuste, no el contenido-- pero ahora se
+          ve la eleccion y se ve cual esta puesta. */}
+      <div
+        role="group"
+        aria-label={tx("Cómo se mira la cancha")}
+        title={tx("Cambia si el portero sale arriba o abajo")}
+        className="flex justify-end gap-0.5 px-2 pt-2 sm:px-4"
+      >
+        {/* El `title` va en el GRUPO y no en cada boton: puesto en los dos,
+            los dos se anuncian con la misma frase y de oido no se distingue
+            cual es cual. Asi cada uno se llama por su texto. */}
+        {([true, false] as const).map((arriba) => (
+          <button
+            key={String(arriba)}
+            onClick={() => setPorteroArriba(arriba)}
+            aria-pressed={porteroArriba === arriba}
+            data-track="Cancha: dar la vuelta"
+            className={
+              porteroArriba === arriba
+                ? "rounded-md bg-white/25 px-2 py-0.5 text-[11px] font-medium text-white"
+                : "rounded-md bg-black/20 px-2 py-0.5 text-[11px] text-white/60 hover:text-white"
+            }
+          >
+            {arriba ? `↑ ${tx("Portero arriba")}` : `↓ ${tx("Portero abajo")}`}
+          </button>
+        ))}
       </div>
       <div className="mx-auto flex w-max flex-col gap-2 px-2 pb-4 pt-2 sm:gap-3 sm:px-4 sm:pb-6">
         {filas.map((fila, i) => {
