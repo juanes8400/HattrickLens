@@ -94,26 +94,6 @@ VIDA = timedelta(weeks=7)
 #:
 #: Asi que vuelve a mandar `VIDA` sola: cumplirla no borra, deja paso.
 
-#: Cuántos grupos de rotación de los escalones ANCHOS (<100 %). Cada semana le
-#: toca a uno, así que a cada jugador le toca cada cinco semanas.
-GRUPOS = 5
-
-#: Cada cuántos días se vuelve a buscar el escalón EXACTO de un jugador
-#: (2026-10-09, decisión del usuario). El exacto es el mejor dato que puede
-#: existir para él --misma edad y las tres habilidades clavadas-- y no caduca,
-#: así que refrescarlo seguido es lo que hace que el fondo no envejezca.
-#:
-#: SEIS Y NO SIETE a propósito: con siete, a cada jugador le tocaría siempre el
-#: mismo día de la semana y vería siempre el mismo trozo del mercado. Con seis,
-#: su turno se adelanta un día cada semana y acaba pasando por todos.
-#:
-#: El grupo sale del propio identificador, igual que el de los anchos: no hay
-#: reloj que guardar por jugador, ni que recolocar al fichar o vender.
-DIAS_DEL_EXACTO = 6
-
-#: Lo que se le resta a la actualización económica para fijar el disparador.
-ANTICIPO = timedelta(hours=24)
-
 #: Nadie juega en el primer equipo con menos de 17 años.
 EDAD_MINIMA = 17
 
@@ -413,7 +393,14 @@ class Estimacion:
 
     @property
     def suficiente(self) -> bool:
-        return self.media is not None
+        """Si el número se apoya en `OBJETIVO` ventas o más.
+
+        DEJÓ DE SIGNIFICAR «HAY NÚMERO» el 2026-10-26, y la distinción es toda
+        la gracia: desde que se da número con lo que haya, esto pasa a ser lo
+        que la pantalla necesita para avisar de que el número es flojo. Antes
+        las dos cosas coincidían porque por debajo de ocho no había número.
+        """
+        return self.n >= OBJETIVO
 
 
 def terna(skills: Mapping[str, int]) -> tuple[Rasgo, Rasgo, Rasgo] | None:
@@ -471,27 +458,8 @@ def perfil_de(objetivo: Objetivo) -> tuple[int, str, int, str, int, str, int]:
     )
 
 
-def ventana_de(objetivo: Objetivo, escalon: Escalon) -> Ventana | None:
-    """La búsqueda de un escalón, o `None` si pide algo que no existe.
-
-    Un jugador de 17 años no tiene escalón de «un año menos». No se recorta al
-    valor válido más cercano, porque eso buscaría otra cosa de la que se dijo
-    y repetiría un escalón ya hecho.
-    """
-    edad_minima = objetivo.edad + escalon.edad_desde
-    edad_maxima = objetivo.edad + escalon.edad_hasta
-    if edad_minima < EDAD_MINIMA:
-        return None
-    return Ventana(
-        peso=escalon.peso,
-        edad_minima=edad_minima,
-        edad_maxima=edad_maxima,
-        primaria=_franja(objetivo.primaria, escalon.primaria, escalon.primaria),
-        secundaria=_franja(objetivo.secundaria, escalon.secundaria, escalon.secundaria),
-        terciaria=_franja(objetivo.terciaria, TERCIARIA_ABAJO, TERCIARIA_ARRIBA),
-    )
-
-
+#: Cuántos filtros de habilidad admite `transfersearch`. Son cuatro, pero el
+#: cuarto se deja libre a propósito: ver `infrastructure/chpp/mercado`.
 FILTROS_DE_HABILIDAD = 3
 
 
@@ -525,21 +493,67 @@ def ventana_de_hattrick(objetivo: Objetivo) -> Ventana | None:
     )
 
 
-def plan_de_busqueda(objetivo: Objetivo) -> tuple[Ventana, ...]:
-    """Las búsquedas, de la más estrecha a la más ancha.
+def clave_de_criterios(objetivo: Objetivo) -> str:
+    """Con qué se le está comparando, en una cadena que se pueda comparar.
 
-    LA PRIMERA ES LA DE HATTRICK (2026-10-10): le pedimos al mercado lo mismo
-    que pediría el juego, para que el escalón del 100 % sea de verdad «lo que
-    él enseñaría» y no una aproximación nuestra. Las demás son nuestra
-    escalera, que va por debajo.
+    2026-10-26, decisión del usuario sobre qué pasa cuando los criterios de un
+    jugador se mueven: «en ese caso, la gráfica de precios volverá a empezar».
 
-    Quien las recorra para en cuanto reúne `OBJETIVO`, y no a mitad de un
-    escalón: si el sexto y el séptimo se parecen igual, dejar fuera al séptimo
-    por orden de llegada sería arbitrario. Por eso se traen todos los que haya.
+    POR QUÉ SE MUEVEN. Los criterios son del jugador y Hattrick los recalcula
+    con él: al cumplir años cambia su ventana de edad, y al subir una habilidad
+    cambia cuál lo identifica y con qué banda. Desde ese momento el barrido
+    está preguntando por OTRA gente, así que los números de antes y los de
+    después no son la misma medida y unirlos con una línea sería mentir.
+
+    LA CLAVE ES LA BÚSQUEDA, no la terna. Se construye de la ventana que de
+    verdad sale por el cable --edad y las tres franjas-- porque es exactamente
+    lo que determina a quién se compara. Una cuarta habilidad que suba y le
+    cambie el tope a Hattrick mueve la ventana sin mover la terna, y tiene que
+    contar; mirar sólo la terna se lo perdería.
+
+    Vacío cuando no hay búsqueda posible --sin las siete habilidades-- y eso
+    también es una clave válida: significa «no se le está comparando con
+    nadie», y es distinto de cualquier ventana.
     """
-    ventanas = [ventana_de_hattrick(objetivo)]
-    ventanas += [ventana_de(objetivo, escalon) for escalon in ESCALERA]
-    return tuple(v for v in ventanas if v is not None)
+    ventana = ventana_de_hattrick(objetivo)
+    if ventana is None:
+        return ""
+    partes = [f"{ventana.edad_minima}-{ventana.edad_maxima}"]
+    for franja in (ventana.primaria, ventana.secundaria, ventana.terciaria):
+        partes.append(f"{franja.habilidad}:{franja.minimo}-{franja.maximo}")
+    return "|".join(partes)
+
+
+def plan_de_busqueda(objetivo: Objetivo) -> tuple[Ventana, ...]:
+    """La búsqueda de un jugador: UNA, la de los criterios de Hattrick.
+
+    Le pedimos al mercado exactamente lo mismo que pediría el juego, para que
+    lo que entre sea «lo que él enseñaría» y no una aproximación nuestra.
+
+    SE FUE LA ESCALERA ANCHA (2026-10-26, decisión del usuario: «no hay
+    búsqueda ampliada... se acaba: sólo criterios»). Eran cuatro ventanas más
+    --95, 90, 80 y 75-- que se abrían una tras otra hasta reunir ocho
+    comparables, y recorrerlas costaba hasta cinco peticiones por jugador.
+
+    Lo que se gana es el barrido diario. Con una sola ventana, mirar a los
+    veinticinco jugadores cuesta unas veinticinco peticiones al día; con la
+    escalera entera habrían sido más de cien, contra una cuota que es de la
+    aplicación y no de cada manager. El usuario eligió ver el mercado TODOS LOS
+    DÍAS con menos anchura, en vez de una quinta parte de la plantilla por
+    semana con más.
+
+    Y LA ESCALERA NO DESAPARECE, sólo deja de disparar búsquedas: `peso_de`
+    sigue usándola para puntuar lo que hay en el fondo --las ventas viejas y
+    las que entran por criterios sin estar clavadas-- así que el 95, el 90, el
+    80 y el 75 siguen significando lo mismo.
+
+    Devuelve vacío cuando no se puede preguntar la regla, que pasa sin las
+    siete habilidades del jugador. Antes la escalera hacía de red en ese caso;
+    ahora no hay red, y es lo correcto: buscar sin saber a quién se parece
+    gastaría cuota para traer gente que después no se puede puntuar.
+    """
+    ventana = ventana_de_hattrick(objetivo)
+    return (ventana,) if ventana is not None else ()
 
 
 def lo_ensenaria_hattrick(candidato: Perfilado, objetivo: Objetivo) -> bool:
@@ -930,8 +944,23 @@ def cuenta_para_el_numero(venta: Guardado) -> bool:
 def estimar(comparables: Sequence[Comparable]) -> Estimacion:
     """La media y la mediana, las dos ponderadas por parecido.
 
-    Con menos de `OBJETIVO` no hay número, pero sí lista: la pantalla tiene
-    que poder enseñar lo que hay y decir que todavía no basta.
+    CON LO QUE HAYA (2026-10-26, decisión del usuario: «precio con los que
+    hayan»). Hasta ese día, por debajo de `OBJETIVO` ventas no se daba número:
+    sólo la lista y un «faltan tantas».
+
+    Lo cambió al quitar la búsqueda ampliada, y es la consecuencia directa de
+    eso: sin escalera ancha hay jugadores que no van a juntar ocho ventas
+    cerradas, y con la regla vieja se quedarían sin precio para siempre. Un
+    número apoyado en tres ventas no es tan bueno como uno de ocho, pero es
+    muchísimo mejor que ninguno, que es lo que informa cero.
+
+    LO QUE NO SE PIERDE: `n` dice sobre cuántas se hizo y `suficiente` dice si
+    llegan a ocho, así que la pantalla puede seguir avisando de que el número
+    es flojo. Lo que se quita es la decisión de NO RESPONDER, que era nuestra y
+    no suya.
+
+    Sin ni una venta cerrada sigue sin haber número, y eso no es una regla sino
+    aritmética: no hay nada que promediar.
 
     `provisionales` se cuenta sobre TODAS las que se enseñan, no sobre las que
     cuentan (2026-10-09). Desde que sólo cuentan las ventas cerradas, sobre
@@ -943,12 +972,12 @@ def estimar(comparables: Sequence[Comparable]) -> Estimacion:
     # numero se hace solo con las que cuentan.
     todas = tuple(comparables)
     elegidos = tuple(c for c in todas if c.cuenta)
-    if len(elegidos) < OBJETIVO:
+    if not elegidos:
         return Estimacion(
             media=None,
             mediana=None,
-            n=len(elegidos),
-            peso_minimo=min((c.peso for c in elegidos), default=0),
+            n=0,
+            peso_minimo=0,
             provisionales=sum(1 for c in todas if not c.venta.firme),
             comparables=todas,
         )
@@ -1066,60 +1095,34 @@ def precio_cerrado(
 # --------------------------------------------------------------------------
 
 
-def frontera_semanal(economy_date: datetime | None, ahora: datetime) -> datetime | None:
-    """El último disparador que ya pasó.
+def le_toca_hoy(sello: datetime | None, ahora: datetime) -> bool:
+    """Si a este jugador todavía no se le han buscado comparables HOY.
 
-    El disparador es la actualización económica de TU liga menos 24 horas.
-    Hattrick publica esa fecha por país, así que no hay que inventar zonas
-    horarias ni mantener una tabla a mano: la da el propio juego.
+    «Una vez por día natural y por jugador, independiente de cuántas veces
+    sincronices» (2026-10-26, decisión del usuario).
 
-    `economy_date` es la PRÓXIMA actualización, así que se retrocede de semana
-    en semana hasta dar con el disparador anterior a `ahora`. Se avanza
-    también, por si el dato guardado se quedó viejo.
+    EL DÍA SE COMPARA EN UTC, igual que el de la resolución: es el huso en el
+    que viven todos los sellos de esta base. No es el día de Hattrick ni el del
+    usuario, y da igual que no lo sea: lo único que tiene que cumplir es ser
+    siempre el mismo, porque de lo que protege es de barrer dos veces seguidas,
+    y la aplicación admite seis sincronizaciones por hora.
+
+    Sin sello le toca: nunca se le ha buscado nada.
+
+    LO QUE HABÍA AQUÍ ANTES, y por qué se fue. Un reparto por turnos sacado del
+    propio identificador: `% 5` contra la semana para los escalones anchos y
+    `% 6` contra el día para el exacto, disparado por la actualización
+    económica de la liga menos 24 horas. No guardaba ningún reloj y no había
+    nada que recolocar al fichar o vender, que para una rotación es mejor
+    diseño y por eso duró.
+
+    Un barrido diario no rota: le toca a todos, todos los días. La pregunta ya
+    no es «¿a quién le toca hoy?» sino «¿a éste ya se le miró hoy?», y ésa
+    depende de lo que haya pasado, así que hay que guardarla.
     """
-    if economy_date is None:
-        return None
-    frontera = _aware(economy_date) - ANTICIPO
-    ahora = _aware(ahora)
-    while frontera > ahora:
-        frontera -= timedelta(days=7)
-    while frontera + timedelta(days=7) <= ahora:
-        frontera += timedelta(days=7)
-    return frontera
-
-
-def semana_de(frontera: datetime, ancla: datetime) -> int:
-    """El número de semana de mercado, para rotar los turnos."""
-    return (_aware(frontera) - _aware(ancla)).days // 7
-
-
-def le_toca(
-    ht_player_id: int,
-    frontera: datetime,
-    ancla: datetime,
-) -> bool:
-    """Si a este jugador le tocan los escalones ANCHOS esta semana.
-
-    El grupo sale del propio identificador, así que no hay nada que guardar ni
-    que recolocar al fichar o vender. El 0 rota a 1, 2, 3 y 4 cada semana.
-    """
-    return ht_player_id % GRUPOS == semana_de(frontera, ancla) % GRUPOS
-
-
-def dia_de(ahora: datetime, ancla: datetime) -> int:
-    """El número de día, para rotar el turno del escalón exacto."""
-    return (_aware(ahora) - _aware(ancla)).days
-
-
-def le_toca_el_exacto(ht_player_id: int, ahora: datetime, ancla: datetime) -> bool:
-    """Si a este jugador le toca HOY su escalón exacto.
-
-    El mismo truco que los anchos pero contando días en vez de semanas, así que
-    tampoco guarda nada: `ID % 6` contra el día. A cada jugador le toca uno de
-    cada seis días, y como seis no divide a siete su turno recorre todos los
-    días de la semana en vez de quedarse clavado en uno.
-    """
-    return ht_player_id % DIAS_DEL_EXACTO == dia_de(ahora, ancla) % DIAS_DEL_EXACTO
+    if sello is None:
+        return True
+    return _aware(sello).astimezone(UTC).date() < _aware(ahora).astimezone(UTC).date()
 
 
 def hay_que_buscar(comparables: Sequence[Comparable]) -> bool:

@@ -1,15 +1,15 @@
-"""El paso semanal del mercado: buscar, guardar y resolver.
+"""El paso del mercado: buscar, guardar y resolver.
 
 Aquí se junta todo lo demás con la base de datos. Tres piezas, y la tercera es
 la que de verdad hace que esto funcione:
 
-1. **¿Toca?** El disparador es la actualización económica de la liga menos 24
-   horas, que Hattrick publica por país. Se corre en la primera sincronización
-   posterior a ese instante, y sólo para los jugadores cuyo identificador
-   caiga en el turno de la semana.
-2. **Buscar.** Por cada jugador del turno se recorre la escalera, y lo que se
-   encuentra se guarda en el fondo DEL EQUIPO, con el perfil del vendido, para
-   que sirva también a sus compañeros.
+1. **¿Toca?** A cada jugador le toca UNA VEZ POR DÍA NATURAL, independiente de
+   cuántas veces se sincronice (2026-10-26). Antes el disparador era la
+   actualización económica de la liga menos 24 horas y sólo buscaba para los
+   jugadores cuyo identificador cayera en el turno de la semana.
+2. **Buscar.** Por cada jugador que toque se hace UNA búsqueda --la de los
+   criterios de Hattrick-- y lo que se encuentra se guarda en el fondo DEL
+   EQUIPO, con el perfil del vendido, para que sirva también a sus compañeros.
 3. **Resolver.** Lo guardado entra con la puja de precio. Cuando la subasta
    cierra se le pregunta al historial del jugador cuánto se pagó de verdad, y
    ese precio sustituye a la puja. Esto no es cosmético: el 2026-10-05 Valerio
@@ -27,32 +27,38 @@ import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
-from typing import Any
+from typing import Any, Protocol
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.engines.mercado_comparable import (
-    GRUPOS,
     REINTENTOS_DE_RESOLUCION,
     Estimacion,
     Guardado,
     Rasgo,
     Traspaso,
-    frontera_semanal,
-    le_toca,
-    le_toca_el_exacto,
+    le_toca_hoy,
     precio_cerrado,
     se_puede_resolver,
-    semana_de,
 )
 from app.domain.value_objects.ht_time import ht_to_utc
 from app.infrastructure.db import models as m
 
-#: Desde dónde se cuentan las semanas para rotar los turnos. Cualquier fecha
-#: fija sirve: lo único que importa es que no cambie, porque cambiarla
-#: reordenaría a quién le toca cuándo.
-ANCLA = datetime(2026, 1, 1, tzinfo=UTC)
+
+class _ConSello(Protocol):
+    """Lo mínimo para saber si a alguien le toca: su id y su último barrido.
+
+    Entra como protocolo y no como el modelo entero para que la regla se pueda
+    probar sin base de datos, que es donde vive el único borde que importa
+    --el corte del día-- y no hace falta una tabla para comprobarlo.
+    """
+
+    @property
+    def ht_player_id(self) -> int: ...
+
+    @property
+    def market_swept_at(self) -> datetime | None: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,64 +73,22 @@ class Resolucion:
     ht_transfer_id: int = 0
 
 
-def toca_el_paso(equipo: m.Team, ahora: datetime) -> bool:
-    """Si esta sincronización es la primera DEL DÍA.
+def a_quien_le_toca_hoy(jugadores: Sequence[_ConSello], ahora: datetime) -> list[int]:
+    """Los jugadores a los que todavía no se les ha barrido el mercado hoy.
 
-    Era «la primera posterior al disparador semanal» hasta el 2026-10-09.
-    Cambió porque los dos ritmos que decidió el usuario ya no son el mismo: el
-    escalón exacto de cada jugador toca cada SEIS DÍAS y los anchos cada cinco
-    semanas, así que el paso tiene que mirarse a diario para que el reloj de
-    los seis días pueda caer en cualquier día. Quién busca y qué busca lo
-    deciden `del_turno_exacto` y `del_turno`, no esta puerta.
+    Una vez por día natural y por jugador (2026-10-26). Normalmente son todos,
+    porque es lo que quiere decir «todos los días»; son menos cuando una
+    sincronización anterior del mismo día ya pasó por ellos, y son ninguno
+    cuando ya se hizo el barrido de hoy entero.
 
-    Una vez al día y no en cada sincronización: dos sincronizaciones seguidas
-    no pueden gastar dos veces las mismas búsquedas. `market_run_at` sigue
-    siendo el sello, ahora comparado por día y no contra la frontera semanal,
-    así que no hay nada nuevo que guardar.
-
-    LA FECHA ECONOMICA YA NO ENTRA AQUI. Era el disparador --la actualización
-    de la liga menos 24 horas-- y se quedó sin papel al pasar la puerta a
-    diaria; la frontera semanal sigue viva, pero sólo donde hace falta: en
-    `del_turno`, que reparte los turnos anchos. Llevarla también aquí era un
-    parámetro que no decidía nada.
+    LO QUE SE FUE CON ESTO. `toca_el_paso` --una puerta por equipo-- y
+    `del_turno` / `del_turno_exacto` / `numero_de_turno` --el reparto por
+    identificador--. La puerta por equipo tenía sentido mientras todos los del
+    turno buscaban a la vez; ahora el sello es por jugador, que es más fino y
+    además resiste que un barrido se corte a la mitad: los que ya se miraron se
+    quedan mirados, y a los que no les toca en la siguiente sincronización.
     """
-    if equipo.market_run_at is None:
-        return True
-    sello = equipo.market_run_at
-    if sello.tzinfo is None:
-        sello = sello.replace(tzinfo=UTC)
-    return sello.astimezone(UTC).date() < ahora.astimezone(UTC).date()
-
-
-def del_turno(
-    ht_player_ids: Sequence[int], economy_date: datetime | None, ahora: datetime
-) -> list[int]:
-    """Los jugadores a los que les toca esta semana.
-
-    El grupo sale del propio identificador, así que no hay nada que guardar ni
-    que recolocar al fichar o vender, y el 0 rota a 1, 2, 3 y 4 cada semana.
-    """
-    frontera = frontera_semanal(economy_date, ahora)
-    if frontera is None:
-        return []
-    return [p for p in ht_player_ids if le_toca(p, frontera, ANCLA)]
-
-
-def del_turno_exacto(ht_player_ids: Sequence[int], ahora: datetime) -> list[int]:
-    """Los jugadores a los que les toca HOY su escalón exacto.
-
-    Uno de cada seis días por jugador, sacado del identificador: nada que
-    guardar. Con veinticinco jugadores salen unos cuatro al día.
-    """
-    return [p for p in ht_player_ids if le_toca_el_exacto(p, ahora, ANCLA)]
-
-
-def numero_de_turno(economy_date: datetime | None, ahora: datetime) -> int | None:
-    """Qué grupo de los cinco corre esta semana. Para poder enseñarlo."""
-    frontera = frontera_semanal(economy_date, ahora)
-    if frontera is None:
-        return None
-    return semana_de(frontera, ANCLA) % GRUPOS
+    return [j.ht_player_id for j in jugadores if le_toca_hoy(j.market_swept_at, ahora)]
 
 
 # --------------------------------------------------------------------------
@@ -300,6 +264,7 @@ async def anotar_si_cambio(
     ht_player_id: int,
     estimacion: Estimacion,
     ahora: datetime,
+    criterios: str = "",
 ) -> bool:
     """Guarda una lectura, y solo si dice algo distinto de la anterior.
 
@@ -308,6 +273,12 @@ async def anotar_si_cambio(
     tiempo entre dos puntos dejaria de significar nada. Anotando solo los
     cambios, los tramos planos de la grafica cuentan que no paso nada, que
     es informacion.
+
+    Y UN CAMBIO DE CRITERIOS TAMBIEN ES UN CAMBIO (2026-10-26), aunque el
+    numero salga identico. Es el punto que ABRE el tramo nuevo: sin el, un
+    jugador que cumple años sin que le cambie la cifra no dejaria rastro de
+    que desde ese dia se le esta comparando con otra gente, y el tramo viejo
+    se estiraria sobre el nuevo.
 
     Devuelve si se anoto.
     """
@@ -326,6 +297,7 @@ async def anotar_si_cambio(
     retrato = _retrato(estimacion)
     if (
         ultima is not None
+        and ultima.criteria_key == criterios
         and ultima.mean_price == estimacion.media
         and ultima.median_price == estimacion.mediana
         and ultima.n == estimacion.n
@@ -344,6 +316,7 @@ async def anotar_si_cambio(
             min_weight=estimacion.peso_minimo,
             provisional=estimacion.provisionales,
             prices_json=retrato,
+            criteria_key=criterios,
         )
     )
     return True

@@ -108,11 +108,14 @@ class Team(Base):
     # que Hattrick enseña en los que no tienen pais propio, las ligas
     # internacionales. `None` = todavia no se ha leido de Hattrick.
     is_primary_club: Mapped[bool | None] = mapped_column(Boolean)
-    #: Cuándo corrió por última vez el paso semanal del mercado comparable.
-    #: El disparador es la actualización económica de la liga menos 24 horas,
-    #: y con este sello se sabe si la sincronización de ahora es la primera
-    #: posterior a ese instante. Uno por equipo basta: a todos los jugadores
-    #: del turno les toca a la vez.
+    #: Cuándo corrió por última vez el paso del mercado comparable.
+    #:
+    #: YA NO DECIDE NADA (2026-10-26). Fue la puerta del paso --primero contra
+    #: el disparador semanal, luego por día-- hasta que el barrido pasó a ser
+    #: diario y por jugador: quién busca lo dice ahora `players.market_swept_at`,
+    #: que es más fino y además resiste que un barrido se corte a la mitad.
+    #: Esto se queda como lo que es: cuándo se miró el mercado de este club por
+    #: última vez, que es un dato que la pantalla puede enseñar.
     market_run_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # Fecha real de fundación, de teamdetails.xml. Es el límite inferior del
     # backfill de partidos: no se recorren años en los que el club no existía.
@@ -245,6 +248,20 @@ class Player(Base):
     # puede escribirlo a mano. Se prioriza SIEMPRE el dato real
     # (`purchase_price`) sobre el manual, nunca al revés.
     purchase_price_manual: Mapped[int | None] = mapped_column(Integer)
+    #: Cuándo se le buscaron comparables por última vez. UNA VEZ POR DÍA
+    #: NATURAL Y POR JUGADOR (2026-10-26, decisión del usuario), independiente
+    #: de cuántas veces se sincronice ese día.
+    #:
+    #: ES UN SELLO Y NO SE DEDUCE, y hace falta justamente por los días en
+    #: blanco: una búsqueda que no encuentra nada no deja ninguna huella en
+    #: `market_sales`, así que sin esto no habría forma de distinguir «hoy ya
+    #: se miró y no había» de «hoy todavía no se ha mirado». Y esa distinción
+    #: es la que permite NO dar el día por hecho cuando el centinela descubre
+    #: que la cuota estaba agotada.
+    #:
+    #: Instante y no fecha, como `resolve_asked_at`: el día se saca comparando
+    #: en UTC, que es el huso en el que viven todos los sellos de esta base.
+    market_swept_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     purchased_at_manual: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # HL-161: precio real de venta, de transfersteam.xml (TransferType="S",
     # vendedor == nosotros), mismo fichero y mecanismo que purchase_price,
@@ -1718,6 +1735,18 @@ class MarketEstimate(Base):
     provisional: Mapped[int] = mapped_column(Integer, default=0)
     #: `[{"precio": 1234, "firme": false}, ...]`, los puntos de la nube.
     prices_json: Mapped[str] = mapped_column(Text, default="[]")
+    #: CON QUE SE LE COMPARABA ESE DIA: la ventana que de verdad salio por el
+    #: cable, en una cadena (`clave_de_criterios`). Cuando cambia, la grafica
+    #: vuelve a empezar (2026-10-26, decision del usuario).
+    #:
+    #: Los criterios son del jugador y Hattrick los recalcula con el: al cumplir
+    #: años cambia su ventana de edad, y al subir una habilidad cambia cual lo
+    #: identifica. Desde ese momento el barrido pregunta por OTRA gente, asi que
+    #: unir los dos tramos con una linea dibujaria una subida que no ocurrio.
+    #:
+    #: Vacia en las filas anteriores a la columna, y la vacia no coincide con
+    #: ninguna ventana: el primer punto nuevo abre tramo. Ver la migracion 0107.
+    criteria_key: Mapped[str] = mapped_column(String(120), default="", server_default="")
 
 
 class MarketSale(Base):

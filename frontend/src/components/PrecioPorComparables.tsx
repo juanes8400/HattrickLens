@@ -364,6 +364,24 @@ export function PrecioPorComparables({
       }
     >
       <div className="px-4 py-3">
+        {/* EL NUMERO FLOJO SE AVISA (2026-10-26). Desde que se da precio con
+            las ventas que haya --«precio con los que hayan», decision del
+            usuario-- un jugador puede tener cifra apoyada en tres ventas, y
+            antes eso no podia pasar: por debajo de ocho no habia numero, asi
+            que el aviso era innecesario. Ahora el aviso ES la diferencia entre
+            un numero honesto y uno que aparenta mas de lo que sabe. */}
+        {hayNumero && datos.faltan > 0 && (
+          <p className="mb-3 rounded-lg bg-[var(--surface-2)] px-4 py-2 text-sm text-[var(--muted)]">
+            {datos.n === 1
+              ? tx(
+                  "Ojo: este número sale de UNA sola venta. Con tan pocas, una venta rara lo mueve entero.",
+                )
+              : tx(
+                  "Ojo: este número sale de {{v0}} ventas, no de {{v1}}. Con tan pocas, una venta rara lo mueve mucho.",
+                  { v0: number(datos.n), v1: number(datos.n + datos.faltan) },
+                )}
+          </p>
+        )}
         {hayNumero ? (
           <>
             {/* TARJETAS Y NO UNA LINEA APRETADA. Las tres cifras compartian
@@ -446,9 +464,11 @@ export function PrecioPorComparables({
           </>
         ) : (
           <p className="text-sm text-[var(--text)]">
+            {/* Sin NI UNA venta cerrada no hay nada que promediar, y eso no
+                es una regla sino aritmetica. Las subastas vivas se enseñan en
+                la tabla pero no cuentan: una puja no es un precio. */}
             {tx(
-              "Todavía no hay bastantes ventas de jugadores parecidos: hay {{v0}} y hacen falta {{v1}} más.",
-              { v0: number(datos.n), v1: number(datos.faltan) },
+              "Todavía no hay ninguna venta cerrada de jugadores parecidos. Las subastas abiertas se enseñan abajo, pero una puja no es un precio.",
             )}
           </p>
         )}

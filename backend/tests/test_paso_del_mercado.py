@@ -19,11 +19,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.application.commands.mercado_comparable import del_turno, del_turno_exacto
 from app.application.commands.paso_del_mercado import (
-    _fecha_economica,
-    _plantilla,
-    correr_el_paso_semanal,
+    correr_el_paso_del_mercado,
 )
 from app.application.queries.precio_comparable import precio_de
 from app.domain.engines.mercado_comparable import (
@@ -84,12 +81,31 @@ def _fila_de_mercado(ident: int, *, puja: int = 10_000_000, **extra: Any) -> dic
     return fila
 
 
+#: Lo que devuelve el canario cuando el mercado contesta. El contenido da
+#: igual --no se guarda, solo se cuenta-- pero no puede venir vacio, porque
+#: vacio significa «Hattrick no esta contestando» y el barrido se cortaria.
+CANTO = [{"ht_player_id": -1}]
+
+
 class _MercadoFalso:
-    def __init__(self, *paginas: list[dict[str, Any]]) -> None:
+    """Un mercado de mentira que distingue al canario de una busqueda.
+
+    EL CANARIO NO GASTA PAGINA, y tiene que ser asi o cada prueba perderia su
+    primera respuesta: el paso le pregunta antes de empezar a buscar. Se
+    reconoce por su peso --cero, que no es ningun escalon-- y se le contesta
+    que si salvo que la prueba pida lo contrario.
+    """
+
+    def __init__(self, *paginas: list[dict[str, Any]], canario_mudo: bool = False) -> None:
         self.paginas = list(paginas)
         self.llamadas = 0
+        self.canarios = 0
+        self.canario_mudo = canario_mudo
 
     async def __call__(self, ventana: Ventana) -> list[dict[str, Any]]:
+        if ventana.peso == 0:
+            self.canarios += 1
+            return [] if self.canario_mudo else CANTO
         indice = self.llamadas
         self.llamadas += 1
         return self.paginas[indice] if indice < len(self.paginas) else []
@@ -145,7 +161,7 @@ async def test_el_paso_busca_guarda_y_sella(base) -> None:
     corrio, para no repetirlo en la siguiente sincronizacion."""
     session, equipo = base
     mercado = _MercadoFalso([_fila_de_mercado(900 + i) for i in range(OBJETIVO)])
-    paso = await correr_el_paso_semanal(
+    paso = await correr_el_paso_del_mercado(
         session, equipo, buscar=mercado, historial_de=_sin_historial, ahora=AHORA
     )
     assert paso.se_busco is True
@@ -158,35 +174,17 @@ async def test_el_paso_busca_guarda_y_sella(base) -> None:
     assert all(f.is_final is False for f in filas), "entran con la puja, no con el precio"
 
 
-async def test_solo_le_toca_a_los_jugadores_del_turno(base) -> None:
-    """Una quinta parte por semana: el grupo sale del propio identificador."""
-    session, equipo = base
-    paso = await correr_el_paso_semanal(
-        session, equipo, buscar=_MercadoFalso(), historial_de=_sin_historial, ahora=AHORA
-    )
-    assert paso.jugadores_del_turno == (ALBERTO,)
+async def test_le_toca_a_TODA_la_plantilla(base) -> None:
+    """2026-10-26: el barrido es diario y no rota.
 
-
-async def test_sin_fecha_economica_solo_corre_el_exacto(base) -> None:
-    """Los anchos necesitan la frontera semanal; el exacto no.
-
-    La fecha economica de la liga es la unica fuente del turno de cinco
-    semanas, asi que sin ella los escalones anchos no se pueden programar. El
-    exacto se reparte por dias sobre el identificador y no la necesita, asi
-    que un club recien importado empieza a juntar comparables exactos desde el
-    primer dia en vez de esperar a su primera foto de economia (2026-10-09).
+    Antes le tocaba a una quinta parte por semana --el grupo salia del propio
+    identificador-- y por eso aqui solo entraba Alberto.
     """
     session, equipo = base
-    contexto = (await session.execute(select(m.WorldContext))).scalar_one()
-    contexto.economy_date = None
-    await session.flush()
-    mercado = _MercadoFalso([_fila_de_mercado(900)])
-    paso = await correr_el_paso_semanal(
-        session, equipo, buscar=mercado, historial_de=_sin_historial, ahora=AHORA
+    paso = await correr_el_paso_del_mercado(
+        session, equipo, buscar=_MercadoFalso(), historial_de=_sin_historial, ahora=AHORA
     )
-    # Una sola peticion por jugador del dia: el exacto y nada mas.
-    assert mercado.llamadas == len(paso.jugadores_del_turno)
-    assert equipo.market_run_at is not None
+    assert sorted(paso.jugadores_barridos) == sorted([ALBERTO, GEMELO])
 
 
 async def test_una_vez_corrido_no_se_repite_el_mismo_dia(base) -> None:
@@ -197,7 +195,7 @@ async def test_una_vez_corrido_no_se_repite_el_mismo_dia(base) -> None:
     puerta semanal el reloj de los seis dias solo veria un dia de cada siete.
     """
     session, equipo = base
-    await correr_el_paso_semanal(
+    await correr_el_paso_del_mercado(
         session,
         equipo,
         buscar=_MercadoFalso([_fila_de_mercado(900)]),
@@ -205,7 +203,7 @@ async def test_una_vez_corrido_no_se_repite_el_mismo_dia(base) -> None:
         ahora=AHORA,
     )
     segundo = _MercadoFalso([_fila_de_mercado(950)])
-    paso = await correr_el_paso_semanal(
+    paso = await correr_el_paso_del_mercado(
         session,
         equipo,
         buscar=segundo,
@@ -221,7 +219,7 @@ async def test_la_puja_se_convierte_en_el_precio_de_verdad(base) -> None:
     """El corazon del diseno. Una venta entra con la puja y, cuando su subasta
     cierra, se le pregunta al historial cuanto se pago."""
     session, equipo = base
-    await correr_el_paso_semanal(
+    await correr_el_paso_del_mercado(
         session,
         equipo,
         buscar=_MercadoFalso([_fila_de_mercado(900, puja=65_000_000)]),
@@ -235,7 +233,7 @@ async def test_la_puja_se_convierte_en_el_precio_de_verdad(base) -> None:
     # Cuatro dias: el margen tras el plazo paso de dos horas a TRES DIAS el
     # 2026-10-09, «cuando se sabe que debio terminar».
     despues = AHORA + timedelta(days=2)
-    paso = await correr_el_paso_semanal(
+    paso = await correr_el_paso_del_mercado(
         session, equipo, buscar=_MercadoFalso(), historial_de=historial, ahora=despues
     )
     assert [r.precio for r in paso.resueltas] == [77_720_000]
@@ -249,7 +247,7 @@ async def test_el_fondo_sirve_a_toda_la_plantilla(base) -> None:
     semana y aun asi tiene precio, con lo que trajo la busqueda de Alberto y
     sin gastar ni una llamada mas."""
     session, equipo = base
-    await correr_el_paso_semanal(
+    await correr_el_paso_del_mercado(
         session,
         equipo,
         buscar=_MercadoFalso([_fila_de_mercado(900 + i) for i in range(OBJETIVO)]),
@@ -269,7 +267,7 @@ async def test_el_fondo_sirve_a_toda_la_plantilla(base) -> None:
 async def test_la_pantalla_recibe_de_que_fiarse(base) -> None:
     """Cuantos son provisionales, cuanto se parecen y de cuando son."""
     session, equipo = base
-    await correr_el_paso_semanal(
+    await correr_el_paso_del_mercado(
         session,
         equipo,
         buscar=_MercadoFalso([_fila_de_mercado(900 + i) for i in range(OBJETIVO)]),
@@ -296,7 +294,7 @@ async def test_la_pantalla_recibe_de_que_fiarse(base) -> None:
 
 async def test_con_pocas_ventas_no_hay_numero_pero_si_lista(base) -> None:
     session, equipo = base
-    await correr_el_paso_semanal(
+    await correr_el_paso_del_mercado(
         session,
         equipo,
         buscar=_MercadoFalso([_fila_de_mercado(900), _fila_de_mercado(901)]),
@@ -329,7 +327,7 @@ async def test_un_chpp_caido_no_gasta_intentos_de_resolucion(base) -> None:
     que sabemos de la venta; una llamada que no llego no sabe nada de ella.
     """
     session, equipo = base
-    await correr_el_paso_semanal(
+    await correr_el_paso_del_mercado(
         session,
         equipo,
         buscar=_MercadoFalso([_fila_de_mercado(900, puja=65_000_000)]),
@@ -344,7 +342,7 @@ async def test_un_chpp_caido_no_gasta_intentos_de_resolucion(base) -> None:
     # 2026-10-09, «cuando se sabe que debio terminar».
     despues = AHORA + timedelta(days=2)
     for _ in range(REINTENTOS_DE_RESOLUCION + 3):
-        paso = await correr_el_paso_semanal(
+        paso = await correr_el_paso_del_mercado(
             session, equipo, buscar=_MercadoFalso(), historial_de=se_cae, ahora=despues
         )
         assert paso.resueltas == ()
@@ -357,7 +355,7 @@ async def test_un_chpp_caido_no_gasta_intentos_de_resolucion(base) -> None:
     async def historial(ht_player_id: int) -> dict[str, Any]:
         return {"transfers": [{"deadline": PLAZO_HT, "price": 77_720_000}]}
 
-    paso = await correr_el_paso_semanal(
+    paso = await correr_el_paso_del_mercado(
         session, equipo, buscar=_MercadoFalso(), historial_de=historial, ahora=despues
     )
     assert [r.precio for r in paso.resueltas] == [77_720_000]
@@ -368,7 +366,7 @@ async def test_la_serie_anota_un_punto_cuando_el_numero_cambia(base) -> None:
     resolver una venta su puja se pisa con el precio de cierre. Sin anotar
     la lectura no hay forma de dibujar como fue cambiando."""
     session, equipo = base
-    paso = await correr_el_paso_semanal(
+    paso = await correr_el_paso_del_mercado(
         session,
         equipo,
         buscar=_MercadoFalso([_fila_de_mercado(900 + i, puja=1_000_000) for i in range(6)]),
@@ -405,7 +403,7 @@ async def test_la_serie_no_repite_un_punto_que_no_dice_nada_nuevo(base) -> None:
     la serie seria una linea plana con cientos de puntos iguales y el tiempo
     entre dos puntos dejaria de significar algo."""
     session, equipo = base
-    await correr_el_paso_semanal(
+    await correr_el_paso_del_mercado(
         session,
         equipo,
         buscar=_MercadoFalso([_fila_de_mercado(900 + i, puja=1_000_000) for i in range(6)]),
@@ -415,7 +413,7 @@ async def test_la_serie_no_repite_un_punto_que_no_dice_nada_nuevo(base) -> None:
     antes = len((await session.execute(select(m.MarketEstimate))).scalars().all())
 
     # Otra sincronizacion sin nada que resolver y sin turno: nada cambia.
-    paso = await correr_el_paso_semanal(
+    paso = await correr_el_paso_del_mercado(
         session,
         equipo,
         buscar=_MercadoFalso(),
@@ -431,7 +429,7 @@ async def test_al_resolverse_una_puja_la_serie_anota_el_cambio(base) -> None:
     """El otro motivo por el que el numero se mueve: una subasta que cierra
     y pasa de puja a precio real."""
     session, equipo = base
-    await correr_el_paso_semanal(
+    await correr_el_paso_del_mercado(
         session,
         equipo,
         buscar=_MercadoFalso([_fila_de_mercado(900, puja=65_000_000)]),
@@ -445,7 +443,7 @@ async def test_al_resolverse_una_puja_la_serie_anota_el_cambio(base) -> None:
     # Cuatro dias: el margen tras el plazo paso de dos horas a TRES DIAS el
     # 2026-10-09, «cuando se sabe que debio terminar».
     despues = AHORA + timedelta(days=2)
-    paso = await correr_el_paso_semanal(
+    paso = await correr_el_paso_del_mercado(
         session, equipo, buscar=_MercadoFalso(), historial_de=historial, ahora=despues
     )
     assert [r.precio for r in paso.resueltas] == [77_720_000]
@@ -479,14 +477,14 @@ async def test_a_un_ex_jugador_no_se_le_busca_precio(base) -> None:
     ido.left_team_at = AHORA - timedelta(days=30)
     await session.flush()
 
-    paso = await correr_el_paso_semanal(
+    paso = await correr_el_paso_del_mercado(
         session,
         equipo,
         buscar=_MercadoFalso([_fila_de_mercado(900 + i, puja=1_000_000) for i in range(6)]),
         historial_de=_sin_historial,
         ahora=AHORA,
     )
-    assert GEMELO not in paso.jugadores_del_turno
+    assert GEMELO not in paso.jugadores_barridos
     # Y tampoco se le anota un punto en la serie.
     suyos = (
         (
@@ -500,35 +498,26 @@ async def test_a_un_ex_jugador_no_se_le_busca_precio(base) -> None:
     assert suyos == []
 
 
-async def test_al_que_solo_le_toca_el_exacto_gasta_una_sola_peticion(base) -> None:
-    """Los dos ritmos, vistos desde el paso completo (2026-10-09).
+async def test_una_peticion_por_jugador_y_ni_una_mas(base) -> None:
+    """EL GASTO, que es lo que decide si el barrido diario se puede hacer.
 
-    Al jugador del turno ANCHO se le recorre la escalera entera --hasta cinco
-    peticiones-- y al que solo le toca su exacto, una. Es lo que hace que el
-    coste no se multiplique por cinco al mirar el paso todos los dias.
+    Con la escalera ancha, un jugador costaba hasta cinco peticiones y por eso
+    el turno era de cinco semanas. Con una sola ventana cuesta una, y por eso
+    se puede mirar a todos todos los dias: una plantilla de veinticinco son
+    unas veinticinco peticiones al dia contra una cuota que es de la
+    APLICACION y no de cada manager.
     """
     session, equipo = base
-    plantilla = await _plantilla(session, equipo.id)
-    ids = [p.ht_player_id for p in plantilla]
-    economica = await _fecha_economica(session, equipo)
-
-    # Un dia en que a alguien le toque el exacto y a nadie los anchos.
-    for dia in range(1, 40):
-        cuando = AHORA + timedelta(days=dia)
-        anchos = del_turno(ids, economica, cuando)
-        exactos = del_turno_exacto(ids, cuando)
-        if exactos and not anchos:
-            break
-    else:
-        pytest.skip("no se encontro un dia con exacto y sin anchos")
-
     mercado = _MercadoFalso([_fila_de_mercado(900)])
-    paso = await correr_el_paso_semanal(
-        session, equipo, buscar=mercado, historial_de=_sin_historial, ahora=cuando
+    paso = await correr_el_paso_del_mercado(
+        session, equipo, buscar=mercado, historial_de=_sin_historial, ahora=AHORA
     )
-    assert paso.jugadores_del_turno == tuple(sorted(exactos))
-    # Una peticion por jugador y ni una mas: nadie recorrio la escalera.
-    assert mercado.llamadas == len(exactos)
+    assert len(paso.jugadores_barridos) == 2
+    assert mercado.llamadas == 2, "una por jugador"
+    # Mas el canario de apertura, que es lo unico que el centinela cuesta
+    # cuando el mercado contesta.
+    assert mercado.canarios == 1
+    assert paso.busquedas == 3
 
 
 async def test_un_intento_al_dia_por_venta(base) -> None:
@@ -549,7 +538,7 @@ async def test_un_intento_al_dia_por_venta(base) -> None:
         return {"transfers": []}  # Hattrick todavia no la ha registrado
 
     # Una venta en el fondo con la subasta ya cerrada.
-    await correr_el_paso_semanal(
+    await correr_el_paso_del_mercado(
         session,
         equipo,
         buscar=_MercadoFalso([_fila_de_mercado(900)]),
@@ -560,7 +549,7 @@ async def test_un_intento_al_dia_por_venta(base) -> None:
 
     # Cinco sincronizaciones el mismo dia: UNA sola pregunta.
     for minuto in range(0, 50, 10):
-        await correr_el_paso_semanal(
+        await correr_el_paso_del_mercado(
             session,
             equipo,
             buscar=_MercadoFalso(),
@@ -570,7 +559,7 @@ async def test_un_intento_al_dia_por_venta(base) -> None:
     assert len(preguntas) == 1, preguntas
 
     # Al dia siguiente, otra.
-    await correr_el_paso_semanal(
+    await correr_el_paso_del_mercado(
         session,
         equipo,
         buscar=_MercadoFalso(),
@@ -580,3 +569,217 @@ async def test_un_intento_al_dia_por_venta(base) -> None:
     assert len(preguntas) == 2
 
 
+
+
+# --------------------------------------------------------------------------
+# El centinela de la cuota, visto desde el paso entero
+# --------------------------------------------------------------------------
+#
+# Una cuota agotada NO da error: devuelve cero resultados, igual que un jugador
+# al que nadie se parece (medido el 2026-10-12). Con el barrido diario eso
+# costaria el dia entero del mercado --es uno por dia-- y seguiria golpeando un
+# servidor que no contesta, con una cuota que es de la aplicacion y no de cada
+# manager.
+
+
+async def test_un_canario_mudo_NO_BARRE_A_NADIE(base) -> None:
+    """Y se para antes de gastar una sola busqueda.
+
+    Es lo que el canario de apertura viene a hacer: que un dia sin cuota cueste
+    una peticion y no veinticinco.
+    """
+    session, equipo = base
+    mercado = _MercadoFalso([_fila_de_mercado(900)], canario_mudo=True)
+    paso = await correr_el_paso_del_mercado(
+        session, equipo, buscar=mercado, historial_de=_sin_historial, ahora=AHORA
+    )
+    assert paso.cuota_agotada is True
+    assert paso.jugadores_barridos == ()
+    assert mercado.llamadas == 0, "no se llego a buscarle a nadie"
+    assert mercado.canarios == 1
+
+
+async def test_con_la_cuota_muerta_EL_DIA_NO_SE_QUEMA(base) -> None:
+    """La razon de ser del sello por jugador.
+
+    Si el barrido se diera por hecho, ese dia del mercado no volveria: no hay
+    segundo intento dentro del mismo dia. Como no se estampa nada, la
+    siguiente sincronizacion lo reintenta entera.
+    """
+    session, equipo = base
+    mudo = _MercadoFalso([_fila_de_mercado(900)], canario_mudo=True)
+    await correr_el_paso_del_mercado(
+        session, equipo, buscar=mudo, historial_de=_sin_historial, ahora=AHORA
+    )
+    sellos = (await session.execute(select(m.Player.market_swept_at))).scalars().all()
+    assert all(s is None for s in sellos), "nadie puede quedar marcado como mirado"
+
+    # Media hora despues, con Hattrick ya contestando: se barre de verdad.
+    sano = _MercadoFalso([_fila_de_mercado(900)], [_fila_de_mercado(901)])
+    paso = await correr_el_paso_del_mercado(
+        session,
+        equipo,
+        buscar=sano,
+        historial_de=_sin_historial,
+        ahora=AHORA + timedelta(minutes=30),
+    )
+    assert paso.cuota_agotada is False
+    assert len(paso.jugadores_barridos) == 2
+
+
+async def test_barrer_de_verdad_SI_estampa_el_sello(base) -> None:
+    """La otra mitad: lo que se miro queda marcado y no se repite hoy."""
+    session, equipo = base
+    paso = await correr_el_paso_del_mercado(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(900)]),
+        historial_de=_sin_historial,
+        ahora=AHORA,
+    )
+    assert len(paso.jugadores_barridos) == 2
+    sellos = (await session.execute(select(m.Player.market_swept_at))).scalars().all()
+    assert all(s is not None for s in sellos)
+
+
+async def test_los_vacios_de_verdad_no_cortan_el_barrido(base) -> None:
+    """Un mercado que contesta y no tiene a nadie parecido es lo NORMAL.
+
+    La ventana exacta de un jugador raro casi nunca tiene a nadie, asi que si
+    un vacio cortara el barrido no se podria barrer. Lo que para el barrido es
+    que calle el canario, no que callen las busquedas.
+    """
+    session, equipo = base
+    mercado = _MercadoFalso()  # ninguna pagina: todas las busquedas vuelven vacias
+    paso = await correr_el_paso_del_mercado(
+        session, equipo, buscar=mercado, historial_de=_sin_historial, ahora=AHORA
+    )
+    assert paso.cuota_agotada is False
+    assert len(paso.jugadores_barridos) == 2
+    assert paso.ventas_nuevas == 0
+
+
+# --------------------------------------------------------------------------
+# La grafica vuelve a empezar cuando cambian los criterios
+# --------------------------------------------------------------------------
+
+
+async def test_al_cambiarle_los_criterios_la_SERIE_EMPIEZA_DE_NUEVO(base) -> None:
+    """2026-10-26: «en ese caso, la grafica de precios volvera a empezar».
+
+    Se le barre, cumple años, se le vuelve a barrer. Los puntos de antes siguen
+    en la tabla --no se borra nada, que es la unica perdida de esta base que no
+    se podria deshacer-- pero la pantalla enseña solo el tramo vigente: desde
+    que cambio la ventana se le esta comparando con OTRA gente, y unir las dos
+    medidas con una linea dibujaria una subida que no ocurrio.
+    """
+    from app.application.queries.precio_comparable import _serie
+
+    session, equipo = base
+    await correr_el_paso_del_mercado(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(900, puja=5_000_000)]),
+        historial_de=_sin_historial,
+        ahora=AHORA,
+    )
+    de_antes = (
+        (
+            await session.execute(
+                select(m.MarketEstimate).where(m.MarketEstimate.ht_player_id == ALBERTO)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert de_antes, "tiene que haber dejado al menos un punto"
+    clave_vieja = de_antes[0].criteria_key
+    assert clave_vieja, "el punto nuevo lleva clave"
+
+    # Cumple años: otra foto, un año mas. Hattrick recalcula su ventana de edad
+    # con el, asi que desde aqui el barrido pregunta por otra gente.
+    jugador = (
+        await session.execute(select(m.Player).where(m.Player.ht_player_id == ALBERTO))
+    ).scalar_one()
+    jugador.market_swept_at = None  # para que le vuelva a tocar
+    sync = (await session.execute(select(m.Sync))).scalars().first()
+    assert sync is not None
+    manana = AHORA + timedelta(days=1)
+    session.add(
+        m.PlayerSnapshot(
+            sync_id=sync.id,
+            player_id=jugador.id,
+            captured_at=manana,
+            age_years=32,
+            age_days=10,
+            specialty=0,
+            content_hash=bytes(32),
+            tsi=170_000,
+            form=7,
+            experience=5,
+            salary=600_000,
+            **_skills(),
+        )
+    )
+    await session.flush()
+
+    await correr_el_paso_del_mercado(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(901, puja=5_000_000)]),
+        historial_de=_sin_historial,
+        ahora=manana,
+    )
+
+    todas = (
+        (
+            await session.execute(
+                select(m.MarketEstimate)
+                .where(m.MarketEstimate.ht_player_id == ALBERTO)
+                .order_by(m.MarketEstimate.captured_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    claves = [f.criteria_key for f in todas]
+    assert len(set(claves)) == 2, f"tienen que ser dos tramos: {claves}"
+    assert claves[-1] != clave_vieja
+
+    # Y la pantalla enseña SOLO el tramo nuevo, aunque los viejos sigan ahi.
+    serie = await _serie(session, equipo.id, ALBERTO, lambda x: x)
+    cuantos_del_tramo = sum(1 for k in claves if k == claves[-1])
+    assert len(serie) == cuantos_del_tramo
+    assert len(serie) < len(todas), "lo de antes no se borra, solo no se pinta"
+
+
+async def test_sin_cambio_de_criterios_la_serie_NO_se_corta(base) -> None:
+    """Que lo de arriba no haya convertido cada barrido en un tramo nuevo."""
+    from app.application.queries.precio_comparable import _serie
+
+    session, equipo = base
+    for dia, anuncio in enumerate([900, 901, 902]):
+        jugadores = (await session.execute(select(m.Player))).scalars().all()
+        for j in jugadores:
+            j.market_swept_at = None
+        await session.flush()
+        await correr_el_paso_del_mercado(
+            session,
+            equipo,
+            buscar=_MercadoFalso([_fila_de_mercado(anuncio, puja=1_000_000 * (dia + 1))]),
+            historial_de=_sin_historial,
+            ahora=AHORA + timedelta(days=dia),
+        )
+    todas = (
+        (
+            await session.execute(
+                select(m.MarketEstimate).where(m.MarketEstimate.ht_player_id == ALBERTO)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len({f.criteria_key for f in todas}) == 1, "un solo tramo"
+    serie = await _serie(session, equipo.id, ALBERTO, lambda x: x)
+    assert len(serie) == len(todas)
+    assert len(serie) >= 2, "y la serie de verdad tiene varios puntos"

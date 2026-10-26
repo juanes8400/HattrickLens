@@ -13,7 +13,6 @@ import pytest
 
 from app.application.queries.mercado_comparable import correr_el_turno
 from app.domain.engines.mercado_comparable import (
-    ESCALERA,
     OBJETIVO,
     ORDEN_DE_DESEMPATE,
     Guardado,
@@ -131,20 +130,22 @@ async def test_con_el_fondo_vivo_el_turno_solo_gasta_el_escalon_exacto() -> None
     assert r.por_resolver == ()
 
 
-async def test_desde_cero_se_para_en_el_escalon_que_completa_el_fondo() -> None:
-    """Dos en el exacto, cuatro en el siguiente: dos llamadas y ni una mas,
-    aunque la escalera tenga cinco escalones."""
+async def test_desde_cero_SE_PIDE_UNA_SOLA_VENTANA() -> None:
+    """2026-10-26: se acabo la escalera ancha, solo criterios.
+
+    Antes se recorrian los escalones hasta reunir `OBJETIVO` y se paraba al
+    final del que cerraba la cuenta --nunca a mitad--, lo que podia costar
+    hasta cinco peticiones. Ahora hay una ventana y se pide siempre.
+    """
     mercado = _Mercado(
-        [_fila(1), _fila(2)],
-        [_fila(3), _fila(4), _fila(5), _fila(6), _fila(7), _fila(8)],
-        [_fila(90), _fila(91)],  # este escalon no deberia pedirse nunca
+        [_fila(i) for i in range(1, 9)],
+        [_fila(90), _fila(91)],  # no deberia pedirse nunca: ya no hay segunda
     )
     r = await _turno(mercado)
-    assert r.busquedas == 2
+    assert r.busquedas == 1
     assert len(r.nuevas) == OBJETIVO
     assert r.agotada is False
-    # La primera pedida es la ventana de HATTRICK y la segunda nuestro exacto.
-    assert [v.peso for v in mercado.pedidas] == [100, 95]
+    assert [v.peso for v in mercado.pedidas] == [100]
 
 
 async def test_el_escalon_que_cierra_la_cuenta_entra_entero() -> None:
@@ -160,10 +161,16 @@ async def test_el_escalon_que_cierra_la_cuenta_entra_entero() -> None:
     assert r.estimacion.n == 0
 
 
-async def test_si_la_escalera_no_basta_queda_constancia() -> None:
+async def test_si_la_unica_busqueda_no_basta_queda_constancia() -> None:
+    """Y ahora pasa mucho mas, que es el precio de haber quitado la escalera.
+
+    Sin busqueda ampliada hay jugadores que no van a juntar ocho comparables, y
+    `agotada` es como se sabe. Lo que el usuario eligio a cambio es ver el
+    mercado TODOS LOS DIAS: el fondo se llena a base de dias, no de anchura.
+    """
     mercado = _Mercado([_fila(1)])
     r = await _turno(mercado)
-    assert r.busquedas == len(ESCALERA) + 1, "la escalera mas la ventana de Hattrick"
+    assert r.busquedas == 1
     assert r.agotada is True
     assert r.estimacion.suficiente is False
     assert r.estimacion.media is None
@@ -215,8 +222,14 @@ async def test_un_anuncio_sin_puja_no_se_anota_nunca() -> None:
     mercado = _Mercado([_fila(1), _fila(2, puja=0), _fila(3, puja=0)])
     r = await _turno(mercado)
     assert {v.ht_player_id for v in r.nuevas} == {1}
-    # Y se recorrio la escalera entera buscando lo que si sirve.
-    assert r.busquedas == len(ESCALERA) + 1
+    # Una peticion, la unica que hay. Antes se recorria la escalera entera
+    # buscando lo que si sirve; desde el 2026-10-26 lo que falta se busca
+    # manana, no mas abajo.
+    assert r.busquedas == 1
+    # Los tres los CONTO el centinela, que mide si el servidor contesta y no si
+    # el anuncio sirve: dos sin puja demuestran que hubo respuesta igual que
+    # uno con ella.
+    assert r.filas_vistas == 3
 
 
 async def test_un_mercado_entero_sin_pujas_no_deja_nada(_mercado=None) -> None:

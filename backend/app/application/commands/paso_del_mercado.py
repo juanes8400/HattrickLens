@@ -1,24 +1,35 @@
-"""El paso semanal del mercado, de principio a fin.
+"""El paso del mercado, de principio a fin.
 
-Esto es lo que se llama desde una sincronización. Hace dos cosas, y la primera
-corre SIEMPRE mientras la segunda sólo cuando toca:
+Esto es lo que se llama desde una sincronización. Hace dos cosas:
 
 1. **Resolver.** A las ventas que entraron con una puja y cuya subasta ya cerró
-   se les pregunta cuánto se pagó de verdad. Corre en todas las
-   sincronizaciones, le toque el turno a quien le toque: una subasta anotada
-   hoy cierra en días, y esperar cinco semanas al siguiente turno de su jugador
-   dejaría el número provisional todo ese tiempo.
+   se les pregunta cuánto se pagó de verdad. Corre SIEMPRE, en todas las
+   sincronizaciones, porque una subasta anotada hoy cierra en días y el margen
+   para preguntar son tres (2026-10-26, «lo que fue, fue»).
 
-2. **Buscar.** Si esta sincronización es la primera posterior al disparador
-   (la actualización económica de la liga menos 24 horas), se recorre la
-   escalera para los jugadores cuyo identificador cae en el turno de la
-   semana, una quinta parte de la plantilla.
+2. **Barrer.** A cada jugador al que todavía no se le haya mirado hoy se le
+   hace UNA búsqueda: la de los criterios de Hattrick. Una vez por día natural
+   y por jugador, independiente de cuántas veces se sincronice.
 
-EL GASTO. Buscar cuesta cinco peticiones por jugador como mucho, y resolver una
-por venta pendiente. Con una quinta parte de una plantilla de veinticinco son
-unas veinticinco peticiones de búsqueda por semana, menos de una
-sincronización. Un jugador que ya tiene sus seis comparables vivos no gasta ni
-una.
+EL BARRIDO DIARIO (2026-10-26, decisión del usuario). Antes esto era semanal:
+un disparador --la actualización económica de la liga menos 24 horas-- y un
+reparto por turnos que daba a cada jugador la escalera entera cada cinco
+semanas y su escalón exacto cada seis días. Ahora le toca a todos todos los
+días, con una sola ventana.
+
+EL GASTO, que es lo que decide si esto se puede hacer. Buscar cuesta una
+petición por jugador, así que una plantilla de veinticinco son unas veinticinco
+al día. Con la escalera entera habrían sido más de cien diarias, y la cuota de
+CHPP es de la APLICACIÓN, no de cada manager: lo que uno gasta se lo quita al
+resto. El usuario eligió ver el mercado todos los días con menos anchura.
+
+Y EL CENTINELA, sin el cual nada de esto se sostiene. Una cuota agotada no da
+error: devuelve cero resultados, exactamente igual que un jugador al que nadie
+se parece. Si se diera el día por hecho con la cuota muerta, ese día del
+mercado no volvería --el barrido es uno por día-- y además se seguiría
+golpeando un servidor que no contesta. Por eso el sello de cada jugador se
+estampa sólo cuando de verdad se le buscó, y el barrido se corta entero en
+cuanto el canario se queda mudo. Ver `centinela_de_la_cuota`.
 """
 
 from __future__ import annotations
@@ -34,18 +45,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.commands.mercado_comparable import (
     Resolucion,
+    a_quien_le_toca_hoy,
     anotar_si_cambio,
     aplicar_resolucion,
-    del_turno,
-    del_turno_exacto,
     fondo_del_equipo,
     guardar,
     pendientes_de_resolver,
-    toca_el_paso,
 )
 from app.application.queries.mercado_comparable import correr_el_turno
+from app.domain.engines.centinela_de_la_cuota import Centinela, canario
 from app.domain.engines.mercado_comparable import (
     Objetivo,
+    clave_de_criterios,
     comparables_de,
     estimar,
     objetivo_de,
@@ -81,63 +92,72 @@ class Historiales(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
-class PasoSemanal:
+class PasoDelMercado:
     """Lo que hizo el paso, para poder contarlo en el registro."""
 
     resueltas: tuple[Resolucion, ...]
-    jugadores_del_turno: tuple[int, ...]
+    #: A quiénes se les barrió el mercado de verdad. No es «a quiénes les
+    #: tocaba»: si el centinela corta a la mitad, aquí están sólo los de antes
+    #: del corte, que son los que llevan sello y no repetirán hoy.
+    jugadores_barridos: tuple[int, ...]
     ventas_nuevas: int
     busquedas: int
-    #: Falso cuando no tocaba y sólo se resolvió lo pendiente.
+    #: Falso cuando no tocaba nadie y sólo se resolvió lo pendiente.
     se_busco: bool
     #: Cuantos jugadores cambiaron de numero y quedaron anotados en la serie.
     puntos_anotados: int = 0
+    #: Verdadero cuando el barrido se cortó porque Hattrick dejó de contestar.
+    #: Lo que no se barrió NO lleva sello, así que se reintenta en la
+    #: siguiente sincronización en vez de perder el día.
+    cuota_agotada: bool = False
+    #: Canarios gastados. Es lo que cuesta poder fiarse de los vacíos.
+    canarios: int = 0
 
 
-async def correr_el_paso_semanal(
+async def correr_el_paso_del_mercado(
     session: AsyncSession,
     equipo: m.Team,
     *,
     buscar: Any,
     historial_de: Historiales,
     ahora: datetime,
-) -> PasoSemanal:
-    """Resuelve lo pendiente y, si toca, busca para los jugadores del turno."""
+) -> PasoDelMercado:
+    """Resuelve lo pendiente y barre el mercado de quien no se haya mirado hoy."""
     resueltas = await _resolver(session, equipo, historial_de, ahora)
 
-    economica = await _fecha_economica(session, equipo)
-    if not toca_el_paso(equipo, ahora):
-        # Aunque no toque turno, una resolucion pudo cambiar el numero de
-        # varios jugadores a la vez: la venta que paso de puja a precio real
-        # es comparable de todo el que se le parezca.
+    plantilla = await _plantilla(session, equipo.id)
+    toca = set(a_quien_le_toca_hoy(plantilla, ahora))
+    if not toca:
+        # Ya se barrió hoy entero. Aun así una resolución pudo cambiar el
+        # número de varios jugadores a la vez: la venta que pasó de puja a
+        # precio real es comparable de todo el que se le parezca.
         puntos = await _anotar_la_serie(session, equipo, ahora) if resueltas else 0
-        return PasoSemanal(
+        return PasoDelMercado(
             resueltas=resueltas,
-            jugadores_del_turno=(),
+            jugadores_barridos=(),
             ventas_nuevas=0,
             busquedas=0,
             se_busco=False,
             puntos_anotados=puntos,
         )
 
-    # EL BARRIDO, antes de nada: lo de mas de doce semanas se borra aunque no
-    plantilla = await _plantilla(session, equipo.id)
-    ids = [p.ht_player_id for p in plantilla]
-    # LOS DOS RITMOS (2026-10-09, decision del usuario). Al escalon exacto de
-    # un jugador le toca cada SEIS DIAS; a sus escalones anchos, cada cinco
-    # semanas. Los dos grupos salen del identificador --`% 6` contra el dia y
-    # `% 5` contra la semana-- asi que no hay reloj guardado por jugador.
-    #
-    # Si hoy le tocan los anchos, se recorre la escalera entera: el exacto va
-    # primero de todos modos. Si solo le toca el exacto, una sola peticion.
-    anchos = set(del_turno(ids, economica, ahora))
-    exactos = set(del_turno_exacto(ids, ahora))
-    turno = sorted(anchos | exactos)
+    centinela = Centinela()
+    barridos: list[int] = []
     nuevas = 0
     busquedas = 0
     for jugador in plantilla:
-        if jugador.ht_player_id not in turno:
+        if jugador.ht_player_id not in toca:
             continue
+        # EL CANARIO VA ANTES DE GASTAR NADA, y vuelve cuando la racha de
+        # vacíos lo pide. Si se queda mudo no es que no haya comparables: es
+        # que Hattrick no nos está contestando, y entonces se para aquí sin
+        # estampar el sello de nadie más.
+        if centinela.hay_que_preguntar:
+            filas = await buscar(canario())
+            busquedas += 1
+            centinela.canto_el_canario(len(filas))
+            if not centinela.sigue:
+                break
         objetivo = objetivo_de(
             jugador.ht_player_id,
             jugador.edad,
@@ -145,6 +165,9 @@ async def correr_el_paso_semanal(
             especialidad=jugador.especialidad,
         )
         if objetivo is None:
+            # Sin las siete habilidades no hay regla que preguntar. No se
+            # estampa el sello: no se ha mirado, así que si mañana llegan sus
+            # habilidades le vuelve a tocar.
             continue
         fondo = await fondo_del_equipo(session, equipo.id)
         resultado = await correr_el_turno(
@@ -157,23 +180,39 @@ async def correr_el_paso_semanal(
             # sirva a ellos: la búsqueda ya está pagada y por delante pasa
             # el mercado entero, no sólo el de quien tiene turno.
             tambien_para=_otros_objetivos(plantilla, jugador.ht_player_id),
-            solo_el_exacto=jugador.ht_player_id not in anchos,
         )
         busquedas += resultado.busquedas
+        centinela.vio(resultado.filas_vistas)
         plazos = {p.ht_player_id: p.plazo for p in resultado.por_resolver}
         nuevas += await guardar(session, equipo.id, resultado.nuevas, plazos)
+        await _estampar(session, jugador.id, ahora)
+        barridos.append(jugador.ht_player_id)
         await session.flush()
 
     puntos = await _anotar_la_serie(session, equipo, ahora)
     equipo.market_run_at = ahora
-    return PasoSemanal(
+    return PasoDelMercado(
         resueltas=resueltas,
-        jugadores_del_turno=tuple(turno),
+        jugadores_barridos=tuple(barridos),
         ventas_nuevas=nuevas,
         puntos_anotados=puntos,
         busquedas=busquedas,
-        se_busco=True,
+        se_busco=bool(barridos),
+        cuota_agotada=centinela.agotada,
+        canarios=centinela.canarios,
     )
+
+
+async def _estampar(session: AsyncSession, player_id: int, ahora: datetime) -> None:
+    """Deja dicho que a este jugador ya se le buscó hoy.
+
+    SÓLO DESPUÉS DE HABER BUSCADO DE VERDAD. Es la mitad del centinela que
+    vive aquí: un barrido que no llegó a hacerse no deja sello, así que la
+    siguiente sincronización lo reintenta en vez de dar el día por medido.
+    """
+    fila = await session.get(m.Player, player_id)
+    if fila is not None:
+        fila.market_swept_at = ahora
 
 
 async def _resolver(
@@ -232,7 +271,14 @@ async def _anotar_la_serie(session: AsyncSession, equipo: m.Team, ahora: datetim
         if objetivo is None:
             continue
         estimacion = estimar(comparables_de(fondo, objetivo, ahora))
-        if await anotar_si_cambio(session, equipo.id, jugador.ht_player_id, estimacion, ahora):
+        if await anotar_si_cambio(
+            session,
+            equipo.id,
+            jugador.ht_player_id,
+            estimacion,
+            ahora,
+            clave_de_criterios(objetivo),
+        ):
             puntos += 1
     if puntos:
         await session.flush()
@@ -253,10 +299,14 @@ def _otros_objetivos(plantilla: Sequence[_Jugador], menos_este: int) -> tuple[Ob
 
 @dataclass(frozen=True, slots=True)
 class _Jugador:
+    #: La fila de `players`, para poder estampar el sello del barrido.
+    id: int
     ht_player_id: int
     edad: int
     especialidad: int
     habilidades: dict[str, int]
+    #: Cuándo se le barrió el mercado por última vez. Cumple `_ConSello`.
+    market_swept_at: datetime | None
 
 
 async def _plantilla(session: AsyncSession, team_id: int) -> list[_Jugador]:
@@ -293,23 +343,12 @@ async def _plantilla(session: AsyncSession, team_id: int) -> list[_Jugador]:
             continue
         salida.append(
             _Jugador(
+                id=jugador.id,
                 ht_player_id=jugador.ht_player_id,
+                market_swept_at=jugador.market_swept_at,
                 edad=foto.age_years or 0,
                 especialidad=foto.specialty or 0,
                 habilidades={h: getattr(foto, h, 0) or 0 for h in HABILIDADES},
             )
         )
     return salida
-
-
-async def _fecha_economica(session: AsyncSession, equipo: m.Team) -> datetime | None:
-    """La actualización económica de SU liga. Hattrick la publica por país, y
-    de ahí sale el disparador sin inventar zonas horarias."""
-    if equipo.ht_league_id is None:
-        return None
-    contexto = (
-        await session.execute(
-            select(m.WorldContext).where(m.WorldContext.ht_league_id == equipo.ht_league_id)
-        )
-    ).scalar_one_or_none()
-    return contexto.economy_date if contexto is not None else None

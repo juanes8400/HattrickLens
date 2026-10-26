@@ -16,14 +16,12 @@ from typing import Any
 import pytest
 
 from app.domain.engines.mercado_comparable import (
-    ESCALERA,
     ORDEN_DE_DESEMPATE,
     Franja,
     Objetivo,
     Ventana,
     objetivo_de,
     plan_de_busqueda,
-    ventana_de,
 )
 from app.infrastructure.chpp.mercado import (
     ID_DE_HABILIDAD,
@@ -60,12 +58,6 @@ def _primera() -> Ventana:
     pediria el juego, y nuestra escalera va detras.
     """
     return plan_de_busqueda(_objetivo())[0]
-
-
-def _nuestras() -> list[Ventana]:
-    """Solo NUESTROS escalones, sin la ventana de Hattrick."""
-    hechas = [ventana_de(_objetivo(), e) for e in ESCALERA]
-    return [v for v in hechas if v is not None]
 
 
 class _ClienteFalso:
@@ -163,13 +155,18 @@ def test_cada_habilidad_viaja_con_su_numero_de_hattrick() -> None:
     assert (pedido["minSkillValue2"], pedido["maxSkillValue2"]) == (12, 14)
 
 
-def test_la_terciaria_va_siempre_uno_arriba_y_dos_abajo() -> None:
-    """En NUESTROS escalones. La ventana de Hattrick tiene su propia regla para
-    la tercera --aqui sale 6 a 9-- y no pasa por aqui."""
-    for ventana in _nuestras():
-        pedido = peticiones_de(ventana)[0]
-        assert pedido["skillType3"] == ID_DE_HABILIDAD["playmaking"]
-        assert (pedido["minSkillValue3"], pedido["maxSkillValue3"]) == (5, 8)
+def test_LA_UNICA_VENTANA_es_la_de_hattrick() -> None:
+    """2026-10-26: se acabo la escalera ancha, solo criterios.
+
+    Y esto es lo que la hace posible: una ventana por jugador es una peticion
+    por jugador, asi que una plantilla de veinticinco cuesta veinticinco al
+    dia. Con las cinco de antes habrian sido mas de cien, contra una cuota que
+    es de la aplicacion y no de cada manager.
+    """
+    plan = plan_de_busqueda(_objetivo())
+    assert len(plan) == 1
+    assert plan[0].peso == 100
+    assert len(peticiones_de(plan[0])) == 1
 
 
 def test_queda_un_filtro_libre_de_los_cuatro() -> None:
@@ -190,11 +187,18 @@ def test_la_edad_viaja_en_anos_cumplidos_y_sin_dias() -> None:
     assert "ageDaysMax" not in pedido
 
 
-def test_la_escalera_entera_traducida_a_lo_que_sale_por_el_cable() -> None:
+def test_la_busqueda_entera_traducida_a_lo_que_sale_por_el_cable() -> None:
+    """Un delantero de 31 anos: anotacion 18, pases 13, creacion 7.
+
+    Hattrick pide su edad a mas o menos uno, su primera habilidad clavada y una
+    banda para la segunda. Desde el 2026-10-26 esto es TODO lo que sale por el
+    cable: antes iban detras los cuatro escalones nuestros, de 95 a 75.
+    """
     pedidos = [peticiones_de(v)[0] for v in plan_de_busqueda(_objetivo())]
     leido = [
         (
             p["ageMin"],
+            p["ageMax"],
             p["minSkillValue1"],
             p["maxSkillValue1"],
             p["minSkillValue2"],
@@ -202,15 +206,7 @@ def test_la_escalera_entera_traducida_a_lo_que_sale_por_el_cable() -> None:
         )
         for p in pedidos
     ]
-    # La primera es la de HATTRICK; las demas, nuestra escalera. El escalon de
-    # 85 --edad clavada y primaria a mas o menos uno-- ya no esta.
-    assert leido == [
-        (30, 18, 18, 12, 14),
-        (31, 18, 18, 13, 13),
-        (31, 18, 18, 12, 14),
-        (32, 17, 19, 12, 14),
-        (30, 17, 19, 12, 14),
-    ]
+    assert leido == [(30, 32, 18, 18, 12, 14)]
 
 
 # --------------------------------------------------------------------------

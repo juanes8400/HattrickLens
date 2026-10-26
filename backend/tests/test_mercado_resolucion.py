@@ -10,18 +10,15 @@ Y el disparador: un paso semanal que corra de mas gasta cuota de la aplicacion
 entera, y uno que corra de menos deja los precios viejos.
 """
 
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from app.application.commands.mercado_comparable import (
+    a_quien_le_toca_hoy,
     a_guardado,
     aplicar_resolucion,
-    del_turno,
-    del_turno_exacto,
-    numero_de_turno,
-    toca_el_paso,
 )
 from app.domain.engines.mercado_comparable import (
-    GRUPOS,
     MARGEN_TRAS_EL_PLAZO,
     REINTENTOS_DE_RESOLUCION,
     VENTANA_DE_RESOLUCION,
@@ -273,72 +270,63 @@ def test_un_historial_con_fechas_rotas_no_revienta() -> None:
 
 
 # --------------------------------------------------------------------------
-# El disparador semanal
+# A quien le toca hoy
 # --------------------------------------------------------------------------
+#
+# UNA VEZ POR DIA NATURAL Y POR JUGADOR (2026-10-26). Lo que habia aqui era el
+# disparador semanal --la actualizacion economica menos 24 horas-- y el reparto
+# por identificador: `% 5` contra la semana para los escalones anchos y `% 6`
+# contra el dia para el exacto. Se fue entero con la escalera ancha.
 
 
-def _equipo(sello: datetime | None) -> m.Team:
-    equipo = m.Team(ht_team_id=537758, name="Pulgas Arrechas")
-    equipo.market_run_at = sello
-    return equipo
+@dataclass
+class _Barrido:
+    """Lo minimo que pide `a_quien_le_toca_hoy`, sin tocar la base."""
+
+    ht_player_id: int
+    market_swept_at: datetime | None
 
 
-def test_la_primera_vez_siempre_toca() -> None:
-    assert toca_el_paso(_equipo(None), DISPARADOR + timedelta(hours=1)) is True
+def test_le_toca_a_quien_no_se_haya_mirado_hoy() -> None:
+    hoy = datetime(2026, 10, 26, 10, 0, tzinfo=UTC)
+    plantilla = [
+        _Barrido(1, None),  # nunca
+        _Barrido(2, datetime(2026, 10, 25, 23, 59, tzinfo=UTC)),  # ayer
+        _Barrido(3, datetime(2026, 10, 26, 0, 1, tzinfo=UTC)),  # hoy
+    ]
+    assert a_quien_le_toca_hoy(plantilla, hoy) == [1, 2]
 
 
-def test_el_paso_se_mira_una_vez_al_dia() -> None:
-    """La puerta paso de semanal a DIARIA el 2026-10-09.
+def test_normalmente_le_toca_a_TODA_la_plantilla() -> None:
+    """Que es lo que quiere decir «todos los dias».
 
-    Tenia que cambiar: el escalon exacto de cada jugador toca cada seis dias,
-    y con una puerta semanal el reloj de los seis dias solo habria visto un
-    dia de cada siete. Quien busca y que busca lo deciden los turnos, no esto.
+    En el reparto de antes le tocaba a una quinta parte por semana, o a una
+    sexta parte por dia para el escalon exacto. Ahora, a todos.
     """
-    nunca_corrido = _equipo(None)
-    assert toca_el_paso(nunca_corrido, DISPARADOR) is True
-
-    # Corrido hoy: no se repite, por muchas sincronizaciones que haya.
-    hoy = _equipo(DISPARADOR)
-    assert toca_el_paso(hoy, DISPARADOR + timedelta(minutes=5)) is False
-    assert toca_el_paso(hoy, DISPARADOR + timedelta(hours=2)) is False
-
-    # Corrido ayer: toca otra vez.
-    ayer = _equipo(DISPARADOR - timedelta(days=1))
-    assert toca_el_paso(ayer, DISPARADOR) is True
+    hoy = datetime(2026, 10, 26, 10, 0, tzinfo=UTC)
+    plantilla = [_Barrido(i, None) for i in range(100, 125)]
+    assert len(a_quien_le_toca_hoy(plantilla, hoy)) == 25
 
 
-def test_sin_fecha_economica_el_paso_si_corre_pero_sin_turnos_anchos() -> None:
-    """La fecha economica ya no abre la puerta: solo reparte los anchos.
+def test_una_segunda_sincronizacion_del_mismo_dia_no_barre_a_nadie() -> None:
+    """De lo que protege: la aplicacion admite seis sincronizaciones por hora,
+    y cada barrido cuesta una peticion por jugador contra la cuota de todos."""
+    hoy = datetime(2026, 10, 26, 10, 0, tzinfo=UTC)
+    plantilla = [_Barrido(i, hoy) for i in range(100, 125)]
+    assert a_quien_le_toca_hoy(plantilla, hoy + timedelta(minutes=10)) == []
 
-    Es la unica fuente de la frontera semanal, asi que sin ella no hay turno
-    de cinco semanas que calcular. Pero el exacto se reparte por dias sobre el
-    identificador y no la necesita, asi que el paso corre igual y un club
-    recien importado empieza a juntar exactos desde el primer dia.
+
+def test_un_barrido_cortado_a_la_mitad_se_reanuda_y_no_se_repite() -> None:
+    """El sello es POR JUGADOR y no por equipo, y esto es lo que se gana.
+
+    Si el centinela corta el barrido porque Hattrick dejo de contestar, los que
+    ya se miraron llevan sello y los demas no: la siguiente sincronizacion
+    retoma por donde iba en vez de perder el dia o de repetirlo entero.
     """
-    assert toca_el_paso(_equipo(None), DISPARADOR) is True
-    assert del_turno([1, 2, 3, 4, 5, 6], None, DISPARADOR) == []
-
-
-def test_el_turno_rota_de_cero_a_cuatro() -> None:
-    vistos = set()
-    for semanas in range(GRUPOS):
-        momento = DISPARADOR + timedelta(weeks=semanas, hours=1)
-        vistos.add(numero_de_turno(ECONOMICA + timedelta(weeks=semanas), momento))
-    assert vistos == set(range(GRUPOS))
-
-
-def test_cada_semana_le_toca_a_un_solo_grupo() -> None:
-    plantilla = list(range(100, 125))
-    tocan = del_turno(plantilla, ECONOMICA, DISPARADOR + timedelta(hours=1))
-    assert tocan, "alguien tiene que tocar"
-    assert len({p % GRUPOS for p in tocan}) == 1
-    # Y es una quinta parte larga de la plantilla.
-    assert len(tocan) == sum(1 for p in plantilla if p % GRUPOS == tocan[0] % GRUPOS)
-
-
-def test_sin_fecha_economica_no_le_toca_a_nadie() -> None:
-    assert del_turno([1, 2, 3], None, DISPARADOR) == []
-    assert numero_de_turno(None, DISPARADOR) is None
+    hoy = datetime(2026, 10, 26, 10, 0, tzinfo=UTC)
+    plantilla = [_Barrido(i, hoy if i < 110 else None) for i in range(100, 125)]
+    pendientes = a_quien_le_toca_hoy(plantilla, hoy + timedelta(hours=1))
+    assert pendientes == list(range(110, 125))
 
 
 # --------------------------------------------------------------------------
@@ -368,38 +356,3 @@ def test_la_puja_sobrevive_a_la_resolucion() -> None:
     assert fila.bid_price == 65_000_000
 
 
-def test_el_exacto_le_toca_a_cada_jugador_uno_de_cada_seis_dias() -> None:
-    """Los dos ritmos que decidio el usuario el 2026-10-09.
-
-    El escalon exacto cada SEIS DIAS por jugador, los anchos cada cinco
-    semanas. Los dos salen del identificador, asi que no hay reloj guardado:
-    `ID % 6` contra el dia y `ID % 5` contra la semana.
-    """
-    plantilla = list(range(100, 125))  # veinticinco jugadores
-
-    # En seis dias consecutivos le toca a TODOS, y a cada uno una sola vez.
-    vistos: list[int] = []
-    for dia in range(6):
-        tocan = del_turno_exacto(plantilla, DISPARADOR + timedelta(days=dia))
-        vistos.extend(tocan)
-    assert sorted(vistos) == plantilla
-
-    # Y cada dia le toca a una sexta parte: cuatro o cinco de veinticinco.
-    for dia in range(12):
-        cuantos = len(del_turno_exacto(plantilla, DISPARADOR + timedelta(days=dia)))
-        assert 3 <= cuantos <= 5, dia
-
-
-def test_seis_dias_recorre_todos_los_dias_de_la_semana() -> None:
-    """Seis y no siete, a proposito.
-
-    Con siete, a cada jugador le tocaria siempre el mismo dia de la semana y
-    veria siempre el mismo trozo del mercado. Con seis su turno se adelanta un
-    dia cada semana.
-    """
-    dias_de_la_semana = {
-        (DISPARADOR + timedelta(days=dia)).weekday()
-        for dia in range(42)
-        if del_turno_exacto([102], DISPARADOR + timedelta(days=dia))
-    }
-    assert len(dias_de_la_semana) == 7

@@ -406,13 +406,19 @@ class SyncTeamHandler(  # noqa: D101
         result: SyncResult,
         on_progress: ProgressReporter | None,
     ) -> None:
-        """Resuelve las pujas ya cerradas y, si toca, busca comparables.
+        """Resuelve las pujas ya cerradas y barre el mercado de quien toque.
 
         Nunca tumba la sincronizacion. Es lo ultimo que se hace y lo menos
         urgente: si el mercado no contesta, la plantilla y los partidos ya
         estan guardados, y el paso se vuelve a intentar en la siguiente.
+
+        Y ESO ULTIMO CUENTA MAS DESDE QUE EL BARRIDO ES DIARIO: cada jugador
+        lleva su propio sello, asi que un paso cortado a la mitad --por la
+        cuota, por un error, por lo que sea-- deja mirados a los de antes del
+        corte y los demas entran en la siguiente sincronizacion. No se pierde
+        el dia de nadie.
         """
-        from app.application.commands.paso_del_mercado import correr_el_paso_semanal
+        from app.application.commands.paso_del_mercado import correr_el_paso_del_mercado
         from app.infrastructure.chpp.mercado import BuscadorDeMercado
         from app.infrastructure.db import models as m
 
@@ -422,7 +428,7 @@ class SyncTeamHandler(  # noqa: D101
         try:
             buscador = BuscadorDeMercado(self._chpp)
             await _report(on_progress, "Mirando el mercado de transferencias...")
-            paso = await correr_el_paso_semanal(
+            paso = await correr_el_paso_del_mercado(
                 uow.session,
                 equipo,
                 buscar=buscador,

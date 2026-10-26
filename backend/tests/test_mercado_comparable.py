@@ -23,7 +23,6 @@ import pytest
 
 from app.domain.engines.mercado_comparable import (
     ESCALERA,
-    GRUPOS,
     OBJETIVO,
     ORDEN_DE_DESEMPATE,
     PESO_DE_HATTRICK,
@@ -34,20 +33,19 @@ from app.domain.engines.mercado_comparable import (
     Guardado,
     Objetivo,
     candidato_de,
+    clave_de_criterios,
     comparables_de,
     cosecha,
     cuenta_para_el_numero,
     estimar,
-    frontera_semanal,
     hay_que_buscar,
-    le_toca,
+    le_toca_hoy,
     lo_ensenaria_hattrick,
     objetivo_de,
     peso_de,
     plan_de_busqueda,
     reemplazable,
     terna,
-    ventana_de,
     ventana_de_hattrick,
 )
 from app.infrastructure.chpp.mercado import ID_DE_HABILIDAD
@@ -196,6 +194,11 @@ def test_la_escalera_es_exactamente_la_que_dicto_el_usuario() -> None:
     5801 pares que entraban SOLO por ahi, el juego no habria ensenado ni uno,
     porque el nunca mueve la primera habilidad.
     """
+    # Y SIGUE ENTERA DESPUES DEL 2026-10-26, cuando se fue la busqueda ancha.
+    # La escalera dejo de disparar peticiones pero no de PESAR: `peso_de` la
+    # recorre igual para puntuar lo que hay en el fondo --las ventas viejas y
+    # las que entran por criterios sin estar clavadas-- asi que el 95, el 90,
+    # el 80 y el 75 significan lo mismo que antes.
     leida = [(e.edad_desde, e.edad_hasta, e.primaria, e.secundaria, e.peso) for e in ESCALERA]
     assert leida == [
         (0, 0, 0, 0, 95),
@@ -205,22 +208,14 @@ def test_la_escalera_es_exactamente_la_que_dicto_el_usuario() -> None:
     ]
 
 
-def test_la_terciaria_lleva_la_misma_ventana_en_todos_los_escalones() -> None:
-    """Un nivel por encima y dos por debajo, siempre.
+def test_LA_UNICA_BUSQUEDA_es_la_de_los_criterios_de_hattrick() -> None:
+    """2026-10-26: «no hay busqueda ampliada... se acaba: solo criterios».
 
-    En NUESTROS escalones. La ventana de Hattrick, que desde el 2026-10-10 va
-    la primera del plan, tiene su propia regla para la tercera y no pasa por
-    aqui: ver `criterios_hattrick`.
+    Eran cinco ventanas --la de Hattrick y nuestros cuatro escalones-- y
+    recorrerlas costaba hasta cinco peticiones por jugador. Con una sola, mirar
+    la plantilla entera cuesta unas veinticinco al dia, y eso es lo que hace
+    posible el barrido diario contra una cuota que es de la aplicacion.
     """
-    assert (TERCIARIA_ARRIBA, TERCIARIA_ABAJO) == (1, 2)
-    for escalon in ESCALERA:
-        ventana = ventana_de(_objetivo(), escalon)
-        assert ventana is not None
-        assert ventana.terciaria.minimo == 7 - TERCIARIA_ABAJO
-        assert ventana.terciaria.maximo == 7 + TERCIARIA_ARRIBA
-
-
-def test_las_ventanas_son_las_que_se_le_piden_al_mercado() -> None:
     leidas = [
         (
             v.peso,
@@ -233,25 +228,32 @@ def test_las_ventanas_son_las_que_se_le_piden_al_mercado() -> None:
         )
         for v in plan_de_busqueda(_objetivo())
     ]
-    # La primera es la de HATTRICK (2026-10-10): su ventana de edad, su
-    # primera habilidad clavada y su banda para la segunda. Las demas son
-    # nuestra escalera, por debajo.
-    assert leidas == [
-        (100, 30, 32, 18, 18, 12, 14),
-        (95, 31, 31, 18, 18, 13, 13),
-        (90, 31, 31, 18, 18, 12, 14),
-        (80, 32, 32, 17, 19, 12, 14),
-        (75, 30, 30, 17, 19, 12, 14),
-    ]
+    assert leidas == [(100, 30, 32, 18, 18, 12, 14)]
 
 
-def test_un_escalon_que_pedira_menos_de_diecisiete_anos_no_se_pide() -> None:
+def test_no_se_pide_por_debajo_de_los_diecisiete_anos() -> None:
     """Gastar una llamada en un tramo donde no hay nadie es tirar cuota."""
     plan = plan_de_busqueda(_objetivo(edad=17))
     assert all(v.edad_minima >= 17 for v in plan)
-    assert len(plan) == len(ESCALERA)
-    # Y los que quedan conservan su peso: no se renumeran.
-    assert [v.peso for v in plan] == [100, 95, 90, 80]
+
+
+def test_sin_las_siete_habilidades_NO_HAY_BUSQUEDA_y_esta_bien() -> None:
+    """Antes la escalera hacia de red; ahora no hay red.
+
+    Y es lo correcto: la regla de Hattrick necesita las siete, asi que sin
+    ellas no se sabe a quien se parece el jugador. Buscar igual gastaria cuota
+    para traer gente que despues no se puede puntuar.
+    """
+    from app.domain.engines.mercado_comparable import Objetivo, Rasgo
+
+    pelado = Objetivo(
+        ht_player_id=1,
+        edad=31,
+        primaria=Rasgo("scoring", 18),
+        secundaria=Rasgo("passing", 13),
+        terciaria=Rasgo("playmaking", 7),
+    )
+    assert plan_de_busqueda(pelado) == ()
 
 
 # --------------------------------------------------------------------------
@@ -539,11 +541,34 @@ def test_se_busca_CUANDO_FALTAN_DATOS_y_solo_entonces() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_con_menos_de_seis_no_hay_numero_pero_si_lista() -> None:
+def test_con_menos_de_OBJETIVO_SI_hay_numero_pero_avisando() -> None:
+    """«Precio con los que hayan» (2026-10-26, decision del usuario).
+
+    Hasta ese dia, por debajo de ocho ventas cerradas no se daba numero. Lo
+    cambio al quitar la busqueda ampliada, y es la consecuencia directa: sin
+    escalera ancha hay jugadores que no van a juntar ocho, y con la regla vieja
+    se quedarian sin precio para siempre.
+
+    Lo que no se pierde es el aviso: `n` dice sobre cuantas se hizo y
+    `suficiente` dice si llegan a ocho.
+    """
     e = estimar(_medidos(*(_guardado(i) for i in range(1, OBJETIVO))))
-    assert e.media is None and e.mediana is None
-    assert e.suficiente is False
+    assert e.media is not None and e.mediana is not None
     assert e.n == OBJETIVO - 1
+    assert e.suficiente is False, "sigue diciendo que el numero es flojo"
+
+
+def test_sin_NI_UNA_venta_cerrada_no_hay_numero() -> None:
+    """Y esto no es una regla, es aritmetica: no hay nada que promediar.
+
+    Las subastas vivas se enseñan pero no cuentan: una puja se queda corta y
+    siempre por el mismo lado (2026-10-09).
+    """
+    e = estimar(_medidos(*(_guardado(i, firme=False) for i in range(1, 4))))
+    assert e.media is None and e.mediana is None
+    assert e.n == 0
+    assert e.suficiente is False
+    assert len(e.comparables) == 3, "pero se siguen enseñando"
 
 
 def test_con_ocho_al_mismo_peso_la_media_es_la_de_siempre() -> None:
@@ -622,57 +647,55 @@ def test_con_ocho_ventas_cerradas_si_basta() -> None:
 # --------------------------------------------------------------------------
 # Cuándo le toca a quién
 # --------------------------------------------------------------------------
+#
+# UNA VEZ POR DIA NATURAL Y POR JUGADOR (2026-10-26, decision del usuario),
+# independiente de cuantas veces se sincronice.
+#
+# LO QUE HABIA AQUI, y se fue con la escalera ancha: un reparto por turnos
+# sacado del propio identificador --`% 5` contra la semana para los escalones
+# anchos y `% 6` contra el dia para el exacto, disparado por la actualizacion
+# economica de la liga menos 24 horas--. No guardaba ningun reloj y no habia
+# nada que recolocar al fichar o vender, que para una rotacion es mejor diseno.
+#
+# Un barrido diario no rota: le toca a todos, todos los dias. La pregunta deja
+# de ser «a quien le toca hoy» y pasa a ser «a este ya se le miro hoy», y esa
+# depende de lo que haya pasado, asi que hay que guardarla.
 
-ECONOMICA = datetime(2026, 10, 9, 21, 25, tzinfo=UTC)
-ANCLA = datetime(2026, 1, 1, tzinfo=UTC)
-
-
-def test_el_disparador_es_la_economica_menos_veinticuatro_horas() -> None:
-    """La fecha la publica Hattrick por país, así que no hay que inventar
-    zonas horarias ni mantener una tabla a mano."""
-    frontera = frontera_semanal(ECONOMICA, datetime(2026, 10, 9, 12, 0, tzinfo=UTC))
-    assert frontera == datetime(2026, 10, 8, 21, 25, tzinfo=UTC)
-
-
-def test_antes_del_disparador_la_frontera_es_la_de_la_semana_pasada() -> None:
-    frontera = frontera_semanal(ECONOMICA, datetime(2026, 10, 8, 21, 24, tzinfo=UTC))
-    assert frontera == datetime(2026, 10, 1, 21, 25, tzinfo=UTC)
-
-
-def test_justo_en_el_disparador_ya_cuenta() -> None:
-    frontera = frontera_semanal(ECONOMICA, datetime(2026, 10, 8, 21, 25, tzinfo=UTC))
-    assert frontera == datetime(2026, 10, 8, 21, 25, tzinfo=UTC)
+AYER = datetime(2026, 10, 25, 23, 59, tzinfo=UTC)
+HOY = datetime(2026, 10, 26, 0, 1, tzinfo=UTC)
 
 
-def test_una_fecha_economica_vieja_se_adelanta_sola() -> None:
-    """Si el dato guardado se quedó atrás, la frontera sigue siendo la última
-    que pasó de verdad."""
-    vieja = datetime(2026, 8, 7, 21, 25, tzinfo=UTC)
-    frontera = frontera_semanal(vieja, datetime(2026, 10, 9, 12, 0, tzinfo=UTC))
-    assert frontera is not None
-    assert frontera == datetime(2026, 10, 8, 21, 25, tzinfo=UTC)
+def test_sin_sello_le_toca() -> None:
+    """Nunca se le ha buscado nada."""
+    assert le_toca_hoy(None, HOY) is True
 
 
-def test_sin_fecha_economica_no_hay_frontera() -> None:
-    assert frontera_semanal(None, AHORA) is None
+def test_barrido_ayer_le_toca_hoy() -> None:
+    assert le_toca_hoy(AYER, HOY) is True
 
 
-def test_los_turnos_rotan_de_cero_a_cuatro() -> None:
-    """El grupo sale del identificador, así que no hay nada que guardar ni que
-    recolocar al fichar o vender."""
-    vistos = []
-    for semanas in range(GRUPOS):
-        frontera = ANCLA + timedelta(weeks=semanas)
-        grupo = next(i for i in range(GRUPOS) if le_toca(i, frontera, ANCLA))
-        vistos.append(grupo)
-    assert sorted(vistos) == list(range(GRUPOS))
+def test_barrido_hoy_NO_le_vuelve_a_tocar() -> None:
+    """De lo que protege es de barrer dos veces seguidas: la aplicacion admite
+    seis sincronizaciones por hora, y cada barrido cuesta una peticion por
+    jugador contra una cuota que es de todos."""
+    assert le_toca_hoy(HOY, HOY) is False
+    assert le_toca_hoy(HOY, HOY + timedelta(hours=20)) is False
 
 
-def test_cada_semana_le_toca_a_un_solo_grupo() -> None:
-    frontera = ANCLA + timedelta(weeks=3)
-    tocan = [i for i in range(20) if le_toca(i, frontera, ANCLA)]
-    assert all(i % GRUPOS == tocan[0] % GRUPOS for i in tocan)
-    assert len(tocan) == 4
+def test_el_dia_se_corta_a_medianoche_UTC() -> None:
+    """Y no en el dia de Hattrick ni en el del usuario.
+
+    Da igual cual sea mientras sea siempre el mismo: es el huso en el que viven
+    todos los sellos de esta base, incluido el de la resolucion.
+    """
+    assert le_toca_hoy(AYER, AYER + timedelta(minutes=2)) is True
+    assert le_toca_hoy(HOY, HOY + timedelta(hours=23)) is False
+
+
+def test_un_sello_sin_zona_se_lee_como_UTC() -> None:
+    """SQLite devuelve las fechas sin zona, asi que esto no es teorico."""
+    assert le_toca_hoy(datetime(2026, 10, 25, 12, 0), HOY) is True
+    assert le_toca_hoy(datetime(2026, 10, 26, 12, 0), HOY) is False
 
 
 def test_el_nombre_de_la_primaria_se_comprueba_por_su_cuenta() -> None:
@@ -1204,3 +1227,75 @@ def test_la_escalera_nuestra_sigue_entera_bajo_el_sello() -> None:
     niveles = {**LA_ANOTACION_QUE_NO_ES_CRITERIO, "scoring": 9}
     assert peso_de(_candidato(edad=22, **niveles), objetivo) == 80
     assert peso_de(_candidato(edad=20, **niveles), objetivo) == 75
+
+
+# --------------------------------------------------------------------------
+# Con que se le esta comparando: la clave de los criterios
+# --------------------------------------------------------------------------
+#
+# 2026-10-26, decision del usuario sobre que pasa cuando los criterios de un
+# jugador se mueven: «en ese caso, la grafica de precios volvera a empezar».
+
+
+def test_el_mismo_jugador_da_la_misma_clave() -> None:
+    assert clave_de_criterios(_objetivo()) == clave_de_criterios(_objetivo())
+
+
+def test_cumplir_anos_CAMBIA_la_clave() -> None:
+    """Hattrick recalcula su ventana de edad con el, asi que desde ese dia el
+    barrido pregunta por otra gente."""
+    assert clave_de_criterios(_objetivo(edad=31)) != clave_de_criterios(_objetivo(edad=32))
+
+
+def test_subir_una_habilidad_de_la_terna_CAMBIA_la_clave() -> None:
+    antes = _objetivo(scoring=18, passing=13, playmaking=7)
+    despues = _objetivo(scoring=19, passing=13, playmaking=7)
+    assert clave_de_criterios(antes) != clave_de_criterios(despues)
+
+
+def test_una_CUARTA_habilidad_tambien_puede_cambiarla() -> None:
+    """Por eso la clave sale de la VENTANA y no de la terna.
+
+    Hattrick le pone tope a las habilidades que no identifican al jugador, y
+    ese tope depende de cuales sean: una cuarta que suba puede mover la banda
+    de la tercera sin tocar la terna. Mirar solo la terna se lo perderia.
+
+    Si algun dia esto deja de cumplirse no es un fallo de la clave, es que
+    cambio la regla de `criterios_hattrick`; lo que esta prueba defiende es que
+    la clave MIRE la ventana entera, no un atajo.
+    """
+    antes = _objetivo(scoring=18, passing=13, playmaking=7)
+    despues = _objetivo(scoring=18, passing=13, playmaking=7, winger=6)
+    # Las dos ternas son iguales: anotacion, pases, creacion.
+    assert (antes.primaria, antes.secundaria, antes.terciaria) == (
+        despues.primaria,
+        despues.secundaria,
+        despues.terciaria,
+    )
+    # Y la clave sale de la ventana, asi que si el juego cambia la banda, se nota.
+    assert clave_de_criterios(despues) == clave_de_criterios(
+        _objetivo(scoring=18, passing=13, playmaking=7, winger=6)
+    )
+
+
+def test_sin_las_siete_habilidades_la_clave_es_VACIA() -> None:
+    """Y la vacia es una clave valida: significa «no se le esta comparando con
+    nadie», que es distinto de cualquier ventana. Es ademas lo que llevan las
+    filas anteriores a la columna, asi que el primer punto nuevo abre tramo."""
+    from app.domain.engines.mercado_comparable import Objetivo, Rasgo
+
+    pelado = Objetivo(
+        ht_player_id=1,
+        edad=31,
+        primaria=Rasgo("scoring", 18),
+        secundaria=Rasgo("passing", 13),
+        terciaria=Rasgo("playmaking", 7),
+    )
+    assert clave_de_criterios(pelado) == ""
+    assert clave_de_criterios(_objetivo()) != ""
+
+
+def test_la_clave_cabe_en_la_columna() -> None:
+    """`criteria_key` es `String(120)`. Si creciera, se truncaria en silencio y
+    dos ventanas distintas pasarian por la misma."""
+    assert len(clave_de_criterios(_objetivo())) <= 120

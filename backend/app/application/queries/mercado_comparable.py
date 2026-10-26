@@ -72,10 +72,16 @@ class Resultado:
     nuevas: tuple[Guardado, ...]
     estimacion: Estimacion
     por_resolver: tuple[PorResolver, ...]
-    #: Peticiones gastadas. Cero significa que no hacía falta buscar.
+    #: Peticiones gastadas. Cero significa que no se pudo buscar: sin las
+    #: siete habilidades no hay regla de Hattrick que preguntar.
     busquedas: int
-    #: Si se recorrió la escalera entera sin llegar a completar el fondo.
+    #: Si se buscó y el fondo siguió sin llegar a `OBJETIVO`.
     agotada: bool
+    #: FILAS que devolvió el mercado, no comparables. Es lo que mira el
+    #: centinela de la cuota, y la diferencia importa: un jugador que llega y
+    #: luego se descarta por no parecerse demuestra que el servidor contestó
+    #: igual de bien que uno que se queda.
+    filas_vistas: int = 0
 
 
 async def correr_el_turno(
@@ -86,7 +92,6 @@ async def correr_el_turno(
     mi_equipo: int,
     ahora: datetime,
     tambien_para: Sequence[Objetivo] = (),
-    solo_el_exacto: bool = False,
 ) -> Resultado:
     """Lo que se hace cuando a un jugador le toca turno.
 
@@ -100,35 +105,31 @@ async def correr_el_turno(
     cuándo se para --eso lo sigue decidiendo el que pregunta, que es quien
     tiene turno-- sólo qué se recoge por el camino.
 
-    `solo_el_exacto` recorre ÚNICAMENTE el primer escalón, el del 100 %. Es el
-    turno de los seis días que decidió el usuario el 2026-10-09: al exacto le
-    toca a menudo porque no caduca y es el mejor dato posible, mientras los
-    anchos esperan su turno de cinco semanas. Una petición por jugador.
+    YA NO HAY NADA QUE RECORRER (2026-10-26). El plan es una sola ventana --la
+    de los criterios de Hattrick-- así que esto es un bucle de uno. Se queda
+    como bucle a propósito: `plan_de_busqueda` devuelve una tupla y el día que
+    vuelva a tener dos ventanas esto no tiene que cambiar.
+
+    Y SE FUE LA PUERTA DE `hay_que_buscar`, que saltaba la búsqueda cuando el
+    jugador ya tenía sus ocho comparables vivos. Tenía sentido cuando buscar
+    costaba hasta cinco peticiones y el turno era cada cinco semanas: ahorraba
+    mucho y se perdía poco. Con el barrido diario el fondo lleno ya no es razón
+    para no mirar, porque mirar todos los días ES la medida que se quiere; lo
+    que entra hoy es más fresco que lo que había, y una petición por jugador es
+    lo que el usuario decidió gastar.
     """
     acumulado = list(fondo)
     busquedas = 0
-    agotada = True
     nuevas: list[Guardado] = []
     # El plazo no cabe en `Guardado` porque deja de importar en cuanto la venta
     # se resuelve, así que los candidatos viajan en paralelo hasta el final.
     nuevos: list[Candidato] = []
 
-    for escalon, ventana in enumerate(plan_de_busqueda(objetivo)):
-        # EL ESCALON EXACTO SE RECORRE SIEMPRE, tenga el fondo lo que tenga
-        # (2026-10-07, regla del usuario). Un comparable al 100% --misma edad
-        # y las tres habilidades clavadas-- es el mejor dato que existe para
-        # este jugador, queda grabado y no caduca; seguir buscandolo cada
-        # turno es lo que hace que no envejezca de verdad.
-        #
-        # El precio es una peticion por jugador y turno, tambien cuando ya
-        # tiene sus seis. Antes ese caso no gastaba ninguna.
-        if escalon > 0 and (
-            solo_el_exacto or not hay_que_buscar(comparables_de(acumulado, objetivo, ahora))
-        ):
-            agotada = False
-            break
+    vistas = 0
+    for ventana in plan_de_busqueda(objetivo):
         filas = await buscar(ventana)
         busquedas += 1
+        vistas += len(filas)
         con_puja, _sin_puja = cosecha(
             objetivo,
             filas,
@@ -142,14 +143,19 @@ async def correr_el_turno(
             nuevas.append(venta)
             nuevos.append(candidato)
 
+    medidos = comparables_de(acumulado, objetivo, ahora)
+    # Se calcula al final y no sobre la marcha: con una sola ventana, «agotada»
+    # es simplemente que se buscó y aun así no se llegó a `OBJETIVO`.
+    agotada = busquedas > 0 and hay_que_buscar(medidos)
     return Resultado(
         nuevas=tuple(nuevas),
-        estimacion=estimar(comparables_de(acumulado, objetivo, ahora)),
+        estimacion=estimar(medidos),
         por_resolver=tuple(
             PorResolver(ht_player_id=c.ht_player_id, plazo=c.plazo, visto_el=ahora) for c in nuevos
         ),
         busquedas=busquedas,
         agotada=agotada,
+        filas_vistas=vistas,
     )
 
 

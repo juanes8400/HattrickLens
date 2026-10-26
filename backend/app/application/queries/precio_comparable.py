@@ -1,6 +1,6 @@
 """Lo que ha costado la gente parecida a un jugador tuyo, para la pantalla.
 
-No llama a Hattrick ni una vez: todo sale del fondo que dejó el paso semanal,
+No llama a Hattrick ni una vez: todo sale del fondo que dejó el paso del mercado,
 así que abrir la ficha de un jugador es gratis y se puede recalcular tantas
 veces como haga falta. Por eso tampoco hay nada que invalidar cuando el jugador
 sube una habilidad o cumple años: sus comparables se vuelven a medir contra el
@@ -197,13 +197,22 @@ async def precio_de(
     plazos = {f.ht_player_id: f.deadline for f in filas}
     elegidos = comparables_de([a_guardado(f) for f in filas], objetivo, momento)
     estimacion = estimar(elegidos)
-    precios = [c.venta.precio for c in elegidos]
+    # SOLO LAS QUE CUENTAN, o sea las ventas CERRADAS. `elegidos` lleva también
+    # las subastas vivas para poder enseñarlas, y una puja no es un precio
+    # (2026-10-09): se queda corta y siempre por el mismo lado --Valerio
+    # Cataldi, 65.000.000 de puja y 77.720.000 de cierre--. Mezclarlas en el
+    # rango lo bajaría sin decirlo.
+    precios = [c.venta.precio for c in elegidos if c.cuenta]
 
     return PrecioComparable(
         media=convertido(estimacion.media) if estimacion.media is not None else None,
         mediana=convertido(estimacion.mediana) if estimacion.mediana is not None else None,
-        minimo=convertido(min(precios)) if estimacion.suficiente else None,
-        maximo=convertido(max(precios)) if estimacion.suficiente else None,
+        # EL RANGO VA CON EL NUMERO, no con las ocho (2026-10-26). Sale de los
+        # mismos precios que la media, así que enseñar la media y esconder el
+        # rango sería decir «sé el promedio de estos tres pero no el menor de
+        # los tres». `n` y `faltan` son los que dicen cuánto fiarse.
+        minimo=convertido(min(precios)) if precios else None,
+        maximo=convertido(max(precios)) if precios else None,
         n=estimacion.n,
         faltan=max(0, OBJETIVO - estimacion.n),
         peso_minimo=estimacion.peso_minimo,
@@ -315,6 +324,17 @@ async def _serie(
     Sale de `market_estimates`, que guarda una fila por cada vez que su
     número cambió. No se puede reconstruir del fondo: al resolver una venta,
     su puja se pisa con el precio de cierre y el valor anterior desaparece.
+
+    SÓLO EL TRAMO VIGENTE (2026-10-26, decisión del usuario: cuando le cambian
+    los criterios, «la gráfica de precios volverá a empezar»). Los criterios
+    son del jugador y Hattrick los recalcula con él --al cumplir años, al subir
+    una habilidad-- y desde ese momento el barrido pregunta por otra gente. Dos
+    medidas distintas unidas por una línea dibujarían una subida o una bajada
+    que no ocurrió.
+
+    El corte se hace aquí y no borrando: los puntos de los tramos anteriores
+    siguen en la tabla. Es la única pérdida de esta base que no se podría
+    deshacer, porque el fondo no sabe cómo estuvo.
     """
     filas = (
         (
@@ -330,6 +350,16 @@ async def _serie(
         .scalars()
         .all()
     )
+    # El tramo vigente es el del ÚLTIMO punto, y se corta hacia atrás: en
+    # cuanto aparece una clave distinta, lo anterior es otra medida. Se recorre
+    # al revés porque lo que define el tramo es el final, no el principio.
+    if filas:
+        vigente = filas[-1].criteria_key
+        corte = len(filas)
+        while corte > 0 and filas[corte - 1].criteria_key == vigente:
+            corte -= 1
+        filas = filas[corte:]
+
     puntos = []
     for fila in filas:
         try:

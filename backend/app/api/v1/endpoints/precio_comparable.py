@@ -1,6 +1,6 @@
 """Lo que ha costado la gente parecida a un jugador tuyo.
 
-No gasta cuota de Hattrick: sirve lo que dejó el paso semanal del mercado, así
+No gasta cuota de Hattrick: sirve lo que dejó el paso del mercado, así
 que se puede abrir y recalcular tantas veces como haga falta.
 """
 
