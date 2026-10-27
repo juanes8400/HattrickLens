@@ -3190,8 +3190,10 @@ jugador base. Es la via para sondear perfiles hipoteticos sin tocar nada.
 ### LO QUE SIGUE SIN SABERSE
 
 · Si la frontera de los 25 vale tambien para el portero, que no se midio.
-· Si el empate arriba tiene su propia frontera de edad. Su rebaja es de 1 y
-  manda la mayor, asi que un empate solo nunca la ensena: haria falta un perfil
-  donde el empate mande Y la rareza caiga justo en el borde.
+· Si el empate arriba tiene frontera de edad A PARTIR DE LOS 25. Hasta los 24
+  NO la tiene, y eso ya esta medido: el extremo de Lat11 Ano11 Def7 a los 24
+  es justo el perfil donde el empate manda solo --sin cuarto criterio-- y con
+  la rareza (23) a un punto de su liston (24). Si la rebaja del empate valiera
+  2 en la franja, saldria holgado. Salio AJUSTADO.
 · Por que 25 y no otra edad. Encaja con que a los 24 no ha habido temporadas
   para cuatro habilidades de verdad, pero eso es una historia, no una medida.
