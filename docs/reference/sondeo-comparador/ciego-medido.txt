@@ -451,3 +451,87 @@ Pases entre insuficiente y bueno
 Lateral entre débil y aceptable
 Defensa <= débil
 Portería <= débil
+
+# Las nueve sondas alrededor de C09 (ver `portero-abierto.txt`).
+# No entran en la cuenta del ciego: se eligieron MIRANDO el fallo.
+
+K01
+Edad = 26
+Portería = sobrenatural
+Defensa = horrible
+Balón parado entre excelente y magnífico
+Lateral <= débil
+Anotación <= débil
+Jugadas <= débil
+
+K02
+Edad = 26
+Portería = sobrenatural
+Defensa = horrible
+Balón parado entre formidable y clase mundial
+Lateral <= débil
+Anotación <= débil
+Jugadas <= débil
+
+K03
+Edad = 26
+Portería = sobrenatural
+Defensa = horrible
+Balón parado entre destacado y sobrenatural
+Lateral <= débil
+Anotación <= débil
+Jugadas <= débil
+
+K04
+Edad = 26
+Portería = sobrenatural
+Defensa = horrible
+Balón parado entre magnífico y extraterrestre
+Lateral <= débil
+Anotación <= débil
+Jugadas <= débil
+
+K05
+Edad = 26
+Portería = sobrenatural
+Defensa = horrible
+Balón parado entre clase mundial y mítico
+Lateral <= débil
+Anotación <= débil
+Jugadas <= débil
+
+K06
+Edad >= 25 y Edad <= 27
+Portería = sobrenatural
+Defensa = horrible
+Balón parado >= sobrenatural
+Lateral <= insuficiente
+Anotación <= insuficiente
+Jugadas <= insuficiente
+
+K07
+Edad = 26
+Portería = sobrenatural
+Defensa = débil
+Balón parado entre brillante y titánico
+Lateral <= débil
+Anotación <= débil
+Jugadas <= débil
+
+K08
+Edad >= 25 y Edad <= 27
+Portería = sobrenatural
+Defensa = aceptable
+Balón parado entre destacado y extraterrestre
+Lateral <= insuficiente
+Anotación <= insuficiente
+Jugadas <= insuficiente
+
+K09
+Edad = 26
+Portería = sobrenatural
+Defensa = horrible
+Balón parado entre brillante y titánico
+Lateral <= débil
+Anotación <= débil
+Jugadas <= débil

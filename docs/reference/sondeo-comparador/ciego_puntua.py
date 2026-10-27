@@ -61,6 +61,10 @@ def medido() -> dict[int, str]:
         if m := re.fullmatch(r"C(\d+)", linea.strip()):
             actual = int(m[1])
             bloques[actual] = []
+        elif re.fullmatch(r"[A-Z]+\d+", linea.strip()):
+            # Otro bloque que no es del ciego --las sondas `K` del portero, que
+            # se eligieron MIRANDO el fallo y no pueden contar como ciegas--.
+            actual = None
         elif actual is not None:
             bloques[actual].append(linea)
     return {n: compacta(ls) for n, ls in bloques.items()}

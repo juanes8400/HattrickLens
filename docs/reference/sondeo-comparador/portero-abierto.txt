@@ -1,0 +1,57 @@
+EL BALON PARADO DEL PORTERO: 64 OBSERVACIONES Y NINGUNA LECTURA QUE ENCAJE
+===========================================================================
+2026-10-26
+
+Lo que se sabe seguro, medido:
+
+  Por 14, Def 2, habilidades de campo bajas, a los 26 anios:
+     BP 10  AJUSTADO     BP 13  AJUSTADO     BP 15  AJUSTADO
+     BP 11  AJUSTADO     BP 14  AJUSTADO     BP 16  HOLGADO
+     BP 12  AJUSTADO
+     -> el salto esta entre 15 y 16
+
+  Por 14, BP 13, a los 26:
+     Def 2  AJUSTADO     Def 4  AJUSTADO     Def 6  HOLGADO
+     -> el salto esta entre 4 y 6
+
+  Por 14, Def 2, BP 13, SIN habilidades de campo: AJUSTADO, igual que con
+  ellas. Las habilidades de campo del portero no pintan nada aqui.
+
+  Y de antes, en el banco:
+     Por 15, BP 0:  Def 5 AJUSTADO,  Def 6 HOLGADO,  Def 7 HOLGADO
+     Por 12, Def 8, BP 0:  AJUSTADO
+     Por 16, Def 0, BP 0:  AJUSTADO
+     Por  8, Def 0:  BP 11, 12, 13, 14 AJUSTADO;  BP 16 HOLGADO
+
+POR QUE NO SE ARREGLA TODAVIA. Se barrio a lo bruto el espacio de parametros de
+la lectura actual --descuento del balon parado cuando sube de puesto, descuento
+del tercer puesto, si el balon parado puede adelantar a la Defensa, y un liston
+propio para la pareja (portero, balon parado)-- sobre las 64 observaciones:
+
+  combinaciones que las explican: 0
+
+El arnes de esa busqueda esta comprobado: con los parametros del motor de ahora
+reproduce al motor de ahora, fallando exactamente donde el motor falla. Asi que
+el cero es real y no un fallo del arnes.
+
+LO QUE LAS MEDIDAS DESCARTAN, una por una:
+
+  · «El balon parado nunca sube al segundo puesto»: lo rompe Por 8 Def 0 BP 16,
+    que afloja cuando sumando por puestos no llegaria ni de lejos.
+  · «El balon parado solo cuenta de 16 para arriba»: explica las seis primeras
+    pero rompe Por 14 Def 6 BP 13, que afloja con el balon parado en 13.
+  · «Defensa desde 6 afloja sola»: lo rompe Por 12 Def 8, que ajusta.
+  · «Rareza = Portería + Defensa, liston 21»: explica Por15 Def5/Def6,
+    Por12 Def8 y Por16 Def0, pero rompe Por 14 Def 6 BP 13.
+
+Hay dos pares con el MISMO total y distinta respuesta --Por 15 Def 5 (ajusta) y
+Por 14 Def 6 (afloja), los dos suman 20-- asi que el dial del portero no puede
+ser una suma con un liston. Depende de los valores, no solo de su total.
+
+LO QUE HARIA FALTA. Una rejilla de verdad en vez de sondas sueltas: Portería en
+12, 13, 14 y 15 cruzado con Defensa de 4 a 8 y balon parado en 0, 13 y 16. Son
+unas 60 consultas y acotaria la forma, no solo los bordes.
+
+MIENTRAS TANTO el motor se queda como esta. Falla en 1 de 64 porteros medidos y
+en 1 de 50 perfiles a ciegas; cualquier cambio probado hasta ahora empeora esa
+cuenta en vez de mejorarla.
