@@ -1,0 +1,453 @@
+# Lo que contesto Hattrick para los perfiles de `ciego.py`, copiado literal.
+# Un bloque por caso: la linea `C<nn>` y debajo las lineas de criterios.
+# Medido el 2026-10-26 sobre el jugador base 488916923.
+
+C01
+Edad = 29
+Portería = brillante
+Defensa = débil
+Balón parado entre insuficiente y formidable
+Lateral <= débil
+Anotación <= débil
+Jugadas <= débil
+
+C02
+Edad = 24
+Jugadas = clase mundial
+Lateral entre excelente y destacado
+Pases entre débil y aceptable
+Defensa entre débil y aceptable
+Anotación <= débil
+Portería <= débil
+
+C03
+Edad >= 29 y Edad <= 31
+Jugadas = titánico
+Pases entre destacado y magnífico
+Anotación >= brillante
+Defensa entre aceptable y brillante
+Lateral <= insuficiente
+Portería <= insuficiente
+
+C04
+Edad = 28
+Lateral = clase mundial
+Jugadas = aceptable
+Pases entre insuficiente y bueno
+Defensa <= débil
+Anotación <= débil
+Portería <= débil
+
+C05
+Edad >= 21 y Edad <= 23
+Jugadas = mítico
+Lateral entre titánico y mítico
+Defensa >= titánico
+Pases <= insuficiente
+Anotación <= extraterrestre
+Portería <= insuficiente
+
+C06
+Edad = 18
+Defensa = titánico
+Jugadas entre destacado y magnífico
+Pases entre excelente y destacado
+Lateral <= débil
+Anotación <= débil
+Portería <= débil
+
+C07
+Edad = 26
+Anotación = brillante
+Pases <= horrible
+Jugadas <= débil
+Lateral <= débil
+Defensa <= débil
+Portería <= débil
+
+C08
+Edad >= 31 y Edad <= 33
+Anotación = mágico
+Jugadas entre brillante y clase mundial
+Lateral entre débil y bueno
+Pases <= insuficiente
+Defensa <= insuficiente
+Portería <= insuficiente
+
+C09
+Edad = 26
+Portería = sobrenatural
+Defensa = horrible
+Balón parado entre brillante y titánico
+Lateral <= débil
+Anotación <= débil
+Jugadas <= débil
+
+C10
+Edad >= 22 y Edad <= 24
+Anotación = mítico
+Pases entre brillante y clase mundial
+Lateral <= insuficiente
+Jugadas <= insuficiente
+Defensa <= insuficiente
+Portería <= insuficiente
+
+C11
+Edad >= 32 y Edad <= 34
+Lateral = clase mundial
+Pases entre brillante y clase mundial
+Anotación >= brillante
+Jugadas <= insuficiente
+Defensa <= insuficiente
+Portería <= insuficiente
+
+C12
+Edad = 20
+Lateral = destacado
+Jugadas = aceptable
+Defensa entre insuficiente y bueno
+Pases <= débil
+Anotación <= débil
+Portería <= débil
+
+C13
+Edad >= 28 y Edad <= 30
+Defensa = clase mundial
+Jugadas entre brillante y clase mundial
+Lateral entre excelente y brillante
+Pases entre insuficiente y excelente
+Anotación <= insuficiente
+Portería <= insuficiente
+
+C14
+Edad = 30
+Defensa = magnífico
+Lateral = insuficiente
+Pases <= débil
+Jugadas <= débil
+Anotación <= aceptable
+Portería <= débil
+
+C15
+Edad >= 21 y Edad <= 23
+Anotación = sobrenatural
+Lateral entre destacado y magnífico
+Jugadas entre formidable y magnífico
+Pases <= insuficiente
+Defensa <= bueno
+Portería <= insuficiente
+
+C16
+Edad = 31
+Anotación = magnífico
+Lateral = aceptable
+Pases entre débil y aceptable
+Jugadas <= débil
+Defensa <= débil
+Portería <= débil
+
+C17
+Edad = 31
+Defensa = titánico
+Pases entre excelente y destacado
+Jugadas entre débil y aceptable
+Lateral entre débil y aceptable
+Anotación <= débil
+Portería <= débil
+
+C18
+Edad = 22
+Defensa = brillante
+Pases = aceptable
+Jugadas entre débil y aceptable
+Lateral entre débil y aceptable
+Anotación <= aceptable
+Portería <= débil
+
+C19
+Edad = 21
+Defensa = clase mundial
+Lateral = excelente
+Jugadas entre insuficiente y bueno
+Pases <= débil
+Anotación <= débil
+Portería <= débil
+
+C20
+Edad >= 21 y Edad <= 23
+Anotación = extraterrestre
+Pases entre sobrenatural y extraterrestre
+Jugadas >= magnífico
+Lateral entre excelente y clase mundial
+Defensa <= insuficiente
+Portería <= insuficiente
+
+C21
+Edad = 18
+Defensa = sobrenatural
+Jugadas entre magnífico y sobrenatural
+Lateral >= magnífico
+Pases entre insuficiente y bueno
+Anotación <= débil
+Portería <= débil
+
+C22
+Edad = 25
+Defensa = clase mundial
+Jugadas entre bueno y formidable
+Pases entre insuficiente y bueno
+Lateral entre aceptable y excelente
+Anotación <= bueno
+Portería <= débil
+
+C23
+Edad >= 31 y Edad <= 33
+Anotación = brillante
+Pases = excelente
+Lateral entre insuficiente y bueno
+Jugadas <= débil
+Defensa <= débil
+Portería <= débil
+
+C24
+Edad = 20
+Defensa = formidable
+Pases = insuficiente
+Lateral <= débil
+Jugadas <= débil
+Anotación <= débil
+Portería <= débil
+
+C25
+Edad >= 31 y Edad <= 33
+Jugadas = titánico
+Anotación = formidable
+Pases entre débil y aceptable
+Lateral <= débil
+Defensa <= débil
+Portería <= débil
+
+C26
+Edad = 21
+Portería = mítico
+Defensa entre sobrenatural y extraterrestre
+Balón parado entre débil y excelente
+Lateral <= débil
+Anotación <= débil
+Jugadas <= aceptable
+
+C27
+Edad = 29
+Jugadas = excelente
+Pases = aceptable
+Defensa <= débil
+Lateral <= débil
+Anotación <= débil
+Portería <= débil
+
+C28
+Edad >= 31 y Edad <= 33
+Anotación = magnífico
+Pases = bueno
+Jugadas entre insuficiente y bueno
+Lateral entre débil y aceptable
+Defensa <= débil
+Portería <= débil
+
+C29
+Edad = 23
+Jugadas = formidable
+Pases = insuficiente
+Defensa entre débil y aceptable
+Lateral <= débil
+Anotación <= débil
+Portería <= débil
+
+C30
+Edad >= 24 y Edad <= 26
+Lateral = mágico
+Pases entre extraterrestre y mágico
+Anotación >= extraterrestre
+Jugadas <= insuficiente
+Defensa <= titánico
+Portería <= insuficiente
+
+C31
+Edad = 26
+Anotación = brillante
+Pases = insuficiente
+Lateral <= débil
+Jugadas <= débil
+Defensa <= bueno
+Portería <= débil
+
+C32
+Edad = 18
+Defensa = destacado
+Jugadas = formidable
+Pases entre débil y aceptable
+Lateral <= débil
+Anotación <= débil
+Portería <= débil
+
+C33
+Edad >= 24 y Edad <= 26
+Defensa = mágico
+Jugadas entre magnífico y sobrenatural
+Lateral entre insuficiente y excelente
+Pases <= insuficiente
+Anotación <= insuficiente
+Portería <= insuficiente
+
+C34
+Edad >= 31 y Edad <= 33
+Lateral = sobrenatural
+Pases entre destacado y magnífico
+Jugadas entre formidable y magnífico
+Anotación entre excelente y clase mundial
+Defensa <= insuficiente
+Portería <= insuficiente
+
+C35
+Edad = 18
+Defensa = sobrenatural
+Pases entre magnífico y sobrenatural
+Lateral entre aceptable y excelente
+Jugadas entre insuficiente y bueno
+Anotación <= débil
+Portería <= débil
+
+C36
+Edad >= 31 y Edad <= 33
+Lateral = clase mundial
+Jugadas = insuficiente
+Defensa entre insuficiente y bueno
+Pases <= débil
+Anotación <= débil
+Portería <= débil
+
+C37
+Edad = 28
+Lateral = titánico
+Defensa entre formidable y brillante
+Anotación entre débil y aceptable
+Jugadas <= débil
+Pases <= débil
+Portería <= débil
+
+C38
+Edad >= 22 y Edad <= 24
+Anotación = clase mundial
+Lateral entre destacado y magnífico
+Pases entre bueno y destacado
+Jugadas entre aceptable y brillante
+Defensa <= insuficiente
+Portería <= insuficiente
+
+C39
+Edad = 21
+Anotación = destacado
+Pases = pobre
+Jugadas <= débil
+Lateral <= débil
+Defensa <= débil
+Portería <= débil
+
+C40
+Edad = 18
+Portería = brillante
+Defensa = insuficiente
+Balón parado <= débil
+Lateral <= débil
+Anotación <= débil
+Jugadas <= débil
+
+C41
+Edad >= 32 y Edad <= 34
+Portería = sobrenatural
+Defensa entre bueno y formidable
+Balón parado entre formidable y titánico
+Lateral <= insuficiente
+Anotación <= bueno
+Jugadas <= excelente
+
+C42
+Edad >= 24 y Edad <= 26
+Defensa = magnífico
+Pases entre excelente y destacado
+Jugadas entre excelente y brillante
+Lateral entre aceptable y brillante
+Anotación <= insuficiente
+Portería <= insuficiente
+
+C43
+Edad = 20
+Jugadas = extraterrestre
+Defensa entre brillante y clase mundial
+Pases entre excelente y destacado
+Lateral <= aceptable
+Anotación <= débil
+Portería <= débil
+
+C44
+Edad >= 27 y Edad <= 29
+Portería = mítico
+Defensa = aceptable
+Balón parado entre formidable y titánico
+Lateral <= insuficiente
+Anotación <= insuficiente
+Jugadas <= excelente
+
+C45
+Edad = 25
+Defensa = magnífico
+Jugadas = excelente
+Pases entre insuficiente y bueno
+Lateral <= débil
+Anotación <= débil
+Portería <= débil
+
+C46
+Edad = 18
+Defensa = mítico
+Pases entre destacado y magnífico
+Lateral entre débil y aceptable
+Jugadas <= débil
+Anotación <= débil
+Portería <= débil
+
+C47
+Edad >= 30 y Edad <= 32
+Lateral = mítico
+Anotación entre formidable y brillante
+Pases entre insuficiente y excelente
+Jugadas <= insuficiente
+Defensa <= insuficiente
+Portería <= insuficiente
+
+C48
+Edad = 31
+Lateral = brillante
+Pases entre formidable y brillante
+Anotación entre bueno y formidable
+Jugadas <= débil
+Defensa <= bueno
+Portería <= débil
+
+C49
+Edad = 20
+Lateral = excelente
+Jugadas = aceptable
+Anotación entre insuficiente y bueno
+Pases <= débil
+Defensa <= débil
+Portería <= débil
+
+C50
+Edad >= 32 y Edad <= 34
+Anotación = brillante
+Jugadas entre bueno y formidable
+Pases entre insuficiente y bueno
+Lateral entre débil y aceptable
+Defensa <= débil
+Portería <= débil
