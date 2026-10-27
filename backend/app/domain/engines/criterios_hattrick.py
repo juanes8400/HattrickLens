@@ -620,6 +620,26 @@ CUARTA_QUE_BAJA_EL_LISTON = 6
 #: fijos, (Jug 6, Lat 6) sale ajustado y (Jug 6, Lat 7) holgado, y entre los
 #: dos solo hay un punto de rareza.
 REBAJA_POR_CUARTO_CRITERIO = 2
+#: Y HASTA LOS 24 ESA MISMA REBAJA VALE UNO MAS. Medido el 2026-10-26 con un
+#: mediocentro de Jugadas 11, Lateral 10, Pases 7 y Defensa 6 --cuarto criterio
+#: SIN empate arriba, rareza 22 contra un liston base de 25--: a los 23 y a los
+#: 24 AFLOJA, y a los 25 AJUSTA. Con la rebaja en 2 el liston seria 23 y los
+#: tres saldrian ajustados.
+#:
+#: Tiene sentido: a los 24 todavia no ha habido temporadas para cuatro
+#: habilidades de verdad, asi que un jugador que ya las tiene encaja en menos
+#: moldes que el mismo jugador con 25.
+#:
+#: NO ES UNA REBAJA POR SER JOVEN A SECAS. El extremo de Lateral 11, Anotacion
+#: 11 y Defensa 7 --empate arriba pero SIN cuarto criterio-- sale ajustado a
+#: los 24 igual que a los 25. Lo que cambia con la edad es el precio del cuarto
+#: criterio, no el liston entero.
+REBAJA_POR_CUARTO_CRITERIO_JOVEN = 3
+#: Y a partir de aqui el cuarto criterio vuelve a valer 2. Es la SEGUNDA
+#: frontera de edad del dial, encima del tope duro de `EDAD_QUE_APRIETA_TODO`:
+#: 21 y por debajo aprieta a la fuerza, de 22 a 24 el cuarto criterio pesa mas,
+#: y de 25 en adelante manda la rareza con el precio normal.
+EDAD_QUE_ABARATA_EL_CUARTO = 25
 
 #: Balón parado del portero: banda ancha hasta 15, y de 16 en adelante un suelo
 #: fijo que no depende del nivel. La anchura sigue al dial, como todo lo demás:
@@ -908,6 +928,12 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
     Y las dos primeras empatadas bajan el listón a 25: un extremo con Lateral y
     Anotación a 12 y Pases 7 --rareza 25-- afloja, mientras que el mismo extremo
     con la segunda por debajo aguantaba hasta 27.
+
+    La edad entra dos veces, y por sitios distintos: `EDAD_QUE_APRIETA_TODO`
+    aprieta la búsqueda entera a los 21 y por debajo, pase lo que pase con la
+    rareza, y `EDAD_QUE_ABARATA_EL_CUARTO` abarata el cuarto criterio de los 25
+    en adelante. Entre las dos queda la franja de 22 a 24, donde un cuarto
+    criterio de identidad baja el listón tres puntos en vez de dos.
     """
     if edad is not None and edad <= EDAD_QUE_APRIETA_TODO:
         return False
@@ -938,9 +964,16 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
     # rebaja del empate es una RESTA y no un tope en 26 --«Lat11 Ano11 Pas8
     # Jug5», rareza 24, afloja-- no tiene cuarto criterio, asi que le toca la
     # del empate sola: 25-1 = 24.
+    #
+    # Los dos apuntes de arriba se volvieron a medir el 2026-10-26 y siguen
+    # ajustados: no se acumulan, y punto. Lo que SI cambio es el precio del
+    # cuarto criterio por debajo de los 25, que es lo que explicaba que el
+    # segundo de ellos ajuste a los 25 y afloje a los 24 con las mismas
+    # habilidades.
     rebaja = 0
     if len(v) > 3 and v[3] >= CUARTA_QUE_BAJA_EL_LISTON:
-        rebaja = REBAJA_POR_CUARTO_CRITERIO
+        joven = edad is not None and edad < EDAD_QUE_ABARATA_EL_CUARTO
+        rebaja = REBAJA_POR_CUARTO_CRITERIO_JOVEN if joven else REBAJA_POR_CUARTO_CRITERIO
     if len(v) > 1 and v[0] == v[1]:
         rebaja = max(rebaja, REBAJA_POR_EMPATE_ARRIBA)
     umbral -= rebaja
