@@ -67,12 +67,17 @@ def _venta(ident: int, *, semanas: float = 0, exacta: bool = True) -> Guardado:
     """Una venta del fondo.
 
     `exacta=False` la baja un nivel en la SEGUNDA, o sea a un 90%. Hace falta
-    desde el 2026-10-07: un comparable que no caduca --el exacto y el que avala
-    Hattrick-- no sirve para probar la caducidad.
+    desde el 2026-10-07: un comparable que no caduca --el clavado-- no sirve
+    para probar la caducidad.
 
     Era la primaria hasta el 2026-10-10. Dejo de valer cuando se cayo el
     escalon de 85: con la primera desviada un nivel ya no hay comparable, ni
     suyo ni nuestro.
+
+    Y LLEVA LAS SIETE HABILIDADES, como las lleva una venta de verdad desde el
+    2026-10-10. Sin ellas no se le puede preguntar por el sello, y desde que la
+    escalera nuestra se fue (2026-10-27) una venta que no este clavada se
+    quedaria sin peso ninguno.
     """
     skills = dict(SKILLS)
     if not exacta:
@@ -90,6 +95,7 @@ def _venta(ident: int, *, semanas: float = 0, exacta: bool = True) -> Guardado:
         primaria=tres[0],
         secundaria=tres[1],
         terciaria=tres[2],
+        habilidades=dict(skills),
     )
 
 
@@ -124,7 +130,7 @@ async def test_con_el_fondo_vivo_el_turno_solo_gasta_el_escalon_exacto() -> None
     assert r.busquedas == 1
     assert len(mercado.pedidas) == 1
     exacta = mercado.pedidas[0]
-    assert exacta.peso == 100, "y es el escalon exacto, no otro"
+    assert exacta.peso == 90, "la ventana es la del sello, y el sello vale 90"
     assert r.estimacion.suficiente is True
     assert r.nuevas == ()
     assert r.por_resolver == ()
@@ -145,7 +151,7 @@ async def test_desde_cero_SE_PIDE_UNA_SOLA_VENTANA() -> None:
     assert r.busquedas == 1
     assert len(r.nuevas) == OBJETIVO
     assert r.agotada is False
-    assert [v.peso for v in mercado.pedidas] == [100]
+    assert [v.peso for v in mercado.pedidas] == [90]
 
 
 async def test_el_escalon_que_cierra_la_cuenta_entra_entero() -> None:
@@ -257,12 +263,17 @@ async def test_todo_lo_que_entra_queda_anotado_para_resolver() -> None:
 async def test_cada_venta_guarda_su_propio_perfil() -> None:
     """Es lo que permite que el fondo sea del equipo: sin su edad y sus
     habilidades, esta venta solo serviria para quien la encontro."""
-    mercado = _Mercado([_fila(1, age_years=30, skills=_hab(scoring=17, passing=13, playmaking=7))])
+    # Un ano menos que el objetivo, que sigue dentro de la ventana de edad que
+    # pide Hattrick. Antes este caso llevaba la primaria desviada a 17, y desde
+    # el 2026-10-27 eso ya no es comparable de nada: Hattrick nunca mueve la
+    # primera habilidad y no queda escalera nuestra que lo recoja.
+    mercado = _Mercado([_fila(1, age_years=30, skills=_hab(scoring=18, passing=12, playmaking=7))])
     r = await _turno(mercado)
     venta = r.nuevas[0]
     assert venta.edad == 30
     assert venta.primaria.habilidad == "scoring"
-    assert venta.primaria.nivel == 17
+    assert venta.primaria.nivel == 18
+    assert venta.secundaria.nivel == 12
 
 
 async def test_tu_propio_jugador_no_entra_en_su_propio_calculo() -> None:

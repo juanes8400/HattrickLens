@@ -75,16 +75,18 @@ const MINIMO_PARA_LA_SERIE = 2;
  *  tira no dice nada que la tabla no diga mejor. */
 const MINIMO_PARA_LA_TIRA = 4;
 
-/** El peso en color: el verde es un parecido de verdad.
+/** El peso en color, y desde el 2026-10-27 sólo hay dos.
  *
- *  Desde el 2026-10-10 el 100 % significa que el propio Hattrick enseñaría esa
- *  venta en su Comparador, así que el verde ya no es una opinión nuestra. El
- *  95 es nuestro exacto: mismas habilidades y misma edad, pero el juego no lo
- *  enseñaría, casi siempre por una cuarta habilidad que nosotros no miramos. */
+ *  El 100 es el clavado --misma edad y las tres habilidades más altas en el
+ *  mismo nivel, «el mismo jugador»-- y va en verde porque no existe nada
+ *  mejor. El 90 es el sello: el propio Hattrick enseñaría esa venta al
+ *  comparar a este jugador, pero no es exactamente el mismo, así que se queda
+ *  en el color del texto.
+ *
+ *  Antes había cuatro peldaños más, de 95 a 75, y el apagado era para ellos.
+ *  Se fueron con la escalera, y con ellos el tercer color. */
 function colorDelPeso(peso: number): string {
-  if (peso >= 100) return "text-[var(--ok)]";
-  if (peso >= 90) return "text-[var(--text)]";
-  return "text-[var(--muted)]";
+  return peso >= 100 ? "text-[var(--ok)]" : "text-[var(--text)]";
 }
 
 /** «+2,0%»: cuánto subió del momento en que la vimos al cierre.

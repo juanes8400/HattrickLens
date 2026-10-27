@@ -11,9 +11,9 @@ podría MENTIR SIN FALLAR:
   · contar la puja de un jugador tuyo, que es justo el precio que se quiere
     estimar.
 
-Y la escalera, que se comprueba escalón por escalón contra lo que dictó el
-usuario el 2026-10-06, porque si alguien la "mejora" el motor sigue devolviendo
-un número y el número es otro.
+Y los dos pesos, que se comprueban contra lo que dictó el usuario el
+2026-10-27 --100 el clavado, 90 el sello, nada más-- porque si alguien añade
+un tercero el motor sigue devolviendo un número y el número es otro.
 """
 
 from dataclasses import replace
@@ -22,13 +22,12 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.domain.engines.mercado_comparable import (
-    ESCALERA,
     OBJETIVO,
     ORDEN_DE_DESEMPATE,
     PESO_DE_HATTRICK,
+    PESO_DEL_CLAVADO,
+    PESO_QUE_NO_CADUCA,
     REINTENTOS_DE_RESOLUCION,
-    TERCIARIA_ABAJO,
-    TERCIARIA_ARRIBA,
     VIDA,
     Guardado,
     Objetivo,
@@ -110,10 +109,19 @@ def _guardado(
     intentos: int = 0,
     especialidad: int = 0,
     edad: int = EDAD,
+    sin_las_siete: bool = False,
     **niveles: int,
 ) -> Guardado:
-    """Una venta del fondo. Por defecto es clavada al objetivo, o sea 100%."""
-    tres = terna(_hab(**niveles) if niveles else SKILLS)
+    """Una venta del fondo. Por defecto es clavada al objetivo, o sea 100%.
+
+    LLEVA LAS SIETE HABILIDADES, como las lleva una venta de verdad desde el
+    2026-10-10. Sin ellas no se puede preguntar por el sello, así que un
+    comparable que no esté clavado no tendría peso ninguno y estas pruebas
+    medirían un fondo que ya no existe. `sin_las_siete` reproduce a propósito
+    las ventas viejas, que son las que se quedan sin poder avalarse.
+    """
+    habilidades = _hab(**niveles) if niveles else SKILLS
+    tres = terna(habilidades)
     assert tres is not None
     return Guardado(
         ht_player_id=ident,
@@ -128,6 +136,7 @@ def _guardado(
         terciaria=tres[2],
         especialidad=especialidad,
         intentos=intentos,
+        habilidades={} if sin_las_siete else dict(habilidades),
     )
 
 
@@ -184,28 +193,44 @@ def test_sin_ninguna_habilidad_no_hay_terna_ni_objetivo() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_la_escalera_es_exactamente_la_que_dicto_el_usuario() -> None:
-    """Los escalones, uno a uno, para que nadie los "mejore" sin hablar con él.
-    La terciaria no está aquí porque va igual en todos.
+def test_SOLO_HAY_DOS_PESOS_y_son_los_que_dicto_el_usuario() -> None:
+    """Dos, y nada entre ellos ni por debajo (2026-10-27).
 
-    CAMBIO EL 2026-10-10, y lo decidió él: el 100 % dejó de ser nuestro y pasó
-    a significar «esto lo enseñaría Hattrick», asi que el primer escalon baja a
-    95. Y se cayo el de 85 --edad clavada, primaria a mas o menos uno--: de
-    5801 pares que entraban SOLO por ahi, el juego no habria ensenado ni uno,
-    porque el nunca mueve la primera habilidad.
+    Sus palabras: «100 = coincidencia exacta Edad + top 3 habilidades» y «90 =
+    aparece en el comparador de Hattrick pero no es exactamente el mismo
+    jugador». Y cuando se le preguntó por los peldaños nuestros que quedaban
+    sueltos: «solo hay esos dos escalones, el resto ya no los quiero».
+
+    ANTES HABIA CUATRO MAS --95, 90, 80 y 75-- que puntuaban lo que hubo que
+    mover, con una ventana propia para la terciaria. Si alguien los devuelve,
+    el motor sigue dando un numero y el numero es otro: de ahi este test, que
+    no comprueba una lista de constantes sino que BARRE los alrededores del
+    objetivo y exige que no salga ningun peso de mas.
     """
-    # Y SIGUE ENTERA DESPUES DEL 2026-10-26, cuando se fue la busqueda ancha.
-    # La escalera dejo de disparar peticiones pero no de PESAR: `peso_de` la
-    # recorre igual para puntuar lo que hay en el fondo --las ventas viejas y
-    # las que entran por criterios sin estar clavadas-- asi que el 95, el 90,
-    # el 80 y el 75 significan lo mismo que antes.
-    leida = [(e.edad_desde, e.edad_hasta, e.primaria, e.secundaria, e.peso) for e in ESCALERA]
-    assert leida == [
-        (0, 0, 0, 0, 95),
-        (0, 0, 0, 1, 90),
-        (1, 1, 1, 1, 80),
-        (-1, -1, 1, 1, 75),
-    ]
+    assert PESO_DEL_CLAVADO == 100
+    assert PESO_DE_HATTRICK == 90
+    # Y el clavado es el unico que no caduca: a un avalado todavia le puede
+    # salir un clavado que lo sustituya.
+    assert PESO_QUE_NO_CADUCA == PESO_DEL_CLAVADO
+
+    objetivo = _objetivo()
+    vistos: set[int] = set()
+    for edad in range(EDAD - 3, EDAD + 4):
+        for primaria in range(17, 20):
+            for secundaria in range(11, 16):
+                for terciaria in range(5, 10):
+                    peso = peso_de(
+                        _candidato(
+                            edad=edad,
+                            scoring=primaria,
+                            passing=secundaria,
+                            playmaking=terciaria,
+                        ),
+                        objetivo,
+                    )
+                    if peso is not None:
+                        vistos.add(peso)
+    assert vistos == {PESO_DEL_CLAVADO, PESO_DE_HATTRICK}
 
 
 def test_LA_UNICA_BUSQUEDA_es_la_de_los_criterios_de_hattrick() -> None:
@@ -228,7 +253,8 @@ def test_LA_UNICA_BUSQUEDA_es_la_de_los_criterios_de_hattrick() -> None:
         )
         for v in plan_de_busqueda(_objetivo())
     ]
-    assert leidas == [(100, 30, 32, 18, 18, 12, 14)]
+    # El peso de la ventana es el del sello, que desde el 2026-10-27 es 90.
+    assert leidas == [(PESO_DE_HATTRICK, 30, 32, 18, 18, 12, 14)]
 
 
 def test_no_se_pide_por_debajo_de_los_diecisiete_anos() -> None:
@@ -261,24 +287,27 @@ def test_sin_las_siete_habilidades_NO_HAY_BUSQUEDA_y_esta_bien() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_cada_escalon_cobra_lo_que_le_toca() -> None:
+def test_cada_peso_cobra_lo_que_le_toca() -> None:
+    """El 100 es ser el mismo jugador; el 90, salir en su comparador."""
     objetivo = _objetivo()
-    assert peso_de(_candidato(), objetivo) == 100
-    # La segunda a mas o menos uno: Hattrick tambien los ensenaria, porque su
-    # criterio para la segunda es una banda. Asi que cobran 100, no 90.
-    assert peso_de(_candidato(scoring=18, passing=14, playmaking=7), objetivo) == 100
-    assert peso_de(_candidato(scoring=18, passing=12, playmaking=7), objetivo) == 100
-    # La PRIMERA a mas o menos uno ya no vale nada (2026-10-10): era el escalon
-    # de 85 y se cayo, porque Hattrick nunca mueve la primera habilidad.
+    # Clavado: misma edad y las tres al mismo nivel.
+    assert peso_de(_candidato(), objetivo) == PESO_DEL_CLAVADO
+    # La segunda a mas o menos uno: Hattrick los ensenaria --su criterio para
+    # la segunda es una banda-- pero NO son el mismo jugador. Noventa.
+    assert peso_de(_candidato(scoring=18, passing=14, playmaking=7), objetivo) == 90
+    assert peso_de(_candidato(scoring=18, passing=12, playmaking=7), objetivo) == 90
+    # La PRIMERA a mas o menos uno no vale nada: Hattrick no la mueve nunca, y
+    # desde el 2026-10-27 ya no hay escalera nuestra que la recoja.
     assert peso_de(_candidato(scoring=17, passing=13, playmaking=7), objetivo) is None
     assert peso_de(_candidato(scoring=19, passing=13, playmaking=7), objetivo) is None
-    # Un ano arriba con las habilidades clavadas cae DENTRO de la ventana de
-    # Hattrick, que es de mas o menos un ano: se lleva el 100 % suyo.
-    assert peso_de(_candidato(edad=32), objetivo) == 100
-    assert peso_de(_candidato(edad=30), objetivo) == 100
+    # Un ano arriba o abajo con las habilidades clavadas cae dentro de su
+    # ventana de edad, asi que lo avala; clavado no esta, porque la edad es
+    # parte del clavado.
+    assert peso_de(_candidato(edad=32), objetivo) == 90
+    assert peso_de(_candidato(edad=30), objetivo) == 90
 
 
-def test_fuera_de_la_escalera_no_hay_peso() -> None:
+def test_lo_que_no_esta_clavado_ni_avalado_no_tiene_peso() -> None:
     objetivo = _objetivo()
     assert peso_de(_candidato(scoring=18, passing=15, playmaking=7), objetivo) is None
     assert peso_de(_candidato(scoring=16, passing=13, playmaking=7), objetivo) is None
@@ -286,55 +315,48 @@ def test_fuera_de_la_escalera_no_hay_peso() -> None:
     assert peso_de(_candidato(edad=29), objetivo) is None
 
 
-def test_la_terciaria_admite_uno_arriba_y_dos_abajo_en_NUESTROS_escalones() -> None:
-    """La ventana de la terciaria es NUESTRA, y manda de 95 para abajo.
+def test_la_terciaria_la_manda_SU_banda_y_ya_no_tenemos_otra() -> None:
+    """La ventana de la terciaria es la de Hattrick, y no hay segunda opinión.
 
-    HASTA EL 2026-10-21 ESTE TEST DECIA OTRA COSA: que la ventana mandaba
-    «ya en el escalón del 100%». Se escribió el 2026-10-06, CUATRO DIAS ANTES
-    de que el usuario decidiera que el 100 lo pone Hattrick (2026-10-10), y
-    nunca se revisó porque el desempate corría delante del sello y tapaba la
+    HASTA EL 2026-10-21 ESTE TEST DECIA OTRA COSA: que mandaba una ventana
+    nuestra de ±1 «ya en el escalón del 100%». Se escribió el 2026-10-06,
+    CUATRO DIAS ANTES de que el usuario decidiera que el 100 lo pone Hattrick,
+    y nunca se revisó porque el desempate corría delante del sello y tapaba la
     contradicción. Al poner el sello primero, salió.
 
-    POR QUE CAMBIA. El objetivo es Anotación 18, Pases 13, Jugadas 7 a los 31.
-    Hattrick le pide «Jugadas entre 6 y 9» --su banda, no la nuestra-- asi que
-    un candidato con Jugadas 9 SI aparece en su Comparador. Afirmar que vale
-    `None` es afirmar que nuestra ventana de ±1 sabe mejor que el juego quién
-    es el mismo jugador, y el 100 es suyo o no lo es.
+    POR QUE LA SUYA. El objetivo es Anotación 18, Pases 13, Jugadas 7 a los 31.
+    Hattrick le pide «Jugadas entre 6 y 9» --su banda-- asi que un candidato
+    con Jugadas 9 SI aparece en su Comparador. Y su banda NO ES FIJA, que es lo
+    que remata el argumento: aquí es 6-9 (-1/+2) y en Labraña, medido en vivo
+    el 2026-10-19, el Lateral es 4-6 (-1/+1). No había un ±1 universal que
+    defender.
 
-    Y SU BANDA NO ES FIJA, que es lo que remata el argumento: aquí es 6-9
-    (-1/+2) y en Labraña, medido en vivo el 2026-10-19, el Lateral es 4-6
-    (-1/+1). No hay un ±1 universal que defender.
-
-    `TERCIARIA_ARRIBA`/`ABAJO` no se quedan sin uso: gobiernan los escalones
-    95 a 75, que son los nuestros y no tienen regla de Hattrick detrás.
+    EL 2026-10-27 se fue también la nuestra: lo que cae fuera de su banda ya no
+    tiene donde aterrizar.
     """
     objetivo = _objetivo()
-    # Dentro de la banda de Hattrick (Jugadas 6-9): los sella él, valen 100.
-    assert peso_de(_candidato(scoring=18, passing=13, playmaking=8), objetivo) == 100
-    assert peso_de(_candidato(scoring=18, passing=13, playmaking=9), objetivo) == 100
-    # Fuera de su banda pero dentro de la nuestra: cae a NUESTRA escalera.
-    assert peso_de(_candidato(scoring=18, passing=13, playmaking=5), objetivo) == 95
-    # Fuera de las dos: ni él ni nosotros.
+    # Dentro de su banda (Jugadas 6-9): lo sella él, 90.
+    assert peso_de(_candidato(scoring=18, passing=13, playmaking=8), objetivo) == 90
+    assert peso_de(_candidato(scoring=18, passing=13, playmaking=9), objetivo) == 90
+    # Fuera de su banda: antes caía a nuestro 95, ahora no cae en ningún sitio.
+    assert peso_de(_candidato(scoring=18, passing=13, playmaking=5), objetivo) is None
     assert peso_de(_candidato(scoring=18, passing=13, playmaking=4), objetivo) is None
 
 
 def test_la_ventana_de_hattrick_se_traga_el_ano_y_la_segunda_pero_no_la_primera() -> None:
-    """Como queda el reparto desde el 2026-10-10.
+    """Donde está el muro, y es el de la primera habilidad.
 
     Hattrick es MAS ANCHO que nosotros en la edad y en la segunda habilidad
     --su ventana de edad es de mas o menos un ano y su segunda es una banda--,
-    asi que un candidato que abra esas dos a la vez se lleva el 100 % suyo en
-    vez de nuestro 80 %.
+    asi que un candidato que abra esas dos a la vez sigue llevandose su sello.
 
-    Y es MAS ESTRECHO en la primera, que el no mueve nunca. Ahi esta el muro:
-    con la primaria desviada un solo nivel ya no hay comparable, ni suyo ni
-    nuestro, porque nuestro escalon de 85 se cayo por inutil.
+    Y es MAS ESTRECHO en la primera, que el no mueve nunca. Con la primaria
+    desviada un solo nivel ya no hay comparable: antes lo recogia nuestro
+    escalon de edad por 75, y ese escalon se fue el 2026-10-27.
     """
     objetivo = _objetivo()
-    assert peso_de(_candidato(edad=32, scoring=18, passing=12, playmaking=7), objetivo) == 100
-    # Pero con la primaria desviada ya no lo avala el: cae a NUESTRO escalon
-    # de edad, que si la admite a mas o menos uno.
-    assert peso_de(_candidato(edad=30, scoring=19, passing=14, playmaking=7), objetivo) == 75
+    assert peso_de(_candidato(edad=32, scoring=18, passing=12, playmaking=7), objetivo) == 90
+    assert peso_de(_candidato(edad=30, scoring=19, passing=14, playmaking=7), objetivo) is None
 
 
 def test_los_mismos_numeros_en_otras_habilidades_son_otro_jugador() -> None:
@@ -417,13 +439,14 @@ def test_nadie_se_cuenta_dos_veces() -> None:
     assert [c.ht_player_id for c, _ in con] == [1]
 
 
-def test_cada_uno_viaja_con_el_peso_del_escalon_que_lo_admite() -> None:
+def test_cada_uno_viaja_con_su_peso() -> None:
+    """El clavado y el avalado entran los dos, pero no valen lo mismo."""
     con, _ = cosecha(
         _objetivo(),
         [_fila(1), _fila(2, skills=_hab(scoring=18, passing=12, playmaking=7))],
         mi_equipo=MI_EQUIPO,
     )
-    assert dict((c.ht_player_id, p) for c, p in con) == {1: 100, 2: 100}
+    assert dict((c.ht_player_id, p) for c, p in con) == {1: 100, 2: 90}
 
 
 # --------------------------------------------------------------------------
@@ -1193,11 +1216,17 @@ LA_ANOTACION_QUE_NO_ES_CRITERIO: dict[str, int] = {
 
 @pytest.mark.parametrize("anotacion", range(11))
 def test_el_sello_va_delante_del_desempate(anotacion: int) -> None:
-    """Si Hattrick lo ensenaria vale 100, aunque su terna sea otra."""
+    """Si Hattrick lo ensenaria entra, aunque su terna sea otra.
+
+    El de Anotacion 9 es el objetivo mismo, asi que a el le toca el 100 del
+    clavado; los otros diez salen en su comparador sin ser el mismo jugador, y
+    eso es exactamente lo que vale 90.
+    """
     objetivo = _objetivo(edad=21, scoring=9, **LA_ANOTACION_QUE_NO_ES_CRITERIO)
     candidato = _candidato(edad=21, scoring=anotacion, **LA_ANOTACION_QUE_NO_ES_CRITERIO)
     assert lo_ensenaria_hattrick(candidato, objetivo) is True
-    assert peso_de(candidato, objetivo) == PESO_DE_HATTRICK
+    esperado = PESO_DEL_CLAVADO if anotacion == 9 else PESO_DE_HATTRICK
+    assert peso_de(candidato, objetivo) == esperado
 
 
 #: Lo que NO debe entrar por la puerta que se acaba de abrir. Cada uno rompe un
@@ -1221,12 +1250,20 @@ def test_sin_sello_el_desempate_sigue_mandando(
     assert peso_de(candidato, objetivo) is None, motivo
 
 
-def test_la_escalera_nuestra_sigue_entera_bajo_el_sello() -> None:
-    """Los peldanos de edad siguen dando 80 y 75 cuando el sello dice que no."""
+def test_cuando_el_sello_dice_que_no_ya_no_queda_nada_debajo() -> None:
+    """La contrapartida del recorte del 2026-10-27, escrita.
+
+    Este mismo defensa con un ano mas o uno menos cobraba 80 y 75 por los
+    peldanos de edad de nuestra escalera. Ahora no cobra nada, y el caso es de
+    los duros a proposito: a los 21 el dial de Hattrick APRIETA y su ventana de
+    edad es «Edad = 21» clavada, no mas o menos uno. Asi que no hay ni sello ni
+    red, y al mismo perfil con un ano de diferencia dejamos de verlo.
+    """
     objetivo = _objetivo(edad=21, scoring=9, **LA_ANOTACION_QUE_NO_ES_CRITERIO)
     niveles = {**LA_ANOTACION_QUE_NO_ES_CRITERIO, "scoring": 9}
-    assert peso_de(_candidato(edad=22, **niveles), objetivo) == 80
-    assert peso_de(_candidato(edad=20, **niveles), objetivo) == 75
+    assert peso_de(_candidato(edad=21, **niveles), objetivo) == PESO_DEL_CLAVADO
+    assert peso_de(_candidato(edad=22, **niveles), objetivo) is None
+    assert peso_de(_candidato(edad=20, **niveles), objetivo) is None
 
 
 # --------------------------------------------------------------------------
