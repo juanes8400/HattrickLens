@@ -34,9 +34,14 @@ import {
 import { useDialogoModal } from "../hooks/useModal";
 import { BotonDeBorrado } from "../components/BotonDeBorrado";
 import { useIsDarkTheme } from "../hooks/useTheme";
-import { TEAM_ID, usePlayerBalance, useSquad } from "../hooks/useTeam";
+import {
+  TEAM_ID,
+  usePlayerBalance,
+  usePreciosComparables,
+  useSquad,
+} from "../hooks/useTeam";
 import { api, errorMessage } from "../services/api";
-import type { PlayerBalanceRow } from "../services/api";
+import type { PlayerBalanceRow, PrecioDeUnJugador } from "../services/api";
 
 import { simularVenta } from "../utils/simulacionDeVenta";
 import { tx } from "../i18n/tx";
@@ -234,6 +239,358 @@ type SectionKey =
   | "detalle"
   | "plantilla";
 
+/** Una chispa: cómo se ha movido el precio, en sesenta píxeles.
+ *
+ *  Decorativa a propósito --`aria-hidden`--: el dato que importa va al lado en
+ *  cifras, y una línea de seis puntos no se lee con lector de pantalla. */
+function Chispa({ valores }: { valores: number[] }) {
+  if (valores.length < 2) return null;
+  const lo = Math.min(...valores);
+  const hi = Math.max(...valores);
+  const ancho = (valores.length - 1) || 1;
+  const puntos = valores
+    .map((v, i) => {
+      const x = (i / ancho) * 60;
+      const y = 18 - ((v - lo) / (hi - lo || 1)) * 14;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  const sube = (valores.at(-1) ?? 0) >= (valores[0] ?? 0);
+  return (
+    <svg viewBox="0 0 60 20" width="60" height="20" aria-hidden="true">
+      <polyline
+        points={puntos}
+        fill="none"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+        stroke={sube ? "var(--positive)" : "var(--danger)"}
+      />
+    </svg>
+  );
+}
+
+/** Una señal corta al lado del número: «pocas», «+3 en puja», «9 sem».
+ *
+ *  SIN PASTILLA, Y ES LO QUE LA HACE SERVIR (2026-10-27). Con fondo y relleno
+ *  cada señal pedía su propio ancho, la celda no cabía y las cuatro se
+ *  apilaban en vertical: veinticinco filas de ochenta píxeles de alto por una
+ *  columna que es un apunte al margen. En texto y en una sola línea dice lo
+ *  mismo y no empuja a nadie. */
+function Senal({ children, tono }: { children: string; tono: "aviso" | "gris" }) {
+  return (
+    <span
+      className={clsx(
+        "text-[11px]",
+        tono === "aviso" ? "text-[var(--warn)]" : "text-[var(--muted)]",
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+/** LO QUE VALDRÍA VENDER HOY, toda la plantilla de un vistazo.
+ *
+ *  2026-10-27, pedido del usuario: «dentro de Transferencias/Mi Plantilla,
+ *  debemos ver una tabla con el Precio y algunos daticos».
+ *
+ *  TRES COSAS DISTINTAS Y AGRUPADAS COMO TALES, porque confundirlas es el
+ *  error que esta tabla tiene que hacer imposible:
+ *
+ *  · **el precio** es lo que ha costado gente parecida, no lo que vale él;
+ *  · **el coste** es lo tuyo: compra o ascenso, sueldos e intentos de venta;
+ *  · **el saldo** es la resta, con la comisión de la casa ya quitada.
+ *
+ *  El precio llega del comparable y el resto de `player_balance`, que ya los
+ *  calculaba para el simulador de abajo: la cuenta no se duplica. Y pulsar
+ *  «simular» rellena ese simulador con este precio, que es lo que une las dos
+ *  mitades de la pantalla.
+ */
+function TablaDeLaPlantilla({
+  jugadores,
+  precios,
+  moneda,
+  cargando,
+  onSimular,
+}: {
+  jugadores: PlayerBalanceRow[];
+  precios: PrecioDeUnJugador[];
+  moneda: string;
+  cargando: boolean;
+  onSimular: (htPlayerId: number, precio: number | null) => void;
+}) {
+  const porJugador = new Map(precios.map((p) => [p.htPlayerId, p]));
+  const filas = jugadores
+    .map((j) => {
+      const precio = porJugador.get(j.htPlayerId) ?? null;
+      const agentPct = j.agentPctIfSoldNow;
+      const simulacion =
+        precio?.media != null && agentPct != null
+          ? simularVenta({
+              precio: precio.media,
+              agentPct,
+              gastos: j.totalCost,
+              resaleBonusShare: j.resaleBonusShare,
+            })
+          : null;
+      return { balance: j, precio, agentPct, simulacion };
+    })
+    // Primero lo que más deja, y al final lo que no se puede calcular: una
+    // fila sin saldo no es «la peor», es que falta un dato.
+    .sort((a, b) => (b.simulacion?.saldo ?? -Infinity) - (a.simulacion?.saldo ?? -Infinity));
+
+  type Fila = (typeof filas)[number];
+
+  const conSaldo = filas.filter((f) => f.simulacion != null);
+  const costeTotal = conSaldo.reduce((t, f) => t + f.balance.totalCost, 0);
+  const netoTotal = conSaldo.reduce((t, f) => t + (f.simulacion?.neto ?? 0), 0);
+  const saldoTotal = netoTotal - costeTotal;
+
+  const columnas: Column<Fila>[] = [
+    {
+      key: "jugador",
+      header: tx("Jugador"),
+      align: "left",
+      value: (f) => f.balance.name,
+      render: (f) => (
+        <span className="whitespace-nowrap">
+          <PlayerLink htPlayerId={f.balance.htPlayerId} name={f.balance.name} />
+          <span className="ml-1 text-xs text-[var(--muted)]">
+            {f.precio ? tx("{{v0}} años", { v0: f.precio.edad }) : ""}
+          </span>
+        </span>
+      ),
+    },
+    {
+      key: "precio",
+      header: tx("Precio comparable"),
+      align: "right",
+      value: (f) => f.precio?.media ?? -1,
+      render: (f) =>
+        f.precio?.media == null ? (
+          <span className="whitespace-nowrap text-xs text-[var(--muted)]">
+            {tx("sin ventas parecidas")}
+          </span>
+        ) : (
+          <span className="whitespace-nowrap">
+            <span className="tabular-nums">{money(f.precio.media, moneda)}</span>
+            <span className="block text-[10px] text-[var(--muted)]">
+              {tx("mediana")} {money(f.precio.mediana ?? 0, moneda)}
+            </span>
+          </span>
+        ),
+    },
+    {
+      key: "sobre",
+      header: tx("Ventas cerradas"),
+      align: "left",
+      value: (f) => f.precio?.n ?? 0,
+      // UNA SOLA LÍNEA, con separadores y sin pastillas: ver `Senal`.
+      render: (f) => {
+        if (!f.precio || f.precio.n === 0) return null;
+        const p = f.precio;
+        const señales: React.ReactNode[] = [];
+        if (p.clavadas > 0)
+          señales.push(
+            <Senal key="clav" tono="gris">
+              {tx("{{v0}} clavadas", { v0: number(p.clavadas) })}
+            </Senal>,
+          );
+        if (p.faltan > 0)
+          señales.push(
+            <Senal key="pocas" tono="aviso">
+              {tx("pocas")}
+            </Senal>,
+          );
+        if (p.provisionales > 0)
+          señales.push(
+            <Senal key="puja" tono="aviso">
+              {tx("+{{v0}} en puja", { v0: number(p.provisionales) })}
+            </Senal>,
+          );
+        if (p.semanasDelMasViejo >= 7)
+          señales.push(
+            <Senal key="sem" tono="aviso">
+              {tx("{{v0}} sem", { v0: number(p.semanasDelMasViejo) })}
+            </Senal>,
+          );
+        return (
+          <span className="whitespace-nowrap">
+            <span className="tabular-nums text-xs">{number(p.n)}</span>
+            {señales.map((s, i) => (
+              <span key={i}>
+                <span className="px-1 text-[11px] text-[var(--border)]">·</span>
+                {s}
+              </span>
+            ))}
+          </span>
+        );
+      },
+    },
+    {
+      key: "entre",
+      header: tx("Entre qué precios"),
+      align: "right",
+      value: (f) => f.precio?.minimo ?? -1,
+      render: (f) =>
+        f.precio?.minimo == null || f.precio.maximo == null ? null : (
+          <span className="whitespace-nowrap text-xs tabular-nums text-[var(--muted)]">
+            {money(f.precio.minimo, moneda)} – {money(f.precio.maximo, moneda)}
+          </span>
+        ),
+    },
+    {
+      key: "serie",
+      header: tx("Cómo se movió"),
+      align: "left",
+      value: (f) => f.precio?.serie.length ?? 0,
+      render: (f) => (f.precio ? <Chispa valores={f.precio.serie} /> : null),
+    },
+    {
+      key: "coste",
+      header: tx("Lo que llevas puesto"),
+      align: "right",
+      value: (f) => f.balance.totalCost,
+      render: (f) => (
+        <span className="tabular-nums">{money(f.balance.totalCost, moneda)}</span>
+      ),
+    },
+    {
+      key: "neto",
+      header: tx("Entraría en caja"),
+      align: "right",
+      value: (f) => f.simulacion?.neto ?? -1,
+      render: (f) =>
+        f.simulacion == null ? (
+          <span className="text-[var(--muted)]">—</span>
+        ) : (
+          <span className="whitespace-nowrap">
+            <span className="tabular-nums">{money(f.simulacion.neto, moneda)}</span>
+            <span className="block text-[10px] text-[var(--warn)]">
+              {tx("casa")} {decimal((f.agentPct ?? 0) * 100, 2)}%
+            </span>
+          </span>
+        ),
+    },
+    {
+      key: "saldo",
+      header: tx("Saldo"),
+      align: "right",
+      value: (f) => f.simulacion?.saldo ?? -Infinity,
+      render: (f) =>
+        f.simulacion == null ? (
+          <span className="whitespace-nowrap text-xs text-[var(--muted)]">
+            {f.precio?.media == null
+              ? tx("sin precio")
+              : tx("sin fecha de llegada")}
+          </span>
+        ) : (
+          <span className="whitespace-nowrap">
+            <span
+              className={clsx(
+                "tabular-nums",
+                f.simulacion.saldo >= 0
+                  ? "text-[var(--positive)]"
+                  : "text-[var(--danger)]",
+              )}
+            >
+              {money(f.simulacion.saldo, moneda)}
+            </span>
+            <span className="block text-[10px] text-[var(--muted)]">
+              {f.simulacion.roiPct == null
+                ? ""
+                : `${decimal(f.simulacion.roiPct, 1)}%`}
+            </span>
+          </span>
+        ),
+    },
+    // LA ÚLTIMA COLUMNA LLEVA UN DATO, no sólo el botón. Con la cabecera vacía
+    // y un `value` de relleno, el CSV se llevaba una columna sin nombre llena
+    // de ceros. El precio de no perder es justo lo que falta al lado del
+    // precio comparable: lo que habría que pedir para no perder dinero.
+    {
+      key: "equilibrio",
+      header: tx("Precio de no perder"),
+      align: "right",
+      value: (f) => f.simulacion?.precioDeEquilibrio ?? -1,
+      render: (f) => (
+        <span className="flex items-center justify-end gap-2 whitespace-nowrap">
+          {f.simulacion?.precioDeEquilibrio != null && (
+            <span
+              className={clsx(
+                "tabular-nums text-xs",
+                f.precio?.media != null &&
+                  f.precio.media >= f.simulacion.precioDeEquilibrio
+                  ? "text-[var(--positive)]"
+                  : "text-[var(--muted)]",
+              )}
+            >
+              {money(f.simulacion.precioDeEquilibrio, moneda)}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => onSimular(f.balance.htPlayerId, f.precio?.media ?? null)}
+            className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] hover:text-[var(--text)]"
+          >
+            {tx("simular")}
+          </button>
+        </span>
+      ),
+    },
+  ];
+
+  return (
+    <Panel
+      title={tx("Lo que valdría vender hoy")}
+      meta={tx("el precio es lo que ha costado gente parecida, no una tasación")}
+      ayuda={tx(
+        "Por cada jugador de tu plantilla: lo que ha costado gente parecida a él, lo que llevas gastado en él, y lo que dejaría venderlo a ese precio con la comisión de la casa ya quitada. El precio sale del fondo del mercado y no cuesta ninguna consulta a Hattrick.",
+      )}
+    >
+      {cargando ? (
+        <Empty>{tx("Cargando…")}</Empty>
+      ) : (
+        <>
+          <div className="grid gap-3 px-4 py-3 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0">
+            <Kpi
+              label={tx("Lo que llevas puesto")}
+              value={money(costeTotal, moneda)}
+              hint={tx("de {{v0}} jugadores con precio y fecha", {
+                v0: number(conSaldo.length),
+              })}
+            />
+            <Kpi label={tx("Entraría en caja")} value={money(netoTotal, moneda)} />
+            <Kpi
+              label={tx("Saldo")}
+              value={money(saldoTotal, moneda)}
+              tone={saldoTotal >= 0 ? "positive" : "danger"}
+            />
+            <Kpi
+              label={tx("Fuera de la cuenta")}
+              value={number(filas.length - conSaldo.length)}
+              hint={tx("sin ventas parecidas o sin fecha de llegada")}
+            />
+          </div>
+          <div className="px-4 pb-3">
+            <DataTable
+              rows={filas}
+              columns={columnas}
+              rowKey={(f) => f.balance.htPlayerId}
+              initialSort="saldo"
+              csvName="plantilla-precio"
+              emptyMessage={tx(
+                "Sin jugadores comprados o ascendidos en la plantilla de hoy.",
+              )}
+              sinFiltro
+            />
+          </div>
+        </>
+      )}
+    </Panel>
+  );
+}
+
 /** Qué dejaría vender HOY a alguien que sigue en el club.
  *
  *  2026-10-03, pedido por un usuario. El resto de esta pantalla mira hacia
@@ -243,9 +600,13 @@ type SectionKey =
  *  atribuye a ese jugador: lo que costó, los sueldos que se le han pagado y
  *  los intentos de venta.
  *
- *  Lo que NO hace, a propósito: valorar al jugador. El precio lo pone el
- *  usuario. Esta pantalla no sabe lo que vale nadie en el mercado, y fingir
- *  que sí lo sabe sería inventarse la mitad de la respuesta.
+ *  EL PRECIO YA NO SALE DE LA NADA (2026-10-27). Decía aquí que «esta pantalla
+ *  no sabe lo que vale nadie en el mercado, y fingir que sí lo sabe sería
+ *  inventarse la mitad de la respuesta», y era verdad mientras no hubiera de
+ *  dónde sacarlo. Ahora la tabla de arriba trae lo que ha costado gente
+ *  parecida y el botón «simular» rellena este precio con eso. Sigue sin ser
+ *  una tasación del jugador --es lo que pagaron por OTROS-- y se puede
+ *  cambiar a mano, que es lo que lo mantiene honesto.
  */
 function SimulacionDePlantilla({
   jugadores,
@@ -971,6 +1332,10 @@ export function PlayerBalancePage() {
   const squad = useSquad(undefined, undefined, {
     enabled: section === "plantilla",
   });
+  // Lo que ha costado gente parecida a cada uno. En plural y por la misma
+  // razón que la plantilla: sólo lo mira esta pestaña. No gasta cuota de
+  // Hattrick --sale del fondo del mercado-- pero sí una consulta a la base.
+  const precios = usePreciosComparables({ enabled: section === "plantilla" });
 
   // Los de «Plantilla actual»: etapa abierta Y presentes hoy en el roster.
   // Las dos condiciones hacen falta. Sólo con la etapa abierta se colaban
@@ -1654,6 +2019,19 @@ export function PlayerBalancePage() {
       )}
 
       <PanelDePestanas grupo="balance" activa={section} className="space-y-4">
+        {section === "plantilla" && (
+          <TablaDeLaPlantilla
+            jugadores={jugadoresDeHoy}
+            precios={precios.data?.jugadores ?? []}
+            moneda={data.currency}
+            cargando={precios.isLoading}
+            onSimular={(htPlayerId, precio) => {
+              setJugadorSimulado(htPlayerId);
+              setPrecioSimulado(precio == null ? "" : String(precio));
+            }}
+          />
+        )}
+
         {section === "plantilla" && (
           <SimulacionDePlantilla
             jugadores={jugadoresDeHoy}

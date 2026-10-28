@@ -29,8 +29,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.commands.mercado_comparable import a_guardado
+from app.domain.engines.criterios_hattrick import criterios_de, liston_de, rareza
 from app.domain.engines.mercado_comparable import (
     OBJETIVO,
+    PESO_DEL_CLAVADO,
     VIDA,
     Guardado,
     Objetivo,
@@ -114,6 +116,25 @@ class FilaDeComparable:
 
 
 @dataclass(frozen=True, slots=True)
+class CriterioVisible:
+    """Un filtro de los que usaría el propio Hattrick, SIN formatear.
+
+    Igual que `RasgoVisible`, la habilidad va con su clave interna: quien lo
+    pinte tiene el glosario oficial y sabe cómo se llama «set_pieces» en el
+    idioma de quien mira.
+
+    `operador` dice cómo leer los dos números: `=` es un nivel clavado y
+    `minimo` y `maximo` valen lo mismo; `banda` es un rango de verdad; `<=` es
+    un techo y `minimo` es cero. Son los tres que usa el juego.
+    """
+
+    habilidad: str
+    operador: str
+    minimo: int
+    maximo: int
+
+
+@dataclass(frozen=True, slots=True)
 class PuntoDeLaSerie:
     """Una lectura pasada, para dibujar como fue cambiando.
 
@@ -152,6 +173,21 @@ class PrecioComparable:
     semanas_del_mas_viejo: int
     #: El perfil con el que se buscó, para que se vea contra qué se compara.
     perfil: tuple[RasgoVisible, RasgoVisible, RasgoVisible]
+    #: LOS FILTROS DEL PROPIO HATTRICK, que es lo único que la pantalla no
+    #: podía decir y nadie más puede (2026-10-27). Hasta hoy enseñaba las
+    #: ventas y el número, pero no POR QUÉ esas ventas y no otras; y el por qué
+    #: está medido, no supuesto: 612 comprobaciones y un 98 % fuera de muestra.
+    criterios: tuple[CriterioVisible, ...]
+    edad_minima: int
+    edad_maxima: int
+    #: El dial, con los dos números que lo deciden, para que «la búsqueda salió
+    #: ancha» no sea una afirmación sin cuentas: `rareza` contra `liston`.
+    dial_holgado: bool
+    rareza: int
+    liston: int
+    #: El tope de días que Hattrick añade a los 17 años, o `None`. No sale en
+    #: la cadena de criterios del juego pero sí filtra, así que se enseña.
+    tope_de_dias: int | None
     #: Cómo se llama el dinero que se está enseñando. Todas las cifras de
     #: aquí ya vienen divididas por la tasa del país.
     moneda: str
@@ -203,6 +239,10 @@ async def precio_de(
     # Cataldi, 65.000.000 de puja y 77.720.000 de cierre--. Mezclarlas en el
     # rango lo bajaría sin decirlo.
     precios = [c.venta.precio for c in elegidos if c.cuenta]
+    # Los filtros del juego para ESTE jugador. Es una función pura del dominio,
+    # sin consultas ni cuota: la misma que decide si una venta lleva el sello.
+    niveles = dict(objetivo.habilidades)
+    criterios = criterios_de(objetivo.edad, niveles)
 
     return PrecioComparable(
         media=convertido(estimacion.media) if estimacion.media is not None else None,
@@ -221,6 +261,21 @@ async def precio_de(
             (_semanas(c.venta.visto_el, momento) for c in elegidos), default=0
         ),
         perfil=_perfil(objetivo),
+        criterios=tuple(
+            CriterioVisible(
+                habilidad=c.habilidad,
+                operador=c.operador,
+                minimo=c.minimo,
+                maximo=c.maximo,
+            )
+            for c in criterios.habilidades
+        ),
+        edad_minima=criterios.edad_minima,
+        edad_maxima=criterios.edad_maxima,
+        dial_holgado=criterios.holgado,
+        rareza=rareza(niveles),
+        liston=liston_de(niveles),
+        tope_de_dias=criterios.tope_de_dias,
         moneda=moneda,
         serie=await _serie(session, team_id, ht_player_id, convertido),
         # La fila de referencia: el propio jugador, con la misma forma que una
@@ -270,6 +325,193 @@ async def precio_de(
             for c in elegidos
         ),
     )
+
+
+@dataclass(frozen=True, slots=True)
+class PrecioDeUnJugador:
+    """El precio comparable de UN jugador, para la tabla de la plantilla.
+
+    Es el resumen de `PrecioComparable`, sin la lista de ventas ni los
+    criterios: la tabla enseña una fila por jugador y el detalle está a un clic
+    en su ficha. Lo que sí lleva es de qué está hecho el número, porque una
+    cifra sin eso al lado invita a creérsela.
+    """
+
+    ht_player_id: int
+    nombre: str
+    edad: int
+    tsi: int
+    especialidad: str
+    perfil: tuple[RasgoVisible, RasgoVisible, RasgoVisible]
+    #: `None` cuando no hay ni una venta cerrada parecida. NUNCA cero: cero
+    #: sería decir que no vale nada, y lo que pasa es que no se sabe.
+    media: int | None
+    mediana: int | None
+    minimo: int | None
+    maximo: int | None
+    n: int
+    faltan: int
+    #: Cuántas de las que cuentan son clavadas, o sea el mismo jugador. El
+    #: resto son avaladas: sólo hay dos pesos desde el 2026-10-27.
+    clavadas: int
+    avaladas: int
+    #: Subastas abiertas que se enseñan pero NO promedian.
+    provisionales: int
+    semanas_del_mas_viejo: int
+    #: Las medias de las lecturas pasadas del tramo vigente, de la más vieja a
+    #: la más nueva, para dibujar una chispa. Vacía mientras no haya historia.
+    serie: tuple[int, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class PreciosDeLaPlantilla:
+    """Lo que ha costado gente parecida a cada uno de los tuyos."""
+
+    moneda: str
+    jugadores: tuple[PrecioDeUnJugador, ...]
+
+
+async def precios_de_la_plantilla(
+    session: AsyncSession,
+    team_id: int,
+    ahora: datetime | None = None,
+) -> PreciosDeLaPlantilla:
+    """El precio comparable de TODA la plantilla, de una sentada.
+
+    POR QUÉ EN PLURAL Y NO LLAMANDO VEINTICINCO VECES A `precio_de`
+    (2026-10-27, pedido del usuario: «dentro de Transferencias/Mi Plantilla,
+    debemos ver una tabla con el Precio y algunos daticos»). El fondo del
+    mercado es del EQUIPO, no de cada jugador: se lee una vez y se mide contra
+    todos. Pedirlo jugador a jugador leería las mismas ventas veinticinco
+    veces, y además dejaría la puerta abierta a que la tabla y la ficha
+    enseñaran dos números distintos del mismo jugador.
+
+    No gasta ni una consulta a Hattrick, igual que la ficha: todo sale del
+    fondo que dejó el paso del mercado.
+    """
+    momento = ahora or datetime.now(UTC)
+    equipo = await session.get(m.Team, team_id)
+    tasa = (equipo.currency_rate or 1.0) if equipo else 1.0
+    moneda = (equipo.currency_name if equipo else "") or ""
+
+    def convertido(v: int) -> int:
+        return int(round(v / tasa)) if tasa else int(v)
+
+    guardadas = [
+        a_guardado(f)
+        for f in (
+            await session.execute(select(m.MarketSale).where(m.MarketSale.team_id == team_id))
+        ).scalars()
+    ]
+    series = await _series_de_la_plantilla(session, team_id, convertido)
+
+    filas: list[PrecioDeUnJugador] = []
+    for jugador, foto in await _plantilla_con_foto(session, team_id):
+        objetivo = objetivo_de(
+            jugador.ht_player_id,
+            foto.age_years or 0,
+            {h: getattr(foto, h, 0) or 0 for h in HABILIDADES},
+            especialidad=foto.specialty or 0,
+        )
+        if objetivo is None:
+            continue
+        elegidos = comparables_de(guardadas, objetivo, momento)
+        estimacion = estimar(elegidos)
+        precios = [c.venta.precio for c in elegidos if c.cuenta]
+        cuentan = [c for c in elegidos if c.cuenta]
+        clavadas = sum(1 for c in cuentan if c.peso >= PESO_DEL_CLAVADO)
+        filas.append(
+            PrecioDeUnJugador(
+                ht_player_id=jugador.ht_player_id,
+                nombre=f"{jugador.first_name} {jugador.last_name}".strip(),
+                edad=foto.age_years or 0,
+                tsi=foto.tsi or 0,
+                especialidad=SPECIALTIES.get(foto.specialty or 0, ""),
+                perfil=_perfil(objetivo),
+                media=convertido(estimacion.media) if estimacion.media is not None else None,
+                mediana=(
+                    convertido(estimacion.mediana) if estimacion.mediana is not None else None
+                ),
+                minimo=convertido(min(precios)) if precios else None,
+                maximo=convertido(max(precios)) if precios else None,
+                n=estimacion.n,
+                faltan=max(0, OBJETIVO - estimacion.n),
+                clavadas=clavadas,
+                avaladas=len(cuentan) - clavadas,
+                provisionales=estimacion.provisionales,
+                semanas_del_mas_viejo=max(
+                    (_semanas(c.venta.visto_el, momento) for c in elegidos), default=0
+                ),
+                serie=series.get(jugador.ht_player_id, ()),
+            )
+        )
+    return PreciosDeLaPlantilla(moneda=moneda, jugadores=tuple(filas))
+
+
+async def _plantilla_con_foto(
+    session: AsyncSession, team_id: int
+) -> list[tuple[m.Player, m.PlayerSnapshot]]:
+    """Cada jugador del equipo con su foto más reciente.
+
+    Los que no tienen ni una foto se quedan fuera: sin habilidades no hay
+    terna, y sin terna no hay a quién parecerse.
+    """
+    jugadores = (
+        (await session.execute(select(m.Player).where(m.Player.team_id == team_id))).scalars().all()
+    )
+    pares: list[tuple[m.Player, m.PlayerSnapshot]] = []
+    for jugador in jugadores:
+        foto = (
+            await session.execute(
+                select(m.PlayerSnapshot)
+                .where(m.PlayerSnapshot.player_id == jugador.id)
+                .order_by(m.PlayerSnapshot.captured_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if foto is not None:
+            pares.append((jugador, foto))
+    return pares
+
+
+async def _series_de_la_plantilla(
+    session: AsyncSession, team_id: int, convertido: Callable[[int], int]
+) -> dict[int, tuple[int, ...]]:
+    """Las medias pasadas de cada jugador, en una sola consulta.
+
+    Mismo corte por tramo vigente que `_serie` --cuando a un jugador le
+    cambian los criterios su historia vuelve a empezar-- pero para todos a la
+    vez: la tabla sólo necesita la línea, no cada nube.
+    """
+    filas = (
+        (
+            await session.execute(
+                select(m.MarketEstimate)
+                .where(m.MarketEstimate.team_id == team_id)
+                .order_by(m.MarketEstimate.ht_player_id, m.MarketEstimate.captured_at)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    por_jugador: dict[int, list[m.MarketEstimate]] = {}
+    for fila in filas:
+        por_jugador.setdefault(fila.ht_player_id, []).append(fila)
+
+    series: dict[int, tuple[int, ...]] = {}
+    for ht_player_id, lecturas in por_jugador.items():
+        vigente = lecturas[-1].criteria_key
+        corte = len(lecturas)
+        while corte > 0 and lecturas[corte - 1].criteria_key == vigente:
+            corte -= 1
+        medias = [
+            convertido(lectura.mean_price)
+            for lectura in lecturas[corte:]
+            if lectura.mean_price is not None
+        ]
+        if medias:
+            series[ht_player_id] = tuple(medias)
+    return series
 
 
 async def _objetivo_del_jugador(

@@ -938,6 +938,36 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
     if edad is not None and edad <= EDAD_QUE_APRIETA_TODO:
         return False
     tipo = tipo or _tipo(niveles)
+    orden = _puestos(niveles, tipo)
+    # EL 17 QUE AFLOJA SOLO ES EL DE LA PRIMERA, no el nivel más alto que
+    # tenga el jugador. Medido el 2026-10-12 con Lateral 6, Defensa 6 y Pases
+    # 20, y otra vez con Lateral 5, Defensa 5 y Pases 18, y una tercera con
+    # Lateral 6 y Pases 17: los tres salen AJUSTADOS, con la edad clavada y los
+    # techos en 4, pese a llevar un 17 o más. La rareza ya los explica sin esta
+    # excepción --26, 23 y 23, por debajo del 27 de la pareja-- mientras que su
+    # gemelo de Lateral 7, Defensa 7 y Pases 20 llega a 28 y sí afloja.
+    primera = max(0, niveles.get(orden[0], 0)) if orden else 0
+    return (
+        rareza(niveles, tipo) >= liston_de(niveles, tipo, edad)
+        or primera >= PRIMERA_QUE_AFLOJA_SOLA
+    )
+
+
+def liston_de(niveles: dict[str, int], tipo: str | None = None, edad: int | None = None) -> int:
+    """La rareza que hay que alcanzar para que la búsqueda afloje.
+
+    SALIÓ DE `es_holgado` el 2026-10-27 para poder ENSEÑARLO. La pantalla del
+    comparador dice ahora por qué la búsqueda salió ancha --«rareza 24 contra
+    listón 22»-- y eso necesita el número, no sólo el sí o el no. Calcularlo
+    otra vez en la pantalla sería tener dos definiciones del mismo listón, que
+    es exactamente el error que ya costó una cifra en la comisión del agente.
+
+    Es el umbral del par, menos la rebaja que toque. No mira la edad que aprieta
+    todo --`EDAD_QUE_APRIETA_TODO`-- porque eso no es un listón más bajo o más
+    alto: es que a los 21 y por debajo no se afloja pase lo que pase, y de eso
+    responde `es_holgado`.
+    """
+    tipo = tipo or _tipo(niveles)
     # AQUI TAMBIEN CUENTAN SOLO LAS ELEGIBLES, igual que en `rareza`. Era un
     # agujero: a un mediocentro de Jugadas 14 y Porteria 13 le contaba la
     # Porteria como segunda y lo aflojaba --empate arriba y liston a 25--
@@ -976,16 +1006,7 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
         rebaja = REBAJA_POR_CUARTO_CRITERIO_JOVEN if joven else REBAJA_POR_CUARTO_CRITERIO
     if len(v) > 1 and v[0] == v[1]:
         rebaja = max(rebaja, REBAJA_POR_EMPATE_ARRIBA)
-    umbral -= rebaja
-    # EL 17 QUE AFLOJA SOLO ES EL DE LA PRIMERA, no el nivel más alto que
-    # tenga el jugador. Medido el 2026-10-12 con Lateral 6, Defensa 6 y Pases
-    # 20, y otra vez con Lateral 5, Defensa 5 y Pases 18, y una tercera con
-    # Lateral 6 y Pases 17: los tres salen AJUSTADOS, con la edad clavada y los
-    # techos en 4, pese a llevar un 17 o más. La rareza ya los explica sin esta
-    # excepción --26, 23 y 23, por debajo del 27 de la pareja-- mientras que su
-    # gemelo de Lateral 7, Defensa 7 y Pases 20 llega a 28 y sí afloja.
-    primera = max(0, niveles.get(orden[0], 0)) if orden else 0
-    return rareza(niveles, tipo) >= umbral or primera >= PRIMERA_QUE_AFLOJA_SOLA
+    return umbral - rebaja
 
 
 def _ventana_de_edad(edad: int, holgado: bool, pasador: bool = False) -> tuple[int, int]:

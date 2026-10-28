@@ -11,17 +11,22 @@
  *    hasta que su subasta cierra, y la puja se queda corta: el 2026-10-05
  *    Valerio Cataldi tenía 65.000.000 de puja y cerró en 77.720.000, un 16%
  *    más. Un número hecho de pujas tira a bajo.
- *  · **Cuánto se parecen.** Del 100% al 75%. El 100% no lo decidimos nosotros:
- *    es que el propio Hattrick enseñaría esa venta en su Comparador. El 95%
- *    es nuestro exacto --misma edad y mismas habilidades-- que él no avalaría.
- *    No es lo mismo un número sacado de gemelos que de primos lejanos.
+ *  · **Cuánto se parecen**, y desde el 2026-10-27 sólo hay dos maneras:
+ *    CLAVADO es el mismo jugador --misma edad y las tres habilidades más altas
+ *    en el mismo nivel-- y AVALADO es que el propio Hattrick enseñaría esa
+ *    venta al comparar al tuyo, sin ser el mismo. No hay nada en medio: lo que
+ *    no es una de las dos cosas no entra en la lista.
+ *  · **CON QUÉ FILTROS buscó Hattrick** (2026-10-27). Los siete, con sus
+ *    rangos, y el dial que los ensancha. Es lo único que esta pantalla no
+ *    podía decir --enseñaba las ventas pero no por qué ésas-- y el por qué
+ *    está medido contra su propio Comparador, no supuesto.
  *  · **De cuándo son.** Una venta sigue contando pasadas las siete semanas si
  *    no apareció nada mejor, y entonces habla de un mercado que pudo cambiar.
  *
  *  No pide nada a Hattrick: todo sale del fondo que dejó el paso semanal, así
  *  que abrir y cerrar esto es gratis.
  */
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { Panel } from "./Panels";
 import { Ayuda } from "./Ayuda";
@@ -38,7 +43,13 @@ import { date, money, number } from "../hooks/useFormat";
 import { usePrecioComparable } from "../hooks/useTeam";
 import { tx } from "../i18n/tx";
 import { terminoOficial } from "../i18n/glosario";
-import type { ComparableDeMercado, RasgoVisible } from "../services/api";
+import { skillLevelLabel } from "../utils/skillLevels";
+import type {
+  ComparableDeMercado,
+  CriterioDeHattrick,
+  PrecioComparable,
+  RasgoVisible,
+} from "../services/api";
 
 /** El nombre en español de cada habilidad, que es el respaldo del glosario.
  *  Sólo las seis que cuentan: la resistencia y el balón parado no entran en
@@ -87,6 +98,132 @@ const MINIMO_PARA_LA_TIRA = 4;
  *  Se fueron con la escalera, y con ellos el tercer color. */
 function colorDelPeso(peso: number): string {
   return peso >= 100 ? "text-[var(--ok)]" : "text-[var(--text)]";
+}
+
+/** «clavado» o «avalado», que es lo único que un peso puede ser.
+ *
+ *  LA PALABRA Y NO EL PORCENTAJE (2026-10-27). La columna decía «100%» y
+ *  «90%», y un porcentaje invita a leer una escala continua que ya no existe:
+ *  no hay 95 ni 80, no hay nada en medio, y el número no dice QUÉ pasó. La
+ *  palabra sí. */
+function comoSeParece(peso: number): string {
+  return peso >= 100 ? tx("clavado") : tx("avalado");
+}
+
+/** Un dato suelto con su rótulo, del tamaño de una pastilla.
+ *
+ *  Vive aquí mientras sea el único sitio que lo usa, igual que `DosOpciones`. */
+function Pastilla({
+  children,
+  tono = "normal",
+  ayuda,
+}: {
+  children: ReactNode;
+  tono?: "normal" | "aviso" | "bien";
+  ayuda?: string;
+}) {
+  const color =
+    tono === "aviso"
+      ? "border-[var(--warn)] text-[var(--warn)]"
+      : tono === "bien"
+        ? "border-[var(--ok)] text-[var(--ok)]"
+        : "border-[var(--border)] text-[var(--muted)]";
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs ${color}`}
+    >
+      {children}
+      {ayuda && <Ayuda texto={ayuda} />}
+    </span>
+  );
+}
+
+/** Cómo se lee un criterio: «magnífico», «entre bueno y destacado», «≤ débil».
+ *
+ *  Las palabras salen del glosario OFICIAL, igual que el perfil: quien mira
+ *  lee exactamente lo que le pone Hattrick en su propio buscador. */
+function criterioLegible(c: CriterioDeHattrick): string {
+  if (c.operador === "=") return skillLevelLabel(c.minimo);
+  if (c.operador === "<=") return `≤ ${skillLevelLabel(c.maximo)}`;
+  return `${skillLevelLabel(c.minimo)} – ${skillLevelLabel(c.maximo)}`;
+}
+
+/** CON QUÉ FILTROS BUSCÓ HATTRICK, que es el por qué de la lista de abajo.
+ *
+ *  Los criterios no son una opinión nuestra: salen de sondear su propio
+ *  Comparador de Transferencias --unas 460 consultas a su panel «Editar
+ *  búsqueda»-- y el motor los reproduce con un 98 % de acierto fuera de
+ *  muestra. Por eso se pueden enseñar como lo que pide el juego y no como lo
+ *  que creemos que pide.
+ *
+ *  EL DIAL SE ENSEÑA CON SUS CUENTAS. Decir «la búsqueda salió ancha» sin los
+ *  números es pedir fe; con la rareza y el listón al lado, se comprueba. */
+function CriteriosDeHattrick({ datos }: { datos: PrecioComparable }) {
+  const edad =
+    datos.edadMinima === datos.edadMaxima
+      ? String(datos.edadMinima)
+      : `${datos.edadMinima} – ${datos.edadMaxima}`;
+  return (
+    <section className="mt-4">
+      <div className="mb-2 flex items-center gap-1 text-xs uppercase tracking-wide text-[var(--muted)]">
+        {tx("Con qué filtros buscó Hattrick")}
+        <Ayuda
+          texto={tx(
+            "Los filtros que el propio juego usa en su Comparador de Transferencias para este jugador. No son nuestros: salen de sondear su pantalla y el motor los reproduce con un 98% de acierto fuera de muestra. Una venta sólo entra en la lista si los cumple o si es clavada.",
+          )}
+        />
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <Filtro nombre={tx("Edad")} valor={edad} />
+        {datos.topeDeDias != null && (
+          <Filtro
+            nombre={tx("Días")}
+            valor={`≤ ${datos.topeDeDias}`}
+            ayuda={tx(
+              "A los 17 años Hattrick añade un tope de días, y es una constante: el mismo perfil pedido desde dos fichas con días distintos da el mismo número.",
+            )}
+          />
+        )}
+        {datos.criterios.map((c) => (
+          <Filtro
+            key={c.habilidad}
+            nombre={nombreDeHabilidad(c.habilidad)}
+            valor={criterioLegible(c)}
+          />
+        ))}
+      </div>
+      <p className="prosa mt-2 text-xs text-[var(--muted)]">
+        {datos.dialHolgado
+          ? tx(
+              "Búsqueda ancha: su rareza es {{v0}} y el listón que le toca {{v1}}, así que Hattrick abre la ventana de edad y las bandas.",
+              { v0: datos.rareza, v1: datos.liston },
+            )
+          : tx(
+              "Búsqueda estrecha: su rareza es {{v0}} y no llega al listón de {{v1}}, así que Hattrick le clava la edad y aprieta las bandas.",
+              { v0: datos.rareza, v1: datos.liston },
+            )}
+      </p>
+    </section>
+  );
+}
+
+/** Un filtro: la habilidad y lo que pide, en una pastilla. */
+function Filtro({
+  nombre,
+  valor,
+  ayuda,
+}: {
+  nombre: string;
+  valor: string;
+  ayuda?: string;
+}) {
+  return (
+    <span className="inline-flex items-baseline gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-xs">
+      <span className="text-[var(--muted)]">{nombre}</span>
+      <span className="font-medium text-[var(--text)]">{valor}</span>
+      {ayuda && <Ayuda texto={ayuda} />}
+    </span>
+  );
 }
 
 /** «+2,0%»: cuánto subió del momento en que la vimos al cierre.
@@ -228,13 +365,22 @@ function columnasDe(
     {
       key: "peso",
       header: tx("Se parece"),
-      align: "right",
+      align: "left",
+      // Ordena por el peso y no por la palabra: el 100 tiene que ir arriba,
+      // y «avalado» va antes que «clavado» en el alfabeto.
       value: (f) => f.peso,
-      render: (f) => (
-        <span className={`tabular-nums ${colorDelPeso(f.peso)}`}>
-          {f.peso}%
-        </span>
-      ),
+      // En la fila propia, «él mismo»: se parece a sí mismo por definición, y
+      // decir «clavado» ahí sonaría a que encontramos un gemelo suyo.
+      render: (f) =>
+        f.propio ? (
+          <span className="whitespace-nowrap text-[var(--muted)]">
+            {tx("él mismo")}
+          </span>
+        ) : (
+          <span className={`whitespace-nowrap ${colorDelPeso(f.peso)}`}>
+            {comoSeParece(f.peso)}
+          </span>
+        ),
     },
     {
       key: "edad",
@@ -352,6 +498,11 @@ export function PrecioPorComparables({
   }
 
   const hayNumero = datos.media != null;
+  // Las dos clases que puede tener una venta que cuenta, para decir de qué
+  // está hecho el número sin que nadie tenga que contar filas.
+  const cerradas = datos.comparables.filter((f) => f.firme);
+  const clavadas = cerradas.filter((f) => f.peso >= 100).length;
+  const avaladas = cerradas.length - clavadas;
 
   return (
     <Panel
@@ -439,30 +590,61 @@ export function PrecioPorComparables({
                 </div>
               </div>
             </div>
-            <p className="prosa mt-3 flex items-center gap-1 text-sm text-[var(--muted)]">
-              {tx(
-                "De {{v0}} ventas de jugadores parecidos. El que menos se parece cuenta un {{v1}}%.",
-                { v0: number(datos.n), v1: datos.pesoMinimo },
+            {/* DE QUÉ ESTÁ HECHO EL NÚMERO, en pastillas y pegado a él.
+                Era una frase que decía «de N ventas, el que menos se parece
+                cuenta un X%», y ese X dejó de existir el 2026-10-27: con dos
+                pesos, lo que informa es CUÁNTAS de cada clase. Y lo que no
+                promedia se dice aquí, no en una nota al pie. */}
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              <Pastilla>
+                {tx("{{v0}} ventas cerradas", { v0: number(datos.n) })}
+              </Pastilla>
+              {clavadas > 0 && (
+                <Pastilla
+                  tono="bien"
+                  ayuda={tx(
+                    "Clavado es el mismo jugador: su misma edad y las tres habilidades más altas en el mismo nivel. No existe comparable mejor, y por eso no caduca.",
+                  )}
+                >
+                  {tx("{{v0}} clavadas", { v0: number(clavadas) })}
+                </Pastilla>
               )}
-              {/* En burbuja y no en un bloque amarillo (2026-10-08, pedido
-                  del usuario). El aviso no se pierde: cada fila de la tabla
-                  dice «sin cerrar» y cada punto hueco de la tira lo repite,
-                  asi que el bloque de color era la tercera vez. */}
+              {avaladas > 0 && (
+                <Pastilla
+                  ayuda={tx(
+                    "Avalado es que el propio Hattrick enseñaría esa venta al comparar a tu jugador, sin ser el mismo jugador. Pesa 90, y una clavada puede sustituirla.",
+                  )}
+                >
+                  {tx("{{v0}} avaladas", { v0: number(avaladas) })}
+                </Pastilla>
+              )}
               {datos.provisionales > 0 && (
-                <Ayuda
-                  texto={
-                    datos.provisionales === 1
-                      ? tx(
-                          "Hay además una subasta abierta en la lista. No cuenta para el número hasta que cierre: una puja no es un precio.",
-                        )
-                      : tx(
-                          "Hay además {{v0}} subastas abiertas en la lista. No cuentan para el número hasta que cierren: una puja no es un precio.",
-                          { v0: number(datos.provisionales) },
-                        )
-                  }
-                />
+                <Pastilla
+                  tono="aviso"
+                  ayuda={tx(
+                    "Una puja no es un precio, y no por poco: el 5 de octubre una de 65.000.000 cerró en 77.720.000. Se guardan y se vigilan para sacarles el precio cuando cierren, pero no promedian.",
+                  )}
+                >
+                  {datos.provisionales === 1
+                    ? tx("1 puja abierta, fuera del número")
+                    : tx("{{v0}} pujas abiertas, fuera del número", {
+                        v0: number(datos.provisionales),
+                      })}
+                </Pastilla>
               )}
-            </p>
+              {datos.semanasDelMasViejo >= 7 && (
+                <Pastilla
+                  tono="aviso"
+                  ayuda={tx(
+                    "Sigue contando porque no ha aparecido nada más reciente: un dato viejo informa más que ninguno. Pero habla de un mercado que pudo cambiar.",
+                  )}
+                >
+                  {tx("la más vieja, de hace {{v0}} sem", {
+                    v0: number(datos.semanasDelMasViejo),
+                  })}
+                </Pastilla>
+              )}
+            </div>
           </>
         ) : (
           <p className="text-sm text-[var(--text)]">
@@ -475,14 +657,7 @@ export function PrecioPorComparables({
           </p>
         )}
 
-        {datos.semanasDelMasViejo >= 7 && (
-          <p className="prosa mt-3 text-sm text-[var(--muted)]">
-            {tx(
-              "La venta más antigua es de hace {{v0}} semanas: sigue contando porque no ha aparecido nada más reciente.",
-              { v0: number(datos.semanasDelMasViejo) },
-            )}
-          </p>
-        )}
+        <CriteriosDeHattrick datos={datos} />
       </div>
 
       {/* EL REPARTO, justo debajo de las cifras. La media y la mediana

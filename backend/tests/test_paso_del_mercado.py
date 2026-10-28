@@ -22,7 +22,7 @@ from sqlalchemy.pool import StaticPool
 from app.application.commands.paso_del_mercado import (
     correr_el_paso_del_mercado,
 )
-from app.application.queries.precio_comparable import precio_de
+from app.application.queries.precio_comparable import precio_de, precios_de_la_plantilla
 from app.domain.engines.mercado_comparable import (
     OBJETIVO,
     REINTENTOS_DE_RESOLUCION,
@@ -290,6 +290,116 @@ async def test_la_pantalla_recibe_de_que_fiarse(base) -> None:
         ("playmaking", 7),
     ]
     assert all(isinstance(r.habilidad, str) for c in precio.comparables for r in c.perfil)
+
+
+async def test_la_plantilla_entera_en_una_sentada(base) -> None:
+    """La tabla de «Mi Plantilla»: una fila por jugador, el fondo leido una vez.
+
+    Es la version en plural, y defiende lo mismo que `precio_de` jugador a
+    jugador defenderia veinticinco veces: el fondo es del EQUIPO. Si algun dia
+    los dos caminos dejan de dar el mismo numero para el mismo jugador, esta
+    prueba y la de al lado se contradicen, que es justo lo que se quiere.
+    """
+    session, equipo = base
+    await correr_el_paso_del_mercado(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(900 + i) for i in range(OBJETIVO)]),
+        historial_de=_sin_historial,
+        ahora=AHORA,
+    )
+    # Cinco de las ocho cierran; las otras tres siguen siendo puja. Se tocan
+    # aqui a mano porque resolverlas de verdad pide historial por cada una, y
+    # lo que esta prueba mira es el reparto, no la resolucion.
+    guardadas = list((await session.execute(select(m.MarketSale))).scalars())
+    for fila in guardadas[:5]:
+        fila.is_final = True
+        fila.price = 4_000_000
+    await session.flush()
+
+    plantilla = await precios_de_la_plantilla(session, equipo.id, AHORA)
+    filas = {f.ht_player_id: f for f in plantilla.jugadores}
+    assert set(filas) == {ALBERTO, GEMELO}, "los dos jugadores con foto"
+
+    for ht_id in (ALBERTO, GEMELO):
+        fila = filas[ht_id]
+        # Los ocho anuncios son clavados a los dos --misma edad y las mismas
+        # tres habilidades-- asi que los cinco que cerraron cuentan y pesan 100.
+        assert (fila.n, fila.clavadas, fila.avaladas) == (5, 5, 0)
+        assert fila.provisionales == 3, "las tres pujas se enseñan y no promedian"
+        assert fila.media == fila.mediana == 4_000_000
+        assert (fila.minimo, fila.maximo) == (4_000_000, 4_000_000)
+        assert fila.faltan == OBJETIVO - 5
+        assert [(r.habilidad, r.nivel) for r in fila.perfil] == [
+            ("scoring", 18),
+            ("passing", 13),
+            ("playmaking", 7),
+        ]
+
+    # Y DA LO MISMO QUE LA FICHA, que es la razon de que exista en plural: dos
+    # caminos al mismo numero acaban dando dos numeros distintos.
+    uno = await precio_de(session, equipo.id, ALBERTO, AHORA)
+    assert uno is not None
+    assert (uno.media, uno.mediana, uno.n) == (
+        filas[ALBERTO].media,
+        filas[ALBERTO].mediana,
+        filas[ALBERTO].n,
+    )
+
+
+async def test_sin_ventas_parecidas_la_fila_existe_y_el_precio_no(base) -> None:
+    """«Las que hayan. Si no hay, no hay» --decision del usuario, 2026-10-27--.
+
+    La fila NO desaparece: el jugador sigue en la tabla con su perfil y sin
+    precio. Un cero ahi diria que no vale nada, y lo que pasa es que todavia no
+    se sabe.
+    """
+    session, equipo = base
+    plantilla = await precios_de_la_plantilla(session, equipo.id, AHORA)
+    assert len(plantilla.jugadores) == 2
+    for fila in plantilla.jugadores:
+        assert fila.media is None and fila.mediana is None
+        assert fila.minimo is None and fila.maximo is None
+        assert (fila.n, fila.clavadas, fila.avaladas, fila.provisionales) == (0, 0, 0, 0)
+        assert fila.serie == ()
+        assert fila.nombre and fila.edad == 31, "el jugador sigue estando"
+
+
+async def test_los_filtros_de_hattrick_viajan_a_la_pantalla(base) -> None:
+    """POR QUE esas ventas y no otras, que es lo que la pantalla no podia decir.
+
+    Los criterios son una funcion pura del dominio --la misma que decide si una
+    venta lleva el sello-- asi que no cuestan ni una consulta ni una peticion.
+    Se escriben aqui con sus numeros y no comparando contra `criterios_de`:
+    comparar el motor consigo mismo pasaria igual si los dos estuvieran mal.
+
+    Y viajan SIN FORMATEAR, igual que el perfil: la pantalla los nombra con el
+    glosario oficial de Hattrick, que es el que sabe como se dice «scoring» en
+    el idioma de quien mira.
+    """
+    session, equipo = base
+    precio = await precio_de(session, equipo.id, ALBERTO, AHORA)
+    assert precio is not None
+    # Alberto: 31 anos, Anotacion 18, Pases 13, Jugadas 7, Balon parado 9.
+    assert (precio.edad_minima, precio.edad_maxima) == (30, 32)
+    assert [(c.habilidad, c.operador, c.minimo, c.maximo) for c in precio.criterios] == [
+        ("scoring", "=", 18, 18),
+        ("passing", "banda", 12, 14),
+        ("playmaking", "banda", 6, 9),
+        ("winger", "<=", 0, 5),
+        ("defending", "<=", 0, 5),
+        ("keeper", "<=", 0, 5),
+    ]
+    # El Balon parado NO es criterio de un jugador de campo aunque lo tenga a 9,
+    # y eso es parte de lo que la pantalla tiene que poder decir.
+    assert all(c.habilidad != "set_pieces" for c in precio.criterios)
+    # El dial, con las cuentas a la vista: su rareza pasa del liston, asi que
+    # Hattrick ensancha la ventana de edad y las bandas.
+    assert precio.dial_holgado is True
+    assert (precio.rareza, precio.liston) == (32, 27)
+    assert precio.rareza >= precio.liston, "y por eso afloja"
+    # El tope de dias es cosa de los 17 anos, no de los 31.
+    assert precio.tope_de_dias is None
 
 
 async def test_con_pocas_ventas_no_hay_numero_pero_si_lista(base) -> None:

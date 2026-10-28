@@ -653,7 +653,7 @@ export function serieDePuntosOption(
   });
 
   return {
-    grid: { left: 8, right: 14, top: 18, bottom: 28, containLabel: true },
+    grid: { left: 8, right: 14, top: 18, bottom: 46, containLabel: true },
     xAxis: {
       type: "category",
       data: lecturas.map((l) => opciones.etiqueta(l.cuando)),
@@ -775,17 +775,34 @@ export function tiraDePuntosOption(
   }
   const alto = Math.max(piso, 2);
 
+  // LAS DOS ETIQUETAS, UNA EN CADA PUNTA (2026-10-27). Las dos marcas iban
+  // `insideEndTop`, o sea a la misma altura, y cuando la media y la mediana
+  // caen cerca --408.361 y 399.000 sobre un rango de 350.000: dos pixeles--
+  // los rotulos se pisaban y se leia «MedianaMedia». Separarlas por el eje no
+  // se puede: la posicion ES el dato. Separarlas en altura, si.
   const marcas = [
     opciones.media != null
-      ? { xAxis: opciones.media, name: opciones.etiquetaMedia }
+      ? {
+          xAxis: opciones.media,
+          name: opciones.etiquetaMedia,
+          label: { position: "insideEndTop" as const },
+        }
       : null,
     opciones.mediana != null
-      ? { xAxis: opciones.mediana, name: opciones.etiquetaMediana }
+      ? {
+          xAxis: opciones.mediana,
+          name: opciones.etiquetaMediana,
+          label: { position: "insideStartTop" as const },
+        }
       : null,
-  ].filter(Boolean) as { xAxis: number; name: string }[];
+  ].filter(Boolean) as {
+    xAxis: number;
+    name: string;
+    label: { position: "insideEndTop" | "insideStartTop" };
+  }[];
 
   return {
-    grid: { left: 8, right: 16, top: 26, bottom: 28, containLabel: true },
+    grid: { left: 8, right: 16, top: 26, bottom: 46, containLabel: true },
     xAxis: {
       type: "value",
       min: minimo,
