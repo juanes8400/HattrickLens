@@ -451,13 +451,33 @@ async def precios_de_la_plantilla(
 async def _plantilla_con_foto(
     session: AsyncSession, team_id: int
 ) -> list[tuple[m.Player, m.PlayerSnapshot]]:
-    """Cada jugador del equipo con su foto más reciente.
+    """La plantilla DE HOY, con la foto más reciente de cada jugador.
 
     Los que no tienen ni una foto se quedan fuera: sin habilidades no hay
     terna, y sin terna no hay a quién parecerse.
+
+    Y LOS QUE SE FUERON TAMPOCO CUENTAN. La tabla guarda a todo el que pasó
+    alguna vez por el club --556 filas con este equipo, 531 de gente que ya
+    salió-- así que sin `left_team_at` esta consulta medía el fondo contra
+    cincuenta jugadores donde la plantilla tiene veinticinco: la mitad del
+    trabajo era buscarle comparables a un ex.
+
+    ES EL MISMO FALLO QUE YA SE ARREGLÓ EL 2026-10-07 en `_plantilla` del paso
+    del mercado --«salieron 48 jugadores donde la plantilla tiene 25»-- y se
+    repitió aquí el 2026-10-27 al escribir la consulta en plural. Lo cazó el
+    usuario leyendo un número de más en una frase mía.
     """
     jugadores = (
-        (await session.execute(select(m.Player).where(m.Player.team_id == team_id))).scalars().all()
+        (
+            await session.execute(
+                select(m.Player).where(
+                    m.Player.team_id == team_id,
+                    m.Player.left_team_at.is_(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
     )
     pares: list[tuple[m.Player, m.PlayerSnapshot]] = []
     for jugador in jugadores:

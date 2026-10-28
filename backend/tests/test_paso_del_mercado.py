@@ -347,6 +347,33 @@ async def test_la_plantilla_entera_en_una_sentada(base) -> None:
     )
 
 
+async def test_a_un_ex_jugador_tampoco_le_sale_FILA_en_la_tabla(base) -> None:
+    """El mismo fallo del 2026-10-07, repetido en la consulta en plural.
+
+    `test_a_un_ex_jugador_no_se_le_busca_precio` ya defendia el PASO: a quien
+    ya se fue no se le gasta cuota buscandole comparables. Pero la consulta en
+    plural se escribio el 2026-10-27 sin ese filtro, asi que devolvia una fila
+    por cada jugador que paso alguna vez por el club --cincuenta donde la
+    plantilla tiene veinticinco-- y medía el fondo entero contra cada uno.
+
+    No se veia en pantalla porque la tabla junta estas filas con las del libro
+    de transferencias, que si filtra. Se veia en un numero de mas en una frase,
+    y lo cazo el usuario: «¿por que hablas de 50 jugadores? no tengo todos
+    esos».
+    """
+    session, equipo = base
+    ido = (
+        await session.execute(select(m.Player).where(m.Player.ht_player_id == GEMELO))
+    ).scalar_one()
+    ido.left_team_at = AHORA - timedelta(days=30)
+    await session.flush()
+
+    plantilla = await precios_de_la_plantilla(session, equipo.id, AHORA)
+    quienes = {f.ht_player_id for f in plantilla.jugadores}
+    assert GEMELO not in quienes, "se fue: no es plantilla de hoy"
+    assert quienes == {ALBERTO}
+
+
 async def test_sin_ventas_parecidas_la_fila_existe_y_el_precio_no(base) -> None:
     """«Las que hayan. Si no hay, no hay» --decision del usuario, 2026-10-27--.
 
