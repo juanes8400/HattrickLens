@@ -296,6 +296,57 @@ def ordenes_del_extremo() -> list[tuple[dict[str, int], str]]:
     return casos
 
 
+#: EL DIAL DEL PORTERO, que el banco no miraba y por eso no se veia.
+#:
+#: Las sondas del portero del 2026-10-26 anotaron solo si la busqueda salia
+#: ANCHA o ESTRECHA --se pidio asi, «mirame solo la linea de Edad»-- y por eso
+#: no cabian en `cadenas`, que compara la cadena entera. Se quedaron en
+#: `ciego-medido.txt` y en ningun sitio mas, asi que ni el banco ni las pruebas
+#: las tocaban: SEXTO punto ciego del mismo tipo.
+#:
+#: Lo que costo: `portero-abierto.txt` decia que el motor fallaba «en 1 de 64»
+#: porteros medidos. Contadas una por una el 2026-10-28, las observaciones son
+#: 20 y los fallos SIETE, todos del mismo rincon. Un banco que no mira una
+#: salida no puede juzgar las reglas de esa salida, y esta vez el numero que
+#: salio de no mirarla se habia escrito en un documento y se habia repetido.
+#:
+#: (descripcion, edad, niveles, «holgado» o «ajustado»)
+def _portero(porteria: int, defensa: int, balon_parado: int = 0) -> dict[str, int]:
+    return perfil(keeper=porteria, defending=defensa, set_pieces=balon_parado)
+
+
+DIALES_DEL_PORTERO: list[tuple[str, int, dict[str, int], str]] = [
+    ("Por14 Def2 BP16: el balon parado afloja solo", 26, _portero(14, 2, 16), "holgado"),
+    ("Por14 Def6 BP13: la Defensa de 6 afloja", 26, _portero(14, 6, 13), "holgado"),
+    ("Por15 Def5 BP0: el par mas alto AJUSTA", 26, _portero(15, 5), "ajustado"),
+    ("Por15 Def6 BP0", 26, _portero(15, 6), "holgado"),
+    ("Por15 Def7 BP0", 26, _portero(15, 7), "holgado"),
+    ("Por12 Def8 BP0: la Defensa de 8 NO afloja sola", 26, _portero(12, 8), "ajustado"),
+    ("Por16 Def0 BP0: Porteria 16 sola no abre", 26, _portero(16, 0), "ajustado"),
+    ("Por8 Def0 BP11", 26, _portero(8, 0, 11), "ajustado"),
+    ("Por8 Def0 BP12", 26, _portero(8, 0, 12), "ajustado"),
+    ("Por8 Def0 BP13", 26, _portero(8, 0, 13), "ajustado"),
+    ("Por8 Def0 BP14", 26, _portero(8, 0, 14), "ajustado"),
+    ("Por8 Def0 BP16: afloja con la Porteria en 8", 26, _portero(8, 0, 16), "holgado"),
+    # LA DEL 2026-10-28, la que deshace la contradiccion: mismo total y mismo
+    # balon parado que el que afloja, y afloja. Ver el test del mismo nombre en
+    # `test_criterios_hattrick`.
+    ("Por15 Def5 BP13: el balon parado gana el segundo puesto", 26, _portero(15, 5, 13), "holgado"),
+]
+
+#: Y LOS SIETE QUE NO CUADRAN, todos del mismo rincon: `Por 14` con la Defensa
+#: baja. El motor los da por holgados porque el balon parado le gana el segundo
+#: puesto a la Defensa y la rareza salta; Hattrick dice que ajustan hasta que la
+#: Defensa llega a 6 (con BP 13) o el balon parado a 16 (con Defensa 2).
+#:
+#: No se arreglan subiendo ni bajando parametros: se barrieron cuatro mandos
+#: sobre las observaciones y no hay combinacion que las explique. Ver
+#: `portero-abierto.txt`.
+PENDIENTES_DEL_DIAL: list[tuple[str, int, dict[str, int], str]] = [
+    (f"Por14 Def2 BP{bp}", 26, _portero(14, 2, bp), "ajustado") for bp in range(10, 16)
+] + [("Por14 Def4 BP13", 26, _portero(14, 4, 13), "ajustado")]
+
+
 #: Lo que el motor TODAVIA no reproduce, de las tandas de perfiles. Se guarda
 #: aqui y no en las pruebas porque las pruebas fijan lo que ya funciona; esto
 #: es la lista de deberes, y cada entrada dice de que familia es.
@@ -389,12 +440,32 @@ def puntua(nombre: str) -> tuple[int, int]:
     )
     tps = tipos()
     bien += sum(1 for n, esperado in tps if C._tipo(dict(n)) == esperado)
-    total = len(cas) + len(rej) + len(ords) + len(ext) + len(lat) + len(dia) + len(tps)
+    # EL DIAL DEL PORTERO, que se puntua por holgado/ajustado y no por cadena.
+    dial = DIALES_DEL_PORTERO
+    bien += sum(
+        1
+        for _d, e, n, s in dial
+        if ("holgado" if C.criterios_de(e, dict(n)).holgado else "ajustado") == s
+    )
+    total = (
+        len(cas) + len(rej) + len(ords) + len(ext) + len(lat) + len(dia) + len(tps) + len(dial)
+    )
     fallan = [d for d, e, n, s in PENDIENTES if T._pinta(C.criterios_de(e, dict(n))) != s]
+    fallan_dial = [
+        d
+        for d, e, n, s in PENDIENTES_DEL_DIAL
+        if ("holgado" if C.criterios_de(e, dict(n)).holgado else "ajustado") != s
+    ]
     print(f"{nombre}")
     print(f"  medido     {bien}/{total}")
     print(f"  pendientes {len(PENDIENTES) - len(fallan)}/{len(PENDIENTES)}")
     for d in fallan:
+        print(f"    sigue fallando: {d}")
+    print(
+        f"  dial del portero {len(PENDIENTES_DEL_DIAL) - len(fallan_dial)}"
+        f"/{len(PENDIENTES_DEL_DIAL)} de los pendientes"
+    )
+    for d in fallan_dial:
         print(f"    sigue fallando: {d}")
     return bien, total
 

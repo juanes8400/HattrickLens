@@ -2193,6 +2193,42 @@ def test_el_balon_parado_abajo(balon_parado: int, esperado: str) -> None:
     assert _pinta(criterios_de(25, niveles)) == esperado
 
 
+#: EL PAR QUE DESHACE LA CONTRADICCIÓN DEL PORTERO (2026-10-28, medido por el
+#: usuario a petición mía).
+#:
+#: `portero-abierto.txt` concluía que el dial del portero NO PUEDE ser una suma
+#: contra un listón, y lo apoyaba en dos perfiles con el mismo total y distinta
+#: respuesta: `Por 15 Def 5` ajusta y `Por 14 Def 6` afloja, los dos suman 20.
+#:
+#: TENÍA UNA TRAMPA QUE NO VI: esos dos no sólo se diferencian en el reparto,
+#: también en el balón parado --0 contra 13--. Así que la diferencia podía ser
+#: el balón parado y no el reparto, y el argumento no distinguía entre las dos
+#: cosas. Esta medida tapa esa grieta: mismo total (20) y mismo balón parado
+#: (13) que el que afloja.
+#:
+#: AFLOJA. Las siete líneas salieron exactamente como las predecía el motor, que
+#: para el portero cuenta el balón parado con tres de descuento y le deja
+#: disputar el SEGUNDO puesto: con BP 13 vale 10, adelanta a la Defensa de 5 y
+#: la rareza salta de 20 a 25. O sea que el total de Portería+Defensa nunca fue
+#: la cuenta, y la contradicción se deshace sin tocar nada.
+#:
+#: Lo que esto NO arregla está en `portero-abierto.txt`: siete de las veinte
+#: observaciones de portero siguen sin cuadrar, todas del mismo rincón
+#: --`Por 14` con la Defensa baja-- y están en `PENDIENTES` del banco.
+def test_el_balon_parado_le_gana_el_segundo_puesto_a_la_defensa() -> None:
+    niveles = perfil(keeper=15, defending=5, set_pieces=13)
+    assert (
+        _pinta(criterios_de(26, niveles))
+        == "Ed25-27 Por=15 Def=5 BP 10-16 Lat<=5 Ano<=5 Jug<=5"
+    )
+    # Y su gemelo sin balón parado, ya medido, sigue ajustando: es el contraste
+    # que hace que esta medida signifique algo.
+    assert (
+        _pinta(criterios_de(26, perfil(keeper=15, defending=5)))
+        == "Ed=26 Por=15 Def=5 BP<=4 Lat<=4 Ano<=4 Jug<=4"
+    )
+
+
 #: AL PORTERO LOS PASES NO LE APARECEN, ni como criterio ni como techo. Una
 #: pregunta que no se había hecho: `EXCLUIDAS["keeper"]` le quita Jugadas,
 #: Lateral y Anotación, pero los Pases no estaban en esa lista... porque **no

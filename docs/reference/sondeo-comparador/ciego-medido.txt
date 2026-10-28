@@ -535,3 +535,16 @@ Balón parado entre brillante y titánico
 Lateral <= débil
 Anotación <= débil
 Jugadas <= débil
+
+# ---------------------------------------------------------------------------
+# K10, 2026-10-28. La consulta que deshace el argumento de «los dos pares que
+# suman 20»: mismo total y mismo balon parado que el que afloja. NO es ciega
+# --se eligio sabiendo lo que se buscaba-- asi que no cuenta en el 49/50.
+K10
+Edad >= 25 y Edad <= 27
+Portería = titánico
+Defensa = insuficiente
+Balón parado entre destacado y extraterrestre
+Lateral <= insuficiente
+Anotación <= insuficiente
+Jugadas <= insuficiente

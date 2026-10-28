@@ -44,14 +44,87 @@ LO QUE LAS MEDIDAS DESCARTAN, una por una:
   · «Rareza = Portería + Defensa, liston 21»: explica Por15 Def5/Def6,
     Por12 Def8 y Por16 Def0, pero rompe Por 14 Def 6 BP 13.
 
-Hay dos pares con el MISMO total y distinta respuesta --Por 15 Def 5 (ajusta) y
-Por 14 Def 6 (afloja), los dos suman 20-- asi que el dial del portero no puede
-ser una suma con un liston. Depende de los valores, no solo de su total.
+EL ARGUMENTO DE «LOS DOS PARES QUE SUMAN 20» ESTABA MAL. RETIRADO EL 2026-10-28.
+================================================================================
 
-LO QUE HARIA FALTA. Una rejilla de verdad en vez de sondas sueltas: Portería en
+Este fichero concluia que el dial del portero NO PUEDE ser una suma contra un
+liston, y lo apoyaba asi:
+
+    Hay dos pares con el MISMO total y distinta respuesta --Por 15 Def 5
+    (ajusta) y Por 14 Def 6 (afloja), los dos suman 20-- asi que el dial del
+    portero no puede ser una suma con un liston.
+
+TENIA UNA TRAMPA. Esos dos perfiles no se diferencian solo en el reparto: uno
+lleva el balon parado en 0 y el otro en 13. Asi que la diferencia podia ser el
+balon parado, y el argumento no distinguia entre las dos cosas.
+
+Se tapo la grieta con una consulta: el mismo total (20) y el mismo balon parado
+(13) que el que afloja.
+
+    Por 15, Def 5, BP 13, a los 26  ->  HOLGADO
+
+    Edad >= 25 y Edad <= 27
+    Porteria = titanico
+    Defensa = insuficiente
+    Balon parado entre destacado y extraterrestre
+    Lateral <= insuficiente
+    Anotacion <= insuficiente
+    Jugadas <= insuficiente
+
+Las SIETE lineas, exactamente como las predecia el motor. Y la explicacion es la
+que ya tiene escrita: para el portero, el balon parado cuenta con tres de
+descuento y DISPUTA EL SEGUNDO PUESTO. Con BP 13 vale 10, adelanta a la Defensa
+de 5, y la rareza pasa de 20 a 25. El total de Porteria+Defensa nunca fue la
+cuenta, asi que no habia contradiccion que explicar.
+
+
+CUANTO FALLA DE VERDAD: SIETE DE VEINTE, NO UNA DE 64
+=====================================================
+
+Este fichero decia «falla en 1 de 64 porteros medidos». Contadas una por una el
+2026-10-28, las observaciones de portero son VEINTE y los fallos son SIETE:
+
+    Por 14 Def 2 BP 10, 11, 12, 13, 14 y 15   Hattrick AJUSTA, el motor afloja
+    Por 14 Def 4 BP 13                        Hattrick AJUSTA, el motor afloja
+
+DE DONDE SALIO EL NUMERO MALO. Estas sondas anotaron solo si la busqueda salia
+ancha o estrecha --se pidio asi, «mirame solo la linea de Edad»-- y por eso no
+cabian en el banco, que compara la cadena entera. Se quedaron en
+`ciego-medido.txt` y en ningun sitio mas: ni el banco ni las pruebas las
+miraban. El unico fallo que se contaba era el que si estaba en el ciego.
+
+YA NO PASA. Las veinte estan en `banco.py`: las trece que cuadran en
+`DIALES_DEL_PORTERO`, dentro del total medido, y las siete en
+`PENDIENTES_DEL_DIAL`, que el banco lista por su nombre en cada pasada.
+
+
+LO QUE DICEN LOS SIETE QUE QUEDAN
+
+Todos son del mismo rincon: Porteria 14 con la Defensa baja. Con BP 13 el motor
+da 24 de rareza para Defensa 2, 4 y 6 --la Defensa va tercera y por debajo de 6
+no suma nada-- y Hattrick cambia de respuesta entre 4 y 6. O sea que al portero
+la Defensa le cuenta en un tramo donde nuestra cuenta la ignora.
+
+Y no se arregla moviendo numeros: con los parametros de la lectura actual, la
+rareza no es monotona contra lo medido. Rareza 21 afloja (Por 15 Def 6) y
+rareza 24 ajusta (Por 14 Def 2 BP 13). Mientras el orden no se respete, ningun
+liston puede separar las dos.
+
+LO QUE HARIA FALTA. Una rejilla de verdad en vez de sondas sueltas: Porteria en
 12, 13, 14 y 15 cruzado con Defensa de 4 a 8 y balon parado en 0, 13 y 16. Son
-unas 60 consultas y acotaria la forma, no solo los bordes.
+unas 60 consultas y acotaria la forma, no solo los bordes. La consulta mas
+barata de todas, si solo se va a hacer una: Por 14, Def 5, BP 13, que dice si el
+salto esta en 5 o en 6.
 
-MIENTRAS TANTO el motor se queda como esta. Falla en 1 de 64 porteros medidos y
-en 1 de 50 perfiles a ciegas; cualquier cambio probado hasta ahora empeora esa
-cuenta en vez de mejorarla.
+MIENTRAS TANTO el motor se queda como esta: cualquier cambio probado hasta ahora
+empeora la cuenta en vez de mejorarla.
+
+
+DE PASO: NO HAY CASILLA «MISMA ESPECIALIDAD»
+============================================
+2026-10-28, comprobado por el usuario en el formulario: «aqui no hay
+especialidad». Quedaba como el ultimo cabo sin medir del sondeo --y sin medir
+por una instruccion mia, no por falta de ocasion--. No existe: el comparador no
+filtra por especialidad, asi que la especialidad del vendido no entra en el
+sello. Donde si cuenta es en NUESTRO desempate, como ultimo criterio de orden
+entre comparables con el mismo peso y la misma fecha.
