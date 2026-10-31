@@ -35,3 +35,15 @@ export const usePrecioComparable = (
     queryFn: () => api.precioComparable(TEAM_ID, htPlayerId as number),
     enabled: (opciones?.enabled ?? true) && htPlayerId != null,
   });
+
+/** El precio comparable de toda la plantilla, para la tabla de Transferencias.
+ *
+ *  `enabled` porque sólo lo mira «Mi plantilla», una de las cuatro pestañas de
+ *  la pantalla más cara de la aplicación: pedirlo al abrirla sería una petición
+ *  de más, igual que pasaba con la plantilla. */
+export const usePreciosComparables = (opciones?: { enabled?: boolean }) =>
+  useQuery({
+    queryKey: ["precios-comparables", TEAM_ID],
+    queryFn: () => api.preciosComparables(TEAM_ID),
+    enabled: opciones?.enabled ?? true,
+  });

@@ -3118,3 +3118,82 @@ de los once de la tabla (los diez van de 6.400 a 17.390).
 TODO ESTO ES UNA SOLA PANTALLA, UN SOLO JUGADOR. La aritmetica esta forzada
 --seis columnas cuadrando al centimo no es casualidad-- pero el resto son
 observaciones de n=1 y hay que tratarlas como tales.
+
+--- AP15. LA SEGUNDA FRONTERA DE EDAD DEL DIAL (2026-10-26) ----------------
+
+El dial tenia una frontera por abajo --EDAD_QUE_APRIETA_TODO, que aprieta la
+busqueda entera a los 21 y por debajo-- y resulta que tiene otra arriba:
+
+  EL CUARTO CRITERIO DE IDENTIDAD BAJA EL LISTON TRES PUNTOS HASTA LOS 24
+  Y DOS DE LOS 25 EN ADELANTE.
+
+COMO SE DESTAPO. El usuario propuso hacer de oraculo y se le mandaron nueve
+casos escogidos, cada uno aislando UNA regla. Ocho salieron exactos. El noveno
+--un defensa de Def9 Jug9 Lat8 Pas8 a los 24-- salio HOLGADO cuando el motor
+decia ajustado, y la rareza (22) estaba a un solo punto del liston (23).
+
+EL CONFLICTO. El banco ya tenia ese MISMO perfil a los 25 y medido AJUSTADO,
+y era uno de los dos apuntes que en AP12 obligaron a elegir «manda la mayor».
+Las mismas habilidades, un ano de diferencia, respuestas opuestas.
+
+SE DESCARTO TODO LO FACIL antes de tocar nada: ningun cambio de una sola
+habilidad, ninguna Anotacion o Porteria alta, y ninguna otra edad reproducian
+la captura. Y el banco resulto tener un AGUJERO DE EDAD: de sus 398 cadenas,
+291 estan a los 25, y de los 29 casos que estan a un punto del liston --los
+unicos que una rebaja de 1 podria romper-- NINGUNO esta a los 22, 23 ni 24.
+La franja no se habia mirado nunca.
+
+LAS DOCE MEDICIONES. Con el navegador conducido sobre el comparador --y con la
+cuota tranquila, porque el panel de criterios no gasta transfersearch-- se
+barrio la franja:
+
+  Def9 Jug9 Lat8 Pas8   21 AJUSTA   22 AFLOJA   23 AFLOJA   24 AFLOJA
+                        25 AJUSTA   26 AJUSTA
+
+Los dos apuntes de AP12 se volvieron a medir y SIGUEN AJUSTADOS, asi que no se
+acumulan y aquello estaba bien. El 25 no era una errata: era la edad.
+
+NO ES UNA REBAJA POR SER JOVEN A SECAS, que fue la primera lectura. El extremo
+de Lat11 Ano11 Def7 --empate arriba pero SIN cuarto criterio-- sale ajustado a
+los 24 igual que a los 25. Lo que la edad cambia es el precio del cuarto
+criterio, no el liston entero.
+
+EL CASO QUE SEPARO LAS DOS LECTURAS. «Se suman las dos rebajas por debajo de
+25» y «el cuarto criterio vale 3 por debajo de 25» daban lo mismo en TODO lo
+medido, porque cada perfil con cuarto criterio tenia tambien empate arriba.
+Hacia falta uno con cuarto criterio y SIN empate: el mediocentro de Jug11 Lat10
+Pas7 Def6, rareza 22 contra un liston base de 25.
+
+  sumando:            25 - 2 - 0 = 23  ->  ajustaria
+  el cuarto en tres:  25 - 3     = 22  ->  afloja
+
+  medido a los 23 AFLOJA, a los 24 AFLOJA, a los 25 AJUSTA
+
+ES EL PRECIO DEL CUARTO.
+
+Y EL TAMANO ESTA ACOTADO POR ARRIBA: Def9 Jug9 Lat8 Pas7 a los 24 --rareza 21,
+dos puntos por debajo del liston en vez de uno-- sale AJUSTADO. La rebaja extra
+es de exactamente uno, no mas.
+
+  banco 600/600 -> 612/612, y las doce de la tanda 12/12
+
+DE PASO, DONDE VIVE EL COMPARADOR, que costo encontrarlo:
+
+  /Club/Transfers/TransferCompare.aspx?playerId=NNN
+
+Solo aparece en fichas de jugadores DEL MERCADO; en las propias ese enlace es
+propaganda de Supporter. Dentro, el boton «Editar busqueda» despliega un
+formulario «Editar habilidades» con ocho desplegables (Edad, Porteria, Defensa,
+Jugadas, Lateral, Pases, Anotacion, Balon parado) que sobrescriben las del
+jugador base. Es la via para sondear perfiles hipoteticos sin tocar nada.
+
+### LO QUE SIGUE SIN SABERSE
+
+· Si la frontera de los 25 vale tambien para el portero, que no se midio.
+· Si el empate arriba tiene frontera de edad A PARTIR DE LOS 25. Hasta los 24
+  NO la tiene, y eso ya esta medido: el extremo de Lat11 Ano11 Def7 a los 24
+  es justo el perfil donde el empate manda solo --sin cuarto criterio-- y con
+  la rareza (23) a un punto de su liston (24). Si la rebaja del empate valiera
+  2 en la franja, saldria holgado. Salio AJUSTADO.
+· Por que 25 y no otra edad. Encaja con que a los 24 no ha habido temporadas
+  para cuatro habilidades de verdad, pero eso es una historia, no una medida.

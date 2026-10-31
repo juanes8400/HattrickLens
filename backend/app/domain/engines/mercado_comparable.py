@@ -11,12 +11,13 @@ como él**, no lo que te darían por él. Al ser una descripción y no una
 predicción, no se corrige por forma, experiencia, especialidad ni bonos de
 club de origen. Nada de eso entra.
 
-DE QUÉ ESTÁ HECHO. De **ventas cerradas**. Una subasta con puja sirve de precio
-provisional mientras tanto, porque con puja la venta está garantizada, pero
-sólo hasta que se pueda preguntar cuánto se pagó de verdad. Eso no es un
-tecnicismo: el 2026-10-05 Valerio Cataldi tenía 65.000.000 de puja y cerró en
-77.720.000, un 16% por encima. El provisional no sólo es incierto, se queda
-corto.
+DE QUÉ ESTÁ HECHO. De **ventas cerradas, y de nada más**. Una puja abierta se
+guarda, se vigila y se enseña marcada como lo que es, pero NO promedia: se
+queda para sacarle el precio cuando cierre (2026-10-09, ver
+`cuenta_para_el_numero`). Eso no es un tecnicismo: el 2026-10-05 Valerio
+Cataldi tenía 65.000.000 de puja y cerró en 77.720.000, un 16 % por encima, y
+el mismo día tres pujas de 3.000, 1.000 y 1.000 US$ arrastraban la media de un
+jugador de 876.000 a 436.144.
 
 A QUIÉN SE PARECE. A las TRES habilidades más altas de las seis de campo. La
 resistencia y el balón parado no cuentan, igual que no cuentan en el propio
@@ -25,24 +26,25 @@ quien le gana el desempate otra habilidad al mismo nivel es otro jugador, y el
 usuario lo decidió mirando un caso concreto que costó la única puja de aquella
 medición.
 
-LA ESCALERA. Cinco escalones que se van abriendo, y se para en cuanto reúne
-seis. La terciaria lleva siempre la misma ventana, un nivel por arriba y dos
-por abajo.
+CUÁNTO SE PARECE: DOS PESOS Y NADA MÁS (2026-10-27, decisión del usuario).
+**100** es el clavado, «coincidencia exacta Edad + top 3 habilidades»: es el
+mismo jugador. **90** es el sello, «aparece en el comparador de Hattrick pero
+no es exactamente el mismo jugador»: el propio juego lo enseñaría al comparar
+al nuestro, comprobado contra su regla. Lo que no es ninguna de las dos cosas
+no es comparable y no entra.
 
-Y EL SELLO DE HATTRICK (2026-10-10). La escalera de arriba es nuestra. Desde
-que se sondeó el Comparador del propio juego --unas 600 consultas a su panel
-«Editar búsqueda»-- se puede además responder a «¿esta venta se la habría
-enseñado Hattrick?», y cada comparable sale marcado con esa respuesta. Es un
-SELLO, no un peso: no entra en la media ni cambia el orden, porque mover lo que
-significa el 100 % movería el color de la pantalla y el calendario del escalón
-exacto, y eso no se decide aquí.
+Antes de eso había una escalera nuestra de cuatro peldaños más --95, 90, 80 y
+75-- que puntuaba lo que hubo que mover, y una ventana para la terciaria. Se
+fue entera: «solo hay esos dos escalones, el resto ya no los quiero». La
+medición de lo que cuesta está junto a los pesos, en `PESO_QUE_NO_CADUCA`.
 
-Sirve para dos cosas. Para poder decir «esto lo avalaría el juego», y para
-medir cuánto nos separamos de él: sobre 33 793 pares que nuestra escalera
-acepta, Hattrick enseñaría el 43 %, y el escalón del 85 % --el que abre la
-primaria-- no acierta ni uno, porque Hattrick nunca mueve la primera habilidad.
-La regla está en `criterios_hattrick`; la medición, en
-`docs/reference/CRITERIOS_DEL_COMPARADOR.md`.
+EL SELLO SE MIDIÓ, no se supuso (2026-10-10). Salió de sondear el Comparador
+del propio juego --unas 460 consultas a su panel «Editar búsqueda», repartidas
+en cinco días-- y de ahí sale la regla que aplica `criterios_hattrick`, con un
+98 % de acierto fuera de muestra. Un dato de aquel sondeo explica por qué la
+escalera nuestra nunca fue buena: el peldaño que abría la primera habilidad no
+acertaba NI UNO de 5.801 pares, porque Hattrick no mueve nunca la primera.
+La medición está en `docs/reference/CRITERIOS_DEL_COMPARADOR.md`.
 """
 
 from __future__ import annotations
@@ -73,11 +75,6 @@ _RANGO = {habilidad: puesto for puesto, habilidad in enumerate(ORDEN_DE_DESEMPAT
 #: nuestro de antes. Ocho es el punto que eligió entre parecerse a él y no
 #: disparar la cuota, que es lo que de verdad cuesta cada plaza más.
 OBJETIVO = 8
-
-#: La ventana de la terciaria, igual en todos los escalones: un nivel por
-#: encima y dos por debajo.
-TERCIARIA_ARRIBA = 1
-TERCIARIA_ABAJO = 2
 
 #: Cuánto vive un dato antes de volverse reemplazable. No se borra al
 #: cumplirlo: queda a la espera de que algo mejor lo sustituya, y si no
@@ -183,60 +180,46 @@ class Rasgo:
     nivel: int
 
 
-@dataclass(frozen=True, slots=True)
-class Escalon:
-    """Cuánto se abre la búsqueda, y lo que vale lo que entre por ahí.
-
-    `edad_desde` y `edad_hasta` son desplazamientos sobre la edad del jugador,
-    no un radio: los dos últimos escalones piden un año concreto, no un
-    intervalo. `primaria` y `secundaria` sí son radios.
-    """
-
-    edad_desde: int
-    edad_hasta: int
-    primaria: int
-    secundaria: int
-    peso: int
-
-
-# La escalera que cerró el usuario el 2026-10-06. Los tres primeros escalones
-# se contienen unos a otros; los dos últimos son rodajas de edad aparte, y por
-# eso van al final aunque abran lo mismo que el tercero.
-#: EL 100 ES DE HATTRICK (2026-10-10, decisión del usuario). Un comparable vale
-#: 100 cuando el propio juego lo enseñaría en su Comparador, comprobado contra
-#: su regla --ver `criterios_hattrick`--. Nuestra escalera empieza en 95:
-#: «clavado según nosotros, pero el juego no lo enseñaría», que es casi siempre
-#: por una cuarta habilidad alta que nosotros no mirábamos y a él le basta para
-#: descartarlo. Era uno de cada seis de los que antes llamábamos 100 %.
-PESO_DE_HATTRICK = 100
-
-#: EL CLAVADO TAMBIÉN VALE 100 (2026-10-26, decisión del usuario): «100 =
-#: coincidencia exacta de Edad + 3 habilidades». Hasta hoy el 100 era sólo el
-#: sello de Hattrick y un clavado nuestro valía 95.
-#:
-#: Y los dos comparten el 100 a propósito --se le preguntó--: son las dos
-#: maneras de ser el mejor comparable que puede existir, y ninguna de las dos
-#: mejora con nada más fresco. Lo que queda por debajo es lo que hubo que
-#: mover: «el 95 es si no coincide exactamente sino si tengo que mover la edad
-#: y las habilidades top 3 en rangos», palabras suyas del mismo día. Por eso la
-#: escalera de abajo no se toca: ya decía eso.
+#: EL CLAVADO VALE 100: «100 = coincidencia exacta Edad + top 3 habilidades»,
+#: palabras del usuario, dichas el 2026-10-26 y repetidas igual el 2026-10-27.
+#: Es el mismo jugador, y no hay nada mejor que pueda existir: por eso no
+#: caduca.
 PESO_DEL_CLAVADO = 100
 
-#: Por encima de esto un comparable no caduca. Son dos: el que avala Hattrick y
-#: nuestro exacto. Ninguno de los dos puede mejorarse con nada más fresco.
-PESO_QUE_NO_CADUCA = 95
+#: EL SELLO VALE 90 (2026-10-27, decisión del usuario): «90 = aparece en el
+#: comparador de Hattrick pero no es exactamente el mismo jugador». Un
+#: comparable se lleva el sello cuando el propio juego lo enseñaría al comparar
+#: a nuestro jugador, comprobado contra su regla --ver `criterios_hattrick`--.
+#:
+#: VALÍA 100 HASTA HOY, y el cambio es suyo. El 2026-10-26 se le preguntó
+#: expresamente si prefería bajar el sello a 95 y dijo que no, los dos a 100;
+#: el 2026-10-27 lo movió él a 90, que no era ninguna de las dos opciones de
+#: entonces. Queda escrito porque cambia todos los precios de la aplicación:
+#: una venta avalada pesa ahora menos que una clavada, y la media ponderada se
+#: mueve con ella.
+PESO_DE_HATTRICK = 90
 
-ESCALERA: tuple[Escalon, ...] = (
-    Escalon(edad_desde=0, edad_hasta=0, primaria=0, secundaria=0, peso=95),
-    Escalon(edad_desde=0, edad_hasta=0, primaria=0, secundaria=1, peso=90),
-    # FUERA EL ESCALON QUE ABRIA LA PRIMARIA (2026-10-10). Era el de peso 85:
-    # edad clavada y la primera habilidad a mas o menos uno. De 5801 pares que
-    # entraban SOLO por ahi, Hattrick no habria ensenado NI UNO, porque el
-    # nunca mueve la primera habilidad. No era un escalon ancho: era ruido, y
-    # ruido que ademas gastaba una peticion de cuota cada vez.
-    Escalon(edad_desde=1, edad_hasta=1, primaria=1, secundaria=1, peso=80),
-    Escalon(edad_desde=-1, edad_hasta=-1, primaria=1, secundaria=1, peso=75),
-)
+#: Por encima de esto un comparable no caduca. Ahora es sólo uno, el clavado:
+#: es el único que no puede mejorarse con nada más fresco. El sello sí caduca
+#: desde que vale 90, y es la consecuencia directa de su propia definición
+#: --«no es exactamente el mismo jugador»--: a un avalado todavía le puede
+#: salir un clavado que lo sustituya, así que no tiene por qué quedarse para
+#: siempre.
+PESO_QUE_NO_CADUCA = 100
+
+# SÓLO HAY DOS PESOS, y aquí ya no hay escalera. Se fue entera el 2026-10-27
+# --«solo hay esos dos escalones, el resto ya no los quiero»-- con sus cuatro
+# peldaños (95, 90, 80 y 75) y la ventana de la terciaria que los acompañaba.
+# Lo que no está clavado ni avalado no es comparable: no pesa poco, no entra.
+#
+# Ya no disparaba búsquedas --eso se había ido el 2026-10-26, ver
+# `plan_de_busqueda`--, así que lo único que se pierde es puntuar lo que entra
+# por criterios sin estar clavado. LO QUE CUESTA, medido antes de hacerlo y
+# aceptado: contra el fondo del 2026-10-27, 27 pares puntuados pasan a 0 y los
+# jugadores con precio de 8 a ninguno. No es la regla, es el fondo: ninguna de
+# sus 33 ventas guarda las siete habilidades --todas se vieron antes del
+# 2026-10-10, que es cuando se añadió la columna-- y sin las siete no se puede
+# preguntar por el sello. Se llena solo: `transfersearch` sí las trae.
 
 
 @dataclass(frozen=True, slots=True)
@@ -542,10 +525,10 @@ def plan_de_busqueda(objetivo: Objetivo) -> tuple[Ventana, ...]:
     DÍAS con menos anchura, en vez de una quinta parte de la plantilla por
     semana con más.
 
-    Y LA ESCALERA NO DESAPARECE, sólo deja de disparar búsquedas: `peso_de`
-    sigue usándola para puntuar lo que hay en el fondo --las ventas viejas y
-    las que entran por criterios sin estar clavadas-- así que el 95, el 90, el
-    80 y el 75 siguen significando lo mismo.
+    Y DESDE EL 2026-10-27 LA ESCALERA YA NO EXISTE NI PARA PUNTUAR. Aquel día
+    dejó de disparar búsquedas y conservó los pesos; ahora se fue del todo, así
+    que lo que entra por esta única ventana vale 90 si lo avala la regla y 100
+    si además está clavado. Nada más entra.
 
     Devuelve vacío cuando no se puede preguntar la regla, que pasa sin las
     siete habilidades del jugador. Antes la escalera hacía de red en ese caso;
@@ -618,32 +601,31 @@ def esta_clavado(candidato: Perfilado, objetivo: Objetivo) -> bool:
 def peso_de(candidato: Perfilado, objetivo: Objetivo) -> int | None:
     """Lo que vale este candidato, o `None` si no se le parece lo bastante.
 
-    AL 100 SE LLEGA POR DOS CAMINOS, y los dos valen igual:
+    SÓLO HAY DOS PESOS, y en este orden:
 
-      · que lo enseñaría Hattrick, comprobado contra su regla (2026-10-10);
-      · que está CLAVADO: misma edad y las tres habilidades en el mismo nivel
-        (2026-10-26, «100 = coincidencia exacta de Edad + 3 habilidades»).
+      · 100, CLAVADO: misma edad y las tres habilidades más altas, las mismas y
+        en el mismo nivel. «100 = coincidencia exacta Edad + top 3
+        habilidades», palabras del usuario.
+      · 90, EL SELLO: el propio Hattrick lo enseñaría al comparar a nuestro
+        jugador, comprobado contra su regla. «90 = aparece en el comparador de
+        Hattrick pero no es exactamente el mismo jugador», también suyas.
 
-    Hasta el 2026-10-26 el clavado valía 95 y el 100 estaba reservado al sello.
-    Lo cambió el usuario, y que los dos compartan el número es cosa suya
-    también: le pregunté si prefería bajar el sello a 95 y dijo que no, los dos
-    a 100. Tiene sentido --son las dos maneras de ser el mejor comparable que
-    puede existir-- pero cambia lo que significa el 100 %, o sea el color de la
-    pantalla y el calendario del escalón exacto. Hay que saberlo antes de
-    tocarlo.
+    Lo que no es ninguna de las dos cosas devuelve `None`: no es que pese poco,
+    es que no es comparable. Ahí se fue la escalera nuestra entera el
+    2026-10-27 --«solo hay esos dos escalones, el resto ya no los quiero»--,
+    con el 95, el 90, el 80, el 75 y la ventana de la terciaria.
 
-    De los 95 para abajo el peso es NUESTRO, y mide lo que hubo que mover: «el
-    95 es si no coincide exactamente sino si tengo que mover la edad y las
-    habilidades top 3 en rangos». La escalera es más ancha que la de Hattrick
-    porque vemos muchísimo menos mercado que él: él pregunta a su base de
-    traspasos entera y nosotros vamos juntando anuncios vivos.
+    EL CLAVADO SE MIRA PRIMERO, y es deliberado: casi todo clavado está además
+    avalado, y preguntando al sello antes se quedaría en 90 justo el comparable
+    que mejor existe. Mientras el sello valió 100 el orden daba igual; desde
+    que vale 90, no.
 
-    EL SELLO VA DELANTE DEL DESEMPATE, y el orden importa (2026-10-18). Nuestra
-    escalera exige que las tres habilidades mas altas sean LAS MISMAS y en el
-    mismo orden --quien tiene los niveles pedidos en otras habilidades es otro
-    jugador, y lo que se paga por el no dice nada del nuestro--. Pero esa
-    comprobacion es NUESTRA, y hasta hoy corria antes que el sello: una venta
-    que Hattrick SI ensenaria se caia por nuestro desempate sin que nadie le
+    EL SELLO SE SALTA NUESTRO DESEMPATE DE TERNA, y eso no se toca
+    (2026-10-18). Pedimos que las tres habilidades más altas sean LAS MISMAS y
+    en el mismo orden --quien tiene los niveles pedidos en otras habilidades es
+    otro jugador, y lo que se paga por él no dice nada del nuestro--, pero esa
+    comprobación es NUESTRA, y una vez corrió antes que el sello: una venta que
+    Hattrick SÍ enseñaría se caía por nuestro desempate sin que nadie le
     preguntara al sello.
 
     Se vio con un defensa de 21 anos, Defensa 12 y Lateral 7 (jugador
@@ -659,27 +641,15 @@ def peso_de(candidato: Perfilado, objetivo: Objetivo) -> int | None:
     La terna es nuestro modo de decir «es el mismo jugador» cuando no tenemos
     regla; cuando la hay, manda la regla.
     """
+    misma_terna = (
+        candidato.primaria.habilidad == objetivo.primaria.habilidad
+        and candidato.secundaria.habilidad == objetivo.secundaria.habilidad
+        and candidato.terciaria.habilidad == objetivo.terciaria.habilidad
+    )
+    if misma_terna and esta_clavado(candidato, objetivo):
+        return PESO_DEL_CLAVADO
     if lo_ensenaria_hattrick(candidato, objetivo):
         return PESO_DE_HATTRICK
-    if (
-        candidato.primaria.habilidad != objetivo.primaria.habilidad
-        or candidato.secundaria.habilidad != objetivo.secundaria.habilidad
-        or candidato.terciaria.habilidad != objetivo.terciaria.habilidad
-    ):
-        return None
-    if esta_clavado(candidato, objetivo):
-        return PESO_DEL_CLAVADO
-    distancia_terciaria = candidato.terciaria.nivel - objetivo.terciaria.nivel
-    if not -TERCIARIA_ABAJO <= distancia_terciaria <= TERCIARIA_ARRIBA:
-        return None
-    for escalon in ESCALERA:
-        edad = candidato.edad - objetivo.edad
-        if (
-            escalon.edad_desde <= edad <= escalon.edad_hasta
-            and abs(candidato.primaria.nivel - objetivo.primaria.nivel) <= escalon.primaria
-            and abs(candidato.secundaria.nivel - objetivo.secundaria.nivel) <= escalon.secundaria
-        ):
-            return escalon.peso
     return None
 
 

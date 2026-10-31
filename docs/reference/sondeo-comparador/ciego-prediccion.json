@@ -1,0 +1,705 @@
+{
+ "semilla": 20261026,
+ "casos": [
+  {
+   "n": 1,
+   "edad": 29,
+   "perfil": {
+    "keeper": 11,
+    "defending": 4,
+    "playmaking": 0,
+    "winger": 0,
+    "passing": 6,
+    "scoring": 3,
+    "set_pieces": 7
+   },
+   "prediccion": "Ed=29 Por=11 Def=4 BP 5-9 Lat<=4 Ano<=4 Jug<=4"
+  },
+  {
+   "n": 2,
+   "edad": 24,
+   "perfil": {
+    "keeper": 2,
+    "defending": 5,
+    "playmaking": 13,
+    "winger": 9,
+    "passing": 5,
+    "scoring": 2,
+    "set_pieces": 0
+   },
+   "prediccion": "Ed=24 Jug=13 Lat 8-10 Pas 4-6 Def 4-6 Ano<=4 Por<=4"
+  },
+  {
+   "n": 3,
+   "edad": 30,
+   "perfil": {
+    "keeper": 4,
+    "defending": 8,
+    "playmaking": 15,
+    "winger": 2,
+    "passing": 11,
+    "scoring": 11,
+    "set_pieces": 1
+   },
+   "prediccion": "Ed29-31 Jug=15 Pas 10-12 Ano>=11 Def 6-11 Lat<=5 Por<=5"
+  },
+  {
+   "n": 4,
+   "edad": 28,
+   "perfil": {
+    "keeper": 4,
+    "defending": 2,
+    "playmaking": 6,
+    "winger": 13,
+    "passing": 6,
+    "scoring": 1,
+    "set_pieces": 3
+   },
+   "prediccion": "Ed=28 Lat=13 Jug=6 Pas 5-7 Def<=4 Ano<=4 Por<=4"
+  },
+  {
+   "n": 5,
+   "edad": 22,
+   "perfil": {
+    "keeper": 1,
+    "defending": 15,
+    "playmaking": 17,
+    "winger": 16,
+    "passing": 4,
+    "scoring": 14,
+    "set_pieces": 1
+   },
+   "prediccion": "Ed21-23 Jug=17 Lat 15-17 Def>=15 Pas<=5 Ano<=16 Por<=5"
+  },
+  {
+   "n": 6,
+   "edad": 18,
+   "perfil": {
+    "keeper": 4,
+    "defending": 15,
+    "playmaking": 11,
+    "winger": 3,
+    "passing": 9,
+    "scoring": 2,
+    "set_pieces": 5
+   },
+   "prediccion": "Ed=18 Def=15 Jug 10-12 Pas 8-10 Lat<=4 Ano<=4 Por<=4"
+  },
+  {
+   "n": 7,
+   "edad": 26,
+   "perfil": {
+    "keeper": 1,
+    "defending": 3,
+    "playmaking": 1,
+    "winger": 0,
+    "passing": 2,
+    "scoring": 11,
+    "set_pieces": 5
+   },
+   "prediccion": "Ed=26 Ano=11 Pas<=2 Jug<=4 Lat<=4 Def<=4 Por<=4"
+  },
+  {
+   "n": 8,
+   "edad": 32,
+   "perfil": {
+    "keeper": 0,
+    "defending": 4,
+    "playmaking": 12,
+    "winger": 5,
+    "passing": 2,
+    "scoring": 18,
+    "set_pieces": 2
+   },
+   "prediccion": "Ed31-33 Ano=18 Jug 11-13 Lat 4-7 Pas<=5 Def<=5 Por<=5"
+  },
+  {
+   "n": 9,
+   "edad": 26,
+   "perfil": {
+    "keeper": 14,
+    "defending": 2,
+    "playmaking": 4,
+    "winger": 2,
+    "passing": 0,
+    "scoring": 4,
+    "set_pieces": 13
+   },
+   "prediccion": "Ed25-27 Por=14 Def=2 BP 10-16 Lat<=5 Ano<=5 Jug<=5"
+  },
+  {
+   "n": 10,
+   "edad": 23,
+   "perfil": {
+    "keeper": 4,
+    "defending": 0,
+    "playmaking": 0,
+    "winger": 2,
+    "passing": 12,
+    "scoring": 17,
+    "set_pieces": 6
+   },
+   "prediccion": "Ed22-24 Ano=17 Pas 11-13 Lat<=5 Jug<=5 Def<=5 Por<=5"
+  },
+  {
+   "n": 11,
+   "edad": 33,
+   "perfil": {
+    "keeper": 3,
+    "defending": 2,
+    "playmaking": 4,
+    "winger": 13,
+    "passing": 12,
+    "scoring": 11,
+    "set_pieces": 2
+   },
+   "prediccion": "Ed32-34 Lat=13 Pas 11-13 Ano>=11 Jug<=5 Def<=5 Por<=5"
+  },
+  {
+   "n": 12,
+   "edad": 20,
+   "perfil": {
+    "keeper": 3,
+    "defending": 6,
+    "playmaking": 6,
+    "winger": 10,
+    "passing": 4,
+    "scoring": 3,
+    "set_pieces": 6
+   },
+   "prediccion": "Ed=20 Lat=10 Jug=6 Def 5-7 Pas<=4 Ano<=4 Por<=4"
+  },
+  {
+   "n": 13,
+   "edad": 29,
+   "perfil": {
+    "keeper": 4,
+    "defending": 13,
+    "playmaking": 12,
+    "winger": 9,
+    "passing": 6,
+    "scoring": 2,
+    "set_pieces": 5
+   },
+   "prediccion": "Ed28-30 Def=13 Jug 11-13 Lat 8-11 Pas 5-8 Ano<=5 Por<=5"
+  },
+  {
+   "n": 14,
+   "edad": 30,
+   "perfil": {
+    "keeper": 4,
+    "defending": 12,
+    "playmaking": 1,
+    "winger": 5,
+    "passing": 2,
+    "scoring": 5,
+    "set_pieces": 2
+   },
+   "prediccion": "Ed=30 Def=12 Lat=5 Pas<=4 Jug<=4 Ano<=6 Por<=4"
+  },
+  {
+   "n": 15,
+   "edad": 22,
+   "perfil": {
+    "keeper": 4,
+    "defending": 5,
+    "playmaking": 10,
+    "winger": 11,
+    "passing": 2,
+    "scoring": 14,
+    "set_pieces": 6
+   },
+   "prediccion": "Ed21-23 Ano=14 Lat 10-12 Jug 9-12 Pas<=5 Def<=7 Por<=5"
+  },
+  {
+   "n": 16,
+   "edad": 31,
+   "perfil": {
+    "keeper": 4,
+    "defending": 2,
+    "playmaking": 4,
+    "winger": 6,
+    "passing": 5,
+    "scoring": 12,
+    "set_pieces": 8
+   },
+   "prediccion": "Ed=31 Ano=12 Lat=6 Pas 4-6 Jug<=4 Def<=4 Por<=4"
+  },
+  {
+   "n": 17,
+   "edad": 31,
+   "perfil": {
+    "keeper": 4,
+    "defending": 15,
+    "playmaking": 5,
+    "winger": 5,
+    "passing": 9,
+    "scoring": 4,
+    "set_pieces": 4
+   },
+   "prediccion": "Ed=31 Def=15 Pas 8-10 Jug 4-6 Lat 4-6 Ano<=4 Por<=4"
+  },
+  {
+   "n": 18,
+   "edad": 22,
+   "perfil": {
+    "keeper": 4,
+    "defending": 11,
+    "playmaking": 5,
+    "winger": 5,
+    "passing": 6,
+    "scoring": 5,
+    "set_pieces": 2
+   },
+   "prediccion": "Ed=22 Def=11 Pas=6 Jug 4-6 Lat 4-6 Ano<=6 Por<=4"
+  },
+  {
+   "n": 19,
+   "edad": 21,
+   "perfil": {
+    "keeper": 4,
+    "defending": 13,
+    "playmaking": 6,
+    "winger": 8,
+    "passing": 2,
+    "scoring": 3,
+    "set_pieces": 6
+   },
+   "prediccion": "Ed=21 Def=13 Lat=8 Jug 5-7 Pas<=4 Ano<=4 Por<=4"
+  },
+  {
+   "n": 20,
+   "edad": 22,
+   "perfil": {
+    "keeper": 4,
+    "defending": 3,
+    "playmaking": 12,
+    "winger": 10,
+    "passing": 15,
+    "scoring": 16,
+    "set_pieces": 4
+   },
+   "prediccion": "Ed21-23 Ano=16 Pas 14-16 Jug>=12 Lat 8-13 Def<=5 Por<=5"
+  },
+  {
+   "n": 21,
+   "edad": 18,
+   "perfil": {
+    "keeper": 4,
+    "defending": 14,
+    "playmaking": 13,
+    "winger": 12,
+    "passing": 6,
+    "scoring": 1,
+    "set_pieces": 2
+   },
+   "prediccion": "Ed=18 Def=14 Jug 12-14 Lat>=12 Pas 5-7 Ano<=4 Por<=4"
+  },
+  {
+   "n": 22,
+   "edad": 25,
+   "perfil": {
+    "keeper": 4,
+    "defending": 13,
+    "playmaking": 8,
+    "winger": 7,
+    "passing": 6,
+    "scoring": 6,
+    "set_pieces": 4
+   },
+   "prediccion": "Ed=25 Def=13 Jug 7-9 Pas 5-7 Lat 6-8 Ano<=7 Por<=4"
+  },
+  {
+   "n": 23,
+   "edad": 32,
+   "perfil": {
+    "keeper": 4,
+    "defending": 4,
+    "playmaking": 4,
+    "winger": 6,
+    "passing": 8,
+    "scoring": 11,
+    "set_pieces": 5
+   },
+   "prediccion": "Ed31-33 Ano=11 Pas=8 Lat 5-7 Jug<=4 Def<=4 Por<=4"
+  },
+  {
+   "n": 24,
+   "edad": 20,
+   "perfil": {
+    "keeper": 4,
+    "defending": 9,
+    "playmaking": 2,
+    "winger": 3,
+    "passing": 5,
+    "scoring": 3,
+    "set_pieces": 6
+   },
+   "prediccion": "Ed=20 Def=9 Pas=5 Lat<=4 Jug<=4 Ano<=4 Por<=4"
+  },
+  {
+   "n": 25,
+   "edad": 32,
+   "perfil": {
+    "keeper": 4,
+    "defending": 3,
+    "playmaking": 15,
+    "winger": 3,
+    "passing": 5,
+    "scoring": 9,
+    "set_pieces": 6
+   },
+   "prediccion": "Ed31-33 Jug=15 Ano=9 Pas 4-6 Lat<=4 Def<=4 Por<=4"
+  },
+  {
+   "n": 26,
+   "edad": 21,
+   "perfil": {
+    "keeper": 17,
+    "defending": 15,
+    "playmaking": 5,
+    "winger": 0,
+    "passing": 5,
+    "scoring": 0,
+    "set_pieces": 6
+   },
+   "prediccion": "Ed=21 Por=17 Def 14-16 BP 4-8 Lat<=4 Ano<=4 Jug<=6"
+  },
+  {
+   "n": 27,
+   "edad": 29,
+   "perfil": {
+    "keeper": 4,
+    "defending": 4,
+    "playmaking": 8,
+    "winger": 0,
+    "passing": 6,
+    "scoring": 1,
+    "set_pieces": 1
+   },
+   "prediccion": "Ed=29 Jug=8 Pas=6 Def<=4 Lat<=4 Ano<=4 Por<=4"
+  },
+  {
+   "n": 28,
+   "edad": 32,
+   "perfil": {
+    "keeper": 2,
+    "defending": 1,
+    "playmaking": 6,
+    "winger": 5,
+    "passing": 7,
+    "scoring": 12,
+    "set_pieces": 6
+   },
+   "prediccion": "Ed31-33 Ano=12 Pas=7 Jug 5-7 Lat 4-6 Def<=4 Por<=4"
+  },
+  {
+   "n": 29,
+   "edad": 23,
+   "perfil": {
+    "keeper": 2,
+    "defending": 5,
+    "playmaking": 9,
+    "winger": 3,
+    "passing": 5,
+    "scoring": 4,
+    "set_pieces": 6
+   },
+   "prediccion": "Ed=23 Jug=9 Pas=5 Def 4-6 Lat<=4 Ano<=4 Por<=4"
+  },
+  {
+   "n": 30,
+   "edad": 25,
+   "perfil": {
+    "keeper": 1,
+    "defending": 13,
+    "playmaking": 3,
+    "winger": 18,
+    "passing": 17,
+    "scoring": 16,
+    "set_pieces": 4
+   },
+   "prediccion": "Ed24-26 Lat=18 Pas 16-18 Ano>=16 Jug<=5 Def<=15 Por<=5"
+  },
+  {
+   "n": 31,
+   "edad": 26,
+   "perfil": {
+    "keeper": 3,
+    "defending": 6,
+    "playmaking": 4,
+    "winger": 4,
+    "passing": 5,
+    "scoring": 11,
+    "set_pieces": 2
+   },
+   "prediccion": "Ed=26 Ano=11 Pas=5 Lat<=4 Jug<=4 Def<=7 Por<=4"
+  },
+  {
+   "n": 32,
+   "edad": 18,
+   "perfil": {
+    "keeper": 4,
+    "defending": 10,
+    "playmaking": 9,
+    "winger": 4,
+    "passing": 5,
+    "scoring": 2,
+    "set_pieces": 3
+   },
+   "prediccion": "Ed=18 Def=10 Jug=9 Pas 4-6 Lat<=4 Ano<=4 Por<=4"
+  },
+  {
+   "n": 33,
+   "edad": 25,
+   "perfil": {
+    "keeper": 4,
+    "defending": 18,
+    "playmaking": 13,
+    "winger": 6,
+    "passing": 3,
+    "scoring": 1,
+    "set_pieces": 1
+   },
+   "prediccion": "Ed24-26 Def=18 Jug 12-14 Lat 5-8 Pas<=5 Ano<=5 Por<=5"
+  },
+  {
+   "n": 34,
+   "edad": 32,
+   "perfil": {
+    "keeper": 0,
+    "defending": 0,
+    "playmaking": 10,
+    "winger": 14,
+    "passing": 11,
+    "scoring": 10,
+    "set_pieces": 2
+   },
+   "prediccion": "Ed31-33 Lat=14 Pas 10-12 Jug 9-12 Ano 8-13 Def<=5 Por<=5"
+  },
+  {
+   "n": 35,
+   "edad": 18,
+   "perfil": {
+    "keeper": 4,
+    "defending": 14,
+    "playmaking": 6,
+    "winger": 7,
+    "passing": 13,
+    "scoring": 0,
+    "set_pieces": 6
+   },
+   "prediccion": "Ed=18 Def=14 Pas 12-14 Lat 6-8 Jug 5-7 Ano<=4 Por<=4"
+  },
+  {
+   "n": 36,
+   "edad": 32,
+   "perfil": {
+    "keeper": 4,
+    "defending": 6,
+    "playmaking": 5,
+    "winger": 13,
+    "passing": 4,
+    "scoring": 1,
+    "set_pieces": 0
+   },
+   "prediccion": "Ed31-33 Lat=13 Jug=5 Def 5-7 Pas<=4 Ano<=4 Por<=4"
+  },
+  {
+   "n": 37,
+   "edad": 28,
+   "perfil": {
+    "keeper": 4,
+    "defending": 10,
+    "playmaking": 0,
+    "winger": 15,
+    "passing": 4,
+    "scoring": 5,
+    "set_pieces": 2
+   },
+   "prediccion": "Ed=28 Lat=15 Def 9-11 Ano 4-6 Jug<=4 Pas<=4 Por<=4"
+  },
+  {
+   "n": 38,
+   "edad": 23,
+   "perfil": {
+    "keeper": 4,
+    "defending": 4,
+    "playmaking": 8,
+    "winger": 11,
+    "passing": 8,
+    "scoring": 13,
+    "set_pieces": 6
+   },
+   "prediccion": "Ed22-24 Ano=13 Lat 10-12 Pas 7-10 Jug 6-11 Def<=5 Por<=5"
+  },
+  {
+   "n": 39,
+   "edad": 21,
+   "perfil": {
+    "keeper": 2,
+    "defending": 2,
+    "playmaking": 4,
+    "winger": 3,
+    "passing": 3,
+    "scoring": 10,
+    "set_pieces": 9
+   },
+   "prediccion": "Ed=21 Ano=10 Pas=3 Jug<=4 Lat<=4 Def<=4 Por<=4"
+  },
+  {
+   "n": 40,
+   "edad": 18,
+   "perfil": {
+    "keeper": 11,
+    "defending": 5,
+    "playmaking": 3,
+    "winger": 1,
+    "passing": 6,
+    "scoring": 2,
+    "set_pieces": 4
+   },
+   "prediccion": "Ed=18 Por=11 Def=5 BP<=4 Lat<=4 Ano<=4 Jug<=4"
+  },
+  {
+   "n": 41,
+   "edad": 33,
+   "perfil": {
+    "keeper": 14,
+    "defending": 8,
+    "playmaking": 6,
+    "winger": 4,
+    "passing": 5,
+    "scoring": 5,
+    "set_pieces": 12
+   },
+   "prediccion": "Ed32-34 Por=14 Def 7-9 BP 9-15 Lat<=5 Ano<=7 Jug<=8"
+  },
+  {
+   "n": 42,
+   "edad": 25,
+   "perfil": {
+    "keeper": 3,
+    "defending": 12,
+    "playmaking": 9,
+    "winger": 8,
+    "passing": 9,
+    "scoring": 4,
+    "set_pieces": 2
+   },
+   "prediccion": "Ed24-26 Def=12 Pas 8-10 Jug 8-11 Lat 6-11 Ano<=5 Por<=5"
+  },
+  {
+   "n": 43,
+   "edad": 20,
+   "perfil": {
+    "keeper": 3,
+    "defending": 12,
+    "playmaking": 16,
+    "winger": 5,
+    "passing": 9,
+    "scoring": 3,
+    "set_pieces": 3
+   },
+   "prediccion": "Ed=20 Jug=16 Def 11-13 Pas 8-10 Lat<=6 Ano<=4 Por<=4"
+  },
+  {
+   "n": 44,
+   "edad": 28,
+   "perfil": {
+    "keeper": 17,
+    "defending": 6,
+    "playmaking": 6,
+    "winger": 1,
+    "passing": 2,
+    "scoring": 2,
+    "set_pieces": 12
+   },
+   "prediccion": "Ed27-29 Por=17 Def=6 BP 9-15 Lat<=5 Ano<=5 Jug<=8"
+  },
+  {
+   "n": 45,
+   "edad": 25,
+   "perfil": {
+    "keeper": 4,
+    "defending": 12,
+    "playmaking": 8,
+    "winger": 4,
+    "passing": 6,
+    "scoring": 2,
+    "set_pieces": 6
+   },
+   "prediccion": "Ed=25 Def=12 Jug=8 Pas 5-7 Lat<=4 Ano<=4 Por<=4"
+  },
+  {
+   "n": 46,
+   "edad": 18,
+   "perfil": {
+    "keeper": 4,
+    "defending": 17,
+    "playmaking": 0,
+    "winger": 5,
+    "passing": 11,
+    "scoring": 1,
+    "set_pieces": 5
+   },
+   "prediccion": "Ed=18 Def=17 Pas 10-12 Lat 4-6 Jug<=4 Ano<=4 Por<=4"
+  },
+  {
+   "n": 47,
+   "edad": 31,
+   "perfil": {
+    "keeper": 4,
+    "defending": 0,
+    "playmaking": 2,
+    "winger": 17,
+    "passing": 6,
+    "scoring": 10,
+    "set_pieces": 2
+   },
+   "prediccion": "Ed30-32 Lat=17 Ano 9-11 Pas 5-8 Jug<=5 Def<=5 Por<=5"
+  },
+  {
+   "n": 48,
+   "edad": 31,
+   "perfil": {
+    "keeper": 4,
+    "defending": 6,
+    "playmaking": 3,
+    "winger": 11,
+    "passing": 10,
+    "scoring": 8,
+    "set_pieces": 4
+   },
+   "prediccion": "Ed=31 Lat=11 Pas 9-11 Ano 7-9 Jug<=4 Def<=7 Por<=4"
+  },
+  {
+   "n": 49,
+   "edad": 20,
+   "perfil": {
+    "keeper": 2,
+    "defending": 2,
+    "playmaking": 6,
+    "winger": 8,
+    "passing": 2,
+    "scoring": 6,
+    "set_pieces": 0
+   },
+   "prediccion": "Ed=20 Lat=8 Jug=6 Ano 5-7 Pas<=4 Def<=4 Por<=4"
+  },
+  {
+   "n": 50,
+   "edad": 33,
+   "perfil": {
+    "keeper": 0,
+    "defending": 2,
+    "playmaking": 8,
+    "winger": 5,
+    "passing": 6,
+    "scoring": 11,
+    "set_pieces": 5
+   },
+   "prediccion": "Ed32-34 Ano=11 Jug 7-9 Pas 5-7 Lat 4-6 Def<=4 Por<=4"
+  }
+ ]
+}
