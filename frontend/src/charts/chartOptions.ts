@@ -636,7 +636,7 @@ export function serieDePuntosOption(
       tip: [
         opciones.etiqueta(lecturas[i]?.cuando ?? ""),
         `<b>${opciones.detalle(precio)}</b>`,
-        clavado ? tx("clavado") : tx("avalado"),
+        clavado ? tx("idéntico") : tx("equivalente"),
         firme ? tx("venta cerrada") : tx("puja abierta, no promedia"),
       ].join("<br/>"),
     };
@@ -754,18 +754,21 @@ export function serieDePuntosOption(
         itemStyle: { color: SUBASTA_ABIERTA },
         z: 2,
       },
+      // EN PANTALLA SE LLAMAN DISTINTO desde el 2026-10-31: el 100 es
+      // «idéntico» y el 90 «equivalente». Aqui siguen siendo el clavado y
+      // el avalado, que es como se llaman en el dominio.
       // El avalado debajo del clavado, y no al reves: el grande tapa al
       // pequeño, asi que el que manda en la media va encima.
       {
         type: "scatter",
-        name: tx("Avalado"),
+        name: tx("Equivalente"),
         data: avaladas,
         itemStyle: { color: VENTA_CERRADA },
         z: 3,
       },
       {
         type: "scatter",
-        name: tx("Clavado"),
+        name: tx("Idéntico"),
         data: clavadas,
         itemStyle: { color: VENTA_CERRADA },
         z: 4,
@@ -856,7 +859,7 @@ export function tiraDePuntosOption(
       itemStyle: { opacity },
       tip: [
         `<b>${opciones.detalle(precio)}</b>`,
-        clavado ? tx("clavado") : tx("avalado"),
+        clavado ? tx("idéntico") : tx("equivalente"),
         firme ? tx("venta cerrada") : tx("puja abierta, no promedia"),
       ].join("<br/>"),
     };
@@ -941,13 +944,13 @@ export function tiraDePuntosOption(
       // distinto y nada decia por que.
       {
         type: "scatter",
-        name: tx("Clavado"),
+        name: tx("Idéntico"),
         data: clavadas,
         itemStyle: { color: VENTA_CERRADA },
       },
       {
         type: "scatter",
-        name: tx("Avalado"),
+        name: tx("Equivalente"),
         data: avaladas,
         itemStyle: { color: VENTA_CERRADA },
       },

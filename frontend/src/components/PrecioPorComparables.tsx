@@ -100,14 +100,19 @@ function colorDelPeso(peso: number): string {
   return peso >= 100 ? "text-[var(--ok)]" : "text-[var(--text)]";
 }
 
-/** «clavado» o «avalado», que es lo único que un peso puede ser.
+/** «idéntico» o «equivalente», que es lo único que un peso puede ser.
+ *
+ *  LOS NOMBRES CAMBIARON EL 2026-10-31: en pantalla decía «clavado» y
+ *  «avalado», y eran palabras raras de leer. El dominio los sigue llamando
+ *  así --`esta_clavado`, `avalado_por_hattrick`-- porque ahí sí dicen lo que
+ *  hacen; lo que se enseña es otra cosa.
  *
  *  LA PALABRA Y NO EL PORCENTAJE (2026-10-27). La columna decía «100%» y
  *  «90%», y un porcentaje invita a leer una escala continua que ya no existe:
  *  no hay 95 ni 80, no hay nada en medio, y el número no dice QUÉ pasó. La
  *  palabra sí. */
 function comoSeParece(peso: number): string {
-  return peso >= 100 ? tx("clavado") : tx("avalado");
+  return peso >= 100 ? tx("idéntico") : tx("equivalente");
 }
 
 /** Un dato suelto con su rótulo, del tamaño de una pastilla.
@@ -169,7 +174,7 @@ function CriteriosDeHattrick({ datos }: { datos: PrecioComparable }) {
         {tx("Con qué filtros buscó Hattrick")}
         <Ayuda
           texto={tx(
-            "Los filtros que el propio juego usa en su Comparador de Transferencias para este jugador. No son nuestros: salen de sondear su pantalla y el motor los reproduce con un 98% de acierto fuera de muestra. Una venta sólo entra en la lista si los cumple o si es clavada.",
+            "Los filtros que el propio juego usa en su Comparador de Transferencias para este jugador. No son nuestros: salen de sondear su pantalla y el motor los reproduce con un 98% de acierto fuera de muestra. Una venta sólo entra en la lista si los cumple o si es idéntica.",
           )}
         />
       </div>
@@ -603,19 +608,19 @@ export function PrecioPorComparables({
                 <Pastilla
                   tono="bien"
                   ayuda={tx(
-                    "Clavado es el mismo jugador: su misma edad y las tres habilidades más altas en el mismo nivel. No existe comparable mejor, y por eso no caduca.",
+                    "Idéntico es el mismo jugador: su misma edad y las tres habilidades más altas en el mismo nivel. No existe comparable mejor, y por eso no caduca.",
                   )}
                 >
-                  {tx("{{v0}} clavadas", { v0: number(clavadas) })}
+                  {tx("{{v0}} idénticas", { v0: number(clavadas) })}
                 </Pastilla>
               )}
               {avaladas > 0 && (
                 <Pastilla
                   ayuda={tx(
-                    "Avalado es que el propio Hattrick enseñaría esa venta al comparar a tu jugador, sin ser el mismo jugador. Pesa 90, y una clavada puede sustituirla.",
+                    "Equivalente es que el propio Hattrick enseñaría esa venta al comparar a tu jugador, sin ser el mismo jugador. Pesa 90, y una idéntica puede sustituirla.",
                   )}
                 >
-                  {tx("{{v0}} avaladas", { v0: number(avaladas) })}
+                  {tx("{{v0}} equivalentes", { v0: number(avaladas) })}
                 </Pastilla>
               )}
               {datos.provisionales > 0 && (

@@ -397,7 +397,7 @@ function TablaDeLaPlantilla({
         if (p.clavadas > 0)
           señales.push(
             <Senal key="clav" tono="gris">
-              {tx("{{v0}} clavadas", { v0: number(p.clavadas) })}
+              {tx("{{v0}} idénticas", { v0: number(p.clavadas) })}
             </Senal>,
           );
         if (p.faltan > 0)

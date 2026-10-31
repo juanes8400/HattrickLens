@@ -81,23 +81,23 @@ describe("las gráficas del comparador", () => {
     }) as unknown as Record<string, unknown>;
 
     it("separa el clavado del avalado en series propias, para que haya leyenda", () => {
-      expect(porNombre(opcion, "Clavado")).toBeDefined();
-      expect(porNombre(opcion, "Avalado")).toBeDefined();
-      expect(puntos(porNombre(opcion, "Clavado"))).toHaveLength(1);
-      expect(puntos(porNombre(opcion, "Avalado"))).toHaveLength(1);
+      expect(porNombre(opcion, "Idéntico")).toBeDefined();
+      expect(porNombre(opcion, "Equivalente")).toBeDefined();
+      expect(puntos(porNombre(opcion, "Idéntico"))).toHaveLength(1);
+      expect(puntos(porNombre(opcion, "Equivalente"))).toHaveLength(1);
     });
 
     it("el clavado se pinta MÁS GRANDE que el avalado", () => {
-      const clavado = puntos(porNombre(opcion, "Clavado"))[0]!;
-      const avalado = puntos(porNombre(opcion, "Avalado"))[0]!;
+      const clavado = puntos(porNombre(opcion, "Idéntico"))[0]!;
+      const avalado = puntos(porNombre(opcion, "Equivalente"))[0]!;
       // Y con holgura: la rampa vieja los dejaba a 1,6 px de diferencia, que
       // es lo que no se veía.
       expect(clavado.symbolSize - avalado.symbolSize).toBeGreaterThanOrEqual(5);
     });
 
     it("cada punto lleva su propio texto, y dice de qué clase es", () => {
-      expect(puntos(porNombre(opcion, "Clavado"))[0]!.tip).toContain("clavado");
-      expect(puntos(porNombre(opcion, "Avalado"))[0]!.tip).toContain("avalado");
+      expect(puntos(porNombre(opcion, "Idéntico"))[0]!.tip).toContain("idéntico");
+      expect(puntos(porNombre(opcion, "Equivalente"))[0]!.tip).toContain("equivalente");
       const puja = puntos(porNombre(opcion, "Subasta abierta"))[0]!;
       expect(puja.tip).toContain("no promedia");
     });
@@ -128,12 +128,12 @@ describe("las gráficas del comparador", () => {
     });
 
     it("el tooltip de un punto dice de qué lectura es", () => {
-      expect(puntos(porNombre(opcion, "Clavado"))[0]!.tip).toContain("2026-10-01");
+      expect(puntos(porNombre(opcion, "Idéntico"))[0]!.tip).toContain("2026-10-01");
     });
 
     it("aquí también el clavado es más grande", () => {
-      const clavado = puntos(porNombre(opcion, "Clavado"))[0]!;
-      const avalado = puntos(porNombre(opcion, "Avalado"))[0]!;
+      const clavado = puntos(porNombre(opcion, "Idéntico"))[0]!;
+      const avalado = puntos(porNombre(opcion, "Equivalente"))[0]!;
       expect(clavado.symbolSize).toBeGreaterThan(avalado.symbolSize);
     });
   });
