@@ -2153,5 +2153,10 @@
   "de {{v0}} jugadores con precio y fecha": "z {{v0}} zawodników z ceną i datą",
   "Fuera de la cuenta": "Poza rachunkiem",
   "sin ventas parecidas o sin fecha de llegada": "brak podobnych sprzedaży lub brak daty przyjścia",
-  "Precio de no perder": "Cena bez straty"
+  "Precio de no perder": "Cena bez straty",
+  "Clavado": "Identyczny",
+  "Avalado": "Potwierdzony",
+  "venta cerrada": "zamknięta sprzedaż",
+  "puja abierta, no promedia": "otwarta oferta, nie wchodzi do średniej",
+  "sobre {{v0}} ventas": "z {{v0}} sprzedaży"
 }

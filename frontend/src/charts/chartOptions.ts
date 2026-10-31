@@ -96,20 +96,32 @@ const BAND_PREFIX = "__banda";
  *  Azul para lo provisional y verde para lo firme, que es el orden en que se
  *  leen: una puja todavia puede moverse, un precio pagado ya no. La media va
  *  en gris a proposito, para no competir con los datos que resume. */
-/** Un punto pintado segun cuanto se parece esa venta (2026-10-09, pedido del
- *  usuario: «algun indicador de Se parece en la grafica, puede ser puntos mas
- *  pequeños, colores mas suaves»).
+/** El peso de un comparable que es EL MISMO JUGADOR. Espejo de
+ *  `PESO_DEL_CLAVADO` del motor: si allí cambia, aquí también. */
+const PESO_DEL_CLAVADO = 100;
+
+/** El tamaño y la opacidad de un punto según su peso, en DOS escalones.
  *
- *  Dos canales a la vez, tamaño y opacidad, porque uno solo no se lee: entre
- *  un 85 % y un 100 % --el rango real que da el motor-- la diferencia de
- *  tamaño sola es de tres pixeles. Juntos, un gemelo pesa en el ojo lo que
- *  tiene que pesar y un primo lejano se queda de fondo.
+ *  VIENE DE UNA RAMPA, `segunElParecido`, que mapeaba 75→100 sobre cuatro
+ *  píxeles y dos canales a la vez (2026-10-09, pedido del usuario: «algún
+ *  indicador de Se parece en la gráfica, puede ser puntos más pequeños,
+ *  colores más suaves»). Tenía sentido con cinco pesos entre 75 y 100.
  *
- *  El suelo es 75 porque por debajo el motor ya no acepta la venta; una
- *  lectura vieja sin peso guardado llega como 100 y se pinta entera. */
-function segunElParecido(peso: number, base: number) {
-  const cuanto = Math.min(Math.max((peso - 75) / 25, 0), 1);
-  return { symbolSize: base - 4 + cuanto * 4, opacity: 0.45 + cuanto * 0.55 };
+ *  Con sólo dos desde el 2026-10-27 --100 el clavado, 90 el avalado-- la rampa
+ *  los dejaba casi iguales: 6,4 px contra 8, opacidades 0,78 contra 1. En
+ *  pantalla no se distinguían, así que el peso estaba dibujado y no se veía.
+ *
+ *  Ahora son dos escalones de verdad, como en el boceto: el clavado es el mismo
+ *  jugador y se pinta grande y entero; el avalado sale en el comparador de
+ *  Hattrick sin serlo, y se pinta pequeño y más suave.
+ *
+ *  EL COLOR NO ENTRA AQUÍ porque ya dice otra cosa --verde cerrada, azul puja
+ *  abierta-- y dos significados en el mismo canal no se leen. El peso va por
+ *  tamaño, que es el canal libre. */
+function segunElPeso(peso: number, base: number) {
+  return (peso ?? PESO_DEL_CLAVADO) >= PESO_DEL_CLAVADO
+    ? { symbolSize: base + 3, opacity: 1 }
+    : { symbolSize: base - 3, opacity: 0.7 };
 }
 
 const SUBASTA_ABIERTA = "#4f7cff";
@@ -605,14 +617,52 @@ export function serieDePuntosOption(
     value: [number, number];
     symbolSize: number;
     itemStyle: { opacity: number };
+    tip: string;
   };
-  const punto = (i: number, precio: number, peso: number): Punto => {
-    const { symbolSize, opacity } = segunElParecido(peso ?? 100, 8);
-    return { value: [i, precio], symbolSize, itemStyle: { opacity } };
+  // Cada punto con su texto, y el texto dice de qué lectura es: en esta
+  // gráfica el eje son fechas, así que el precio solo no basta para situarlo.
+  const punto = (
+    i: number,
+    precio: number,
+    firme: boolean,
+    peso: number,
+  ): Punto => {
+    const clavado = (peso ?? PESO_DEL_CLAVADO) >= PESO_DEL_CLAVADO;
+    const { symbolSize, opacity } = segunElPeso(peso ?? PESO_DEL_CLAVADO, 8);
+    return {
+      value: [i, precio],
+      symbolSize,
+      itemStyle: { opacity },
+      tip: [
+        opciones.etiqueta(lecturas[i]?.cuando ?? ""),
+        `<b>${opciones.detalle(precio)}</b>`,
+        clavado ? tx("clavado") : tx("avalado"),
+        firme ? tx("venta cerrada") : tx("puja abierta, no promedia"),
+      ].join("<br/>"),
+    };
+  };
+  const reparte = (p: Punto, firme: boolean, peso: number) => {
+    if (!firme) nube.push(p);
+    else if ((peso ?? PESO_DEL_CLAVADO) >= PESO_DEL_CLAVADO) clavadas.push(p);
+    else avaladas.push(p);
   };
   const nube: Punto[] = [];
-  const cerradas: Punto[] = [];
-  const medias: (number | null)[] = [];
+  const clavadas: Punto[] = [];
+  const avaladas: Punto[] = [];
+  // LA LÍNEA TAMBIÉN LLEVA TOOLTIP, y por eso sus puntos son objetos y no
+  // números sueltos: cada uno dice de qué lectura es, cuánto vale la media y
+  // sobre cuántas ventas se hizo.
+  const medias: ({ value: number; tip: string } | null)[] = [];
+  const anotaLaMedia = (i: number, valor: number, cuantas: number) => {
+    medias.push({
+      value: valor,
+      tip: [
+        opciones.etiqueta(lecturas[i]?.cuando ?? ""),
+        `${opciones.etiquetaMedia}: <b>${opciones.detalle(Math.round(valor))}</b>`,
+        tx("sobre {{v0}} ventas", { v0: cuantas }),
+      ].join("<br/>"),
+    });
+  };
   lecturas.forEach((l, i) => {
     const firmes = opciones.soloCerradas
       ? l.precios.filter(([, firme]) => firme)
@@ -621,18 +671,22 @@ export function serieDePuntosOption(
       // Con las pujas dentro se enseña todo, cada cosa con su forma, y la
       // linea es la media de todo lo que se ve.
       for (const [precio, firme, peso] of l.precios) {
-        (firme ? cerradas : nube).push(punto(i, precio, peso));
+        reparte(punto(i, precio, firme, peso), firme, peso);
       }
-      medias.push(
-        l.precios.length
-          ? l.precios.reduce((s, [precio]) => s + precio, 0) / l.precios.length
-          : null,
-      );
+      if (l.precios.length) {
+        anotaLaMedia(
+          i,
+          l.precios.reduce((s, [precio]) => s + precio, 0) / l.precios.length,
+          l.precios.length,
+        );
+      } else {
+        medias.push(null);
+      }
       return;
     }
     if (firmes.length > 0) {
       for (const [precio, , peso] of firmes)
-        cerradas.push(punto(i, precio, peso));
+        reparte(punto(i, precio, true, peso), true, peso);
       // LA LINEA ES LA MEDIA DE LO QUE SE VE (2026-10-09, decision del
       // usuario). Antes era la media ponderada del panel --la cifra grande de
       // arriba-- y al quitar las pujas de los puntos dejaba de describir el
@@ -640,12 +694,15 @@ export function serieDePuntosOption(
       // 595.000, 792.000 y 1.241.000 y la linea pasaba por 436.144, por debajo
       // de los tres. Una media por debajo de todos los puntos se lee como un
       // error aunque sea correcta.
-      medias.push(
+      anotaLaMedia(
+        i,
         firmes.reduce((s, [precio]) => s + precio, 0) / firmes.length,
+        firmes.length,
       );
       return;
     }
-    for (const [precio, , peso] of l.precios) nube.push(punto(i, precio, peso));
+    for (const [precio, , peso] of l.precios)
+      nube.push(punto(i, precio, false, peso));
     // Sin ventas cerradas no hay media que dibujar: la linea se corta ahi en
     // vez de inventar un punto con pujas, que es justo lo que se quiso quitar.
     // `connectNulls: false` hace el hueco de verdad.
@@ -677,7 +734,11 @@ export function serieDePuntosOption(
               type: "line" as const,
               name: opciones.etiquetaMedia,
               data: medias,
-              symbol: "none" as const,
+              // CON SÍMBOLO, para que la línea se pueda preguntar. Iba
+              // `symbol: "none"` y entonces no habia nada sobre lo que posarse:
+              // la linea era lo unico de la grafica sin tooltip (2026-10-28).
+              symbol: "circle" as const,
+              symbolSize: 6,
               lineStyle: { width: 2, color: LINEA_DE_LA_MEDIA },
               itemStyle: { color: LINEA_DE_LA_MEDIA },
               connectNulls: false,
@@ -689,25 +750,40 @@ export function serieDePuntosOption(
         type: "scatter",
         name: tx("Subasta abierta"),
         data: nube,
-        symbolSize: 8,
         symbol: "emptyCircle",
         itemStyle: { color: SUBASTA_ABIERTA },
         z: 2,
       },
+      // El avalado debajo del clavado, y no al reves: el grande tapa al
+      // pequeño, asi que el que manda en la media va encima.
       {
         type: "scatter",
-        name: tx("Venta cerrada"),
-        data: cerradas,
-        symbolSize: 8,
+        name: tx("Avalado"),
+        data: avaladas,
         itemStyle: { color: VENTA_CERRADA },
         z: 3,
+      },
+      {
+        type: "scatter",
+        name: tx("Clavado"),
+        data: clavadas,
+        itemStyle: { color: VENTA_CERRADA },
+        z: 4,
       },
     ],
     legend: { bottom: 0, itemHeight: 8, textStyle: { fontSize: 10 } },
     tooltip: {
       trigger: "item",
       formatter: (p: unknown) => {
-        const d = p as { seriesType?: string; value?: unknown; name?: string };
+        const d = p as {
+          seriesType?: string;
+          data?: { tip?: string };
+          value?: unknown;
+          name?: string;
+        };
+        // Puntos y linea traen su texto hecho; lo de abajo es la red por si
+        // alguna serie futura no lo trae.
+        if (d.data?.tip) return d.data.tip;
         if (d.seriesType === "line") {
           return `${d.name}<br/>${opciones.detalle(Number(d.value ?? 0))}`;
         }
@@ -754,24 +830,39 @@ export function tiraDePuntosOption(
   // alguna vez vuelve a cambiar, esto cambia con él.
   const juntos = Math.max((maximo - minimo) * 0.025, 1);
 
+  // CADA PUNTO LLEVA SU PROPIO TEXTO (2026-10-28, pedido del usuario: «que cada
+  // punto, la línea, todo saque tooltip»). Se arma aquí y no en el formateador
+  // porque aquí se sabe todo del punto --precio, si cerró, cuánto se parece-- y
+  // allí sólo llega lo que ECharts quiera pasar.
   type Punto = {
     value: [number, number];
     symbolSize: number;
     itemStyle: { opacity: number };
+    tip: string;
   };
+  const clavadas: Punto[] = [];
+  const avaladas: Punto[] = [];
   const abiertas: Punto[] = [];
-  const cerradas: Punto[] = [];
   let anterior = -Infinity;
   let piso = 0;
   for (const [precio, firme, peso] of orden) {
     piso = precio - anterior <= juntos ? piso + 1 : 0;
     anterior = precio;
-    const { symbolSize, opacity } = segunElParecido(peso ?? 100, 11);
-    (firme ? cerradas : abiertas).push({
+    const clavado = (peso ?? PESO_DEL_CLAVADO) >= PESO_DEL_CLAVADO;
+    const { symbolSize, opacity } = segunElPeso(peso ?? PESO_DEL_CLAVADO, 11);
+    const punto: Punto = {
       value: [precio, piso],
       symbolSize,
       itemStyle: { opacity },
-    });
+      tip: [
+        `<b>${opciones.detalle(precio)}</b>`,
+        clavado ? tx("clavado") : tx("avalado"),
+        firme ? tx("venta cerrada") : tx("puja abierta, no promedia"),
+      ].join("<br/>"),
+    };
+    if (!firme) abiertas.push(punto);
+    else if (clavado) clavadas.push(punto);
+    else avaladas.push(punto);
   }
   const alto = Math.max(piso, 2);
 
@@ -821,7 +912,6 @@ export function tiraDePuntosOption(
         type: "scatter",
         name: tx("Subasta abierta"),
         data: abiertas,
-        symbolSize: 11,
         itemStyle: { color: SUBASTA_ABIERTA },
         // Hueco de verdad: `emptyCircle` pinta el borde con el color de la
         // serie. Con `color: transparent` y sin `borderColor` el punto
@@ -829,7 +919,10 @@ export function tiraDePuntosOption(
         symbol: "emptyCircle",
         markLine: {
           symbol: "none",
-          silent: true,
+          // CON TOOLTIP, no `silent` (2026-10-28). Las dos marcas llevan el
+          // dato que mas se mira --la media y la mediana-- y eran lo unico de
+          // la grafica que no se podia preguntar.
+          silent: false,
           lineStyle: { type: "dashed", opacity: 0.55 },
           // `rotate: 0` porque ECharts gira la etiqueta de una linea
           // VERTICAL por defecto, y «media» salia escrito de arriba
@@ -843,11 +936,19 @@ export function tiraDePuntosOption(
           data: marcas,
         },
       },
+      // DOS SERIES PARA LAS CERRADAS, y no una, para que el tamaño tenga
+      // leyenda: con una sola serie el clavado y el avalado se dibujaban
+      // distinto y nada decia por que.
       {
         type: "scatter",
-        name: tx("Venta cerrada"),
-        data: cerradas,
-        symbolSize: 11,
+        name: tx("Clavado"),
+        data: clavadas,
+        itemStyle: { color: VENTA_CERRADA },
+      },
+      {
+        type: "scatter",
+        name: tx("Avalado"),
+        data: avaladas,
         itemStyle: { color: VENTA_CERRADA },
       },
     ],
@@ -855,7 +956,19 @@ export function tiraDePuntosOption(
     tooltip: {
       trigger: "item",
       formatter: (p: unknown) => {
-        const d = p as { value?: unknown };
+        const d = p as {
+          componentType?: string;
+          data?: { tip?: string };
+          name?: string;
+          value?: unknown;
+        };
+        // Un punto trae su texto hecho; una marca --media o mediana-- trae su
+        // nombre y su valor en el eje.
+        if (d.data?.tip) return d.data.tip;
+        if (d.componentType === "markLine") {
+          const x = (d.value as number | undefined) ?? 0;
+          return `${d.name ?? ""}<br/><b>${opciones.detalle(x)}</b>`;
+        }
         const par = Array.isArray(d.value) ? d.value : [0, 0];
         return opciones.detalle(Number(par[0] ?? 0));
       },

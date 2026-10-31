@@ -2153,5 +2153,10 @@
   "de {{v0}} jugadores con precio y fecha": "of {{v0}} players with a price and a date",
   "Fuera de la cuenta": "Outside the total",
   "sin ventas parecidas o sin fecha de llegada": "no similar sales, or no arrival date",
-  "Precio de no perder": "Break-even price"
+  "Precio de no perder": "Break-even price",
+  "Clavado": "Exact match",
+  "Avalado": "Endorsed",
+  "venta cerrada": "closed sale",
+  "puja abierta, no promedia": "open bid, does not average",
+  "sobre {{v0}} ventas": "over {{v0}} sales"
 }

@@ -2153,5 +2153,10 @@
   "de {{v0}} jugadores con precio y fecha": "von {{v0}} Spielern mit Preis und Datum",
   "Fuera de la cuenta": "Außerhalb der Rechnung",
   "sin ventas parecidas o sin fecha de llegada": "keine ähnlichen Verkäufe oder kein Ankunftsdatum",
-  "Precio de no perder": "Preis ohne Verlust"
+  "Precio de no perder": "Preis ohne Verlust",
+  "Clavado": "Identisch",
+  "Avalado": "Bestätigt",
+  "venta cerrada": "abgeschlossener Verkauf",
+  "puja abierta, no promedia": "offenes Gebot, zählt nicht zum Durchschnitt",
+  "sobre {{v0}} ventas": "über {{v0}} Verkäufe"
 }

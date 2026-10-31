@@ -2153,5 +2153,10 @@
   "de {{v0}} jugadores con precio y fecha": "di {{v0}} giocatori con prezzo e data",
   "Fuera de la cuenta": "Fuori dal conto",
   "sin ventas parecidas o sin fecha de llegada": "nessuna vendita simile, o senza data di arrivo",
-  "Precio de no perder": "Prezzo di pareggio"
+  "Precio de no perder": "Prezzo di pareggio",
+  "Clavado": "Identico",
+  "Avalado": "Avallato",
+  "venta cerrada": "vendita chiusa",
+  "puja abierta, no promedia": "offerta aperta, non fa media",
+  "sobre {{v0}} ventas": "su {{v0}} vendite"
 }
