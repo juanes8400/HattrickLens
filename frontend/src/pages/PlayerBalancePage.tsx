@@ -365,7 +365,11 @@ function TablaDeLaPlantilla({
       key: "precio",
       header: tx("Precio comparable"),
       align: "right",
-      value: (f) => f.precio?.media ?? -1,
+      // EL CENTINELA SE QUEDA EN `sortValue`: `value` es lo que se exporta
+      // y se filtra, así que un -1 ahí viajaba al CSV como si fuera un
+      // precio. Vacío es lo que de verdad hay cuando no hay dato.
+      value: (f) => f.precio?.media ?? "",
+      sortValue: (f) => f.precio?.media ?? -1,
       render: (f) =>
         f.precio?.media == null ? (
           <span className="whitespace-nowrap text-xs text-[var(--muted)]">
@@ -431,7 +435,8 @@ function TablaDeLaPlantilla({
       key: "entre",
       header: tx("Entre qué precios"),
       align: "right",
-      value: (f) => f.precio?.minimo ?? -1,
+      value: (f) => f.precio?.minimo ?? "",
+      sortValue: (f) => f.precio?.minimo ?? -1,
       render: (f) =>
         f.precio?.minimo == null || f.precio.maximo == null ? null : (
           <span className="whitespace-nowrap text-xs tabular-nums text-[var(--muted)]">
@@ -459,7 +464,8 @@ function TablaDeLaPlantilla({
       key: "neto",
       header: tx("Entraría en caja"),
       align: "right",
-      value: (f) => f.simulacion?.neto ?? -1,
+      value: (f) => f.simulacion?.neto ?? "",
+      sortValue: (f) => f.simulacion?.neto ?? -1,
       render: (f) =>
         f.simulacion == null ? (
           <span className="text-[var(--muted)]">—</span>
@@ -476,7 +482,8 @@ function TablaDeLaPlantilla({
       key: "saldo",
       header: tx("Saldo"),
       align: "right",
-      value: (f) => f.simulacion?.saldo ?? -Infinity,
+      value: (f) => f.simulacion?.saldo ?? "",
+      sortValue: (f) => f.simulacion?.saldo ?? -Infinity,
       render: (f) =>
         f.simulacion == null ? (
           <span className="whitespace-nowrap text-xs text-[var(--muted)]">
@@ -512,7 +519,8 @@ function TablaDeLaPlantilla({
       key: "equilibrio",
       header: tx("Precio de no perder"),
       align: "right",
-      value: (f) => f.simulacion?.precioDeEquilibrio ?? -1,
+      value: (f) => f.simulacion?.precioDeEquilibrio ?? "",
+      sortValue: (f) => f.simulacion?.precioDeEquilibrio ?? -1,
       render: (f) => (
         <span className="flex items-center justify-end gap-2 whitespace-nowrap">
           {f.simulacion?.precioDeEquilibrio != null && (
