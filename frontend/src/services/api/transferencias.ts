@@ -215,6 +215,11 @@ export const apiTransferencias = {
     request<PrecioComparable>(
       `/teams/${teamId}/players/${htPlayerId}/precio-comparable`,
     ),
+  /** El precio comparable de TODA la plantilla, de una sentada. El fondo del
+   *  mercado es del equipo, así que se lee una vez y se mide contra todos:
+   *  pedirlo jugador a jugador leería las mismas ventas veinticinco veces. */
+  preciosComparables: (teamId: number) =>
+    request<PreciosDeLaPlantilla>(`/teams/${teamId}/precios-comparables`),
   playerBalance: (teamId: number, season?: string) => {
     const params = new URLSearchParams();
     if (season && season !== "all") params.set("season", season);
@@ -318,6 +323,56 @@ export interface PuntoDeLaSerie {
   precios: [number, boolean, number][];
 }
 
+/** El precio comparable de un jugador, resumido para la tabla de la plantilla.
+ *
+ *  Es `PrecioComparable` sin la lista de ventas ni los criterios: la tabla
+ *  enseña una fila por jugador y el detalle está a un clic, en su ficha. Lo que
+ *  sí lleva es de qué está hecho el número, porque una cifra sin eso al lado
+ *  invita a creérsela. */
+export interface PrecioDeUnJugador {
+  htPlayerId: number;
+  nombre: string;
+  edad: number;
+  tsi: number;
+  especialidad: string;
+  perfil: RasgoVisible[];
+  /** `null` cuando no hay ni una venta cerrada parecida. NUNCA cero: cero
+   *  diría que no vale nada, y lo que pasa es que no se sabe. */
+  media: number | null;
+  mediana: number | null;
+  minimo: number | null;
+  maximo: number | null;
+  n: number;
+  faltan: number;
+  /** Cuántas de las que cuentan son clavadas, o sea el mismo jugador; el resto
+   *  son avaladas. Sólo hay dos pesos. */
+  clavadas: number;
+  avaladas: number;
+  /** Subastas abiertas: se enseñan, no promedian. */
+  provisionales: number;
+  semanasDelMasViejo: number;
+  /** Las medias de las lecturas del tramo vigente, de la más vieja a la más
+   *  nueva, para dibujar una chispa. */
+  serie: number[];
+}
+
+export interface PreciosDeLaPlantilla {
+  moneda: string;
+  jugadores: PrecioDeUnJugador[];
+}
+
+/** Un filtro de los que usaría el propio Hattrick para buscar comparables.
+ *
+ *  `operador` dice cómo leer los números: `=` es un nivel clavado, `banda` es
+ *  un rango de verdad y `<=` es un techo con el mínimo en cero. La habilidad
+ *  llega con su clave interna y la nombra el glosario oficial. */
+export interface CriterioDeHattrick {
+  habilidad: string;
+  operador: "=" | "banda" | "<=";
+  minimo: number;
+  maximo: number;
+}
+
 export interface PrecioComparable {
   /** `null` mientras no haya seis ventas. */
   media: number | null;
@@ -331,6 +386,19 @@ export interface PrecioComparable {
   provisionales: number;
   semanasDelMasViejo: number;
   perfil: RasgoVisible[];
+  /** Los filtros con los que el propio Hattrick buscaría a este jugador, en su
+   *  orden de importancia. Es lo único que esta pantalla no podía decir: por
+   *  qué estas ventas y no otras. */
+  criterios: CriterioDeHattrick[];
+  edadMinima: number;
+  edadMaxima: number;
+  /** Si el dial de Hattrick ensanchó la búsqueda, con las dos cifras que lo
+   *  deciden: la rareza del jugador contra el listón que le toca. */
+  dialHolgado: boolean;
+  rareza: number;
+  liston: number;
+  /** El tope de días que añade a los 17 años, o `null`. */
+  topeDeDias: number | null;
   /** Cómo se llama el dinero. Las cifras ya vienen en la moneda del
    *  equipo, divididas por la tasa del país. */
   moneda: string;

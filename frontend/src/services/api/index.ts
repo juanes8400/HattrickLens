@@ -180,9 +180,12 @@ export type {
 } from "./sincronizacion";
 export type {
   ComparableDeMercado,
+  CriterioDeHattrick,
   PlayerBalance,
   PlayerBalanceRow,
   PrecioComparable,
+  PrecioDeUnJugador,
+  PreciosDeLaPlantilla,
   PuntoDeLaSerie,
   RasgoVisible,
   TransferAttemptRow,

@@ -2193,6 +2193,42 @@ def test_el_balon_parado_abajo(balon_parado: int, esperado: str) -> None:
     assert _pinta(criterios_de(25, niveles)) == esperado
 
 
+#: EL PAR QUE DESHACE LA CONTRADICCIÓN DEL PORTERO (2026-10-28, medido por el
+#: usuario a petición mía).
+#:
+#: `portero-abierto.txt` concluía que el dial del portero NO PUEDE ser una suma
+#: contra un listón, y lo apoyaba en dos perfiles con el mismo total y distinta
+#: respuesta: `Por 15 Def 5` ajusta y `Por 14 Def 6` afloja, los dos suman 20.
+#:
+#: TENÍA UNA TRAMPA QUE NO VI: esos dos no sólo se diferencian en el reparto,
+#: también en el balón parado --0 contra 13--. Así que la diferencia podía ser
+#: el balón parado y no el reparto, y el argumento no distinguía entre las dos
+#: cosas. Esta medida tapa esa grieta: mismo total (20) y mismo balón parado
+#: (13) que el que afloja.
+#:
+#: AFLOJA. Las siete líneas salieron exactamente como las predecía el motor, que
+#: para el portero cuenta el balón parado con tres de descuento y le deja
+#: disputar el SEGUNDO puesto: con BP 13 vale 10, adelanta a la Defensa de 5 y
+#: la rareza salta de 20 a 25. O sea que el total de Portería+Defensa nunca fue
+#: la cuenta, y la contradicción se deshace sin tocar nada.
+#:
+#: Lo que esto NO arregla está en `portero-abierto.txt`: siete de las veinte
+#: observaciones de portero siguen sin cuadrar, todas del mismo rincón
+#: --`Por 14` con la Defensa baja-- y están en `PENDIENTES` del banco.
+def test_el_balon_parado_le_gana_el_segundo_puesto_a_la_defensa() -> None:
+    niveles = perfil(keeper=15, defending=5, set_pieces=13)
+    assert (
+        _pinta(criterios_de(26, niveles))
+        == "Ed25-27 Por=15 Def=5 BP 10-16 Lat<=5 Ano<=5 Jug<=5"
+    )
+    # Y su gemelo sin balón parado, ya medido, sigue ajustando: es el contraste
+    # que hace que esta medida signifique algo.
+    assert (
+        _pinta(criterios_de(26, perfil(keeper=15, defending=5)))
+        == "Ed=26 Por=15 Def=5 BP<=4 Lat<=4 Ano<=4 Jug<=4"
+    )
+
+
 #: AL PORTERO LOS PASES NO LE APARECEN, ni como criterio ni como techo. Una
 #: pregunta que no se había hecho: `EXCLUIDAS["keeper"]` le quita Jugadas,
 #: Lateral y Anotación, pero los Pases no estaban en esa lista... porque **no
@@ -2475,3 +2511,68 @@ LAS_DOS_REBAJAS_NO_SE_ACUMULAN: list[tuple[dict[str, int], str]] = [
 @pytest.mark.parametrize("niveles,esperado", LAS_DOS_REBAJAS_NO_SE_ACUMULAN)
 def test_las_dos_rebajas_no_se_acumulan(niveles: dict[str, int], esperado: str) -> None:
     assert _pinta(criterios_de(25, perfil(**niveles))) == esperado
+
+
+#: LA SEGUNDA FRONTERA DE EDAD DEL DIAL (2026-10-26). El cuarto criterio de
+#: identidad baja el listón **tres** puntos hasta los 24 y **dos** de los 25 en
+#: adelante. El dial ya tenía una frontera por abajo --`EDAD_QUE_APRIETA_TODO`,
+#: que aprieta la búsqueda entera a los 21 y por debajo-- y resulta que tiene
+#: otra arriba.
+#:
+#: SE DESTAPÓ CON UN FALLO. El mismo defensa de `Def9 Jug9 Lat8 Pas8` sale
+#: HOLGADO a los 24 y AJUSTADO a los 25, con la misma rareza de 22. El apunte
+#: viejo de los 25 se volvió a medir y seguía ajustado, así que no era un error
+#: de transcripción: era la edad.
+#:
+#: Y NO ES UNA REBAJA POR SER JOVEN A SECAS, que fue la primera lectura. El
+#: extremo de `Lat11 Ano11 Def7` --empate arriba pero sin cuarto criterio-- sale
+#: ajustado a los 24 igual que a los 25. Lo que la edad cambia es el precio del
+#: cuarto criterio, no el listón entero.
+#:
+#: LO QUE SEPARÓ LAS DOS LECTURAS. «Se suman las dos rebajas por debajo de 25» y
+#: «el cuarto criterio vale 3 por debajo de 25» daban lo mismo en todo lo medido,
+#: porque cada perfil con cuarto criterio tenía también empate arriba. El
+#: mediocentro de `Jug11 Lat10 Pas7 Def6` tiene cuarto criterio y NO tiene
+#: empate: rareza 22 contra un listón base de 25. Sumando daría 25-2 = 23 y
+#: ajustaría; con el cuarto en 3 da 22 y afloja. Afloja.
+#:
+#: Y EL TAMAÑO ESTÁ ACOTADO POR ARRIBA: `Def9 Jug9 Lat8 Pas7` a los 24 --rareza
+#: 21, dos puntos por debajo del listón en vez de uno-- sale AJUSTADO. La rebaja
+#: extra es de exactamente uno.
+#: (edad, perfil, lo que contestó Hattrick)
+LA_EDAD_QUE_ABARATA_EL_CUARTO: list[tuple[int, dict[str, int], str]] = [
+    # El defensa que destapó todo, barrido por edades. A los 21 manda el tope
+    # duro, de 22 a 24 afloja, y de 25 en adelante ajusta.
+    (21, dict(defending=9, playmaking=9, winger=8, passing=8),
+     "Ed=21 Def=9 Jug 8-10 Pas 7-9 Lat 6-9 Ano<=4 Por<=4"),
+    (22, dict(defending=9, playmaking=9, winger=8, passing=8),
+     "Ed21-23 Def=9 Jug 8-10 Pas 7-10 Lat 6-9 Ano<=5 Por<=5"),
+    (23, dict(defending=9, playmaking=9, winger=8, passing=8),
+     "Ed22-24 Def=9 Jug 8-10 Pas 7-10 Lat 6-9 Ano<=5 Por<=5"),
+    (24, dict(defending=9, playmaking=9, winger=8, passing=8),
+     "Ed23-25 Def=9 Jug 8-10 Pas 7-10 Lat 6-9 Ano<=5 Por<=5"),
+    (25, dict(defending=9, playmaking=9, winger=8, passing=8),
+     "Ed=25 Def=9 Jug 8-10 Pas 7-9 Lat 6-9 Ano<=4 Por<=4"),
+    (26, dict(defending=9, playmaking=9, winger=8, passing=8),
+     "Ed=26 Def=9 Jug 8-10 Pas 7-9 Lat 6-9 Ano<=4 Por<=4"),
+    # Dos puntos por debajo del listón: la rebaja extra no llega.
+    (24, dict(defending=9, playmaking=9, winger=8, passing=7),
+     "Ed=24 Def=9 Jug 8-10 Pas 6-8 Lat 6-9 Ano<=4 Por<=4"),
+    # Empate arriba SIN cuarto criterio: la edad no le hace nada.
+    (24, dict(defending=7, winger=11, scoring=11),
+     "Ed=24 Lat=11 Ano 10-12 Jug<=4 Pas<=4 Def<=8 Por<=4"),
+    (25, dict(defending=7, winger=11, scoring=11),
+     "Ed=25 Lat=11 Ano 10-12 Jug<=4 Pas<=4 Def<=8 Por<=4"),
+    # Cuarto criterio SIN empate arriba: el caso que separó las dos lecturas.
+    (23, dict(defending=6, playmaking=11, winger=10, passing=7),
+     "Ed22-24 Jug=11 Lat 9-11 Pas 6-9 Def 5-8 Ano<=5 Por<=5"),
+    (24, dict(defending=6, playmaking=11, winger=10, passing=7),
+     "Ed23-25 Jug=11 Lat 9-11 Pas 6-9 Def 5-8 Ano<=5 Por<=5"),
+    (25, dict(defending=6, playmaking=11, winger=10, passing=7),
+     "Ed=25 Jug=11 Lat 9-11 Pas 6-8 Def 5-7 Ano<=4 Por<=4"),
+]
+
+
+@pytest.mark.parametrize("edad,niveles,esperado", LA_EDAD_QUE_ABARATA_EL_CUARTO)
+def test_la_edad_que_abarata_el_cuarto(edad: int, niveles: dict[str, int], esperado: str) -> None:
+    assert _pinta(criterios_de(edad, perfil(**niveles))) == esperado

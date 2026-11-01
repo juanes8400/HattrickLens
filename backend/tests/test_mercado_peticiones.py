@@ -165,7 +165,7 @@ def test_LA_UNICA_VENTANA_es_la_de_hattrick() -> None:
     """
     plan = plan_de_busqueda(_objetivo())
     assert len(plan) == 1
-    assert plan[0].peso == 100
+    assert plan[0].peso == 90, "la ventana es la del sello, y el sello vale 90"
     assert len(peticiones_de(plan[0])) == 1
 
 

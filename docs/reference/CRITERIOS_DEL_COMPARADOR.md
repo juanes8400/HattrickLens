@@ -877,7 +877,12 @@ un ejemplo concreto, hay que desconfiar.
 
 ## Cuánto se separa nuestra escalera de la suya
 
-Medido sobre 33 793 pares sintéticos que **nuestra** escalera acepta, mirando
+> **Histórico.** Esta escalera ya no existe: se fue entera el **2026-10-27** y
+> hoy sólo hay dos pesos, el 100 del clavado y el 90 del sello. La medición se
+> queda porque es la prueba de por qué: ver «Qué se cambió el 2026-10-27» al
+> final.
+
+Medido sobre 33 793 pares sintéticos que **nuestra** escalera aceptaba, mirando
 cuántos llevaría el sello de Hattrick:
 
 | nuestro peso | pares | los enseñaría Hattrick |
@@ -926,8 +931,11 @@ que vuelve a mandar `VIDA` sola: cumplirla no borra, deja paso.
 ## Las ventas guardadas antes del sondeo
 
 Las que ya estaban en el fondo el 2026-10-10 no llevan las siete habilidades,
-así que **no pueden llevar el sello de Hattrick** y se miden sólo con nuestra
-escalera. Se renuevan solas según entran ventas nuevas.
+así que **no pueden llevar el sello de Hattrick**. Hasta el 2026-10-27 se medían
+con nuestra escalera; desde que la escalera se fue, **no se pueden medir en
+absoluto**: sólo entran si están clavadas, y la mayoría no lo está. Se renuevan
+solas según entran ventas nuevas, y de ahí sale el apagón que mide la sección
+del final.
 
 No se pueden rellenar. Haría falta saber qué habilidades tenía cada vendido **el
 día que se vendió**, y CHPP no lo publica: `transfersplayer` devuelve el
@@ -962,3 +970,50 @@ próxima persona que lea esto se la creerá.
 sondeo no pueden llevar el sello, y no es un pendiente: haría falta saber las
 habilidades del vendido el día de la venta, y CHPP no las publica. La respuesta
 correcta es que se renueven solas, y así está.
+
+## Qué se cambió el 2026-10-27 (decisión del usuario)
+
+**Sólo hay dos pesos.** Sus palabras, literales:
+
+> 100 = Coincidencia exacta Edad + top 3 habilidades
+>
+> 90 = Aparece en el comparador de Hattrick pero no es exactamente el mismo
+> jugador
+
+Y al preguntarle qué hacer con los peldaños nuestros que quedaban sueltos:
+«solo hay esos dos escalones, el resto ya no los quiero».
+
+Lo que se fue: `ESCALERA` entera —95, 90, 80 y 75—, la clase `Escalon` y la
+ventana propia de la terciaria (`TERCIARIA_ARRIBA`/`ABAJO`). Lo que no es
+clavado ni avalado ya no pesa poco: no es comparable.
+
+**El sello bajaba de 100 a 90**, y eso invierte el orden de dos comprobaciones.
+Mientras los dos valían 100 daba igual cuál se preguntara primero; ahora el
+clavado va delante, porque casi todo clavado está además avalado y preguntando
+al sello antes se quedaría en 90 el mejor comparable que puede existir.
+
+**El sello pasa a caducar.** `PESO_QUE_NO_CADUCA` sube de 95 a 100: el único que
+no envejece es el clavado, porque es el único que nada más fresco puede mejorar.
+A un avalado todavía le puede salir un clavado que lo sustituya, y eso es la
+consecuencia directa de su propia definición —«no es exactamente el mismo
+jugador»—.
+
+### Lo que cuesta, medido antes de hacerlo y aceptado
+
+Contra el fondo del 2026-10-27 —33 ventas guardadas, 50 jugadores en plantilla:
+
+| | antes | después |
+|---|---:|---:|
+| pares jugador × venta con peso | 27 | **0** |
+| jugadores con algún comparable | 8 | **0** |
+
+Reparto de los 27: uno en el 95, seis en el 90, cuatro en el 80 y **dieciséis en
+el 75**, el peldaño más flojo de todos.
+
+El cero no lo pone la regla, lo pone el fondo: **ninguna de las 33 ventas guarda
+las siete habilidades**, porque todas se vieron antes del 2026-10-10, que es
+cuando se añadió la columna, y sin las siete no se puede preguntar por el sello.
+Clavados exactos no hay ninguno. Se llena solo: el parser de `transfersearch` sí
+trae las siete, así que cada paso del mercado devuelve ventas puntuables.
+
+El usuario lo aceptó expresamente: «sí, ya, y acepto el apagón».
