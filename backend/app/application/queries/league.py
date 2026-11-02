@@ -994,8 +994,25 @@ class LeagueQueryService:
         cambio: CambioDeJornada | None = None
         jugadas = [mt.match_round or 0 for mt in matches if mt.home_goals >= 0]
         ultima = max(jugadas) if jugadas else 0
-        if ultima >= 2 and team.ht_team_id in {r.ht_team_id for r in records}:
-            antes_reg, antes_pen = _clasificacion_hasta(matches, ultima - 1)
+        antes_reg, antes_pen = (
+            _clasificacion_hasta(matches, ultima - 1) if ultima >= 2 else ([], [])
+        )
+        # ESTAR HOY NO ES HABER ESTADO LA JORNADA PASADA (2026-11-02, el 500 de
+        # producción). Quien acaba de subir sale en la clasificación de hoy
+        # --ocho equipos a cero-- y NO sale en la de antes, que se arma con los
+        # partidos de la serie: los de esta serie son de sus ocho equipos del
+        # año pasado, y uno de ellos bajó justo para dejarte el sitio. La
+        # simulación «antes» no te contiene, y buscarte en ella con un `next`
+        # sin salida lanzaba `StopIteration`, que dentro de una corrutina
+        # Python convierte en `RuntimeError`: Liga y las alertas --las dos
+        # pantallas que pasan por `liga_calculada`-- devolvían 500 enteras por
+        # un recuadro de más. Sin ese recuadro la pantalla está completa; con
+        # la primera jornada jugada vuelve solo.
+        if (
+            ultima >= 2
+            and team.ht_team_id in {r.ht_team_id for r in records}
+            and team.ht_team_id in {r.ht_team_id for r in antes_reg}
+        ):
             zonas_antes = dict(zonas)
             for pendiente in antes_pen:
                 clave = (pendiente.home_ht_id, pendiente.away_ht_id)

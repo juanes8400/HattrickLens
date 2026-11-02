@@ -177,3 +177,48 @@ def test_si_las_lecturas_de_la_serie_fallan_liga_sigue_en_pie() -> None:
                 return await _lecturas_de_la_serie(s, team_id)
 
     assert asyncio.run(go()) == {}
+
+
+def test_la_serie_con_historia_ajena_no_tumba_liga() -> None:
+    """El 500 de verdad: la jornada pasada de una serie en la que no estabas.
+
+    2026-11-02, leído en el registro de producción --`RuntimeError: coroutine
+    raised StopIteration`, cuarenta y dos veces en una hora, en
+    `queries/league.py` dentro de `liga_calculada`--. La serie nueva trae sus
+    partidos del año pasado, jugados entre los ocho equipos que estaban, y
+    ninguno es tuyo. Así que apareces en la clasificación de HOY y no en la de
+    la jornada anterior, que se arma con esos partidos; `next()` sin salida se
+    iba a `StopIteration` y Liga y las alertas contestaban 500 enteras.
+    """
+
+    async def go():
+        factory, team_id = await _tras_el_ascenso()
+        async with factory() as s:
+            # Doce jornadas de la serie nueva, del año pasado, entre los otros.
+            for i in range(12):
+                local, visita = RIVALES_NUEVOS[i % 3], RIVALES_NUEVOS[(i + 1) % 3]
+                s.add(
+                    m.Match(
+                        ht_match_id=900_000 + i,
+                        played_at=ANTES + timedelta(days=7 * i),
+                        match_type=1,
+                        status="finished",
+                        series_ht_id=NUEVA,
+                        match_round=i + 1,
+                        home_team_ht_id=local[0],
+                        away_team_ht_id=visita[0],
+                        home_team_name=local[1],
+                        away_team_name=visita[1],
+                        home_goals=2,
+                        away_goals=1,
+                    )
+                )
+            await s.commit()
+            return await LeagueQueryService(s).get(team_id)
+
+    resp = asyncio.run(go())
+    assert resp is not None
+    # La pantalla entera sigue en pie; lo único que falta es el recuadro de
+    # «cuánto movió la última jornada», que sin haber jugado no existe.
+    assert resp.change is None
+    assert len(resp.standings) == 4
