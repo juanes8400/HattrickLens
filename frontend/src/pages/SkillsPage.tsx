@@ -250,7 +250,7 @@ export function SkillsPage() {
     <div className="space-y-4">
       <header>
         <h1 className="text-xl font-semibold">
-          {t("habilidades.titulo", "Equipo")}
+          {t("habilidades.titulo", "Profundidad de plantilla")}
         </h1>
         <p className="text-sm text-[var(--muted)]">
           {t(

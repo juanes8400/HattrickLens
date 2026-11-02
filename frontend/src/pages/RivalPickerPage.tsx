@@ -83,16 +83,18 @@ export function RivalPickerPage() {
   // escribiendo su ID a mano.
   //
   // Sin puesto a propósito: no tiene uno en TU tabla, y la columna ya sabe
-  // pintar «-» y mandar al final a quien no lo trae. Después de jugado sigue
-  // en la lista --su ficha sirve igual-- y el detalle lo dice.
+  // pintar «-» y mandar al final a quien no lo trae.
+  //
+  // Y sólo mientras esté por jugar (2026-11-02, dicho por el usuario: «si ya
+  // jugué Promoción, no necesito verlo en esa lista»). El servidor ya no lo
+  // manda después del pitido, así que aquí no hay nada que filtrar: la regla
+  // vive en un solo sitio.
   const promocion = league.data?.promotionRival ?? null;
   if (promocion && !leagueRows.some((r) => r.htTeamId === promocion.htTeamId)) {
     leagueRows.push({
       htTeamId: promocion.htTeamId,
       name: promocion.name,
-      detail: promocion.pending
-        ? tx("Promoción · por jugar")
-        : tx("Promoción · ya jugado"),
+      detail: tx("Promoción · por jugar"),
     });
   }
 
