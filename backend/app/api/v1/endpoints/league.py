@@ -1,6 +1,7 @@
 """Liga y predicciones. HL-080, HL-083, HL-090, HL-091, HL-094."""
 
 import asyncio
+import logging
 import time
 from dataclasses import asdict
 from typing import Any, Literal, cast
@@ -46,6 +47,8 @@ from app.infrastructure.db.session import get_session
 from app.infrastructure.security.tokens import decrypt_token
 
 router = APIRouter()
+
+_log = logging.getLogger(__name__)
 
 # 2026-08-05, pedido explícitamente: abrir la Comparativa de liga (o mover
 # cualquiera de sus 3 toggles) pedía las plantillas de los 7-8 rivales de la
@@ -246,6 +249,17 @@ async def _alineacion_enviada_propia(
     client = CHPPClient(decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc))
     try:
         enviada = await alineacion_enviada_de(client, proximo, team.ht_team_id)
+    # NUNCA TUMBAR LA PANTALLA ERA LA PROMESA Y NO ERA VERDAD (2026-11-01):
+    # aquí había un `try/finally` sin `except`, así que cualquier tropiezo de
+    # `matchorders` --Hattrick que no contesta, un partido del que todavía no
+    # acepta órdenes, un token recién revocado-- salía como 500 y Liga entera
+    # se quedaba en «No pudimos cargar estos datos», con la clasificación ya
+    # calculada y guardada al otro lado. Las órdenes son un extra del Resumen:
+    # sin ellas tu lado va con tu último partido, que es lo que pasa siempre
+    # antes de mandarlas.
+    except Exception as exc:  # noqa: BLE001
+        _log.info("sin alineación enviada del partido %s: %r", proximo.ht_match_id, exc)
+        return None
     finally:
         await client.aclose()
     _memoria_enviada[proximo.ht_match_id] = (time.monotonic(), enviada)
@@ -305,7 +319,14 @@ async def _lecturas_de_la_serie(
             team.series_ht_id,
             jugados,
         )
-    except (CHPPAuthError, CHPPDeniedError, CHPPUnavailableError):
+    # LAS TRES DE CHPP NO SON TODAS (2026-11-01). Un fallo que no fuera de
+    # esos tres tipos --una respuesta que el parser no entiende, un tiempo de
+    # espera agotado-- se saltaba este `except` y tumbaba Liga, justo lo que
+    # el docstring promete que no pasa. La Poisson sola es el estado normal de
+    # quien nunca ha sincronizado: no hay nada aquí por lo que valga la pena
+    # no enseñar la clasificación.
+    except Exception as exc:  # noqa: BLE001
+        _log.info("sin lecturas de la serie %s: %r", team.series_ht_id, exc)
         return {}
     finally:
         await client.aclose()
