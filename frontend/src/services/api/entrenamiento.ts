@@ -151,7 +151,11 @@ export interface TrainingFormula {
       to_level: number;
       observed_weeks: number;
       predicted_weeks: number;
+      /** Absoluto: es lo que comen la media y el máximo. */
       error_weeks: number;
+      /** El mismo, con signo. Negativo = costó MÁS semanas de las previstas.
+       *  Es lo que pinta el histograma del reparto del error. */
+      signed_error_weeks: number;
     }[];
     caveats: string[];
   };

@@ -228,7 +228,7 @@ presenta el índice como una estrella oficial de partido.
 | `transfersteam`, `transfersplayer`, `playerdetails` | ✅ Verificado | Responden correctamente |
 | Plantilla de equipos ajenos | ✅ Verificado (técnicamente) | **Restringido por reglas**: solo estado actual, nunca histórico |
 | `leaguefixtures` | ⚠️ Devuelve vacío | Probado con varias versiones y parámetros; posiblemente por inicio de temporada |
-| `transfersearch` | 🔶 Existe, firma incompleta | Acepta `minAge`/`maxAge`, rechaza `ageMin`; faltan obligatorios sin documentar |
+| `transfersearch` | ✅ Verificado (2026-11-01) | Los nombres son `ageMin`/`ageMax` y son OBLIGATORIOS: `minAge`/`maxAge` devuelve «faltan parámetros obligatorios» y sin edad, lo mismo. Lo que tiene tope es el ANCHO de la ventana de edad, y crece a saltos: 2 años con `ageMin` 17 o 18, 3 con 19, 6 con 20, 7 de 21 a 26, y de 27 en adelante sin tope. Pasarse devuelve «Invalid parameter specified (10) Additional Info: ageMin». Medido con 180 peticiones bisecando cada edad; la tabla vive en `app/infrastructure/chpp/mercado.py` y el troceado la aplica. El primer filtro de habilidad sigue sin admitir más de cuatro niveles |
 | Scope `place_bid` | ✅ Documentado | Aparece en las librerías CHPP establecidas. **Corrige una afirmación previa errónea de que las pujas automáticas estaban prohibidas** |
 
 ---
@@ -242,10 +242,9 @@ usuario que no sea nosotros:
 2. Precios de entrada de tres de los cuatro sectores del estadio.
 3. Pesos de experiencia de copa, clasificación y amistoso nacional.
 4. Si el coste por nivel de experiencia es realmente plano.
-5. Firma completa de `transfersearch`.
-6. Por qué `leaguefixtures` devuelve vacío.
-7. Factores de entrenador, asistentes e intensidad, aislados.
-8. Costes reales de construcción y mantenimiento por asiento.
+5. Por qué `leaguefixtures` devuelve vacío.
+6. Factores de entrenador, asistentes e intensidad, aislados.
+7. Costes reales de construcción y mantenimiento por asiento.
 
-Las tres primeras y la quinta se resuelven con la documentación oficial que se
+Las tres primeras se resuelven con la documentación oficial que se
 obtiene al ser aprobado como CHPP. Las demás, acumulando snapshots propios.

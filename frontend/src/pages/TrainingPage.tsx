@@ -1765,11 +1765,21 @@ export function TrainingPage() {
                     )}
                   </>
                 )}{" "}
+                {/* AL CÁLCULO, no a la pantalla: `/engine` es el nombre
+                  viejo de Transparencia y su redirección se come la
+                  querystring, asi que este enlace aterrizaba en la primera
+                  seccion del catalogo --«Que hace cada modulo»-- y habia que
+                  buscar Entrenamiento a mano (2026-11-01, dicho por un
+                  usuario). La clave de i18n sigue llamandose `verMotor` para
+                  no mover cinco ficheros por un nombre interno. */}
                 <Link
-                  to="/engine"
+                  to="/transparency?s=entrenamiento&c=semanas-al-pop"
                   className="underline hover:text-[var(--text)]"
                 >
-                  {t("entrenamiento.verMotor", "ver el detalle en Motor")}
+                  {t(
+                    "entrenamiento.verMotor",
+                    "ver el detalle en Transparencia",
+                  )}
                 </Link>
                 .
               </div>

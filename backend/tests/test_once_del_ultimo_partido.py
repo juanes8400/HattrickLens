@@ -395,10 +395,10 @@ def test_el_pronostico_de_un_partido_es_de_un_club_y_no_de_los_dos() -> None:
     async def caso():
         from datetime import UTC, datetime
 
-        from app.application.queries.league import _guardar_lo_dicho
+        from app.application.queries.lo_dicho import guardar_lo_dicho
         from app.infrastructure.db.session import SessionLocal
 
-        del SessionLocal  # solo para que quede claro cual se usa: la de league
+        del SessionLocal  # solo para que quede claro cual se usa: la suya
         factory, team_id = await _escenario()
         async with factory() as s:
             otro = m.Team(ht_team_id=600001, name="Deportivo Uno")
@@ -406,10 +406,12 @@ def test_el_pronostico_de_un_partido_es_de_un_club_y_no_de_los_dos() -> None:
             await s.commit()
             otro_id = otro.id
 
-        # `_guardar_lo_dicho` abre su propia sesion a proposito (un commit en
+        # `guardar_lo_dicho` abre su propia sesion a proposito (un commit en
         # la del lector caduca los objetos que todavia esta usando), asi que
-        # aqui se escribe igual que ella, contra la misma base.
-        import app.application.queries.league as L
+        # aqui se escribe igual que ella, contra la misma base. Vive en
+        # `queries.lo_dicho` desde el 2026-11-01, cuando la ficha de rival
+        # paso a guardar tambien el pronostico de la Promocion.
+        import app.application.queries.lo_dicho as L
 
         async def escribir(team, home_win):
             async with factory() as s:

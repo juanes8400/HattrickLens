@@ -6,6 +6,8 @@ import {
   usePositionModel,
   useTrainingFormula,
 } from "../hooks/useTeam";
+import { Chart } from "../charts/Chart";
+import { histogramaDeErrorOption } from "../charts/chartOptions";
 import { ErrorState, Kpi, Loading, Note, Panel } from "../components/Panels";
 import { Tabs, PanelDePestanas } from "../components/Tabs";
 import type {
@@ -922,6 +924,44 @@ function FormulaPanel({
                 label={tx("Error máximo")}
                 value={v.maxErrorWeeks == null ? "-" : `${v.maxErrorWeeks} sem`}
               />
+            </div>
+            {/* EL HISTOGRAMA DEL ERROR (2026-11-01, pedido del usuario:
+              «sería bonito»). Va entre los dos números y la tabla porque es
+              lo que los une: la media dice cuánto se falla, la tabla dice
+              dónde, y esto dice de qué lado.
+
+              CON SIGNO: a la izquierda las subidas que costaron más semanas
+              de las previstas, a la derecha las que llegaron antes. El error
+              absoluto de los KPIs no puede enseñar eso, y es lo único que un
+              histograma añade a dos números.
+
+              Y NO SIRVE PARA AJUSTAR NADA: la fórmula es del Manual no
+              Escrito y se contrasta, no se reajusta con esto. */}
+            <div className="mt-3">
+              <div className="flex items-baseline justify-between">
+                <span className="text-xs font-medium">
+                  {tx("Reparto del error")}
+                </span>
+                <span className="text-[11px] text-[var(--muted)]">
+                  {tx("← costó más · llegó antes →")}
+                </span>
+              </div>
+              <Chart
+                option={histogramaDeErrorOption(
+                  v.samples.map((s) => s.signed_error_weeks),
+                )}
+                height={160}
+                ariaLabel={tx(
+                  "Histograma del error de la fórmula de entrenamiento, en semanas",
+                )}
+              />
+              {v.observations < 5 && (
+                <p className="text-[11px] text-[var(--muted)]">
+                  {tx(
+                    "Con tan pocas subidas el reparto es una anécdota, no una medida: cada sincronización con subidas nuevas lo va llenando.",
+                  )}
+                </p>
+              )}
             </div>
             <table className="mt-3 w-full text-xs">
               <thead className="text-[var(--muted)]">

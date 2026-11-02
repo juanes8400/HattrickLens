@@ -13,6 +13,10 @@ Copa entra en la flor como uno más, marcado como de Copa. Va aparte de
 `sectores_de_la_serie` a propósito: Habilidades (Profundidad) usa esa función
 para medirte contra tu serie, y un equipo de otra serie ahí no pinta nada.
 
+2026-11-01, lo mismo con la PROMOCIÓN: el rival del partido de promoción entra
+en la flor desde que se sortea hasta que se juega. Es de otra serie --viene de
+la de arriba-- así que va por el mismo camino que el de Copa.
+
 La normalización no se hace aquí sino en la pantalla, que junta estos tres con
 TSI, forma, experiencia y resistencia de la comparativa de liga y con el puesto
 esperado de la simulación.
@@ -26,6 +30,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.nombre_del_torneo import nombre_del_torneo, nombres_de_copa
+from app.application.queries.promocion import rival_de_promocion
 from app.domain.engines.prediccion import TIPOS_OFICIALES
 from app.domain.value_objects.ht_constants import MATCH_TYPE_CUP
 from app.infrastructure.db import models as m
@@ -50,6 +55,10 @@ class SectoresDeEquipo:
     es_copa: bool = False
     #: Qué copa: «Copa Cocuy Rubí». Sólo con `es_copa`.
     copa: str | None = None
+    #: El rival de Promoción, que tampoco es de tu serie: viene de la de
+    #: arriba (2026-11-01, pedido del usuario). Entra mientras el partido esté
+    #: por jugarse y sale en cuanto se juega.
+    es_promocion: bool = False
 
 
 @dataclass(frozen=True)
@@ -193,6 +202,36 @@ async def rival_de_copa(session: AsyncSession, team: m.Team) -> RivalDeCopa | No
         ht_team_id=rival_id,
         nombre=proximo.away_team_name if en_casa else proximo.home_team_name,
         copa=copa,
+    )
+
+
+async def sectores_del_rival_de_promocion(
+    session: AsyncSession, team: m.Team, de_la_serie: set[int]
+) -> SectoresDeEquipo | None:
+    """La fila de tu rival de Promoción mientras el partido esté por jugarse.
+
+    «Desde que se conoce hasta que ya se haya jugado», que fue como se pidió:
+    el cruce aparece en el calendario en cuanto Hattrick lo sortea y la flor
+    lo pierde en cuanto hay marcador, porque para entonces lo que importa ya
+    no es cómo viene, sino lo que pasó.
+
+    Sus últimos cinco oficiales ya están en la base: el sync los precarga
+    igual que los de los contrincantes de liga, porque el paso de «partidos de
+    rivales» incluye el tipo 2 desde que existe.
+    """
+    promocion = await rival_de_promocion(session, team, solo_pendiente=True)
+    if promocion is None or promocion.ht_team_id in de_la_serie:
+        return None
+    lecturas = _resumen(await _ultimos_de_un_rival(session, promocion.ht_team_id))
+    return SectoresDeEquipo(
+        ht_team_id=promocion.ht_team_id,
+        nombre=promocion.nombre,
+        es_propio=False,
+        partidos=len(lecturas),
+        medio=_media([x[0] for x in lecturas]),
+        defensa=_media([x[1] for x in lecturas]),
+        ataque=_media([x[2] for x in lecturas]),
+        es_promocion=True,
     )
 
 

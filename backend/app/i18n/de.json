@@ -1811,5 +1811,11 @@
   "{} bajó de la posición {} a la {}": "{} fiel von Platz {} auf {}",
   "Quien ya llegó al máximo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Wer schon die Obergrenze erreicht hat, wiegt NULL und steht nicht auf der Leiter: es ist keine niedrigere Stufe, er zählt schlicht nicht.",
   "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "Wert(h) =  Σ  Gewicht(Eimer) · wie viele(Eimer, h)  ÷ {}\n           Eimer\n\nLeiter mit β = {}:\n{}\n    am_Limit              immer = 0",
-  "{} ({}): tu alineación tiene {} jugadores y hacen falta once, así que Hattrick no puede calcular los ratings": "{} ({}): deine Aufstellung hat {} Spieler und es werden elf gebraucht, daher kann Hattrick die Bewertungen nicht berechnen"
+  "Tu alineación para el próximo partido tiene {} jugadores y hacen falta once: Hattrick no puede calcular los ratings hasta que la completes.": "Deine Aufstellung für das nächste Spiel hat {} Spieler und es werden elf gebraucht: Hattrick kann die Bewertungen nicht berechnen, solange sie nicht vollständig ist.",
+  "No pudimos mirar el mercado de transferencias": "Wir konnten den Transfermarkt nicht einsehen",
+  "Hattrick rechazó la última búsqueda: {}": "Hattrick hat die letzte Suche abgelehnt: {}",
+  "No hay nada que arreglar de tu lado: los precios comparables se quedan como estaban y se vuelve a intentar en la próxima sincronización.": "Auf deiner Seite gibt es nichts zu beheben: Die Vergleichspreise bleiben, wie sie waren, und es wird bei der nächsten Synchronisation erneut versucht.",
+  "No tienes amistoso programado para esta semana": "Du hast für diese Woche kein Freundschaftsspiel angesetzt",
+  "El hueco de amistosos de tu país se cierra el {} a las {}.": "Das Freundschaftsspiel-Fenster deines Landes schließt am {} um {}.",
+  "Concierta uno en Hattrick: un amistoso entrena igual que un partido oficial y es la única forma de dar minutos sin arriesgar la liga.": "Vereinbare eines in Hattrick: Ein Freundschaftsspiel trainiert genauso wie ein Pflichtspiel und ist die einzige Möglichkeit, Spielzeit zu geben, ohne die Liga zu riskieren."
 }

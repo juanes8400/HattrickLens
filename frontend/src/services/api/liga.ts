@@ -117,6 +117,17 @@ export interface League {
       rival: { kind: "last"; match: LeagueMatchRef | null; tactic: string };
     } | null;
   } | null;
+  /** Tu rival de Promoción, si juegas promoción (2026-11-01). No está en la
+   *  clasificación: viene de la serie de arriba. Sigue viniendo después de
+   *  jugado --`pending` lo dice-- porque la lista de Rivales lo quiere igual
+   *  y la flor es la que lo suelta al pitido. */
+  promotionRival: {
+    htTeamId: number;
+    name: string;
+    isHome: boolean;
+    playedAt: string | null;
+    pending: boolean;
+  } | null;
   /** Cuánto movió la última jornada. `null` en la jornada 1, cuando no hay
    *  con qué comparar. Los deltas van en PUNTOS PORCENTUALES. */
   change: {
@@ -204,6 +215,9 @@ export interface SectoresRecientes {
     /** El próximo rival de Copa, que no es de tu serie (2026-09-15). */
     esCopa?: boolean;
     copa?: string | null;
+    /** El de Promoción, que tampoco (2026-11-01). Sólo mientras ese partido
+     *  esté por jugarse. */
+    esPromocion?: boolean;
   }[];
 }
 

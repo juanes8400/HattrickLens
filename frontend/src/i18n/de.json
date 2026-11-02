@@ -327,7 +327,7 @@
     "contraste": "Abgleich mit echten Pops: mittlere Abweichung von",
     "sobreSubidas": "bei {{n}} bestätigten Steigerung(en) in {{habilidad}}.",
     "sinDosSubidas": "Es gibt noch keine zwei aufeinanderfolgenden Steigerungen in {{habilidad}}, um die Formel abzugleichen.",
-    "verMotor": "die Details in der Engine ansehen",
+    "verMotor": "die Details in Transparenz ansehen",
     "cerrar": "Schließen",
     "vistasJugador": "Ansichten des Spielers",
     "mejoras": "Verbesserungen",
@@ -467,7 +467,10 @@
     "extremos": "Der beste in {{ambito}} ist {{mejor}} ({{vMejor}}) und der schlechteste {{peor}} ({{vPeor}}).",
     "puestoDe": "{{petalo}} · {{puesto}} von {{total}}",
     "dato": "Wert",
-    "flor": "Blume"
+    "flor": "Blume",
+    "promocion": "Relegation",
+    "serieYPromocion": "{{serie}} und dein Relegationsgegner",
+    "serieCopaYPromocion": "{{serie}}, dein Pokalgegner und dein Relegationsgegner"
   },
   "conectado": {
     "incompleta": "Die Verbindung blieb unvollständig",

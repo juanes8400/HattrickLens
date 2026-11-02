@@ -13,7 +13,6 @@ individual de los jugadores rivales.
 import dataclasses
 import logging
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from typing import Any, Literal
 
 from sqlalchemy import select
@@ -24,9 +23,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # (2026-09-14, lo tiró el CI de la 2.0). No hay ciclo: ese módulo no importa
 # nada de `queries`.
 from app.application.queries.alineacion_enviada import AlineacionEnviada
+from app.application.queries.lo_dicho import guardar_lo_dicho
 from app.application.queries.prediccion_liga import reparto_de_tacticas
+from app.application.queries.promocion import rival_de_promocion
 from app.domain.engines.prediccion import (  # type: ignore[attr-defined]
-    VERSION_DEL_MOTOR,
     PitchZoneMethod,
     factor_de_tactica,
     goles_esperados,
@@ -187,6 +187,12 @@ class LeagueResponse:
     is_top_division: bool = False
     is_bottom_division: bool = False
     caveats: list[str] = field(default_factory=list)
+    #: El rival de Promoción, si tu equipo juega promoción: no está en la
+    #: clasificación --viene de la serie de arriba-- así que sin esto no
+    #: aparecía en ninguna parte de la pantalla (2026-11-01, pedido del
+    #: usuario). Sigue viajando después de jugado, para que la lista de
+    #: Rivales lo tenga: la flor es la que lo suelta al pitido.
+    promotion_rival: dict[str, Any] | None = None
     #: Con qué resumen se calcularon las predicciones de esta respuesta. Viaja
     #: de vuelta para que la pantalla pinte marcado el que de verdad se usó y
     #: no el que ella cree haber pedido: si un día el servidor rechaza uno,
@@ -598,78 +604,6 @@ def _proximo_con_alineaciones(
     }
 
 
-async def _guardar_lo_dicho(
-    ht_match_id: int | None,
-    team_id: int,
-    pronostico: dict[str, Any],
-    fuente: str,
-) -> None:
-    """Deja escrito lo que acabamos de decir de un partido por jugarse.
-
-    2026-09-26, pedido del usuario. Las predicciones se calculaban y se
-    tiraban, así que después del partido no había forma honesta de decir
-    «esto es lo que te dijimos»: recalcularlo hacia atrás da lo que diríamos
-    HOY con los datos de entonces, que no es lo mismo.
-
-    UNA FILA POR PARTIDO **Y CLUB**: los dos lados de un partido pueden estar
-    conectados --la misma cuenta con sus dos clubes, o dos managers-- y el
-    pronóstico no es el mismo para los dos, porque el motor usa la alineación
-    que ESE manager envió. Sin el club en la clave, el segundo en abrir Liga
-    pisaba la fila del primero y después del partido le enseñaba una terna que
-    nunca vio.
-
-    SE REESCRIBE MIENTRAS EL PARTIDO SIGA PENDIENTE, a propósito: lo que vale
-    es lo último que el usuario llegó a ver antes del pitido, no lo primero.
-    En cuanto se juega deja de ser un cruce pendiente y esto no se vuelve a
-    llamar, así que la fila queda congelada sola.
-
-    EN SU PROPIA SESIÓN, no en la de la petición. Es la única escritura de
-    una petición de lectura, y un `commit` en medio caduca los objetos que el
-    lector todavía está usando: la primera versión de esto tumbaba la pantalla
-    entera al leer `team.name` después de guardar. Aparte, si la escritura
-    falla no deja la transacción del lector envenenada, que es justo el error
-    que reportan los usuarios al importar clubes viejos.
-
-    Y no se hace notar: si falla, la pantalla sale igual. Guardar lo que
-    dijimos no puede ser motivo para no poder decirlo.
-    """
-    if ht_match_id is None:
-        return
-    valores = {
-        "home_win": round(float(pronostico["homeWin"]), 4),
-        "draw": round(float(pronostico["draw"]), 4),
-        "away_win": round(float(pronostico["awayWin"]), 4),
-        "expected_home_goals": round(float(pronostico["expectedHomeGoals"]), 2),
-        "expected_away_goals": round(float(pronostico["expectedAwayGoals"]), 2),
-        "most_likely_score": str(pronostico["mostLikelyScore"])[:16],
-        "source": fuente,
-        "engine": VERSION_DEL_MOTOR,
-        "computed_at": datetime.now(UTC),
-    }
-    from app.infrastructure.db.session import SessionLocal
-
-    try:
-        async with SessionLocal() as propia:
-            fila = await propia.scalar(
-                select(m.MatchPrediction).where(
-                    m.MatchPrediction.ht_match_id == ht_match_id,
-                    m.MatchPrediction.team_id == team_id,
-                )
-            )
-            if fila is None:
-                propia.add(m.MatchPrediction(ht_match_id=ht_match_id, team_id=team_id, **valores))
-            else:
-                for campo, valor in valores.items():
-                    setattr(fila, campo, valor)
-            await propia.commit()
-    except Exception:  # noqa: BLE001, guardar lo dicho nunca tumba la pantalla
-        # PERO SE DEJA DICHO. La primera version se lo callaba, y una clave
-        # primaria mal declarada en la migracion (`BIGINT` en vez de
-        # `PKBigInt`, que sqlite no autonumera) estuvo tirando cada INSERT
-        # sin que se notara: la pantalla salia bien y la tabla seguia vacia.
-        _log.warning("no se pudo guardar el pronostico del partido %s", ht_match_id, exc_info=True)
-
-
 class LeagueQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
@@ -1060,8 +994,25 @@ class LeagueQueryService:
         cambio: CambioDeJornada | None = None
         jugadas = [mt.match_round or 0 for mt in matches if mt.home_goals >= 0]
         ultima = max(jugadas) if jugadas else 0
-        if ultima >= 2 and team.ht_team_id in {r.ht_team_id for r in records}:
-            antes_reg, antes_pen = _clasificacion_hasta(matches, ultima - 1)
+        antes_reg, antes_pen = (
+            _clasificacion_hasta(matches, ultima - 1) if ultima >= 2 else ([], [])
+        )
+        # ESTAR HOY NO ES HABER ESTADO LA JORNADA PASADA (2026-11-02, el 500 de
+        # producción). Quien acaba de subir sale en la clasificación de hoy
+        # --ocho equipos a cero-- y NO sale en la de antes, que se arma con los
+        # partidos de la serie: los de esta serie son de sus ocho equipos del
+        # año pasado, y uno de ellos bajó justo para dejarte el sitio. La
+        # simulación «antes» no te contiene, y buscarte en ella con un `next`
+        # sin salida lanzaba `StopIteration`, que dentro de una corrutina
+        # Python convierte en `RuntimeError`: Liga y las alertas --las dos
+        # pantallas que pasan por `liga_calculada`-- devolvían 500 enteras por
+        # un recuadro de más. Sin ese recuadro la pantalla está completa; con
+        # la primera jornada jugada vuelve solo.
+        if (
+            ultima >= 2
+            and team.ht_team_id in {r.ht_team_id for r in records}
+            and team.ht_team_id in {r.ht_team_id for r in antes_reg}
+        ):
             zonas_antes = dict(zonas)
             for pendiente in antes_pen:
                 clave = (pendiente.home_ht_id, pendiente.away_ht_id)
@@ -1179,16 +1130,32 @@ class LeagueQueryService:
             )
             if proximo is not None:
                 next_match |= proximo
-            # Lo que acabamos de decir queda escrito: ver `_guardar_lo_dicho`.
+            # Lo que acabamos de decir queda escrito: ver `guardar_lo_dicho`.
             # La fuente importa tanto como los números, porque el respaldo de
             # goles agregados ignora alineaciones y tácticas y no se le puede
             # pedir cuentas igual que al motor de zonas.
-            await _guardar_lo_dicho(
+            await guardar_lo_dicho(
                 cruce_pendiente.ht_match_id if cruce_pendiente is not None else None,
                 team.id,
                 next_match,
                 "zonas" if proximo is not None else "goles",
             )
+
+        # El rival de Promoción. Va en la respuesta de Liga porque es de
+        # liga: cuenta para subir y tiene sede, sólo que el rival no está en
+        # tu clasificación.
+        de_promocion = await rival_de_promocion(self._s, team)
+        promocion = (
+            None
+            if de_promocion is None
+            else {
+                "htTeamId": de_promocion.ht_team_id,
+                "name": de_promocion.nombre,
+                "isHome": de_promocion.en_casa,
+                "playedAt": de_promocion.cuando.isoformat() if de_promocion.cuando else None,
+                "pending": de_promocion.pendiente,
+            }
+        )
 
         caveats = list(sim.caveats)
         if schedule_incomplete:
@@ -1227,5 +1194,6 @@ class LeagueQueryService:
             is_top_division=sim.is_top_division,
             is_bottom_division=sim.is_bottom_division,
             caveats=caveats,
+            promotion_rival=promocion,
             pitch_zone_method=metodo,
         )

@@ -1,6 +1,7 @@
 """Liga y predicciones. HL-080, HL-083, HL-090, HL-091, HL-094."""
 
 import asyncio
+import logging
 import time
 from dataclasses import asdict
 from typing import Any, Literal, cast
@@ -46,6 +47,13 @@ from app.infrastructure.db.session import get_session
 from app.infrastructure.security.tokens import decrypt_token
 
 router = APIRouter()
+
+#: Lo que se traga un `except` se cuenta en WARNING, no en INFO: la aplicación
+#: no configura el registro, así que todo cae en el «último recurso» de
+#: `logging`, que publica de WARNING para arriba y TIRA todo lo demás. Un
+#: `info` aquí no se lee en ninguna parte, y el motivo por el que Liga salió
+#: a medias es justo lo que hay que poder leer después (2026-11-02).
+_log = logging.getLogger(__name__)
 
 # 2026-08-05, pedido explícitamente: abrir la Comparativa de liga (o mover
 # cualquiera de sus 3 toggles) pedía las plantillas de los 7-8 rivales de la
@@ -243,11 +251,31 @@ async def _alineacion_enviada_propia(
     if token is None:
         # Sin sesión todavía vale la que ya está sincronizada.
         return await alineacion_enviada_de(None, proximo, team.ht_team_id)
-    client = CHPPClient(decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc))
+    client: CHPPClient | None = None
     try:
+        # EL CLIENTE TAMBIÉN VA DENTRO (2026-11-02, visto en CI). Construirlo
+        # fuera dejaba sin cubrir dos tropiezos que no son de Hattrick sino
+        # nuestros: la clave de la aplicación sin configurar --«Missing
+        # client_id»-- y un token guardado que no se puede descifrar. Los dos
+        # salían como 500 por encima de este `except`.
+        client = CHPPClient(
+            decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc)
+        )
         enviada = await alineacion_enviada_de(client, proximo, team.ht_team_id)
+    # NUNCA TUMBAR LA PANTALLA ERA LA PROMESA Y NO ERA VERDAD (2026-11-01):
+    # aquí había un `try/finally` sin `except`, así que cualquier tropiezo de
+    # `matchorders` --Hattrick que no contesta, un partido del que todavía no
+    # acepta órdenes, un token recién revocado-- salía como 500 y Liga entera
+    # se quedaba en «No pudimos cargar estos datos», con la clasificación ya
+    # calculada y guardada al otro lado. Las órdenes son un extra del Resumen:
+    # sin ellas tu lado va con tu último partido, que es lo que pasa siempre
+    # antes de mandarlas.
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("sin alineación enviada del partido %s: %r", proximo.ht_match_id, exc)
+        return None
     finally:
-        await client.aclose()
+        if client is not None:
+            await client.aclose()
     _memoria_enviada[proximo.ht_match_id] = (time.monotonic(), enviada)
     return enviada
 
@@ -296,8 +324,12 @@ async def _lecturas_de_la_serie(
     )
     if token is None:
         return {}
-    client = CHPPClient(decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc))
+    client: CHPPClient | None = None
     try:
+        # El cliente, dentro: véase `_alineacion_enviada_propia`.
+        client = CHPPClient(
+            decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc)
+        )
         return await lecturas_de_la_serie(
             session,
             client,
@@ -305,10 +337,18 @@ async def _lecturas_de_la_serie(
             team.series_ht_id,
             jugados,
         )
-    except (CHPPAuthError, CHPPDeniedError, CHPPUnavailableError):
+    # LAS TRES DE CHPP NO SON TODAS (2026-11-01). Un fallo que no fuera de
+    # esos tres tipos --una respuesta que el parser no entiende, un tiempo de
+    # espera agotado-- se saltaba este `except` y tumbaba Liga, justo lo que
+    # el docstring promete que no pasa. La Poisson sola es el estado normal de
+    # quien nunca ha sincronizado: no hay nada aquí por lo que valga la pena
+    # no enseñar la clasificación.
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("sin lecturas de la serie %s: %r", team.series_ht_id, exc)
         return {}
     finally:
-        await client.aclose()
+        if client is not None:
+            await client.aclose()
 
 
 @router.get("/league/model", summary="Qué modela la simulación y qué no")
@@ -331,6 +371,7 @@ async def league_sectores_recientes(
         PARTIDOS,
         sectores_de_la_serie,
         sectores_del_rival_de_copa,
+        sectores_del_rival_de_promocion,
     )
 
     team = await session.get(m.Team, team_id)
@@ -339,11 +380,17 @@ async def league_sectores_recientes(
     from app.api.cache_por_sync import por_sync
 
     async def calcular() -> list[Any]:
-        # La serie y, detrás, el próximo rival de Copa si sigues en ella
-        # (2026-09-15, pedido del usuario).
+        # La serie y, detrás, los dos rivales que no son de ella: el próximo
+        # de Copa si sigues en ella (2026-09-15) y el de Promoción mientras
+        # ese partido esté por jugarse (2026-11-01). Los dos, pedidos.
         filas = await sectores_de_la_serie(session, team)
-        copa = await sectores_del_rival_de_copa(session, team, {f.ht_team_id for f in filas})
-        return filas + ([copa] if copa is not None else [])
+        ajenos = {f.ht_team_id for f in filas}
+        copa = await sectores_del_rival_de_copa(session, team, ajenos)
+        if copa is not None:
+            ajenos.add(copa.ht_team_id)
+        promocion = await sectores_del_rival_de_promocion(session, team, ajenos)
+        extra = [x for x in (copa, promocion) if x is not None]
+        return filas + extra
 
     equipos = await por_sync(session, team_id, "sectores-recientes", (), calcular)
     return {
@@ -359,6 +406,7 @@ async def league_sectores_recientes(
                 "ataque": e.ataque,
                 "esCopa": e.es_copa,
                 "copa": e.copa,
+                "esPromocion": e.es_promocion,
             }
             for e in equipos
         ],

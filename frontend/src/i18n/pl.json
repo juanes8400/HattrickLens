@@ -459,7 +459,7 @@
     "ultimoSinSubidas": "Nikt nie zanotował wzrostu.",
     "unDia": "{{n}} dzień",
     "unPartido": "{{n}} mecz",
-    "verMotor": "zobacz szczegóły w Silniku",
+    "verMotor": "zobacz szczegóły w Przejrzystości",
     "vistasJugador": "Widoki zawodnika",
     "jugador": "Zawodnik",
     "mejorasMeta": "potwierdzone wzrosty i prognoza, zawodnik po zawodniku",
@@ -512,7 +512,10 @@
     "resistencia": "Kondycja",
     "serieYCopa": "{{serie}} i twój przeciwnik w pucharze",
     "sinDato": "{{petalo}}: dla twojej drużyny nie ma jeszcze wartości.",
-    "titulo": "Siła w lidze"
+    "titulo": "Siła w lidze",
+    "promocion": "Baraże",
+    "serieYPromocion": "{{serie}} i twój przeciwnik w barażach",
+    "serieCopaYPromocion": "{{serie}}, twój przeciwnik w pucharze i w barażach"
   },
   "formato": {
     "ahora": "teraz",

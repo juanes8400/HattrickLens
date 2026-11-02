@@ -117,6 +117,16 @@ class Team(Base):
     #: Esto se queda como lo que es: cuándo se miró el mercado de este club por
     #: última vez, que es un dato que la pantalla puede enseñar.
     market_run_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    #: Qué dijo Hattrick la última vez que el paso del mercado no pudo correr,
+    #: y cuándo. `None` las dos = la última vez salió bien.
+    #:
+    #: NO VIAJA AL CARTEL DE SINCRONIZACIÓN PARCIAL (2026-11-01, pedido del
+    #: usuario): el fallo del mercado es cosa nuestra, no algo que el manager
+    #: pueda arreglar en Hattrick, así que sale como alerta --`market.rechazado`
+    #: en `insights`-- y no pegado a los errores que sí le piden algo. Se borra
+    #: en cuanto un paso sale bien.
+    market_error: Mapped[str | None] = mapped_column(String(300))
+    market_error_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # Fecha real de fundación, de teamdetails.xml. Es el límite inferior del
     # backfill de partidos: no se recorren años en los que el club no existía.
     founded_at: Mapped[datetime | None] = mapped_column(UtcDateTime())

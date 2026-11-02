@@ -76,6 +76,26 @@ export function RivalPickerPage() {
       position: s.position,
     }));
 
+  // EL RIVAL DE PROMOCIÓN, CON LOS DE LIGA (2026-11-01, pedido del usuario).
+  // Es de liga --cuenta para subir, tiene sede-- pero no está en tu
+  // clasificación porque viene de la serie de arriba, así que no aparecía en
+  // ninguna de las categorías y era el único rival al que había que llegar
+  // escribiendo su ID a mano.
+  //
+  // Sin puesto a propósito: no tiene uno en TU tabla, y la columna ya sabe
+  // pintar «-» y mandar al final a quien no lo trae. Después de jugado sigue
+  // en la lista --su ficha sirve igual-- y el detalle lo dice.
+  const promocion = league.data?.promotionRival ?? null;
+  if (promocion && !leagueRows.some((r) => r.htTeamId === promocion.htTeamId)) {
+    leagueRows.push({
+      htTeamId: promocion.htTeamId,
+      name: promocion.name,
+      detail: promocion.pending
+        ? tx("Promoción · por jugar")
+        : tx("Promoción · ya jugado"),
+    });
+  }
+
   const cupCandidates = new Map<string, Map<number, RivalRow>>();
   const addCupRow = (
     cupName: string | null,

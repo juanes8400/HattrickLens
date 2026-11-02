@@ -438,8 +438,23 @@ class SyncTeamHandler(  # noqa: D101
                 ahora=datetime.now(UTC),
             )
         except Exception as exc:  # noqa: BLE001
-            result.errors.append(f"mercado comparable: {exc}")
+            # NO VA AL CARTEL DE SINCRONIZACIÓN PARCIAL (2026-11-01, pedido
+            # del usuario: «que sea un aviso en alertas, no un motivo para
+            # mostrarlo ahí»). Salía pegado a los errores que SÍ le piden algo
+            # al manager --una alineación incompleta, por ejemplo-- en la
+            # misma línea y con el mismo tono, y no son lo mismo: esto es
+            # nuestro. Queda en el club, y Alertas lo cuenta con sus palabras.
+            _log.warning("el paso del mercado no corrió: %r", exc)
+            equipo.market_error = str(exc)[:300]
+            equipo.market_error_at = datetime.now(UTC)
+            await uow.commit()
             return
+        # Y se borra en cuanto uno sale bien: un aviso que sobrevive a su
+        # causa es peor que no avisar.
+        if equipo.market_error is not None:
+            equipo.market_error = None
+            equipo.market_error_at = None
+            await uow.commit()
         if paso.se_busco or paso.resueltas:
             await uow.commit()
 

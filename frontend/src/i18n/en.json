@@ -327,7 +327,7 @@
     "contraste": "Checked against real pops: average difference of",
     "sobreSubidas": "over {{n}} confirmed skill-up(s) of {{habilidad}}.",
     "sinDosSubidas": "There aren't two consecutive skill-ups of {{habilidad}} yet to check the formula.",
-    "verMotor": "see the details in Engine",
+    "verMotor": "see the details in Transparency",
     "cerrar": "Close",
     "vistasJugador": "Player views",
     "mejoras": "Skill-ups",
@@ -467,7 +467,10 @@
     "extremos": "The best in {{ambito}} is {{mejor}} ({{vMejor}}) and the worst, {{peor}} ({{vPeor}}).",
     "puestoDe": "{{petalo}} · {{puesto}} of {{total}}",
     "dato": "value",
-    "flor": "flower"
+    "flor": "flower",
+    "promocion": "Qualifier",
+    "serieYPromocion": "{{serie}} and your qualifier opponent",
+    "serieCopaYPromocion": "{{serie}}, your cup opponent and your qualifier opponent"
   },
   "conectado": {
     "incompleta": "The connection wasn't completed",

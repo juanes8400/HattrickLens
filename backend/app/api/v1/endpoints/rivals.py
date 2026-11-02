@@ -51,6 +51,7 @@ from app.application.queries.alineacion_enviada import (
     prediccion_en_vivo,
     prediccion_guardada,
 )
+from app.application.queries.lo_dicho import guardar_lo_dicho
 from app.application.queries.prediccion_liga import partidos_de_un_equipo, reparto_de_tacticas
 from app.application.queries.weekly import start_of_iso_week
 from app.domain.engines.economy_engine import SEASON_WEEKS
@@ -89,6 +90,7 @@ from app.domain.value_objects.ht_constants import (
     MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_CUP_RULES,
     MATCH_TYPE_NATIONAL_TEAM_FRIENDLY,
     MATCH_TYPE_PREPARATION,
+    MATCH_TYPE_QUALIFICATION,
     MATCH_TYPE_TOURNAMENT_LEAGUE,
     MATCH_TYPE_TOURNAMENT_PLAYOFF,
     match_position_name,
@@ -839,6 +841,33 @@ def _prediccion_del_rival(
     }
 
 
+def _en_casa_y_fuera(prediccion: dict[str, Any], *, propio_en_casa: bool) -> dict[str, Any]:
+    """La terna de la ficha, puesta en local y visitante, que es como se guarda.
+
+    La ficha habla de «lo mío» y «lo suyo» porque es de uno; la tabla de
+    pronósticos habla de local y visitante porque la leen pantallas que no
+    saben de quién era la ficha --el parte del partido, en Cambios, donde el
+    marcador es local-visitante--. La vuelta se da aquí y no allí.
+    """
+    mio = prediccion["own_probability"]
+    suyo = prediccion["rival_probability"]
+    goles_mios = prediccion["expected_own_goals"]
+    goles_suyos = prediccion["expected_rival_goals"]
+    marcador = str(prediccion["most_likely_score"])
+    if not propio_en_casa:
+        mio, suyo = suyo, mio
+        goles_mios, goles_suyos = goles_suyos, goles_mios
+        marcador = "-".join(reversed(marcador.split("-")))
+    return {
+        "homeWin": mio,
+        "draw": float(prediccion["draw_probability"] or 0.0),
+        "awayWin": suyo,
+        "expectedHomeGoals": goles_mios,
+        "expectedAwayGoals": goles_suyos,
+        "mostLikelyScore": marcador,
+    }
+
+
 @router.get(
     "/teams/{team_id}/rivals/{rival_ht_team_id}/scouting",
     summary="Ficha de rival (HL-099)",
@@ -1379,6 +1408,33 @@ async def rival_scouting(
         ),
         factor_suyo=factor_de_tactica(dict(Counter(rival_tactic_types))),
     )
+
+    # LO QUE DECIMOS DE LA PROMOCIÓN QUEDA ESCRITO (2026-11-01, pedido del
+    # usuario: «quiero que los partidos de Promoción también tengan
+    # comparación entre predicción y resultado»).
+    #
+    # NO PUEDE GUARDARLO LIGA, que es quien guarda el resto: pronostica con la
+    # Poisson de tu serie y con los registros de los ocho equipos, y el rival
+    # de promoción viene de la serie de arriba, así que no tiene registro ahí.
+    # Aquí sí hay un pronóstico de verdad --los ratings de los dos lados, con
+    # la sede puesta, que la promoción tiene y la copa no-- y es además el que
+    # el usuario está viendo.
+    #
+    # Se reescribe mientras siga pendiente, igual que el de liga: vale lo
+    # último que llegó a ver antes del pitido. Y si falla, no se nota: ver
+    # `guardar_lo_dicho`.
+    if (
+        prediccion is not None
+        and cruce_pendiente is not None
+        and cruce_pendiente.match_type == MATCH_TYPE_QUALIFICATION
+        and propio_en_casa is not None
+    ):
+        await guardar_lo_dicho(
+            cruce_pendiente.ht_match_id,
+            team_id,
+            _en_casa_y_fuera(prediccion, propio_en_casa=propio_en_casa),
+            "zonas",
+        )
 
     own_for_marking = [
         {

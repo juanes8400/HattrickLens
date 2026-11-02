@@ -41,6 +41,8 @@ interface Equipo {
   propio: boolean;
   /** El próximo rival de Copa. */
   copa?: boolean;
+  /** El rival de Promoción, mientras ese partido esté por jugarse. */
+  promocion?: boolean;
 }
 
 /** «Copa Cocuy Rubí» tal cual; un nombre sin «Copa» delante, con ella. */
@@ -164,7 +166,27 @@ export function FlorDeFuerza() {
       copa: true,
     });
   }
+  // EL RIVAL DE PROMOCIÓN (2026-11-01, pedido del usuario: «desde que se
+  // conoce hasta que ya se haya jugado»). Esa ventana la decide el servidor:
+  // manda el pétalo mientras el partido esté pendiente y deja de mandarlo en
+  // cuanto hay marcador.
+  //
+  // Sus sectores llegan por el mismo camino que los del rival de Copa. Sus
+  // cifras de plantilla --TSI, forma, experiencia, resistencia-- no llegan,
+  // porque la comparativa es de tu serie y él es de la de arriba: esos
+  // pétalos salen vacíos para él, igual que ya le pasa al de Copa cuando la
+  // comparativa no lo trae.
+  const promoSect = sectores.data?.equipos.find((e) => e.esPromocion);
+  if (promoSect && !equipos.some((e) => e.htTeamId === promoSect.htTeamId)) {
+    equipos.push({
+      htTeamId: promoSect.htTeamId,
+      nombre: `${promoSect.nombre} (${i18n.t("flor.promocion", "Promoción")})`,
+      propio: false,
+      promocion: true,
+    });
+  }
   const hayCopa = equipos.some((e) => e.copa);
+  const hayPromocion = equipos.some((e) => e.promocion);
   const ranking = new Map(
     [...(comparison.data?.ranking ?? []), ...(copaComp ? [copaComp] : [])].map(
       (t) => [t.teamHtId, t],
@@ -302,9 +324,24 @@ export function FlorDeFuerza() {
     <Panel
       title={titulo}
       meta={t("flor.meta", "0 = el peor de {{ambito}} · 100 = el mejor", {
-        ambito: hayCopa
-          ? t("flor.serieYCopa", "{{serie}} y tu rival de Copa", { serie })
-          : serie,
+        // Qué entra en la normalización, dicho entero: si el 0 y el 100 los
+        // fija un rival de fuera de la serie, el que lee tiene que saberlo.
+        ambito:
+          hayCopa && hayPromocion
+            ? t(
+                "flor.serieCopaYPromocion",
+                "{{serie}}, tu rival de Copa y el de Promoción",
+                { serie },
+              )
+            : hayPromocion
+              ? t("flor.serieYPromocion", "{{serie}} y tu rival de Promoción", {
+                  serie,
+                })
+              : hayCopa
+                ? t("flor.serieYCopa", "{{serie}} y tu rival de Copa", {
+                    serie,
+                  })
+                : serie,
       })}
     >
       <div className="grid items-center gap-4 p-4 md:grid-cols-[300px_1fr]">
