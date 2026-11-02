@@ -981,6 +981,13 @@ class Match(Base):
     # en un cruce entre dos rivales. NULL en partidos sincronizados antes de
     # este fix o que no son de liga (copa, amistoso).
     series_ht_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
+    # La temporada a la que `leaguefixtures.xml` dice que pertenece el
+    # calendario que lo trajo (2026-11-02). Una serie guarda los partidos de
+    # TODAS sus temporadas bajo el mismo `series_ht_id`, así que sin esto los
+    # del año pasado se contaban como de éste: al ascender, la pantalla
+    # enseñaba catorce jornadas ajenas como «calendario completo». NULL en lo
+    # sincronizado antes de esto y en lo que no venga de ese fichero.
+    series_season: Mapped[int | None] = mapped_column(SmallInteger)
     match_round: Mapped[int | None] = mapped_column(SmallInteger)
     # Identifican qué copa concreta es (hay varias en paralelo). -1 = CHPP no
     # los trajo para este partido. No es el número de ronda: eso se ESTIMA
