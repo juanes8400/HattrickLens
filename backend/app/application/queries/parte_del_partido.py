@@ -23,7 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import load_only
 
-from app.domain.value_objects.ht_constants import match_type_name
+from app.domain.value_objects.ht_constants import NON_OFFICIAL_MATCH_TYPES, match_type_name
 from app.infrastructure.db import models as m
 
 
@@ -67,6 +67,14 @@ async def build_parte_del_partido(session: AsyncSession, team_id: int) -> dict[s
             (m.Match.home_team_ht_id == team.ht_team_id)
             | (m.Match.away_team_ht_id == team.ht_team_id),
             m.Match.home_goals >= 0,
+            # SIN TORNEOS NI ESCALERAS (2026-11-01, dicho por un usuario: «el
+            # partido que aparece no es de Liga, no debería aparecer»). Un
+            # torneo no oficial se jugaba el miércoles y tapaba el parte del
+            # partido de verdad hasta el fin de semana siguiente, y encima sin
+            # pronóstico que contrastar, porque de esos no se calcula. Es el
+            # mismo criterio que Partidos y que las alertas: los amistosos sí
+            # siguen entrando, que son partidos reales.
+            m.Match.match_type.not_in(NON_OFFICIAL_MATCH_TYPES),
         )
         .order_by(m.Match.played_at.desc())
         .limit(1)
