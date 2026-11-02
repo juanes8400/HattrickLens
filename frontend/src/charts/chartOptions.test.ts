@@ -53,6 +53,7 @@ describe("las gráficas del comparador", () => {
     type?: string;
     data?: unknown[];
     symbol?: string;
+    itemStyle?: { color?: string; borderColor?: string; borderWidth?: number };
     markLine?: { silent?: boolean };
   };
   const series = (o: Record<string, unknown>) => o.series as Serie[];
@@ -87,6 +88,34 @@ describe("las gráficas del comparador", () => {
       expect(puntos(porNombre(opcion, "Equivalente"))).toHaveLength(1);
     });
 
+    /** 2026-11-01: «quiero que se diferencie mejor». El tamaño solo obliga a
+     *  tener los dos puntos delante; la forma se lee sola. */
+    it("el idéntico es un disco y el equivalente un aro", () => {
+      expect(porNombre(opcion, "Idéntico")?.itemStyle?.color).not.toBe(
+        "transparent",
+      );
+      // Y hueco DE VERDAD: `emptyCircle` rellena de blanco, no de nada.
+      const aro = porNombre(opcion, "Equivalente")?.itemStyle;
+      expect(aro?.color).toBe("transparent");
+      expect(aro?.borderWidth).toBeGreaterThan(0);
+      expect(aro?.borderColor).toBe(
+        porNombre(opcion, "Idéntico")?.itemStyle?.color,
+      );
+    });
+
+    /** La puja llevaba `emptyCircle` desde el principio, con el mismo nucleo
+     *  blanco: grande y azul, nadie lo veia. */
+    it("la subasta abierta también es un aro hueco de verdad", () => {
+      const puja = porNombre(opcion, "Subasta abierta")?.itemStyle;
+      expect(puja?.color).toBe("transparent");
+      expect(puja?.borderWidth).toBeGreaterThan(0);
+      expect(puja?.borderColor).toBeTruthy();
+      // Y no del verde de las cerradas: la puja es lo otro.
+      expect(puja?.borderColor).not.toBe(
+        porNombre(opcion, "Idéntico")?.itemStyle?.color,
+      );
+    });
+
     it("el clavado se pinta MÁS GRANDE que el avalado", () => {
       const clavado = puntos(porNombre(opcion, "Idéntico"))[0]!;
       const avalado = puntos(porNombre(opcion, "Equivalente"))[0]!;
@@ -96,15 +125,21 @@ describe("las gráficas del comparador", () => {
     });
 
     it("cada punto lleva su propio texto, y dice de qué clase es", () => {
-      expect(puntos(porNombre(opcion, "Idéntico"))[0]!.tip).toContain("idéntico");
-      expect(puntos(porNombre(opcion, "Equivalente"))[0]!.tip).toContain("equivalente");
+      expect(puntos(porNombre(opcion, "Idéntico"))[0]!.tip).toContain(
+        "idéntico",
+      );
+      expect(puntos(porNombre(opcion, "Equivalente"))[0]!.tip).toContain(
+        "equivalente",
+      );
       const puja = puntos(porNombre(opcion, "Subasta abierta"))[0]!;
       expect(puja.tip).toContain("no promedia");
     });
 
     it("las marcas de media y mediana se pueden preguntar", () => {
       // `silent: true` las dejaba mudas, y son el dato que más se mira.
-      expect(porNombre(opcion, "Subasta abierta")?.markLine?.silent).toBe(false);
+      expect(porNombre(opcion, "Subasta abierta")?.markLine?.silent).toBe(
+        false,
+      );
     });
   });
 
@@ -128,13 +163,23 @@ describe("las gráficas del comparador", () => {
     });
 
     it("el tooltip de un punto dice de qué lectura es", () => {
-      expect(puntos(porNombre(opcion, "Idéntico"))[0]!.tip).toContain("2026-10-01");
+      expect(puntos(porNombre(opcion, "Idéntico"))[0]!.tip).toContain(
+        "2026-10-01",
+      );
     });
 
     it("aquí también el clavado es más grande", () => {
       const clavado = puntos(porNombre(opcion, "Idéntico"))[0]!;
       const avalado = puntos(porNombre(opcion, "Equivalente"))[0]!;
       expect(clavado.symbolSize).toBeGreaterThan(avalado.symbolSize);
+    });
+
+    it("y aquí también uno es disco y el otro aro", () => {
+      const aro = porNombre(opcion, "Equivalente")?.itemStyle;
+      expect(aro?.color).toBe("transparent");
+      expect(aro?.borderColor).toBe(
+        porNombre(opcion, "Idéntico")?.itemStyle?.color,
+      );
     });
   });
 });

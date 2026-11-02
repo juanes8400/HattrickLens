@@ -116,17 +116,54 @@ const PESO_DEL_CLAVADO = 100;
  *  Hattrick sin serlo, y se pinta pequeño y más suave.
  *
  *  EL COLOR NO ENTRA AQUÍ porque ya dice otra cosa --verde cerrada, azul puja
- *  abierta-- y dos significados en el mismo canal no se leen. El peso va por
- *  tamaño, que es el canal libre. */
+ *  abierta-- y dos significados en el mismo canal no se leen.
+ *
+ *  Y EL TAMAÑO SOLO NO BASTA (2026-11-01, pedido del usuario: «quiero que se
+ *  diferencie mejor»). Con 11 px contra 5 hay que tener los dos delante para
+ *  saber cuál es cuál: un punto suelto no dice nada, porque no hay con qué
+ *  compararlo. Así que el peso va ahora por DOS canales, y el segundo es la
+ *  FORMA: el idéntico es un disco lleno, el equivalente un aro hueco. Una
+ *  forma se lee sola, sin vecino al lado, y sobrevive a la impresión en gris y
+ *  al daltonismo, que el color no.
+ *
+ *  El aro sube de 5 a 6 px porque a 5 el hueco no se veía: quedaba un borrón
+ *  del grosor del borde. Siguen siendo 5 px de diferencia, que es lo que la
+ *  prueba exige. */
 function segunElPeso(peso: number, base: number) {
   return (peso ?? PESO_DEL_CLAVADO) >= PESO_DEL_CLAVADO
     ? { symbolSize: base + 3, opacity: 1 }
-    : { symbolSize: base - 3, opacity: 0.7 };
+    : { symbolSize: base - 2, opacity: 0.8 };
 }
 
 const SUBASTA_ABIERTA = "#4f7cff";
 const VENTA_CERRADA = "#2fbf71";
 const LINEA_DE_LA_MEDIA = "#94a3b8";
+
+/** El disco del idéntico y el aro del equivalente, para las dos gráficas.
+ *
+ *  AQUÍ NO VALE `emptyCircle`, que es el símbolo hueco de ECharts y lo que
+ *  parecía la respuesta: su centro no es transparente, es el `backgroundColor`
+ *  del tema, y en ECharts eso es BLANCO salvo que se diga otra cosa. Medido en
+ *  el navegador el 2026-11-01: el píxel del centro sale 255,255,255 sobre la
+ *  tarjeta oscura, así que el aro pequeño se convertía en un punto blanco que
+ *  gritaba más que el disco grande. Justo al revés de lo que tiene que decir.
+ *
+ *  Un círculo normal con el relleno en `transparent` y el borde en color sí deja
+ *  ver la tarjeta por dentro, y se lee igual en claro y en oscuro.
+ *
+ *  La subasta abierta llevaba `emptyCircle` desde el principio, asi que tenia
+ *  el mismo nucleo blanco sin que se notara, por grande y por azul. Pasa por
+ *  la misma fabrica. */
+function aro(color: string) {
+  return {
+    symbol: "circle",
+    itemStyle: { color: "transparent", borderColor: color, borderWidth: 1.5 },
+  } as const;
+}
+
+const DISCO = { symbol: "circle" } as const;
+const ARO = aro(VENTA_CERRADA);
+const PUJA = aro(SUBASTA_ABIERTA);
 
 /** Sombrea el hueco entre dos líneas de la MISMA magnitud.
  *
@@ -750,8 +787,7 @@ export function serieDePuntosOption(
         type: "scatter",
         name: tx("Subasta abierta"),
         data: nube,
-        symbol: "emptyCircle",
-        itemStyle: { color: SUBASTA_ABIERTA },
+        ...PUJA,
         z: 2,
       },
       // EN PANTALLA SE LLAMAN DISTINTO desde el 2026-10-31: el 100 es
@@ -763,7 +799,7 @@ export function serieDePuntosOption(
         type: "scatter",
         name: tx("Equivalente"),
         data: avaladas,
-        itemStyle: { color: VENTA_CERRADA },
+        ...ARO,
         z: 3,
       },
       {
@@ -771,6 +807,7 @@ export function serieDePuntosOption(
         name: tx("Idéntico"),
         data: clavadas,
         itemStyle: { color: VENTA_CERRADA },
+        ...DISCO,
         z: 4,
       },
     ],
@@ -915,11 +952,7 @@ export function tiraDePuntosOption(
         type: "scatter",
         name: tx("Subasta abierta"),
         data: abiertas,
-        itemStyle: { color: SUBASTA_ABIERTA },
-        // Hueco de verdad: `emptyCircle` pinta el borde con el color de la
-        // serie. Con `color: transparent` y sin `borderColor` el punto
-        // salia INVISIBLE, y la grafica enseñaba ejes y marcas sin datos.
-        symbol: "emptyCircle",
+        ...PUJA,
         markLine: {
           symbol: "none",
           // CON TOOLTIP, no `silent` (2026-10-28). Las dos marcas llevan el
@@ -947,12 +980,13 @@ export function tiraDePuntosOption(
         name: tx("Idéntico"),
         data: clavadas,
         itemStyle: { color: VENTA_CERRADA },
+        ...DISCO,
       },
       {
         type: "scatter",
         name: tx("Equivalente"),
         data: avaladas,
-        itemStyle: { color: VENTA_CERRADA },
+        ...ARO,
       },
     ],
     legend: { bottom: 0, itemHeight: 8, textStyle: { fontSize: 10 } },
