@@ -251,8 +251,16 @@ async def _alineacion_enviada_propia(
     if token is None:
         # Sin sesión todavía vale la que ya está sincronizada.
         return await alineacion_enviada_de(None, proximo, team.ht_team_id)
-    client = CHPPClient(decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc))
+    client: CHPPClient | None = None
     try:
+        # EL CLIENTE TAMBIÉN VA DENTRO (2026-11-02, visto en CI). Construirlo
+        # fuera dejaba sin cubrir dos tropiezos que no son de Hattrick sino
+        # nuestros: la clave de la aplicación sin configurar --«Missing
+        # client_id»-- y un token guardado que no se puede descifrar. Los dos
+        # salían como 500 por encima de este `except`.
+        client = CHPPClient(
+            decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc)
+        )
         enviada = await alineacion_enviada_de(client, proximo, team.ht_team_id)
     # NUNCA TUMBAR LA PANTALLA ERA LA PROMESA Y NO ERA VERDAD (2026-11-01):
     # aquí había un `try/finally` sin `except`, así que cualquier tropiezo de
@@ -266,7 +274,8 @@ async def _alineacion_enviada_propia(
         _log.warning("sin alineación enviada del partido %s: %r", proximo.ht_match_id, exc)
         return None
     finally:
-        await client.aclose()
+        if client is not None:
+            await client.aclose()
     _memoria_enviada[proximo.ht_match_id] = (time.monotonic(), enviada)
     return enviada
 
@@ -315,8 +324,12 @@ async def _lecturas_de_la_serie(
     )
     if token is None:
         return {}
-    client = CHPPClient(decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc))
+    client: CHPPClient | None = None
     try:
+        # El cliente, dentro: véase `_alineacion_enviada_propia`.
+        client = CHPPClient(
+            decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc)
+        )
         return await lecturas_de_la_serie(
             session,
             client,
@@ -334,7 +347,8 @@ async def _lecturas_de_la_serie(
         _log.warning("sin lecturas de la serie %s: %r", team.series_ht_id, exc)
         return {}
     finally:
-        await client.aclose()
+        if client is not None:
+            await client.aclose()
 
 
 @router.get("/league/model", summary="Qué modela la simulación y qué no")
