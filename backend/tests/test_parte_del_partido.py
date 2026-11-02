@@ -11,6 +11,7 @@ from app.application.queries.parte_del_partido import build_parte_del_partido
 from app.domain.value_objects.ht_constants import (
     MATCH_TYPE_FRIENDLY,
     MATCH_TYPE_LEAGUE,
+    MATCH_TYPE_QUALIFICATION,
     MATCH_TYPE_TOURNAMENT_LEAGUE,
 )
 from app.infrastructure.db import models as m
@@ -75,3 +76,42 @@ def test_un_amistoso_sí_es_el_último_partido() -> None:
 
 def test_sin_partidos_oficiales_no_hay_parte_en_vez_de_un_torneo() -> None:
     assert _parte((MATCH_TYPE_TOURNAMENT_LEAGUE, 0, "Los Parquesitos")) is None
+
+
+def test_la_promocion_se_compara_con_lo_que_dijimos() -> None:
+    """2026-11-01, pedido del usuario: «quiero que los partidos de Promoción
+    también tengan comparación entre predicción y resultado».
+
+    El pronóstico lo guarda la ficha de rival --Liga no puede, el rival no
+    está en tu serie-- y aquí se lee igual que el de un partido de liga.
+    """
+
+    async def go():
+        factory, team_id = await _con_partidos((MATCH_TYPE_QUALIFICATION, 0, "Los de Arriba"))
+        async with factory() as s:
+            s.add(
+                m.MatchPrediction(
+                    ht_match_id=772_000_000,
+                    team_id=team_id,
+                    home_win=0.48,
+                    draw=0.27,
+                    away_win=0.25,
+                    expected_home_goals=1.6,
+                    expected_away_goals=1.2,
+                    most_likely_score="2-1",
+                    source="zonas",
+                    engine="v1",
+                    computed_at=DOMINGO,
+                )
+            )
+            await s.commit()
+            return await build_parte_del_partido(s, team_id)
+
+    parte = asyncio.run(go())
+    assert parte is not None
+    assert parte["competition"] == "Promoción"
+    assert parte["prediction"] is not None
+    assert parte["prediction"]["homeWin"] == 0.48
+    # Y el marcador cantado al lado del que cayó, que es de lo que va la pantalla.
+    assert parte["prediction"]["mostLikelyScore"] == "2-1"
+    assert (parte["homeGoals"], parte["awayGoals"]) == (2, 1)

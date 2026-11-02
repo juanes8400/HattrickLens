@@ -467,7 +467,10 @@
     "extremos": "The best in {{ambito}} is {{mejor}} ({{vMejor}}) and the worst, {{peor}} ({{vPeor}}).",
     "puestoDe": "{{petalo}} · {{puesto}} of {{total}}",
     "dato": "value",
-    "flor": "flower"
+    "flor": "flower",
+    "promocion": "Qualifier",
+    "serieYPromocion": "{{serie}} and your qualifier opponent",
+    "serieCopaYPromocion": "{{serie}}, your cup opponent and your qualifier opponent"
   },
   "conectado": {
     "incompleta": "The connection wasn't completed",

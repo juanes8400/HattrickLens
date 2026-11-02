@@ -512,7 +512,10 @@
     "resistencia": "Kondycja",
     "serieYCopa": "{{serie}} i twój przeciwnik w pucharze",
     "sinDato": "{{petalo}}: dla twojej drużyny nie ma jeszcze wartości.",
-    "titulo": "Siła w lidze"
+    "titulo": "Siła w lidze",
+    "promocion": "Baraże",
+    "serieYPromocion": "{{serie}} i twój przeciwnik w barażach",
+    "serieCopaYPromocion": "{{serie}}, twój przeciwnik w pucharze i w barażach"
   },
   "formato": {
     "ahora": "teraz",

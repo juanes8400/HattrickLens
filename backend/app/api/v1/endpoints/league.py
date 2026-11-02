@@ -352,6 +352,7 @@ async def league_sectores_recientes(
         PARTIDOS,
         sectores_de_la_serie,
         sectores_del_rival_de_copa,
+        sectores_del_rival_de_promocion,
     )
 
     team = await session.get(m.Team, team_id)
@@ -360,11 +361,17 @@ async def league_sectores_recientes(
     from app.api.cache_por_sync import por_sync
 
     async def calcular() -> list[Any]:
-        # La serie y, detrás, el próximo rival de Copa si sigues en ella
-        # (2026-09-15, pedido del usuario).
+        # La serie y, detrás, los dos rivales que no son de ella: el próximo
+        # de Copa si sigues en ella (2026-09-15) y el de Promoción mientras
+        # ese partido esté por jugarse (2026-11-01). Los dos, pedidos.
         filas = await sectores_de_la_serie(session, team)
-        copa = await sectores_del_rival_de_copa(session, team, {f.ht_team_id for f in filas})
-        return filas + ([copa] if copa is not None else [])
+        ajenos = {f.ht_team_id for f in filas}
+        copa = await sectores_del_rival_de_copa(session, team, ajenos)
+        if copa is not None:
+            ajenos.add(copa.ht_team_id)
+        promocion = await sectores_del_rival_de_promocion(session, team, ajenos)
+        extra = [x for x in (copa, promocion) if x is not None]
+        return filas + extra
 
     equipos = await por_sync(session, team_id, "sectores-recientes", (), calcular)
     return {
@@ -380,6 +387,7 @@ async def league_sectores_recientes(
                 "ataque": e.ataque,
                 "esCopa": e.es_copa,
                 "copa": e.copa,
+                "esPromocion": e.es_promocion,
             }
             for e in equipos
         ],

@@ -467,7 +467,10 @@
     "extremos": "Der beste in {{ambito}} ist {{mejor}} ({{vMejor}}) und der schlechteste {{peor}} ({{vPeor}}).",
     "puestoDe": "{{petalo}} · {{puesto}} von {{total}}",
     "dato": "Wert",
-    "flor": "Blume"
+    "flor": "Blume",
+    "promocion": "Relegation",
+    "serieYPromocion": "{{serie}} und dein Relegationsgegner",
+    "serieCopaYPromocion": "{{serie}}, dein Pokalgegner und dein Relegationsgegner"
   },
   "conectado": {
     "incompleta": "Die Verbindung blieb unvollständig",

@@ -467,7 +467,10 @@
     "sinDato": "{{petalo}}: non c'è ancora un dato della tua squadra.",
     "titulo": "Forza nella serie",
     "copa": "Coppa",
-    "copaDe": "Coppa {{copa}}"
+    "copaDe": "Coppa {{copa}}",
+    "promocion": "Spareggio",
+    "serieYPromocion": "{{serie}} e il tuo avversario di spareggio",
+    "serieCopaYPromocion": "{{serie}}, il tuo avversario di coppa e quello di spareggio"
   },
   "conectado": {
     "incompleta": "Il collegamento è rimasto incompleto",

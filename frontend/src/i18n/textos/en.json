@@ -2158,5 +2158,7 @@
   "Equivalente": "Equivalent",
   "venta cerrada": "closed sale",
   "puja abierta, no promedia": "open bid, does not average",
-  "sobre {{v0}} ventas": "over {{v0}} sales"
+  "sobre {{v0}} ventas": "over {{v0}} sales",
+  "Promoción · por jugar": "Qualifier · not played yet",
+  "Promoción · ya jugado": "Qualifier · already played"
 }

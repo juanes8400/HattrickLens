@@ -2158,5 +2158,7 @@
   "Equivalente": "Gleichwertig",
   "venta cerrada": "abgeschlossener Verkauf",
   "puja abierta, no promedia": "offenes Gebot, zählt nicht zum Durchschnitt",
-  "sobre {{v0}} ventas": "über {{v0}} Verkäufe"
+  "sobre {{v0}} ventas": "über {{v0}} Verkäufe",
+  "Promoción · por jugar": "Relegation · noch nicht gespielt",
+  "Promoción · ya jugado": "Relegation · schon gespielt"
 }
