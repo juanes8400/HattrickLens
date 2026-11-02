@@ -19,7 +19,11 @@ from app.application.queries.alineacion_enviada import (
     AlineacionEnviada,
     alineacion_enviada_de,
 )
-from app.application.queries.league import LEAGUE_MATCH_TYPE, LeagueQueryService
+from app.application.queries.league import (
+    LEAGUE_MATCH_TYPE,
+    LeagueQueryService,
+    de_la_temporada_de_la_tabla,
+)
 from app.application.queries.prediccion_liga import lecturas_de_la_serie
 from app.domain.engines.lineup_optimizer import best_formation
 from app.domain.engines.position_engine import best_position
@@ -280,6 +284,64 @@ async def _alineacion_enviada_propia(
     return enviada
 
 
+#: Cuántos partidos de cada equipo se miran cuando la serie no ha empezado. Es
+#: lo que el sync ya guarda de cada rival, así que pedir más costaría cuota sin
+#: añadir nada que esté a mano.
+PARTIDOS_POR_EQUIPO_SIN_EMPEZAR = 5
+
+
+async def _rondas_jugadas(session: AsyncSession, team: m.Team) -> int:
+    """Las jornadas que dice la clasificación más reciente del equipo."""
+    own = await session.scalar(
+        select(m.Standing)
+        .where(m.Standing.team_ht_id == team.ht_team_id)
+        .order_by(m.Standing.captured_at.desc(), m.Standing.match_round.desc())
+        .limit(1)
+    )
+    return own.match_round if own is not None else 0
+
+
+async def _ultimos_de_los_que_la_juegan(
+    session: AsyncSession, team: m.Team, rondas_jugadas: int
+) -> list[m.Match]:
+    """Los últimos partidos de liga de los ocho equipos del sorteo.
+
+    Del más viejo al más reciente, que es como los quiere
+    `lecturas_de_la_serie`: quien resuma por «el último partido» necesita que
+    el último de la lista sea el último de verdad.
+    """
+    equipos = list(
+        (
+            await session.execute(
+                select(m.Standing.team_ht_id)
+                .where(
+                    m.Standing.series_ht_id == team.series_ht_id,
+                    m.Standing.match_round == rondas_jugadas,
+                )
+                .distinct()
+            )
+        ).scalars()
+    )
+    vistos: dict[int, m.Match] = {}
+    for ht_id in equipos:
+        suyos = (
+            await session.execute(
+                select(m.Match)
+                .where(
+                    m.Match.match_type == LEAGUE_MATCH_TYPE,
+                    m.Match.status.ilike("finished"),
+                    or_(m.Match.home_team_ht_id == ht_id, m.Match.away_team_ht_id == ht_id),
+                )
+                .order_by(m.Match.played_at.desc())
+                .limit(PARTIDOS_POR_EQUIPO_SIN_EMPEZAR)
+            )
+        ).scalars()
+        # Por id, que un mismo partido puede ser «el último» de dos de ellos.
+        for partido in suyos:
+            vistos[partido.ht_match_id] = partido
+    return sorted(vistos.values(), key=lambda p: p.played_at)
+
+
 async def _lecturas_de_la_serie(
     session: AsyncSession, team_id: int
 ) -> dict[int, list[dict[str, float]]]:
@@ -302,7 +364,7 @@ async def _lecturas_de_la_serie(
     # no juega igual en cada una-- y hasta el 2026-09-08 estaba de las dos
     # maneras a la vez, aquí de una y en `promedios()` de la otra. Si algún día
     # se cablea la pantalla de Copa, va con `TIPOS_DE_COPA`, no con esto.
-    jugados = list(
+    de_la_serie = list(
         (
             await session.execute(
                 select(m.Match).where(
@@ -313,6 +375,20 @@ async def _lecturas_de_la_serie(
             )
         ).scalars()
     )
+    # Los de la temporada de la TABLA, no los de todas las temporadas que la
+    # serie haya jugado: al ascender, los que hay son del año pasado entre los
+    # ocho equipos de entonces, y describirían a gente que ya no juega aquí.
+    rondas = await _rondas_jugadas(session, team)
+    jugados = de_la_temporada_de_la_tabla(de_la_serie, rondas_jugadas=rondas)
+    if not jugados:
+        # SIN EMPEZAR, LOS DE ANTES DE LOS QUE LA VAN A JUGAR (2026-11-02,
+        # regla dada por el usuario). La alternativa era no enseñar ninguna
+        # predicción hasta la segunda jornada, y los ocho equipos existían
+        # desde el sorteo: sus últimos partidos describen su fuerza igual de
+        # bien, sólo que jugados en otra serie. Casi no cuesta cuota: el sync
+        # ya deja los últimos oficiales de cada rival en `rival_matches` y de
+        # ahí se leen.
+        jugados = await _ultimos_de_los_que_la_juegan(session, team, rondas)
     if not jugados:
         return {}
     if team.owner_user_id is None:

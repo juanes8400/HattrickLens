@@ -2175,5 +2175,14 @@
   "Hattrick todavía no ha publicado el calendario de esta temporada. En cuanto lo haga, aquí salen las jornadas con sus resultados.": "Hattrick nie opublikował jeszcze terminarza tego sezonu. Gdy to zrobi, pojawią się tu kolejki z wynikami.",
   "del sorteo: no se ha jugado ninguna jornada": "z losowania: nie rozegrano żadnej kolejki",
   "el sorteo, sin jugar": "losowanie, jeszcze nie rozegrane",
-  "La temporada no ha empezado: sin un solo partido jugado ni calendario publicado, los ocho equipos son idénticos para el modelo y estos números son el reparto a partes iguales (1 de 8 el título, 4 de 8 el Top 4), no un pronóstico.": "Sezon się nie zaczął: bez jednego rozegranego meczu i bez terminarza wszystkie osiem drużyn jest dla modelu identycznych, a te liczby to równy podział (1 z 8 na tytuł, 4 z 8 na Top 4), a nie prognoza."
+  "La temporada no ha empezado: sin un solo partido jugado ni calendario publicado, los ocho equipos son idénticos para el modelo y estos números son el reparto a partes iguales (1 de 8 el título, 4 de 8 el Top 4), no un pronóstico.": "Sezon się nie zaczął: bez jednego rozegranego meczu i bez terminarza wszystkie osiem drużyn jest dla modelu identycznych, a te liczby to równy podział (1 z 8 na tytuł, 4 z 8 na Top 4), a nie prognoza.",
+  "comprobado contra tus subidas": "sprawdzone na twoich awansach",
+  "sin comprobar todavía": "jeszcze niesprawdzone",
+  "tabla de Hattrick, comprobado en el juego": "tabela Hattricka, sprawdzona w grze",
+  "tus subidas dieron {{v0}} de media": "twoje awanse dały średnio {{v0}}",
+  "todavía ninguna con intervalo completo": "żaden z pełnym przedziałem",
+  "El número que usa la aplicación es el de la tabla de Hattrick y no se mueve. Al lado está lo que dieron tus propias subidas: la media de los puntos de partidos reales acumulados entre dos subidas observadas, con su desviación estándar, que dice cuánto vale fiarse de ella. Sirve para comprobar el número, no para reemplazarlo.": "Liczba, której używa aplikacja, pochodzi z tabeli Hattricka i się nie zmienia. Obok jest to, co wyszło z twoich awansów: średnia punktów z rzeczywistych meczów między dwoma zaobserwowanymi awansami, z odchyleniem standardowym, które mówi, na ile można jej ufać. Służy do sprawdzenia liczby, nie do jej zastąpienia.",
+  "Por ahora cuadran: el valor en uso cae dentro del intervalo observado.": "Na razie się zgadzają: używana wartość mieści się w zaobserwowanym przedziale.",
+  "Ojo: el valor en uso queda FUERA del intervalo observado. No se cambia por eso; es una señal de que hay que mirar el desglose por nivel.": "Uwaga: używana wartość wypada POZA zaobserwowanym przedziałem. Nie zmienia się jej z tego powodu; to sygnał, by spojrzeć na rozbicie na poziomy.",
+  "Todavía no hay con qué comprobarlo. Hace falta ver a un jugador cruzar un nivel con el intervalo de partidos completo entre dos lecturas. Sincronizaciones vistas:": "Nie ma jeszcze z czym tego porównać. Trzeba zobaczyć, jak zawodnik przekracza poziom z pełnym przedziałem meczów między dwoma odczytami. Zaobserwowane synchronizacje:"
 }

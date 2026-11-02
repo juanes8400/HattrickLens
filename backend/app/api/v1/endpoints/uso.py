@@ -17,6 +17,7 @@ solo; el usuario sale de la sesión de la propia aplicación, que ya existía.
 
 import csv
 import io
+import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -30,6 +31,8 @@ from app.api.deps import get_current_user, require_admin
 from app.domain.engines import uso_de_la_app as uso
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
+
+_log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -91,7 +94,19 @@ async def recoger(
                 visible_ms=e.visibleMs,
             )
         )
-    await session.commit()
+    # UN APUNTE DE USO NO TUMBA UNA PETICIÓN (2026-11-02, visto en vivo). Esto
+    # devolvía 500 cuando la base estaba ocupada escribiendo --«database is
+    # locked» durante una sincronización-- y el 500 salía por un contador de
+    # «estuve 33 s en Liga». Lo que se mide es el uso de la aplicación, no la
+    # aplicación: si el apunte se pierde, el peor caso es una visita que no
+    # sale en el ranking, y eso no se le cuenta a nadie como un fallo. Se
+    # contesta 204 igual, que es lo que el navegador espera y muchas veces ni
+    # escucha (`sendBeacon`).
+    try:
+        await session.commit()
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("no se pudo guardar la tanda de %s eventos: %r", len(tanda.events), exc)
+        await session.rollback()
 
 
 #: Los nombres de pantalla que el frontend puede mandar. Sirve para saber cuáles

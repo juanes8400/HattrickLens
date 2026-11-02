@@ -26,15 +26,13 @@ reference:
 # de 28 a 100 y match_points pasa a los valores reales de la tabla.
 points_per_level: 100
 
-# Calibration. Below this many observed level-ups the configured value stands:
-# a mean over one or two samples is not evidence. Above it, the engine reports
-# the observed mean and its standard deviation instead.
-min_observations_to_calibrate: 5
-# Cifra que Hattrick Control reportaba en la escala ANTERIOR (26.3 sobre un
-# umbral de 28), llevada a la escala nueva (×3.5) solo como referencia
-# histórica; calibrate() nunca lee esta clave, recalcula la media observada
-# desde cero con match_points ya en la escala nueva.
-points_per_level_observed_in_hc: 92.05
+# 2026-11-02: aquí vivían `min_observations_to_calibrate: 5` y
+# `points_per_level_observed_in_hc: 92.05`. La primera decidía cuándo el motor
+# sustituía el umbral por la media de las subidas observadas en la cuenta del
+# dueño, que es ajustar el parámetro de una fórmula a sus datos privados --
+# prohibido desde el 2026-08-14-- y además innecesario: el dueño confirmó los
+# 100 en el juego. La segunda era una cifra histórica que ya no lee nadie. Lo
+# observado se sigue midiendo, pero sólo para comparar (ver `measure`).
 
 # Experience points by match type, valores reales de Hattrick (tabla
 # `docs/reference/tabla_experiencia.html`). `league` y `friendly_international`

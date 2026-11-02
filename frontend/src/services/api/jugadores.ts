@@ -164,7 +164,6 @@ export interface ActivePlayerDetail {
     percent: number;
     remainingPoints: number;
     pointsPerLevel: number;
-    calibrationSource: string;
     breakdown: Record<string, number>;
     unscoredNationalMatches: number;
   } | null;

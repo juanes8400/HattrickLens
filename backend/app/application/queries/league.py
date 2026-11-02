@@ -604,7 +604,7 @@ def _proximo_con_alineaciones(
     }
 
 
-def _de_la_temporada_de_la_tabla(matches: list[Any], *, rondas_jugadas: int) -> list[Any]:
+def de_la_temporada_de_la_tabla(matches: list[Any], *, rondas_jugadas: int) -> list[Any]:
     """Los partidos de la serie que pertenecen a la temporada de la tabla.
 
     Una serie guarda los partidos de TODAS sus temporadas bajo el mismo
@@ -755,7 +755,7 @@ class LeagueQueryService:
                     )
                 ).scalars()
             )
-        matches = _de_la_temporada_de_la_tabla(matches, rondas_jugadas=own.match_round)
+        matches = de_la_temporada_de_la_tabla(matches, rondas_jugadas=own.match_round)
 
         # Complemento: fotos reales de leaguedetails.xml para jornadas que
         # leaguefixtures.xml todavía no cubre completas (ver

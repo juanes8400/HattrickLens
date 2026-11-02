@@ -574,24 +574,30 @@ function ExperiencePanel({
     );
   }
 
-  const measured = data.source !== "configured";
+  // LO MEDIDO SE COMPARA, NO SUSTITUYE (2026-11-02). Hasta hoy este panel tenía
+  // dos caras: «valor configurado» mientras no hubiera cinco subidas y «medido»
+  // después, porque el motor cambiaba el umbral por la media de las subidas de
+  // esta cuenta. Eso es ajustar el parámetro de una fórmula a datos privados,
+  // prohibido desde el 2026-08-14, y además innecesario: los 100 están
+  // comprobados en el juego. Ahora hay un solo número en uso y la medición va
+  // al lado, que es para lo que sirve.
+  const medido = data.observedMean !== null;
   const interval = data.confidenceInterval;
 
   return (
     <Panel
       title={tx("Puntos de experiencia por nivel")}
-      meta={measured ? tx("medido") : tx("valor configurado")}
+      meta={
+        medido
+          ? tx("comprobado contra tus subidas")
+          : tx("sin comprobar todavía")
+      }
     >
       <div className="grid gap-4 border-b border-[var(--border)] p-4 sm:grid-cols-3 [&>*]:min-w-0">
         <Kpi
           label={tx("Puntos por nivel")}
           value={data.pointsPerLevel.toFixed(2)}
-          hint={
-            measured
-              ? tx("media observada")
-              : tx("especificación, aún sin datos")
-          }
-          tone={measured ? "positive" : undefined}
+          hint={tx("tabla de Hattrick, comprobado en el juego")}
         />
         <Kpi
           label={tx("Desviación estándar")}
@@ -613,36 +619,35 @@ function ExperiencePanel({
           label={tx("Subidas observadas")}
           value={String(data.observations)}
           hint={
-            data.observationsNeeded > 0
-              ? tx("faltan {{v0}} para calibrar", {
-                  v0: data.observationsNeeded,
+            medido
+              ? tx("tus subidas dieron {{v0}} de media", {
+                  v0: (data.observedMean ?? 0).toFixed(2),
                 })
-              : tx("suficientes para calibrar")
+              : tx("todavía ninguna con intervalo completo")
           }
+          tone={data.agreesWithConfigured ? "positive" : undefined}
         />
       </div>
 
       <div className="space-y-3 p-4 text-xs leading-relaxed text-[var(--muted)]">
-        {measured ? (
+        {medido ? (
           <p>
             {tx(
-              "La cifra ya no viene de la especificación sino de tus jugadores: es la media de los puntos de partidos reales acumulados entre dos subidas observadas. El valor configurado era",
+              "El número que usa la aplicación es el de la tabla de Hattrick y no se mueve. Al lado está lo que dieron tus propias subidas: la media de los puntos de partidos reales acumulados entre dos subidas observadas, con su desviación estándar, que dice cuánto vale fiarse de ella. Sirve para comprobar el número, no para reemplazarlo.",
             )}{" "}
-            {data.configuredPointsPerLevel}
-            {tx(
-              ". La desviación estándar dice cuánto vale fiarse de la media: si es pequeña, el número es real; si es grande, las subidas no cuestan siempre lo mismo y conviene mirar el desglose por nivel.",
-            )}
+            {data.agreesWithConfigured === true &&
+              tx(
+                "Por ahora cuadran: el valor en uso cae dentro del intervalo observado.",
+              )}
+            {data.agreesWithConfigured === false &&
+              tx(
+                "Ojo: el valor en uso queda FUERA del intervalo observado. No se cambia por eso; es una señal de que hay que mirar el desglose por nivel.",
+              )}
           </p>
         ) : (
           <p>
-            {tx("Todavía se usa el valor configurado,")}{" "}
-            {data.configuredPointsPerLevel}
             {tx(
-              ". Se sustituirá por la media observada en cuanto se registren",
-            )}{" "}
-            {data.observationsNeeded}{" "}
-            {tx(
-              "subidas más. Una media sobre una o dos observaciones no es evidencia, y presentarla como tal sería peor que usar el valor de partida. Sincronizaciones vistas:",
+              "Todavía no hay con qué comprobarlo. Hace falta ver a un jugador cruzar un nivel con el intervalo de partidos completo entre dos lecturas. Sincronizaciones vistas:",
             )}{" "}
             {data.distinctReadings} {tx("lecturas,")} {data.crossingsSeen}{" "}
             {tx("cruces de nivel detectados")}

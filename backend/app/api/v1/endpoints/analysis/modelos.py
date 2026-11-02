@@ -15,7 +15,7 @@ from app.api.deps import require_team_owner
 from app.api.v1.endpoints.analysis.plantilla import roster
 from app.application.queries.player_history import PlayerHistoryQueryService
 from app.domain.engines.experience_engine import (
-    calibrate,
+    measure,
 )
 from app.domain.engines.experience_engine import model_info as experience_model_info
 from app.domain.engines.loyalty_engine import model_info as loyalty_model_info
@@ -50,10 +50,11 @@ async def experience_calibration(
     history = PlayerHistoryQueryService(session)
     level_ups, crossings_seen = await history.experience_level_up_observations(team_id)
 
-    cal = calibrate(level_ups)
-    info = experience_model_info(cal)
-    minimum = 5
-    info["observationsNeeded"] = max(minimum - cal.observations, 0)
+    # Lo observado se mide y se enseña AL LADO del 100 configurado, nunca en su
+    # lugar: hasta el 2026-11-02 esto llamaba a `calibrate()`, que sustituía el
+    # umbral por la media de las subidas de esta cuenta en cuanto había cinco.
+    med = measure(level_ups)
+    info = experience_model_info(med)
     info["crossingsSeen"] = crossings_seen
     info["discardedCrossings"] = crossings_seen - len(level_ups)
     info["distinctReadings"] = int(

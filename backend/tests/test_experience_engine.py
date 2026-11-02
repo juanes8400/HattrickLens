@@ -16,10 +16,10 @@ evidence is thin, and always says which of the two it used.
 import pytest
 
 from app.domain.engines.experience_engine import (
-    Calibration,
+    Measurement,
     LevelUp,
     MatchCount,
-    calibrate,
+    measure,
     detect_level_ups,
     matches_to_next_level,
     model_info,
@@ -75,51 +75,48 @@ def test_match_count_and_plain_dict_agree() -> None:
     )
 
 
-# ── Calibration: measured, so reported with its uncertainty ─────────────────
+# ── Measurement: reported NEXT TO the configured value, never instead ───────
 
-def test_configured_value_stands_while_evidence_is_thin() -> None:
-    cal = calibrate([])
-    assert cal.source == "configured"
-    assert cal.points_per_level == 100
-    assert cal.std_dev is None
-    assert cal.observations == 0
-    assert cal.is_measured is False
+def test_the_threshold_never_moves_however_many_level_ups_are_seen() -> None:
+    """2026-11-02. Antes esto era al revés: con cinco subidas el motor
+    sustituía el umbral por la media observada. Eso es ajustar el parámetro de
+    una fórmula a los datos privados de la cuenta, prohibido desde el
+    2026-08-14, y además innecesario con los 100 comprobados en el juego."""
+    vacio = measure([])
+    assert vacio.points_per_level == 100
+    assert vacio.observations == 0
+    assert vacio.observed_mean is None
+    assert vacio.std_dev is None
 
-    # Two crossings are not a sample; a mean over them would be worse than the
-    # prior, so the prior stays.
-    thin = calibrate([LevelUp("A", 3, 4, 26.0), LevelUp("B", 5, 6, 27.0)])
-    assert thin.source == "configured"
-    assert thin.points_per_level == 100
-    assert thin.observations == 2
+    muchas = measure([LevelUp(f"p{i}", 4, 5, 26.0) for i in range(60)])
+    assert muchas.points_per_level == 100          # ni con sesenta
+    assert muchas.observed_mean == pytest.approx(26.0)
+    assert muchas.observations == 60
 
 
-def test_observations_replace_the_configured_value() -> None:
-    cal = calibrate([
-        LevelUp("A", 3, 4, 26.0), LevelUp("B", 5, 6, 27.0),
-        LevelUp("C", 4, 5, 26.5), LevelUp("D", 6, 7, 27.5),
-        LevelUp("E", 3, 4, 26.0), LevelUp("F", 7, 8, 27.0),
+def test_what_was_observed_travels_beside_it() -> None:
+    med = measure([
+        LevelUp("A", 3, 4, 96.0), LevelUp("B", 5, 6, 104.0),
+        LevelUp("C", 4, 5, 98.0), LevelUp("D", 6, 7, 102.0),
     ])
-    assert cal.source == "observed"
-    assert cal.is_measured is True
-    assert cal.observations == 6
-    assert cal.points_per_level == pytest.approx(26.667, abs=0.01)
-    assert cal.configured_value == 100
-    assert cal.std_dev is not None and cal.std_dev > 0
+    assert med.points_per_level == 100
+    assert med.observed_mean == pytest.approx(100.0)
+    assert med.std_dev is not None and med.std_dev > 0
 
 
-def test_standard_deviation_is_what_makes_the_estimate_honest() -> None:
+def test_standard_deviation_is_what_makes_the_check_honest() -> None:
     """A tight sample and a scattered one can share a mean. Only the deviation
     and the interval tell them apart, the reason for measuring at all."""
-    tight = calibrate([LevelUp(f"p{i}", 3, 4, 28.0) for i in range(6)])
+    tight = measure([LevelUp(f"p{i}", 3, 4, 28.0) for i in range(6)])
     assert tight.std_dev == pytest.approx(0.0)
     assert tight.confidence_interval == (28.0, 28.0)
 
-    scattered = calibrate([
+    scattered = measure([
         LevelUp("a", 3, 4, 22.0), LevelUp("b", 3, 4, 34.0),
         LevelUp("c", 3, 4, 25.0), LevelUp("d", 3, 4, 31.0),
         LevelUp("e", 3, 4, 24.0), LevelUp("f", 3, 4, 32.0),
     ])
-    assert scattered.points_per_level == pytest.approx(28.0)
+    assert scattered.observed_mean == pytest.approx(28.0)
     assert scattered.std_dev > 4
     low, high = scattered.confidence_interval
     assert low < 28.0 < high
@@ -127,36 +124,40 @@ def test_standard_deviation_is_what_makes_the_estimate_honest() -> None:
 
 
 def test_interval_narrows_as_observations_accumulate() -> None:
-    few = calibrate([LevelUp(f"p{i}", 3, 4, 26.0 + (i % 3)) for i in range(6)])
-    many = calibrate([LevelUp(f"p{i}", 3, 4, 26.0 + (i % 3)) for i in range(60)])
+    few = measure([LevelUp(f"p{i}", 3, 4, 26.0 + (i % 3)) for i in range(6)])
+    many = measure([LevelUp(f"p{i}", 3, 4, 26.0 + (i % 3)) for i in range(60)])
     assert many.std_dev == pytest.approx(few.std_dev, rel=0.20)
 
-    def width(c: Calibration) -> float:
+    def width(c: Measurement) -> float:
         return c.confidence_interval[1] - c.confidence_interval[0]
 
     assert width(many) < width(few) / 2
 
 
-def test_calibration_breaks_down_by_starting_level() -> None:
+def test_the_check_says_whether_the_configured_value_agrees() -> None:
+    """Es para lo que sirve medir: ver si el número en uso cae dentro de lo
+    observado. Si no cae, se dice; no se cambia."""
+    cuadra = measure([LevelUp(f"p{i}", 3, 4, 99.0 + (i % 3)) for i in range(8)])
+    assert cuadra.agrees is True
+
+    no_cuadra = measure([LevelUp(f"p{i}", 3, 4, 26.0 + (i % 3)) for i in range(8)])
+    assert no_cuadra.agrees is False
+    assert no_cuadra.points_per_level == 100       # y aun así no se mueve
+
+    assert measure([]).agrees is None
+
+
+def test_measurement_breaks_down_by_starting_level() -> None:
     """If the cost per level turns out to depend on the level, it shows up here
     instead of being averaged away."""
-    cal = calibrate([
+    med = measure([
         LevelUp("a", 3, 4, 25.0), LevelUp("b", 3, 4, 25.0),
         LevelUp("c", 8, 9, 31.0), LevelUp("d", 8, 9, 31.0),
         LevelUp("e", 5, 6, 28.0), LevelUp("f", 6, 7, 28.0),
     ])
-    assert cal.by_level[3] == pytest.approx(25.0)
-    assert cal.by_level[8] == pytest.approx(31.0)
-    assert 5 not in cal.by_level      # a single sample is not reported
-
-
-def test_the_specification_can_be_refuted_by_the_data() -> None:
-    """100 is a prior, not a constant. Enough crossings at 26 and 26 is what
-    the engine reports, which is the point of not hardcoding it."""
-    cal = calibrate([LevelUp(f"p{i}", 4, 5, 26.0) for i in range(12)])
-    assert cal.points_per_level == pytest.approx(26.0)
-    assert cal.configured_value == 100
-    assert cal.source == "observed"
+    assert med.by_level[3] == pytest.approx(25.0)
+    assert med.by_level[8] == pytest.approx(31.0)
+    assert 5 not in med.by_level      # a single sample is not reported
 
 
 # ── Detecting level-ups from synchronised history ───────────────────────────
@@ -181,36 +182,26 @@ def test_first_sighting_of_a_player_is_never_a_level_up() -> None:
     assert detect_level_ups([("A", 9, 5.0)]) == []
 
 
-def test_the_loop_closes_detection_feeds_calibration() -> None:
-    """Every sync that catches a crossing improves the estimate. This is the
-    behaviour the whole design exists for."""
+def test_detection_feeds_the_check_not_the_threshold() -> None:
+    """Cada sync que pilla un cruce añade una observación con la que comparar.
+    El umbral sigue siendo el de la tabla."""
     snapshots = []
     for i in range(6):
         snapshots += [(f"p{i}", 3, 26.0 + i * 0.2), (f"p{i}", 4, 0.0)]
-    cal = calibrate(detect_level_ups(snapshots))
-    assert cal.source == "observed"
-    assert cal.observations == 6
-    assert 26.0 <= cal.points_per_level <= 27.0
+    med = measure(detect_level_ups(snapshots))
+    assert med.observations == 6
+    assert 26.0 <= (med.observed_mean or 0) <= 27.0
+    assert med.points_per_level == 100
 
 
 # ── Progress towards the next level ─────────────────────────────────────────
 
-def test_progress_uses_whichever_calibration_it_is_given() -> None:
+def test_progress_always_measures_against_the_configured_threshold() -> None:
     matches = {"league": 14, "friendly_international": 3}
-    default = progress(matches)
-    assert default.points == pytest.approx(51.1)
-    assert default.points_per_level == 100
-    assert default.calibration_source == "configured"
-    assert default.remaining_points == pytest.approx(48.9)
-
-    measured = Calibration(
-        points_per_level=92.05, std_dev=1.1, observations=9,
-        source="observed", configured_value=100.0, observed_mean=92.05,
-    )
-    tuned = progress(matches, measured)
-    assert tuned.points_per_level == 92.05
-    assert tuned.calibration_source == "observed"
-    assert tuned.percent > default.percent      # same points, nearer the top
+    hecho = progress(matches)
+    assert hecho.points == pytest.approx(51.1)
+    assert hecho.points_per_level == 100
+    assert hecho.remaining_points == pytest.approx(48.9)
 
 
 def test_progress_is_capped_and_flags_players_about_to_level() -> None:
@@ -274,16 +265,18 @@ def test_model_info_separates_what_is_verified_from_what_is_assumed() -> None:
         "cup", "cup_secondary", "qualification", "friendly",
         "masters", "national_team_friendly", "youth_league", "youth_friendly",
     }
-    assert info["configuredPointsPerLevel"] == 100
-    assert info["source"] == "configured"
+    assert info["pointsPerLevel"] == 100
     assert info["observedMean"] is None
+    assert info["agreesWithConfigured"] is None
 
 
 def test_model_info_reports_the_measurement_once_there_is_one() -> None:
-    cal = calibrate([LevelUp(f"p{i}", 3, 4, 26.0 + (i % 3)) for i in range(8)])
-    info = model_info(cal)
-    assert info["source"] == "observed"
+    med = measure([LevelUp(f"p{i}", 3, 4, 26.0 + (i % 3)) for i in range(8)])
+    info = model_info(med)
     assert info["observations"] == 8
     assert info["standardDeviation"] > 0
     assert info["confidenceInterval"] is not None
-    assert info["pointsPerLevel"] != info["configuredPointsPerLevel"]
+    assert info["observedMean"] == pytest.approx(26.875)
+    # Lo que la aplicación usa no se ha movido.
+    assert info["pointsPerLevel"] == 100
+    assert info["agreesWithConfigured"] is False
