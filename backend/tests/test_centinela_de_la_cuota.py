@@ -19,6 +19,7 @@ from app.domain.engines.centinela_de_la_cuota import (
 from app.infrastructure.chpp.mercado import (
     ID_DE_HABILIDAD,
     TRAMO_MAXIMO_DEL_PRIMERO,
+    _ancho_que_acepta,
     peticiones_de,
 )
 
@@ -29,6 +30,20 @@ def test_el_canario_cabe_en_una_sola_peticion() -> None:
     """Si se partiera en trozos costaria mas de una, y entonces el aparato que
     vigila el gasto seria el que gasta."""
     assert len(peticiones_de(canario())) == 1
+
+
+def test_el_canario_pide_una_ventana_de_edad_que_hattrick_acepta() -> None:
+    """2026-11-01, y esto es lo que tumbaba el barrido entero.
+
+    El canario pedia de 17 a 30 años. Hattrick tambien pone tope al ANCHO de
+    la ventana de edad --dos años con `ageMin` 17, siete hasta los 26, medido
+    contra el servidor-- asi que contestaba «Invalid parameter specified (10)
+    Additional Info: ageMin». Y como el canario es lo PRIMERO que pide el paso
+    del mercado, el paso entero moria ahi: los precios comparables llevaban
+    semanas sin moverse.
+    """
+    joven, viejo = EDAD_DEL_CANARIO
+    assert viejo - joven + 1 <= _ancho_que_acepta(joven)
 
 
 def test_el_canario_respeta_la_regla_de_los_cuatro_niveles() -> None:

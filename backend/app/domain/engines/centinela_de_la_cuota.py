@@ -80,16 +80,31 @@ TRAMO_DEL_CANARIO = (5, 8)
 
 #: La franja de edad del canario. No la más ancha posible sino la más poblada:
 #: lo que se quiere es que no pueda estar vacía, no que entre todo el mundo.
-EDAD_DEL_CANARIO = (17, 30)
+#:
+#: ERA (17, 30) Y ESO LO MATABA (2026-11-01). Hattrick también pone tope al
+#: ANCHO de la ventana de edad, y crece a saltos con la edad mínima: con 17
+#: son dos años y hasta los 26 son siete (ver `ANCHO_DE_LA_EDAD`, medido). Con
+#: catorce años de ventana el servidor contestaba
+#:
+#:     Invalid parameter specified (10) Additional Info: ageMin
+#:
+#: y como el canario es lo PRIMERO que pide el paso del mercado, el paso
+#: entero moría ahí: ni se buscaba ni se resolvían ventas, y los precios
+#: comparables llevaban semanas sin moverse sin que nadie supiera por qué. Un
+#: usuario lo vio en su cartel de sincronización parcial y así se encontró.
+#:
+#: Siete años seguidos de edad madura: siguen siendo el medio del mercado y
+#: caben en UNA petición, que es la otra condición del canario.
+EDAD_DEL_CANARIO = (21, 27)
 
 
 def canario() -> Ventana:
     """Una búsqueda que el mercado no puede tener vacía.
 
-    Defensa entre cinco y ocho, de diecisiete a treinta años, y las otras dos
-    habilidades sin pedir nada: es el medio del mercado, donde está casi todo
-    el mundo. En el mercado mundial hay miles de anuncios a cualquier hora, y
-    esto se lleva una tajada enorme de ellos.
+    Defensa entre cinco y ocho, de veintiuno a veintisiete años, y las otras
+    dos habilidades sin pedir nada: es el medio del mercado, donde está casi
+    todo el mundo. En el mercado mundial hay miles de anuncios a cualquier
+    hora, y esto se lleva una tajada enorme de ellos.
 
     EL PESO ES CERO Y NO SE USA. El canario no alimenta el fondo: lo que trae
     se cuenta y se tira. Darle un peso de la escalera invitaría a guardarlo, y
