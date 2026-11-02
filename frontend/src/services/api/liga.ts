@@ -118,15 +118,14 @@ export interface League {
     } | null;
   } | null;
   /** Tu rival de Promoción, si juegas promoción (2026-11-01). No está en la
-   *  clasificación: viene de la serie de arriba. Sigue viniendo después de
-   *  jugado --`pending` lo dice-- porque la lista de Rivales lo quiere igual
-   *  y la flor es la que lo suelta al pitido. */
+   *  clasificación: viene de la serie de arriba. Sólo viene MIENTRAS ESTÉ POR
+   *  JUGAR (2026-11-02): una vez jugado deja de ser un rival y desaparece de
+   *  la lista, igual que de la flor. */
   promotionRival: {
     htTeamId: number;
     name: string;
     isHome: boolean;
     playedAt: string | null;
-    pending: boolean;
   } | null;
   /** Cuánto movió la última jornada. `null` en la jornada 1, cuando no hay
    *  con qué comparar. Los deltas van en PUNTOS PORCENTUALES. */

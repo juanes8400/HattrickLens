@@ -8,6 +8,7 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 
 from app.application.queries.flor_de_fuerza import sectores_del_rival_de_promocion
+from app.application.queries.league import LeagueQueryService
 from app.application.queries.promocion import rival_de_promocion
 from app.domain.value_objects.ht_constants import (
     MATCH_TYPE_LEAGUE,
@@ -63,16 +64,22 @@ def test_el_rival_de_promocion_sale_con_su_sede() -> None:
     assert rival.pendiente is True
 
 
-def test_jugado_sigue_en_la_lista_de_rivales_pero_no_en_la_flor() -> None:
-    """Las dos cosas que se pidieron no tienen la misma ventana: la lista lo
-    quiere también después, la flor lo suelta al pitido."""
+def test_una_vez_jugado_desaparece_de_los_dos_sitios() -> None:
+    """La lista de Rivales y la flor tienen ya la MISMA ventana: mientras se
+    sepa y hasta que se juegue.
+
+    El 2026-11-01 la lista lo quería también después de jugado; el 2026-11-02
+    el usuario lo quitó: «si ya jugué Promoción, no necesito verlo en esa
+    lista». Un rival que ya no es rival ocupaba una fila.
+    """
     factory, team_id = asyncio.run(_con_promocion(jugado=True))
 
-    # Para la lista: sigue estando.
+    # El partido sigue en la base, y la consulta lo encuentra si se le pide
+    # todo: lo que cambia es que nadie se lo pide así.
     rival = _pide(factory, team_id, lambda s, t: rival_de_promocion(s, t))
     assert rival is not None and rival.pendiente is False
 
-    # Para la flor: ya no.
+    # Ni la lista de Rivales ni la flor lo enseñan.
     assert _pide(factory, team_id, lambda s, t: rival_de_promocion(s, t, solo_pendiente=True)) is None
     assert _pide(factory, team_id, lambda s, t: sectores_del_rival_de_promocion(s, t, set())) is None
 
@@ -129,3 +136,47 @@ def test_la_promocion_no_se_confunde_con_un_partido_de_liga() -> None:
 
     factory, team_id = asyncio.run(go())
     assert _pide(factory, team_id, lambda s, t: rival_de_promocion(s, t)) is None
+
+
+def test_la_respuesta_de_liga_lo_suelta_al_pitido() -> None:
+    """Y la comprobación de verdad: lo que Liga manda a la pantalla.
+
+    Es donde el usuario lo veía. Por jugar, viaja; jugado, no viaja, así que la
+    lista de Rivales no tiene ni que filtrarlo.
+    """
+
+    async def respuesta(jugado: bool):
+        factory, team_id = await _con_promocion(jugado=jugado)
+        # Liga necesita una clasificación para responder: sin ella la consulta
+        # devuelve `None` entera y no habría nada que mirar.
+        async with factory() as s:
+            sync = m.Sync(
+                user_id=1, team_id=team_id, kind="manual", status="completed", started_at=CUANDO
+            )
+            s.add(sync)
+            await s.flush()
+            for i, (ht_id, nombre) in enumerate(
+                [(HT_TEAM_ID, "Pulgas Arrechas"), (600_001, "Otro"), (600_002, "Un tercero")]
+            ):
+                s.add(
+                    m.Standing(
+                        sync_id=sync.id, series_ht_id=34162, season=84, match_round=2,
+                        captured_at=CUANDO, team_ht_id=ht_id, team_name=nombre, position=i + 1,
+                        played=2, won=2 - i, draws=0, lost=i,
+                        goals_for=4 - i, goals_against=i, points=6 - i * 3,
+                    )
+                )
+            await s.commit()
+        async with factory() as s:
+            r = await LeagueQueryService(s).get(team_id, runs=200)
+        assert r is not None
+        return r.promotion_rival
+
+    por_jugar = asyncio.run(respuesta(False))
+    assert por_jugar is not None
+    assert por_jugar["name"] == "Los de Arriba"
+    assert por_jugar["isHome"] is True  # `_con_promocion` lo pone en casa por defecto
+    # `pending` ya no viaja: sería siempre True y no diría nada.
+    assert "pending" not in por_jugar
+
+    assert asyncio.run(respuesta(True)) is None

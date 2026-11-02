@@ -190,8 +190,12 @@ class LeagueResponse:
     #: El rival de Promoción, si tu equipo juega promoción: no está en la
     #: clasificación --viene de la serie de arriba-- así que sin esto no
     #: aparecía en ninguna parte de la pantalla (2026-11-01, pedido del
-    #: usuario). Sigue viajando después de jugado, para que la lista de
-    #: Rivales lo tenga: la flor es la que lo suelta al pitido.
+    #: usuario). SÓLO MIENTRAS ESTÉ POR JUGAR (2026-11-02, dicho por él: «si
+    #: ya jugué Promoción, no necesito verlo en esa lista»). Antes seguía
+    #: viajando después del pitido para que la lista de Rivales lo tuviera, y
+    #: eso dejaba un rival que ya no es rival ocupando una fila. Ahora la
+    #: regla es la misma aquí y en la flor: mientras se sepa y hasta que se
+    #: juegue.
     promotion_rival: dict[str, Any] | None = None
     #: Con qué resumen se calcularon las predicciones de esta respuesta. Viaja
     #: de vuelta para que la pantalla pinte marcado el que de verdad se usó y
@@ -1181,7 +1185,7 @@ class LeagueQueryService:
         # El rival de Promoción. Va en la respuesta de Liga porque es de
         # liga: cuenta para subir y tiene sede, sólo que el rival no está en
         # tu clasificación.
-        de_promocion = await rival_de_promocion(self._s, team)
+        de_promocion = await rival_de_promocion(self._s, team, solo_pendiente=True)
         promocion = (
             None
             if de_promocion is None
@@ -1190,7 +1194,6 @@ class LeagueQueryService:
                 "name": de_promocion.nombre,
                 "isHome": de_promocion.en_casa,
                 "playedAt": de_promocion.cuando.isoformat() if de_promocion.cuando else None,
-                "pending": de_promocion.pendiente,
             }
         )
 
