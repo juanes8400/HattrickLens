@@ -4,17 +4,22 @@ Tracks how close each player is to the next experience level, and which matches
 got them there. Experience cannot be trained, only accumulated, which is why a
 veteran is hard to replace even when his skills are worse.
 
-POINTS PER LEVEL, PROFILED, THEN MEASURED
--------------------------------------------
-Hattrick Control exposes the threshold and match weights as an editable
-profile. Lens starts from the compatible profile, then records observed
-level-ups and reports the mean and standard deviation of complete intervals.
+POINTS PER LEVEL: 100, FIXED, AND NEVER FITTED HERE
+--------------------------------------------------
+The threshold is 100 points per level and the match weights are Hattrick's own
+table (docs/reference/tabla_experiencia.html). They are configuration, not
+something this engine estimates.
 
-The configured value is the prior: it is used while there is no evidence, and
-it is replaced by the observed mean once enough level-ups have been recorded.
-The standard deviation is the honest part, it says how much the estimate can
-be trusted, and it will reveal whether the true figure is 28, 27, or whether it
-varies with the player's current level.
+Until 2026-11-02 there was a `calibrate()` that replaced the threshold with the
+mean of the owner's observed level-ups as soon as five had been recorded. That
+is fitting a formula's parameter to private account data, which the owner
+forbade on 2026-08-14, and it was also pointless once the owner confirmed the
+100 in-game. Removed.
+
+What is kept is the opposite direction: `measure()` reports what those same
+level-ups came out to, as a CHECK against the configured value. Describing and
+verifying is allowed and useful; feeding it back is not. Nothing in the app
+reads the measured number as the threshold.
 
 The point values per match type are verified: league and international friendly
 reconstruct Hattrick Control's "Suma" column for 19 players with zero error.
@@ -86,7 +91,7 @@ class MatchCount:
 
 @dataclass(frozen=True)
 class LevelUp:
-    """One observed experience increase, used to calibrate the engine."""
+    """One observed experience increase, used to check the configured threshold."""
 
     player: str
     from_level: int
@@ -95,28 +100,35 @@ class LevelUp:
 
 
 @dataclass
-class Calibration:
-    """What the observed level-ups say about the points needed per level."""
+class Measurement:
+    """What the observed level-ups came out to, NEXT TO the configured value.
+
+    `points_per_level` is always the configured one, the number the app uses.
+    `observed_mean` is what this account's own level-ups averaged, and it is
+    there to be compared with it, never to replace it.
+    """
 
     points_per_level: float
     std_dev: float | None
     observations: int
-    source: str  # "configured" | "observed" | "blended"
-    configured_value: float
     observed_mean: float | None = None
     by_level: dict[int, float] = field(default_factory=dict)
 
     @property
-    def is_measured(self) -> bool:
-        return self.source != "configured"
+    def agrees(self) -> bool | None:
+        """Whether the configured value falls inside the observed interval."""
+        interval = self.confidence_interval
+        if interval is None:
+            return None
+        return interval[0] <= self.points_per_level <= interval[1]
 
     @property
     def confidence_interval(self) -> tuple[float, float] | None:
-        """Roughly 95% interval for the mean, if there is enough evidence."""
-        if self.std_dev is None or self.observations < 2:
+        """Roughly 95% interval for the OBSERVED mean, if there is evidence."""
+        if self.std_dev is None or self.observed_mean is None or self.observations < 2:
             return None
         margin = 1.96 * self.std_dev / (self.observations**0.5)
-        return round(self.points_per_level - margin, 2), round(self.points_per_level + margin, 2)
+        return round(self.observed_mean - margin, 2), round(self.observed_mean + margin, 2)
 
 
 @dataclass
@@ -125,7 +137,6 @@ class ExperienceProgress:
     percent: int
     remaining_points: float
     points_per_level: float
-    calibration_source: str
     breakdown: dict[str, float] = field(default_factory=dict)
     # Conteo de partidos reales, separado del desglose de puntos. Un partido
     # de 45 minutos cuenta como un partido aquí, aunque aporte medio peso al
@@ -158,29 +169,20 @@ def points(matches: MatchCount | Mapping[str, float]) -> float:
     return float(round(sum(cfg.get(kind, 0.0) * n for kind, n in data.items()), 4))
 
 
-def calibrate(observations: list[LevelUp] | None = None) -> Calibration:
-    """Estimate points per level from observed level-ups.
+def measure(observations: list[LevelUp] | None = None) -> Measurement:
+    """What the observed level-ups came out to, as a check on the configured 100.
 
-    Below `min_observations` the configured value stands: a mean over one or
-    two samples is not evidence, and pretending otherwise would be worse than
-    using the prior.
+    This NEVER changes the threshold the app uses. With no observations there
+    is simply nothing to compare, and the configured value travels alone.
     """
     cfg = _config()
     configured = float(cfg["points_per_level"])
-    minimum = int(cfg.get("min_observations_to_calibrate", 5))
     obs = observations or []
 
-    if len(obs) < minimum:
-        return Calibration(
-            points_per_level=configured,
-            std_dev=None,
-            observations=len(obs),
-            source="configured",
-            configured_value=configured,
-        )
+    if not obs:
+        return Measurement(points_per_level=configured, std_dev=None, observations=0)
 
     values = [o.points_accumulated for o in obs]
-    observed_mean = round(mean(values), 3)
     deviation = round(stdev(values), 3) if len(values) > 1 else 0.0
 
     by_level: dict[int, float] = {}
@@ -189,26 +191,22 @@ def calibrate(observations: list[LevelUp] | None = None) -> Calibration:
         if len(same) >= 2:
             by_level[level] = round(mean(same), 2)
 
-    return Calibration(
-        points_per_level=observed_mean,
+    return Measurement(
+        points_per_level=configured,
         std_dev=deviation,
         observations=len(obs),
-        source="observed",
-        configured_value=configured,
-        observed_mean=observed_mean,
+        observed_mean=round(mean(values), 3),
         by_level=by_level,
     )
 
 
 def progress(
     matches: MatchCount | Mapping[str, float],
-    calibration: Calibration | None = None,
     unscored_national_matches: int = 0,
     match_counts: Mapping[str, int] | None = None,
 ) -> ExperienceProgress:
     cfg = _config()
-    cal = calibration or calibrate()
-    per_level = cal.points_per_level
+    per_level = float(cfg["points_per_level"])
     data = matches.as_dict() if isinstance(matches, MatchCount) else matches
     total = points(data)
     pct = int(min(total / per_level * 100, 100)) if per_level else 0
@@ -222,7 +220,6 @@ def progress(
         percent=pct,
         remaining_points=round(max(per_level - total, 0.0), 2),
         points_per_level=per_level,
-        calibration_source=cal.source,
         breakdown=breakdown,
         match_counts=dict(match_counts or {}),
         unscored_national_matches=unscored_national_matches,
@@ -232,24 +229,22 @@ def progress(
 def matches_to_next_level(
     matches: MatchCount | dict[str, int],
     match_type: str = "league",
-    calibration: Calibration | None = None,
 ) -> float:
     """How many more matches of a given type are needed."""
     cfg = _config()
     value = cfg["match_points"].get(match_type, 0.0)
     if value <= 0:
         return float("inf")
-    return float(round(progress(matches, calibration).remaining_points / value, 1))
+    return float(round(progress(matches).remaining_points / value, 1))
 
 
 def weeks_to_next_level(
     matches: MatchCount | dict[str, int],
     league_matches_per_week: float = 1.0,
-    calibration: Calibration | None = None,
 ) -> float:
     if league_matches_per_week <= 0:
         return float("inf")
-    return round(matches_to_next_level(matches, "league", calibration) / league_matches_per_week, 1)
+    return round(matches_to_next_level(matches, "league") / league_matches_per_week, 1)
 
 
 def detect_level_ups(
@@ -258,8 +253,9 @@ def detect_level_ups(
     """Turn a chronological series of (player, experience, points) readings into
     observed level-ups.
 
-    This is what makes the calibration self-improving: every synchronisation
-    that catches a player crossing a level adds one observation.
+    Every synchronisation that catches a player crossing a level adds one
+    observation. They are a CHECK on the configured 100 (see `measure`), not a
+    source for it.
     """
     out: list[LevelUp] = []
     previous: dict[str, tuple[int, float]] = {}
@@ -291,18 +287,19 @@ def recommend_captain(players: list[dict[str, Any]]) -> dict[str, Any] | None:
     return {"player": player.get("name", ""), "rating": rating.rating, "role": rating.label}
 
 
-def model_info(calibration: Calibration | None = None) -> dict[str, Any]:
+def model_info(measurement: Measurement | None = None) -> dict[str, Any]:
     cfg = _config()
-    cal = calibration or calibrate()
+    med = measurement or measure()
     return {
-        "pointsPerLevel": cal.points_per_level,
-        "configuredPointsPerLevel": cal.configured_value,
-        "observedMean": cal.observed_mean,
-        "standardDeviation": cal.std_dev,
-        "observations": cal.observations,
-        "source": cal.source,
-        "confidenceInterval": cal.confidence_interval,
-        "byLevel": cal.by_level,
+        # El que usa la aplicación, siempre el configurado. Lo observado viaja
+        # al lado para poder compararlo, nunca en su lugar.
+        "pointsPerLevel": med.points_per_level,
+        "observedMean": med.observed_mean,
+        "standardDeviation": med.std_dev,
+        "observations": med.observations,
+        "confidenceInterval": med.confidence_interval,
+        "agreesWithConfigured": med.agrees,
+        "byLevel": med.by_level,
         "matchPoints": cfg["match_points"],
         "verified": ["league", "friendly_international"],
         "fromSpec": [

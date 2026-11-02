@@ -982,17 +982,24 @@ def catalogo() -> list[Seccion]:
                             "Partidos jugados y de qué tipo era cada uno",
                             "Tu histórico de partidos",
                         ),
-                        Fuente("Puntos que da cada tipo de partido", "Tabla de la comunidad"),
+                        Fuente(
+                            "Puntos que da cada tipo de partido",
+                            "Tabla de Hattrick (docs/reference/tabla_experiencia.html)",
+                        ),
                         Fuente(
                             "Subidas de experiencia ya observadas",
-                            "Tu propio histórico: son las que calibran",
+                            "Tu propio histórico: sirven para comprobar el umbral, no para fijarlo",
                         ),
                     ],
                     name="Puntos de experiencia por nivel",
                     answers="Cuántos partidos hacen falta para subir de experiencia.",
                     formula="nivel(p) = mayor n tal que  puntos_acumulados(n) ≤ p",
                     limits=[
-                        "Calibrado contra observaciones; Hattrick no publica la tabla.",
+                        "Cien puntos por nivel, comprobado en el juego; lo observado se"
+                        " enseña al lado para contrastarlo, nunca lo sustituye"
+                        " (2026-11-02).",
+                        "Un partido pesa sus minutos sobre 90: media parte, media"
+                        " experiencia, y nadie suma más de noventa minutos.",
                     ],
                     live="experienceModel",
                 ),

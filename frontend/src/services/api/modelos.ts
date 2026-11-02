@@ -7,21 +7,22 @@
 import type { CalculationReference } from "./comun";
 import { request } from "./nucleo";
 
-/** Points per experience level, measured rather than declared. `source` says
- *  whether the figure comes from observation or is still the configured prior. */
+/** Los puntos por nivel de experiencia que usa la aplicación --siempre los
+ *  100 configurados, comprobados en el juego-- y, al lado, lo que dieron las
+ *  subidas observadas en esta cuenta, para poder compararlo. Hasta el
+ *  2026-11-02 lo observado sustituía al configurado; ya no (ver `measure` en
+ *  `experience_engine.py`). */
 export interface ExperienceModel {
   pointsPerLevel: number;
-  configuredPointsPerLevel: number;
   observedMean: number | null;
   standardDeviation: number | null;
   observations: number;
-  source: "configured" | "observed" | "blended";
   confidenceInterval: [number, number] | null;
+  agreesWithConfigured: boolean | null;
   byLevel: Record<string, number>;
   matchPoints: Record<string, number>;
   verified: string[];
   fromSpec: string[];
-  observationsNeeded: number;
   crossingsSeen: number;
   discardedCrossings: number;
   distinctReadings: number;

@@ -10,6 +10,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -333,3 +334,31 @@ def test_el_registro_enseña_el_nombre_de_hoy_y_lo_filtra(cliente) -> None:
     filas = client.get("/api/v1/usage/log?dias=0").json()["rows"]
     assert [f["module"] for f in filas] == ["Liga"]
     assert client.get("/api/v1/usage/log?dias=0&modulo=Liga").json()["total"] == 1
+
+
+def test_si_la_base_esta_ocupada_el_apunte_se_pierde_y_no_tumba_nada(cliente, monkeypatch):
+    """2026-11-02, visto en vivo: `POST /usage/events` devolvía 500 con
+    «database is locked» mientras la sincronización escribía, y el 500 salía
+    por un contador de «estuve 33 s en Liga».
+
+    Lo que se mide es el uso de la aplicación, no la aplicación. Si el apunte
+    se pierde, el peor caso es una visita que no sale en el ranking.
+    """
+    import sqlalchemy.ext.asyncio as sa_asyncio
+
+    c, _ = cliente
+    original = sa_asyncio.AsyncSession.commit
+    fallos = {"n": 0}
+
+    async def commit_que_falla(self):
+        fallos["n"] += 1
+        raise OperationalError("INSERT INTO ui_events", {}, Exception("database is locked"))
+
+    monkeypatch.setattr(sa_asyncio.AsyncSession, "commit", commit_que_falla)
+    try:
+        r = c.post("/api/v1/usage/events", json={"events": [_evento()]})
+    finally:
+        monkeypatch.setattr(sa_asyncio.AsyncSession, "commit", original)
+
+    assert r.status_code == 204
+    assert fallos["n"] == 1

@@ -271,7 +271,7 @@ def test_con_la_temporada_empezada_manda_la_etiqueta_de_hattrick() -> None:
     = ningún resultado» ya no sirve, y lo que decide es la temporada que
     Hattrick puso a cada partido en `leaguefixtures.xml`.
     """
-    from app.application.queries.league import _de_la_temporada_de_la_tabla
+    from app.application.queries.league import de_la_temporada_de_la_tabla
 
     class P:
         def __init__(self, season, goals):
@@ -283,16 +283,63 @@ def test_con_la_temporada_empezada_manda_la_etiqueta_de_hattrick() -> None:
 
     # Con jornadas jugadas: fuera el del año pasado, dentro el de ésta, lo
     # pendiente y lo que nadie etiquetó.
-    assert _de_la_temporada_de_la_tabla(todos, rondas_jugadas=1) == [
+    assert de_la_temporada_de_la_tabla(todos, rondas_jugadas=1) == [
         nuevo,
         pendiente,
         sin_etiqueta,
     ]
     # Con la tabla a cero: sólo lo que no se ha jugado.
-    assert _de_la_temporada_de_la_tabla(todos, rondas_jugadas=0) == [pendiente]
+    assert de_la_temporada_de_la_tabla(todos, rondas_jugadas=0) == [pendiente]
     # Y si Hattrick no etiquetó nada, se cuenta todo: es lo sincronizado antes
     # de que existiera la columna.
-    assert _de_la_temporada_de_la_tabla([pendiente, sin_etiqueta], rondas_jugadas=5) == [
+    assert de_la_temporada_de_la_tabla([pendiente, sin_etiqueta], rondas_jugadas=5) == [
         pendiente,
         sin_etiqueta,
     ]
+
+
+def test_sin_empezar_se_miran_los_partidos_anteriores_de_los_ocho() -> None:
+    """2026-11-02, regla dada por el usuario: «cuando la serie no ha empezado,
+    debemos usar partidos anteriores de los equipos participantes».
+
+    Hasta aquí esta función miraba los partidos DE LA SERIE, que la semana del
+    sorteo son los del año pasado entre los ocho equipos de entonces: gente que
+    ya no juega esta serie. Ahora mira hacia atrás por equipo, cada uno en la
+    serie en la que estuviera.
+    """
+    from app.api.v1.endpoints.league import _ultimos_de_los_que_la_juegan
+
+    async def go():
+        factory, team_id = await _tras_el_ascenso()
+        async with factory() as s:
+            # Cada rival nuevo, con un partido suyo en OTRA serie.
+            for i, (ht_id, nombre) in enumerate(RIVALES_NUEVOS):
+                s.add(
+                    m.Match(
+                        ht_match_id=920_000 + i,
+                        played_at=ANTES + timedelta(days=i),
+                        match_type=1,
+                        status="finished",
+                        series_ht_id=55_555,
+                        match_round=14,
+                        home_team_ht_id=ht_id,
+                        away_team_ht_id=999_000 + i,
+                        home_team_name=nombre,
+                        away_team_name="Alguien de su serie vieja",
+                        home_goals=1,
+                        away_goals=0,
+                    )
+                )
+            await s.commit()
+            team = await s.get(m.Team, team_id)
+            assert team is not None
+            return await _ultimos_de_los_que_la_juegan(s, team, 0)
+
+    vistos = asyncio.run(go())
+    ids = {p.ht_match_id for p in vistos}
+    # Los tres rivales nuevos traen el suyo, aunque sea de otra serie.
+    assert {920_000, 920_001, 920_002} <= ids
+    # Y el propio equipo trae los suyos de la serie vieja.
+    assert any(p.series_ht_id == VIEJA for p in vistos)
+    # Del más viejo al más reciente, que es como los quiere la lectura.
+    assert [p.played_at for p in vistos] == sorted(p.played_at for p in vistos)

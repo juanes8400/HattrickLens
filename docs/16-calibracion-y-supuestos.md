@@ -64,26 +64,47 @@ obtenida de ese modo fue retirada y no debe reintroducirse.
 
 ---
 
-## 3. Experiencia ✅ Verificado (pesos) · 🔶 Calibrado (denominador)
+## 3. Experiencia ✅ Verificado (pesos y denominador)
 
-**Pesos por tipo de partido.** Reconstruyen la columna "Suma" de 19 jugadores con
-error **0,0000**:
+**Puntos por tipo de partido.** Son los de la tabla de Hattrick,
+[`docs/reference/tabla_experiencia.html`](reference/tabla_experiencia.html), no
+una estimación nuestra:
 
-| Tipo de partido | Peso |
+| Tipo de partido | Puntos |
 |---|---|
-| Liga | 1,0 ✅ |
-| Amistoso internacional | 0,2 ✅ |
-| Copa y clasificación | 1,0 ⚠️ (asumido igual a liga, sin observar) |
-| Amistoso nacional | 0,1 ⚠️ (asumido, sin observar) |
-| Torneos | 0,0 ⚠️ |
+| Liga | 3,5 ✅ |
+| Promoción y Copa principal | 7 ✅ |
+| Copa secundaria | 1,75 ✅ |
+| Amistoso | 0,35 ✅ |
+| Amistoso internacional | 0,7 ✅ |
+| Juvenil | 3,5 ✅ · Amistoso juvenil | 0,35 ✅ |
+| HT Masters | 17,5 ✅ |
+| Torneos | 0 ✅ (el manual oficial dice que no dan experiencia) |
 
-**Equivalentes por nivel.** Búsqueda exhaustiva del denominador constante compatible
-con las 19 filas simultáneamente: rango **26,01 – 26,66**. Se adopta 26,3.
+Liga y amistoso internacional están además verificados contra la columna «Suma»
+de una herramienta comunitaria para 19 jugadores con error 0,0000. Los valores
+de esa herramienta son exactamente los de arriba divididos por 3,5: la misma
+proporción entre tipos, en otra escala.
+
+**Puntos por nivel: 100**, confirmado por el dueño dentro del juego
+(2026-11-02). No se estima.
+
+**Proporcional a los minutos.** Un partido pesa `min(minutos / 90, 1)` de los
+puntos de su categoría: media parte da media experiencia, y nadie suma más de
+90 minutos por partido. Lo arma `player_history.py` y el motor sólo multiplica.
+
+**Lo que se midió y ya no se usa para nada más.** Hasta el 2026-11-02 el motor
+tenía un `calibrate()` que, con cinco subidas observadas, sustituía el 100 por
+la media de las subidas de la cuenta del dueño. Eso es ajustar el parámetro de
+una fórmula a sus datos privados, prohibido desde el 2026-08-14, y además
+innecesario con el número ya comprobado. Se quitó. Lo que queda es `measure()`,
+que reporta esa misma media **al lado** del valor en uso, para compararlos:
+Transparencia enseña si cuadran y, si no, invita a mirar el desglose por nivel.
 
 **Observación pendiente de confirmar.** El coste por nivel parece **plano**: un
-jugador con experiencia "clase mundial" progresa al mismo ritmo que uno "pobre". Va
-contra la intuición y una sola pantalla no basta para cerrarlo. Marcado para
-re-verificar con subidas de experiencia observadas en snapshots propios.
+jugador con experiencia «clase mundial» progresaría al mismo ritmo que uno
+«pobre». Va contra la intuición y sigue sin cerrarse; el desglose por nivel de
+Transparencia es justo donde se vería.
 
 ---
 

@@ -14,7 +14,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.application.commands.sync_team import SyncTeamCommand, SyncTeamHandler
 from app.application.queries.player_history import PlayerHistoryQueryService
-from app.domain.engines.experience_engine import calibrate, detect_level_ups
+from app.domain.engines.experience_engine import detect_level_ups, measure
 from app.infrastructure.chpp.parsers import get_parser
 from app.infrastructure.db import models as m
 from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
@@ -72,19 +72,19 @@ def test_one_sync_yields_no_observations_and_the_engine_says_so() -> None:
         snapshots = [(f"{first} {last}", int(e), 0.0) for first, last, e, _ in rows]
         assert detect_level_ups(snapshots) == []
 
-        cal = calibrate([])
-        assert cal.source == "configured"
-        assert cal.points_per_level == 100
-        assert cal.observations == 0
-        assert cal.std_dev is None
-        assert cal.confidence_interval is None
+        med = measure([])
+        assert med.points_per_level == 100
+        assert med.observations == 0
+        assert med.observed_mean is None
+        assert med.std_dev is None
+        assert med.confidence_interval is None
 
     asyncio.run(run())
 
 
 def test_a_second_sync_with_a_level_up_is_detected_from_stored_history() -> None:
-    """Y en cuanto la historia contiene un cruce, aparece. Es el mecanismo por
-    el que la calibración mejora sola con cada sincronización."""
+    """Y en cuanto la historia contiene un cruce, aparece. Sirve para COMPROBAR
+    el umbral configurado, no para cambiarlo (2026-11-02)."""
     async def run() -> None:
         from sqlalchemy import select
 
@@ -136,8 +136,9 @@ def test_a_second_sync_with_a_level_up_is_detected_from_stored_history() -> None
         assert len(found) == 1
         assert found[0].to_level == found[0].from_level + 1
 
-        # Un solo cruce sigue sin ser evidencia: el valor configurado se mantiene.
-        assert calibrate(found).source == "configured"
+        # El umbral no se mueve por un cruce, ni por mil: lo observado se
+        # mide y se compara, nunca sustituye al 100 configurado.
+        assert measure(found).points_per_level == 100
 
     asyncio.run(run())
 
@@ -211,9 +212,11 @@ def test_real_matches_between_two_observed_pops_feed_calibration() -> None:
         assert observations[0].from_level == first.experience + 1
         assert observations[0].to_level == first.experience + 2
         assert observations[0].points_accumulated == 4.55
-        # A single observation is retained as evidence but, correctly, cannot
-        # yet replace the configured 100-point prior.
-        assert calibrate(observations).observations == 1
-        assert calibrate(observations).source == "configured"
+        # La observación se guarda y se puede leer, y el umbral sigue siendo
+        # el configurado: lo medido está para comparar, no para sustituir.
+        med = measure(observations)
+        assert med.observations == 1
+        assert med.observed_mean == 4.55
+        assert med.points_per_level == 100
 
     asyncio.run(run())

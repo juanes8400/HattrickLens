@@ -475,7 +475,6 @@ async def player_detail(
                 "percent": experience_progress.percent,
                 "remainingPoints": experience_progress.remaining_points,
                 "pointsPerLevel": experience_progress.points_per_level,
-                "calibrationSource": experience_progress.calibration_source,
                 "breakdown": experience_progress.breakdown,
                 "unscoredNationalMatches": experience_progress.unscored_national_matches,
             }
