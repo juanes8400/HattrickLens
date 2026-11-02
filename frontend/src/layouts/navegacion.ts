@@ -17,7 +17,13 @@ export const NAV = [
   { to: "/club", label: "Club y cuerpo técnico", clave: "club" },
   { to: "/overview", label: "Habilidades", clave: "equipo" },
   { to: "/team", label: "Jugadores", clave: "jugadores" },
-  { to: "/skills", label: "Equipo", clave: "habilidades" },
+  // «Equipo» no decía lo que hay dentro: profundidad por puesto, hueco más
+  // serio, mejor cubierto y el sector cuello de botella. Y chocaba con
+  // «Jugadores» y «Club» sin que ninguno explicara la diferencia
+  // (2026-11-02, dicho por el usuario). La `clave` NO cambia: es la que
+  // nombra la traducción y la serie de uso, y renombrarla partiría el
+  // histórico en dos.
+  { to: "/skills", label: "Profundidad de plantilla", clave: "habilidades" },
   { to: "/positions", label: "Posiciones", clave: "posiciones" },
   { to: "/lineup", label: "Alineación", clave: "alineacion" },
   { section: "Desarrollo", clave: "seccion.desarrollo" },
