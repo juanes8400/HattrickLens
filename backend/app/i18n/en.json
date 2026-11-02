@@ -1814,5 +1814,8 @@
   "Tu alineación para el próximo partido tiene {} jugadores y hacen falta once: Hattrick no puede calcular los ratings hasta que la completes.": "Your lineup for the next match has {} players and eleven are needed: Hattrick cannot calculate the ratings until you complete it.",
   "No pudimos mirar el mercado de transferencias": "We couldn't check the transfer market",
   "Hattrick rechazó la última búsqueda: {}": "Hattrick rejected the last search: {}",
-  "No hay nada que arreglar de tu lado: los precios comparables se quedan como estaban y se vuelve a intentar en la próxima sincronización.": "There is nothing to fix on your side: comparable prices stay as they were and it will be tried again on the next sync."
+  "No hay nada que arreglar de tu lado: los precios comparables se quedan como estaban y se vuelve a intentar en la próxima sincronización.": "There is nothing to fix on your side: comparable prices stay as they were and it will be tried again on the next sync.",
+  "No tienes amistoso programado para esta semana": "You have no friendly scheduled for this week",
+  "El hueco de amistosos de tu país se cierra el {} a las {}.": "Your country's friendly slot closes on {} at {}.",
+  "Concierta uno en Hattrick: un amistoso entrena igual que un partido oficial y es la única forma de dar minutos sin arriesgar la liga.": "Arrange one in Hattrick: a friendly trains just like a competitive match and it is the only way to give minutes without risking the league."
 }

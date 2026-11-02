@@ -1814,5 +1814,8 @@
   "Tu alineación para el próximo partido tiene {} jugadores y hacen falta once: Hattrick no puede calcular los ratings hasta que la completes.": "La tua formazione per la prossima partita ha {} giocatori e ne servono undici: Hattrick non può calcolare i rating finché non la completi.",
   "No pudimos mirar el mercado de transferencias": "Non abbiamo potuto guardare il mercato dei trasferimenti",
   "Hattrick rechazó la última búsqueda: {}": "Hattrick ha rifiutato l'ultima ricerca: {}",
-  "No hay nada que arreglar de tu lado: los precios comparables se quedan como estaban y se vuelve a intentar en la próxima sincronización.": "Non c'è nulla da sistemare da parte tua: i prezzi comparabili restano come erano e si riprova alla prossima sincronizzazione."
+  "No hay nada que arreglar de tu lado: los precios comparables se quedan como estaban y se vuelve a intentar en la próxima sincronización.": "Non c'è nulla da sistemare da parte tua: i prezzi comparabili restano come erano e si riprova alla prossima sincronizzazione.",
+  "No tienes amistoso programado para esta semana": "Non hai nessuna amichevole in programma questa settimana",
+  "El hueco de amistosos de tu país se cierra el {} a las {}.": "La finestra delle amichevoli del tuo paese si chiude il {} alle {}.",
+  "Concierta uno en Hattrick: un amistoso entrena igual que un partido oficial y es la única forma de dar minutos sin arriesgar la liga.": "Organizzane una in Hattrick: un'amichevole allena come una partita ufficiale ed è l'unico modo per dare minuti senza rischiare il campionato."
 }

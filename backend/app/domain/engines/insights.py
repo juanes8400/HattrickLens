@@ -8,6 +8,7 @@ sustenta y la acción sugerida. Nada de avisos sin salida.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Any
 
@@ -71,6 +72,7 @@ KNOWN_KEY_ROOTS: frozenset[str] = frozenset(
         "league.weak_attack",
         "league.weak_defence",
         "market.rechazado",
+        "match.friendly_unscheduled",
         "match.weather",
         "player.form_low",
         "player.injured",
@@ -918,6 +920,64 @@ def stale_data(hours_since_sync: float, threshold: float = 24.0) -> list[Insight
             detail=f"Última sincronización hace {hours_since_sync:.0f} horas.",
             action="Pulsa Sincronizar para traer lo último desde Hattrick.",
             module="general",
+        )
+    ]
+
+
+#: Cuánto hay que esperar tras un amistoso para que avisar del siguiente no
+#: sea avisar de lo que acabas de hacer. Lo fijó el usuario el 2026-11-01:
+#: «desde 24 horas después de haber jugado el último anterior amistoso».
+HORAS_TRAS_EL_AMISTOSO = 24
+
+
+def amistoso_sin_programar(
+    ultimo: datetime | None,
+    ranura: datetime | None,
+    *,
+    ya_programado: bool,
+    ahora: datetime,
+) -> list[Insight]:
+    """Recuerda programar el amistoso de esta semana, mientras dé tiempo.
+
+    2026-11-01, pedido del usuario, con su ventana dicha palabra por palabra:
+    «desde 24 horas después de haber jugado el último anterior amistoso hasta
+    la misma hora en que tenga el país del equipo programados los amistosos»,
+    y «siempre y cuando aún no esté programado».
+
+    LAS TRES RAZONES PARA CALLARSE son las tres que se piden: si ya hay uno
+    concertado no hay nada que recordar; antes de las 24 horas el aviso llega
+    pisando el partido que se acaba de jugar; y pasada la hora de los
+    amistosos del país ya no da tiempo, así que avisar sólo sería reprochar.
+
+    `ranura` es esa hora. Sale de la fecha del último amistoso jugado más
+    semanas enteras: el hueco de amistosos es semanal y cae siempre el mismo
+    día a la misma hora, así que el último dice cuál es sin preguntárselo a
+    Hattrick, que no publica esa hora en ninguno de sus ficheros (se buscó en
+    `worlddetails` el 2026-11-01: están el entrenamiento, la economía, la copa
+    y la jornada de liga, los amistosos no).
+
+    Sin ningún amistoso jugado no hay ranura que deducir y no se avisa. Es el
+    caso de un club recién conectado, y es mejor callarse que inventar la hora.
+    """
+    if ya_programado or ultimo is None or ranura is None:
+        return []
+    desde = ultimo + timedelta(hours=HORAS_TRAS_EL_AMISTOSO)
+    if ahora < desde or ahora >= ranura:
+        return []
+    return [
+        Insight(
+            key="match.friendly_unscheduled",
+            severity=Severity.OPPORTUNITY,
+            title="No tienes amistoso programado para esta semana",
+            detail=(
+                f"El hueco de amistosos de tu país se cierra el "
+                f"{ranura:%d/%m} a las {ranura:%H:%M}."
+            ),
+            action=(
+                "Concierta uno en Hattrick: un amistoso entrena igual que un partido "
+                "oficial y es la única forma de dar minutos sin arriesgar la liga."
+            ),
+            module="partidos",
         )
     ]
 

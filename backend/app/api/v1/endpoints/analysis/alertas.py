@@ -40,6 +40,7 @@ from app.domain.engines.training_engine import (
     default_setup as default_training_setup,
 )
 from app.domain.value_objects.ht_constants import (
+    FRIENDLY_MATCH_TYPES,
     NON_OFFICIAL_MATCH_TYPES,
     training_target,
 )
@@ -463,6 +464,46 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
     return ins.collect(*groups)
 
 
+async def _lo_del_amistoso(
+    session: AsyncSession, team: m.Team, ahora: datetime
+) -> list[ins.Insight]:
+    """Los tres datos que necesita el aviso del amistoso, y el aviso.
+
+    La ranura --la hora a la que tu país juega los amistosos-- se deduce del
+    último amistoso jugado, sumándole semanas enteras hasta pasar de ahora:
+    el hueco es semanal y cae el mismo día a la misma hora. Hattrick no
+    publica esa hora (ver `amistoso_sin_programar`), así que es esto o nada.
+    """
+    mio = or_(
+        m.Match.home_team_ht_id == team.ht_team_id,
+        m.Match.away_team_ht_id == team.ht_team_id,
+    )
+    ultimo = await session.scalar(
+        select(m.Match.played_at)
+        .where(mio, m.Match.match_type.in_(FRIENDLY_MATCH_TYPES), m.Match.home_goals >= 0)
+        .order_by(m.Match.played_at.desc())
+        .limit(1)
+    )
+    programado = await session.scalar(
+        select(m.Match.ht_match_id)
+        .where(
+            mio,
+            m.Match.match_type.in_(FRIENDLY_MATCH_TYPES),
+            m.Match.home_goals < 0,
+            m.Match.played_at >= ahora,
+        )
+        .limit(1)
+    )
+    if ultimo is not None and ultimo.tzinfo is None:
+        ultimo = ultimo.replace(tzinfo=UTC)
+    ranura = ultimo
+    while ranura is not None and ranura <= ahora:
+        ranura += timedelta(days=7)
+    return ins.amistoso_sin_programar(
+        ultimo, ranura, ya_programado=programado is not None, ahora=ahora
+    )
+
+
 async def _insights_del_reloj(session: AsyncSession, team_id: int) -> list[ins.Insight]:
     """Las dos alertas que no dependen del sync sino de la hora que sea.
 
@@ -498,6 +539,10 @@ async def _insights_del_reloj(session: AsyncSession, team_id: int) -> list[ins.I
     # salir bien. Va con las del reloj y no con las guardadas por sync porque
     # la fila cambia en cada sincronización, no cuando se derivan las alertas.
     groups.append(ins.mercado_rechazado(team.market_error))
+    # El amistoso de esta semana, si falta y si da tiempo (2026-11-01, pedido
+    # del usuario). Va con las del reloj porque es de hora: la misma base dice
+    # que sí o que no según el momento del día en que se mire.
+    groups.append(await _lo_del_amistoso(session, team, datetime.now(UTC)))
     return ins.collect(*groups)
 
 
