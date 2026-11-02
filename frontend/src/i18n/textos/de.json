@@ -2169,5 +2169,11 @@
   "subidas": "Aufstiege",
   "en la semana prevista": "in der vorhergesagten Woche",
   "{{v0}} semana(s) MÁS de lo previsto": "{{v0}} Woche(n) LÄNGER als vorhergesagt",
-  "{{v0}} semana(s) menos de lo previsto": "{{v0}} Woche(n) früher als vorhergesagt"
+  "{{v0}} semana(s) menos de lo previsto": "{{v0}} Woche(n) früher als vorhergesagt",
+  "todavía no hay líder: nadie ha jugado": "noch kein Spitzenreiter: niemand hat gespielt",
+  "· la temporada todavía no ha empezado": "· die Saison hat noch nicht begonnen",
+  "Hattrick todavía no ha publicado el calendario de esta temporada. En cuanto lo haga, aquí salen las jornadas con sus resultados.": "Hattrick hat den Spielplan dieser Saison noch nicht veröffentlicht. Sobald das geschieht, stehen die Spieltage mit ihren Ergebnissen hier.",
+  "del sorteo: no se ha jugado ninguna jornada": "aus der Auslosung: kein Spieltag gespielt",
+  "el sorteo, sin jugar": "die Auslosung, noch nicht gespielt",
+  "La temporada no ha empezado: sin un solo partido jugado ni calendario publicado, los ocho equipos son idénticos para el modelo y estos números son el reparto a partes iguales (1 de 8 el título, 4 de 8 el Top 4), no un pronóstico.": "Die Saison hat noch nicht begonnen: ohne ein einziges Spiel und ohne Spielplan sind die acht Teams für das Modell identisch, und diese Zahlen sind die Gleichverteilung (1 von 8 für den Titel, 4 von 8 für die Top 4), keine Prognose."
 }

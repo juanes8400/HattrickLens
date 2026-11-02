@@ -222,3 +222,77 @@ def test_la_serie_con_historia_ajena_no_tumba_liga() -> None:
     # «cuánto movió la última jornada», que sin haber jugado no existe.
     assert resp.change is None
     assert len(resp.standings) == 4
+
+
+def test_el_calendario_del_ano_pasado_no_es_el_tuyo() -> None:
+    """2026-11-02, dicho por el usuario: «Calendario completo: 14 jornadas que
+    son de la temporada pasada y de equipos que ya no son tus rivales. Después
+    del ascenso eso no es tu calendario»."""
+
+    async def go():
+        factory, team_id = await _tras_el_ascenso()
+        async with factory() as s:
+            for i in range(12):
+                local, visita = RIVALES_NUEVOS[i % 3], RIVALES_NUEVOS[(i + 1) % 3]
+                s.add(
+                    m.Match(
+                        ht_match_id=910_000 + i,
+                        played_at=ANTES + timedelta(days=7 * i),
+                        match_type=1,
+                        status="finished",
+                        series_ht_id=NUEVA,
+                        series_season=83,
+                        match_round=i + 1,
+                        home_team_ht_id=local[0],
+                        away_team_ht_id=visita[0],
+                        home_team_name=local[1],
+                        away_team_name=visita[1],
+                        home_goals=2,
+                        away_goals=1,
+                    )
+                )
+            await s.commit()
+            return await LeagueQueryService(s).get(team_id)
+
+    resp = asyncio.run(go())
+    assert resp is not None
+    assert resp.fixtures == []
+    # Y tampoco se cuelan por la puerta de atrás, las clasificaciones de local
+    # y visitante, que se calculan de los mismos partidos.
+    assert all(r.played == 0 for r in resp.standings_home)
+    assert all(r.played == 0 for r in resp.standings_away)
+
+
+def test_con_la_temporada_empezada_manda_la_etiqueta_de_hattrick() -> None:
+    """Jugada ya una jornada, conviven dos temporadas bajo el mismo id de serie.
+
+    Es lo que pasará la semana que viene: la tabla dirá «jornada 1» y en la
+    base seguirán los catorce cruces del año pasado. La regla de «cero jornadas
+    = ningún resultado» ya no sirve, y lo que decide es la temporada que
+    Hattrick puso a cada partido en `leaguefixtures.xml`.
+    """
+    from app.application.queries.league import _de_la_temporada_de_la_tabla
+
+    class P:
+        def __init__(self, season, goals):
+            self.series_season = season
+            self.home_goals = goals
+
+    viejo, nuevo, pendiente, sin_etiqueta = P(83, 2), P(84, 1), P(None, -1), P(None, 0)
+    todos = [viejo, nuevo, pendiente, sin_etiqueta]
+
+    # Con jornadas jugadas: fuera el del año pasado, dentro el de ésta, lo
+    # pendiente y lo que nadie etiquetó.
+    assert _de_la_temporada_de_la_tabla(todos, rondas_jugadas=1) == [
+        nuevo,
+        pendiente,
+        sin_etiqueta,
+    ]
+    # Con la tabla a cero: sólo lo que no se ha jugado.
+    assert _de_la_temporada_de_la_tabla(todos, rondas_jugadas=0) == [pendiente]
+    # Y si Hattrick no etiquetó nada, se cuenta todo: es lo sincronizado antes
+    # de que existiera la columna.
+    assert _de_la_temporada_de_la_tabla([pendiente, sin_etiqueta], rondas_jugadas=5) == [
+        pendiente,
+        sin_etiqueta,
+    ]

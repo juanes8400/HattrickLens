@@ -2169,5 +2169,11 @@
   "subidas": "skill-ups",
   "en la semana prevista": "in the predicted week",
   "{{v0}} semana(s) MÁS de lo previsto": "{{v0}} week(s) LONGER than predicted",
-  "{{v0}} semana(s) menos de lo previsto": "{{v0}} week(s) earlier than predicted"
+  "{{v0}} semana(s) menos de lo previsto": "{{v0}} week(s) earlier than predicted",
+  "todavía no hay líder: nadie ha jugado": "no leader yet: nobody has played",
+  "· la temporada todavía no ha empezado": "· the season hasn't started yet",
+  "Hattrick todavía no ha publicado el calendario de esta temporada. En cuanto lo haga, aquí salen las jornadas con sus resultados.": "Hattrick hasn't published this season's fixtures yet. As soon as it does, the rounds and their results show up here.",
+  "del sorteo: no se ha jugado ninguna jornada": "from the draw: no round has been played",
+  "el sorteo, sin jugar": "the draw, not played yet",
+  "La temporada no ha empezado: sin un solo partido jugado ni calendario publicado, los ocho equipos son idénticos para el modelo y estos números son el reparto a partes iguales (1 de 8 el título, 4 de 8 el Top 4), no un pronóstico.": "The season hasn't started: with no match played and no fixtures published, the eight teams are identical to the model and these numbers are an even split (1 in 8 for the title, 4 in 8 for the top four), not a forecast."
 }

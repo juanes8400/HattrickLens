@@ -170,6 +170,11 @@ class LigaMixin(BaseDeSync):
         from app.infrastructure.db import models as m
 
         series_ht_id = payload.get("series_ht_id")
+        # La temporada que este fichero dice traer. Una serie guarda los
+        # partidos de todas las suyas bajo el mismo id, y sin apuntarla los del
+        # año pasado se cuentan como de éste en cuanto uno cambia de serie
+        # (2026-11-02).
+        series_season = payload.get("season")
         for mt in payload.get("matches", []):
             ht_match_id = mt["ht_match_id"]
             row = await uow.session.scalar(
@@ -191,6 +196,7 @@ class LigaMixin(BaseDeSync):
                     away_team_name=mt.get("away_team_name", ""),
                     home_goals=home_goals if home_goals is not None else -1,
                     away_goals=away_goals if away_goals is not None else -1,
+                    series_season=series_season,
                 )
                 uow.session.add(row)
                 result.snapshots_written += 1
@@ -199,6 +205,11 @@ class LigaMixin(BaseDeSync):
             if row.series_ht_id != series_ht_id or row.match_round != mt.get("match_round"):
                 row.series_ht_id = series_ht_id
                 row.match_round = mt.get("match_round")
+                changed = True
+            # La temporada se rellena aunque lo demás ya cuadre: es lo que pone
+            # al día lo guardado antes de que existiera esta columna.
+            if series_season is not None and row.series_season != series_season:
+                row.series_season = series_season
                 changed = True
             # Los equipos, los que dice Hattrick HOY, jugado o no. 2026-09-13:
             # Kivaré reemplazó a etbenianos1 y Hattrick le atribuye también la

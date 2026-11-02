@@ -604,6 +604,42 @@ def _proximo_con_alineaciones(
     }
 
 
+def _de_la_temporada_de_la_tabla(matches: list[Any], *, rondas_jugadas: int) -> list[Any]:
+    """Los partidos de la serie que pertenecen a la temporada de la tabla.
+
+    Una serie guarda los partidos de TODAS sus temporadas bajo el mismo
+    `series_ht_id`. Mientras uno se queda en su serie da igual, porque la tabla
+    avanza con ellos; al cambiar de serie no (2026-11-02, dicho por el usuario
+    tras ascender): la tabla es del sorteo nuevo y los partidos que hay son los
+    del año pasado, entre los ocho equipos de entonces.
+
+    Dos reglas, y ninguna inventa nada:
+
+      · Con la tabla a cero jornadas, NINGÚN resultado de la serie puede ser de
+        su temporada. Es cierto por definición, no una estimación.
+      · Con jornadas jugadas, vale la temporada más alta que Hattrick haya
+        etiquetado en esta serie, que es la que está en curso.
+
+    Lo pendiente no se filtra nunca: un partido sin jugar no puede ser de una
+    temporada pasada, y es de donde sale el próximo partido del Resumen --que
+    llega por `matches.xml`, sin etiqueta, antes de que el calendario nuevo se
+    publique--. Lo que no lleva temporada se cuenta: es lo sincronizado antes
+    de que existiera la columna y no hay de dónde sacarla sin inventarla; el
+    primer sync la rellena.
+    """
+    if rondas_jugadas <= 0:
+        return [mt for mt in matches if mt.home_goals < 0]
+    temporadas = {mt.series_season for mt in matches if mt.series_season is not None}
+    if not temporadas:
+        return matches
+    en_curso = max(temporadas)
+    return [
+        mt
+        for mt in matches
+        if mt.home_goals < 0 or mt.series_season is None or mt.series_season == en_curso
+    ]
+
+
 class LeagueQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
@@ -719,6 +755,7 @@ class LeagueQueryService:
                     )
                 ).scalars()
             )
+        matches = _de_la_temporada_de_la_tabla(matches, rondas_jugadas=own.match_round)
 
         # Complemento: fotos reales de leaguedetails.xml para jornadas que
         # leaguefixtures.xml todavía no cubre completas (ver

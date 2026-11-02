@@ -54,32 +54,53 @@ import { tx } from "../i18n/tx";
  * Dieciséis jornadas son pocas para que el mejor equipo gane siempre, y una
  * herramienta que devuelva «4º» está escondiendo justo la parte informativa.
  */
+/** Nadie ha jugado todavía: lo que se enseña es el sorteo, no una
+ * clasificación. Pasa la semana del ascenso --Hattrick publica los ocho
+ * equipos nuevos a cero antes de que empiece la temporada-- y también en el
+ * club recién creado (2026-11-02, dicho por el usuario). */
+function sinEmpezar(data: League): boolean {
+  return data.roundsPlayed === 0 && data.standings.every((s) => s.played === 0);
+}
+
 /** Puntos sobre el líder (si vas primero) o bajo el líder (si no), de
  * `standings`, nunca de la simulación: es un hecho de hoy, no una
  * proyección. */
-function leaderGap(data: League): { label: string; value: string } {
+function leaderGap(data: League): {
+  label: string;
+  value: string;
+  hint: string;
+} {
+  const hint = tx("frente a hoy, de la clasificación");
+  // Con todos a cero no hay líder al que seguir, y «-0 pts» era de las tres
+  // cosas que el usuario señaló de esta pantalla la más fácil de leer como un
+  // fallo: un menos delante de un cero.
+  if (sinEmpezar(data)) {
+    return {
+      label: tx("Brecha frente al líder"),
+      value: "—",
+      hint: tx("todavía no hay líder: nadie ha jugado"),
+    };
+  }
   const leader = data.standings.find((s) => s.position === 1);
   const own = data.standings.find((s) => s.isOwnTeam);
-  if (!leader || !own) return { label: tx("Brecha"), value: "-" };
+  if (!leader || !own) return { label: tx("Brecha"), value: "-", hint };
   if (own.position === 1) {
     const second = data.standings.find((s) => s.position === 2);
-    if (!second) return { label: tx("Ventaja sobre el 2º"), value: "-" };
+    if (!second) return { label: tx("Ventaja sobre el 2º"), value: "-", hint };
     return {
       label: tx("Ventaja sobre el 2º"),
       value: `+${own.points - second.points} pts`,
+      hint,
     };
   }
   return {
     label: tx("Brecha frente al líder"),
     value: `-${leader.points - own.points} pts`,
+    hint,
   };
 }
 
-type LeagueSection =
-  | "resumen"
-  | "proyeccion"
-  | "simular"
-  | "comparativa";
+type LeagueSection = "resumen" | "proyeccion" | "simular" | "comparativa";
 
 export function LeaguePage() {
   // UN SOLO RESUMEN PARA LA PROYECCIÓN (2026-09-09, pedido del usuario). El
@@ -120,8 +141,22 @@ export function LeaguePage() {
         <div>
           <h1 className="text-xl font-semibold">{tx("Liga")}</h1>
           <p className="text-sm text-[var(--muted)]">
-            {data.seriesName} {tx("· temporada")} {data.season}{" "}
-            {tx("· jornada")} {data.roundsPlayed}
+            {data.seriesName}{" "}
+            {/* «temporada 83 · jornada 0» era literalmente verdad y se leía
+                como un error (2026-11-02). El número de temporada sale de
+                worlddetails, que la semana del ascenso todavía cuenta la que
+                acaba de terminar, mientras la tabla ya es la del sorteo
+                siguiente; y «jornada 0» no es una jornada. Con la tabla a cero
+                no se dice ningún número: lo único cierto es que no ha
+                empezado. */}
+            {sinEmpezar(data) ? (
+              tx("· la temporada todavía no ha empezado")
+            ) : (
+              <>
+                {tx("· temporada")} {data.season} {tx("· jornada")}{" "}
+                {data.roundsPlayed}
+              </>
+            )}
           </p>
           <EnlaceATransparencia seccion="liga" calculo="simulacion" />
         </div>
@@ -145,29 +180,37 @@ export function LeaguePage() {
                 nada proyectado. */}
             {own && (
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0">
+                {/* El puesto con todos a cero no es un puesto: la tabla se
+                    ordena por puntos y, empatados a ninguno, el orden que sale
+                    no significa nada. Enseñar «7º» ahí era afirmar algo que
+                    nadie ha jugado. */}
                 <Kpi
                   label={tx("Posición actual")}
-                  value={ordinal(own.currentPosition)}
-                  hint={tx("{{v0}} puntos · jornada {{v1}}", {
-                    v0: own.currentPoints,
-                    v1: data.roundsPlayed,
-                  })}
+                  value={sinEmpezar(data) ? "—" : ordinal(own.currentPosition)}
+                  hint={
+                    sinEmpezar(data)
+                      ? tx("del sorteo: no se ha jugado ninguna jornada")
+                      : tx("{{v0}} puntos · jornada {{v1}}", {
+                          v0: own.currentPoints,
+                          v1: data.roundsPlayed,
+                        })
+                  }
                 />
                 <Kpi
                   label={tx("Puntos actuales")}
                   value={String(own.currentPoints)}
                 />
-                <Kpi
-                  label={gap.label}
-                  value={gap.value}
-                  hint={tx("frente a hoy, de la clasificación")}
-                />
+                <Kpi label={gap.label} value={gap.value} hint={gap.hint} />
               </div>
             )}
 
             <Panel
               title={tx("Clasificación")}
-              meta={tx("jornada {{v0}}", { v0: data.roundsPlayed })}
+              meta={
+                sinEmpezar(data)
+                  ? tx("el sorteo, sin jugar")
+                  : tx("jornada {{v0}}", { v0: data.roundsPlayed })
+              }
             >
               <StandingsTable data={data} />
             </Panel>
@@ -182,16 +225,34 @@ export function LeaguePage() {
 
         {section === "proyeccion" && own && (
           <div className="space-y-4">
-            {lowConfidence && (
+            {/* SIN EMPEZAR NO ES «POCA CONFIANZA» (2026-11-02, preguntado por
+                el usuario: «¿esto es verdad?»). Lo era: con cero jornadas el
+                prior no es que pese más, es que es lo único que hay, y además
+                no hay calendario que simular. De ahí salen un 13 % de título y
+                un 50 % de Top 4 que son 1/8 y 4/8 clavados: el reparto a
+                partes iguales, no un pronóstico. Decirlo es más útil que
+                llamarlo «confianza baja». */}
+            {sinEmpezar(data) ? (
               <div
                 role="alert"
                 className="rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-4 py-3 text-sm text-[var(--warning)]"
               >
-                {tx("Confianza todavía baja:")} {data.roundsPlayed}{" "}
                 {tx(
-                  "jornada(s) jugada(s); el prior pesa más que los resultados observados.",
+                  "La temporada no ha empezado: sin un solo partido jugado ni calendario publicado, los ocho equipos son idénticos para el modelo y estos números son el reparto a partes iguales (1 de 8 el título, 4 de 8 el Top 4), no un pronóstico.",
                 )}
               </div>
+            ) : (
+              lowConfidence && (
+                <div
+                  role="alert"
+                  className="rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-4 py-3 text-sm text-[var(--warning)]"
+                >
+                  {tx("Confianza todavía baja:")} {data.roundsPlayed}{" "}
+                  {tx(
+                    "jornada(s) jugada(s); el prior pesa más que los resultados observados.",
+                  )}
+                </div>
+              )
             )}
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
@@ -800,6 +861,24 @@ function FixturesCalendar({ data }: { data: League }) {
       .join(" ");
   }
 
+  // SIN CALENDARIO TODAVÍA (2026-11-02, dicho por el usuario tras ascender).
+  // Hasta hoy aquí salían las catorce jornadas que la serie jugó el año
+  // pasado, entre los ocho equipos de entonces: ninguno rival suyo y ninguna
+  // de ellas suya. Ahora el servidor sólo manda los partidos de la temporada
+  // de la tabla, así que la semana del sorteo esto llega vacío, y un panel
+  // vacío sin explicación se lee como un fallo.
+  if (rounds.length === 0) {
+    return (
+      <Panel title={tx("Calendario completo")}>
+        <p className="p-4 text-sm text-[var(--muted)]">
+          {tx(
+            "Hattrick todavía no ha publicado el calendario de esta temporada. En cuanto lo haga, aquí salen las jornadas con sus resultados.",
+          )}
+        </p>
+      </Panel>
+    );
+  }
+
   return (
     <Panel
       title={tx("Calendario completo")}
@@ -1365,9 +1444,13 @@ function LeagueTsiComparison() {
         noteSuffix={
           tx("del resto de la serie (agregados)") +
           (top11
-            ? tx(", tu once real (motor de posiciones) contra los 11 de mayor TSI de cada rival")
+            ? tx(
+                ", tu once real (motor de posiciones) contra los 11 de mayor TSI de cada rival",
+              )
             : "") +
-          tx(". El TSI de cada rival es real; sus habilidades exactas están ocultas por Hattrick")
+          tx(
+            ". El TSI de cada rival es real; sus habilidades exactas están ocultas por Hattrick",
+          )
         }
       />
       <Panel title={tx("Comparativa de rivales")} meta={data.seriesName}>
@@ -1540,7 +1623,9 @@ function TeamOfTheWeekPanel() {
               "Mejor alineación {{v0}}, formación {{v1}}, por rating real",
               {
                 v0:
-                  scope === "week" ? tx("de la jornada") : tx("de la temporada"),
+                  scope === "week"
+                    ? tx("de la jornada")
+                    : tx("de la temporada"),
                 v1: formation,
               },
             )}
