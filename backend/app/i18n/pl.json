@@ -1811,5 +1811,8 @@
   "← el que se usa": "← ten, który jest używany",
   "Quien ya llegó al máximo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Kto osiągnął już pułap, waży ZERO i nie stoi na drabince: to nie niższy szczebel, to zupełny brak liczenia się.",
   "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "punktacja(h) =  Σ  waga(kubełek) · ile(kubełek, h)  ÷ {}\n             kubełki\n\ndrabina z β = {}:\n{}\n    na_szczycie          zawsze = 0",
-  "{} ({}): tu alineación tiene {} jugadores y hacen falta once, así que Hattrick no puede calcular los ratings": "{} ({}): twój skład ma {} zawodników, a potrzeba jedenastu, więc Hattrick nie może obliczyć ocen"
+  "Tu alineación para el próximo partido tiene {} jugadores y hacen falta once: Hattrick no puede calcular los ratings hasta que la completes.": "Twój skład na najbliższy mecz ma {} zawodników, a potrzeba jedenastu: Hattrick nie może obliczyć ocen, dopóki go nie uzupełnisz.",
+  "No pudimos mirar el mercado de transferencias": "Nie mogliśmy sprawdzić rynku transferowego",
+  "Hattrick rechazó la última búsqueda: {}": "Hattrick odrzucił ostatnie wyszukiwanie: {}",
+  "No hay nada que arreglar de tu lado: los precios comparables se quedan como estaban y se vuelve a intentar en la próxima sincronización.": "Nie ma nic do naprawienia z twojej strony: ceny porównywalne zostają bez zmian, a próba powtórzy się przy następnej synchronizacji."
 }

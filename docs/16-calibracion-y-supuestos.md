@@ -228,7 +228,7 @@ presenta el índice como una estrella oficial de partido.
 | `transfersteam`, `transfersplayer`, `playerdetails` | ✅ Verificado | Responden correctamente |
 | Plantilla de equipos ajenos | ✅ Verificado (técnicamente) | **Restringido por reglas**: solo estado actual, nunca histórico |
 | `leaguefixtures` | ⚠️ Devuelve vacío | Probado con varias versiones y parámetros; posiblemente por inicio de temporada |
-| `transfersearch` | 🔶 Existe, firma incompleta | Acepta `minAge`/`maxAge`, rechaza `ageMin`; faltan obligatorios sin documentar |
+| `transfersearch` | 🔶 Existe, firma incompleta | Acepta `minAge`/`maxAge`, rechaza `ageMin`; faltan obligatorios sin documentar. **2026-11-01: la nota no basta.** El barrido del 2026-10-10 trajo 33 anuncios reales mandando `ageMin`/`ageMax`, así que el nombre no puede ser toda la explicación; el rechazo que vio un usuario hoy --«Invalid parameter specified (10) Additional Info: ageMin»-- fue con una ventana ANCHA (`ageMin` 17, `ageMax` 30). Sospecha a confirmar con una petición de verdad: el tope está en el ancho del rango, no en el nombre del parámetro |
 | Scope `place_bid` | ✅ Documentado | Aparece en las librerías CHPP establecidas. **Corrige una afirmación previa errónea de que las pujas automáticas estaban prohibidas** |
 
 ---

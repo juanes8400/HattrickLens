@@ -70,6 +70,7 @@ KNOWN_KEY_ROOTS: frozenset[str] = frozenset(
         "league.title_race",
         "league.weak_attack",
         "league.weak_defence",
+        "market.rechazado",
         "match.weather",
         "player.form_low",
         "player.injured",
@@ -917,6 +918,39 @@ def stale_data(hours_since_sync: float, threshold: float = 24.0) -> list[Insight
             detail=f"Última sincronización hace {hours_since_sync:.0f} horas.",
             action="Pulsa Sincronizar para traer lo último desde Hattrick.",
             module="general",
+        )
+    ]
+
+
+def mercado_rechazado(motivo: str | None) -> list[Insight]:
+    """Hattrick no dejó mirar el mercado, y eso hay que decirlo donde se ve.
+
+    2026-11-01, pedido del usuario: el fallo del paso del mercado «que sea un
+    aviso en alertas, no un motivo para mostrarlo ahí» --el cartel de
+    sincronización parcial, donde salía junto a los errores que sí le piden
+    algo al manager--.
+
+    INFO Y NO AVISO, a propósito: no hay nada que el manager pueda hacer. Lo
+    que sí puede es entender por qué los precios de su comparador no se
+    mueven, que hasta ahora no se decía en ninguna parte.
+
+    `motivo` es lo que contestó Hattrick, tal cual, y va en el detalle: es lo
+    único que sirve para reportarlo. Como la huella del buzón se saca del
+    texto, un motivo distinto vuelve a avisar aunque el anterior se archivara.
+    """
+    if not motivo:
+        return []
+    return [
+        Insight(
+            key="market.rechazado",
+            severity=Severity.INFO,
+            title="No pudimos mirar el mercado de transferencias",
+            detail=f"Hattrick rechazó la última búsqueda: {motivo}",
+            action=(
+                "No hay nada que arreglar de tu lado: los precios comparables se quedan "
+                "como estaban y se vuelve a intentar en la próxima sincronización."
+            ),
+            module="transferencias",
         )
     ]
 

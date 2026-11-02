@@ -1811,5 +1811,8 @@
   "{} bajó de la posición {} a la {}": "{} went down from position {} to {}",
   "Quien ya llegó al máximo pesa CERO y no está en la escalera: no es un peldaño más bajo, es que no cuenta.": "Whoever has already hit the ceiling weighs ZERO and isn't on the ladder: it's not a lower rung, it just doesn't count.",
   "puntaje(h) =  Σ  peso(cubo) · cuántos(cubo, h)  ÷ {}\n             cubos\n\nescalera con β = {}:\n{}\n    al_máximo            siempre = 0": "score(h) =  Σ  weight(bucket) · count(bucket, h)  ÷ {}\n            buckets\n\nladder with β = {}:\n{}\n    at_ceiling           always = 0",
-  "{} ({}): tu alineación tiene {} jugadores y hacen falta once, así que Hattrick no puede calcular los ratings": "{} ({}): your lineup has {} players and eleven are needed, so Hattrick cannot calculate the ratings"
+  "Tu alineación para el próximo partido tiene {} jugadores y hacen falta once: Hattrick no puede calcular los ratings hasta que la completes.": "Your lineup for the next match has {} players and eleven are needed: Hattrick cannot calculate the ratings until you complete it.",
+  "No pudimos mirar el mercado de transferencias": "We couldn't check the transfer market",
+  "Hattrick rechazó la última búsqueda: {}": "Hattrick rejected the last search: {}",
+  "No hay nada que arreglar de tu lado: los precios comparables se quedan como estaban y se vuelve a intentar en la próxima sincronización.": "There is nothing to fix on your side: comparable prices stay as they were and it will be tried again on the next sync."
 }

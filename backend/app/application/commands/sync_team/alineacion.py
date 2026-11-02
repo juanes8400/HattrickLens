@@ -388,17 +388,28 @@ class AlineacionMixin(BaseDeSync):
                         # se cuentan los puestos cubiertos y se explica
                         # (2026-10-07, visto por el usuario en un amistoso con
                         # diez jugadores en el campo).
+                        #
+                        # Y CUANDO SE DICE EN CRISTIANO, SE DICE SOLO
+                        # (2026-11-01, pedido del usuario: «poner la razón
+                        # específica en un modo más amable»). El nombre del
+                        # fichero y el id del partido delante --«alineación y
+                        # órdenes enviadas (772208117): ...»-- convertían una
+                        # frase que se entiende en un parte técnico. El id se
+                        # queda sólo en el caso de abajo, el del error que no
+                        # sabemos traducir, que es justo donde hace falta para
+                        # reportarlo.
                         cubiertos = _cubiertos_en_el_campo(payload.get("positions"))
                         if cubiertos < TITULARES:
-                            detalle = (
-                                f"tu alineación tiene {cubiertos} jugadores y hacen falta "
-                                f"once, así que Hattrick no puede calcular los ratings"
+                            result.errors.append(
+                                f"Tu alineación para el próximo partido tiene {cubiertos} "
+                                f"jugadores y hacen falta once: Hattrick no puede calcular "
+                                f"los ratings hasta que la completes."
                             )
                         else:
-                            detalle = str(predicted_payload["chpp_error"])
-                        result.errors.append(
-                            f"{_nombre_legible('matchorders')} ({match.ht_match_id}): {detalle}"
-                        )
+                            result.errors.append(
+                                f"{_nombre_legible('matchorders')} ({match.ht_match_id}): "
+                                f"{predicted_payload['chpp_error']}"
+                            )
                         result.status = "partial"
                 except Exception as exc:  # noqa: BLE001, las órdenes siguen siendo útiles
                     result.errors.append(

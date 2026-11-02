@@ -493,6 +493,11 @@ async def _insights_del_reloj(session: AsyncSession, team_id: int) -> list[ins.I
         ref = synced_at if synced_at.tzinfo else synced_at.replace(tzinfo=UTC)
         hours = (datetime.now(UTC) - ref).total_seconds() / 3600
         groups.append(ins.stale_data(hours))
+    # Del club, que ya está leído: el paso del mercado deja ahí lo que
+    # Hattrick contestó cuando no pudo correr, y lo borra en cuanto vuelve a
+    # salir bien. Va con las del reloj y no con las guardadas por sync porque
+    # la fila cambia en cada sincronización, no cuando se derivan las alertas.
+    groups.append(ins.mercado_rechazado(team.market_error))
     return ins.collect(*groups)
 
 
