@@ -29,7 +29,9 @@ from app.infrastructure.chpp.mercado import (
     TRAMO_MAXIMO_DEL_PRIMERO,
     BuscadorDeMercado,
     BusquedaRechazadaError,
+    _ancho_que_acepta,
     peticiones_de,
+    tramos_de_edad,
 )
 
 EDAD = 31
@@ -246,3 +248,53 @@ async def test_una_pagina_vacia_corta_aunque_el_recuento_diga_muchos() -> None:
     buscador = BuscadorDeMercado(cliente)  # type: ignore[arg-type]
     assert await buscador(_primera()) == []
     assert buscador.peticiones == 1
+
+
+# --------------------------------------------------------------------------
+# El ancho de la ventana de edad (2026-11-01)
+# --------------------------------------------------------------------------
+
+
+def test_una_ventana_de_edad_ancha_se_parte_en_pedazos_que_hattrick_acepta() -> None:
+    """17-30 es lo que rechazó el servidor y tumbó el barrido de un usuario.
+
+    Medido el 2026-11-01: con `ageMin` 17 el ancho máximo son dos años, con
+    19 son tres, con 20 son seis, de 21 a 26 son siete y de 27 en adelante no
+    hay tope. Los pedazos van seguidos y sin solaparse.
+    """
+    pedazos = tramos_de_edad(17, 30)
+    assert pedazos == [(17, 18), (19, 21), (22, 28), (29, 30)]
+    for desde, hasta in pedazos:
+        assert hasta - desde + 1 <= _ancho_que_acepta(desde)
+    # Seguidos: cada uno empieza donde acabó el anterior.
+    assert [p[0] for p in pedazos[1:]] == [p[1] + 1 for p in pedazos[:-1]]
+
+
+def test_una_ventana_que_ya_cabe_sigue_siendo_una_sola_peticion() -> None:
+    # La de siempre, un año a cada lado de un jugador de 31: de 27 en adelante
+    # Hattrick no pone tope.
+    assert tramos_de_edad(30, 32) == [(30, 32)]
+    # Y la del jovencísimo, que es la que no cabía.
+    assert tramos_de_edad(17, 19) == [(17, 18), (19, 19)]
+
+
+def test_el_suelo_abierto_de_los_mayores_no_se_trocea_sin_necesidad() -> None:
+    """`EDAD_MAXIMA_DE_LA_ESCALA` abre la ventana hasta el final de la escala
+    para los veteranos, y ahí Hattrick no se queja."""
+    assert tramos_de_edad(33, 99) == [(33, 99)]
+
+
+def test_cada_peticion_lleva_su_propio_tramo_de_edad() -> None:
+    """El troceado de la edad multiplica al de la habilidad, no lo sustituye."""
+    ventana = Ventana(
+        peso=90,
+        edad_minima=17,
+        edad_maxima=19,
+        primaria=Franja("scoring", 18, 18),
+        secundaria=Franja("passing", 12, 14),
+        terciaria=Franja("playmaking", 6, 8),
+    )
+    pedidos = peticiones_de(ventana)
+    assert [(p["ageMin"], p["ageMax"]) for p in pedidos] == [(17, 18), (19, 19)]
+    for p in pedidos:
+        assert (p["minSkillValue1"], p["maxSkillValue1"]) == (18, 18)

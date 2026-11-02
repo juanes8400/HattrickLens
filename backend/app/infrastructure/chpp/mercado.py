@@ -76,6 +76,31 @@ TRAMO_MAXIMO_DEL_PRIMERO = 4
 #: por encima de cien ya no se sabe cuántos faltan.
 PAGINA = 100
 
+#: LA OTRA REGLA QUE NO ESTABA ESCRITA: la ventana de EDAD también tiene un
+#: ancho máximo, y no es uno solo, crece a saltos con la edad mínima. Medido
+#: contra el servidor el 2026-11-01 con 180 peticiones, bisecando el `ageMax`
+#: más alto que acepta cada `ageMin`:
+#:
+#:   ageMin    17 18 19 20  21 22 23 24 25 26  27 y más
+#:   ancho      2  2  3  6   7  7  7  7  7  7  sin tope (90 pasa)
+#:
+#: Pasarse devuelve
+#:
+#:     Invalid parameter specified (10) Additional Info: ageMin
+#:
+#: que es lo que un usuario vio el 2026-11-01 con la ventana 17-30: catorce
+#: años de ancho, rechazada entera, y con ella el barrido del día. El nombre
+#: del parámetro NO era el problema --`minAge`/`maxAge`, que es lo que decía
+#: una nota vieja del repo, lo rechaza por obligatorio ausente-- y la edad es
+#: obligatoria: sin ella Hattrick pide los parámetros que faltan.
+#:
+#: POR QUÉ LOS SALTOS SON ÉSOS NO SE SABE. Sale medido, no deducido, como la
+#: tabla del portero. Lo que importa es que de 27 en adelante no estorba y que
+#: los jóvenes hay que pedirlos casi de año en año.
+ANCHO_DE_LA_EDAD: dict[int, int] = {17: 2, 18: 2, 19: 3, 20: 6}
+ANCHO_HASTA_LOS_VEINTISEIS = 7
+PRIMERA_EDAD_SIN_TOPE = 27
+
 
 class BusquedaRechazadaError(RuntimeError):
     """Hattrick contestó, pero diciendo que no.
@@ -96,17 +121,41 @@ def _trozos(franja: Franja) -> list[tuple[int, int]]:
     return pedazos
 
 
+def _ancho_que_acepta(edad: int) -> int:
+    """Cuántos años de ventana admite Hattrick empezando en esta edad."""
+    if edad >= PRIMERA_EDAD_SIN_TOPE:
+        return 99 - edad + 1
+    return ANCHO_DE_LA_EDAD.get(edad, ANCHO_HASTA_LOS_VEINTISEIS)
+
+
+def tramos_de_edad(minima: int, maxima: int) -> list[tuple[int, int]]:
+    """Parte una ventana de edad en pedazos que Hattrick acepte.
+
+    Seguidos y sin solaparse: un anuncio no puede caer en dos pedazos, porque
+    entonces contaría dos veces en la media de comparables.
+    """
+    pedazos: list[tuple[int, int]] = []
+    desde = minima
+    while desde <= maxima:
+        hasta = min(desde + _ancho_que_acepta(desde) - 1, maxima)
+        pedazos.append((desde, hasta))
+        desde = hasta + 1
+    return pedazos
+
+
 def peticiones_de(ventana: Ventana, *, pagina: int = 0) -> list[dict[str, int]]:
     """Las peticiones que hacen falta para cubrir una ventana entera.
 
     Suele ser una. Son varias cuando la primaria se abrió más de lo que cabe
-    en un solo filtro. La edad va en años cumplidos, sin días: el motor
-    compara años, y pedir días estrecharía la búsqueda por un criterio que
-    luego nadie aplica.
+    en un solo filtro, o cuando la ventana de edad es más ancha de lo que
+    Hattrick acepta de una vez (ver `ANCHO_DE_LA_EDAD`): entonces es el
+    producto de los dos troceados, y entre todas cubren la ventana entera sin
+    pedir dos veces el mismo anuncio.
+
+    La edad va en años cumplidos, sin días: el motor compara años, y pedir
+    días estrecharía la búsqueda por un criterio que luego nadie aplica.
     """
     comunes: dict[str, int] = {
-        "ageMin": ventana.edad_minima,
-        "ageMax": ventana.edad_maxima,
         "pageIndex": pagina,
         "pageSize": PAGINA,
         "skillType1": ID_DE_HABILIDAD[ventana.primaria.habilidad],
@@ -117,7 +166,14 @@ def peticiones_de(ventana: Ventana, *, pagina: int = 0) -> list[dict[str, int]]:
         comunes[f"maxSkillValue{numero}"] = franja.maximo
 
     return [
-        {**comunes, "minSkillValue1": desde, "maxSkillValue1": hasta}
+        {
+            **comunes,
+            "ageMin": edad_desde,
+            "ageMax": edad_hasta,
+            "minSkillValue1": desde,
+            "maxSkillValue1": hasta,
+        }
+        for edad_desde, edad_hasta in tramos_de_edad(ventana.edad_minima, ventana.edad_maxima)
         for desde, hasta in _trozos(ventana.primaria)
     ]
 
