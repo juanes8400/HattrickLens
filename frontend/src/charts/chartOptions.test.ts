@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bandBetween,
+  histogramaDeErrorOption,
   serieDePuntosOption,
   tiraDePuntosOption,
 } from "./chartOptions";
@@ -181,5 +182,52 @@ describe("las gráficas del comparador", () => {
         porNombre(opcion, "Idéntico")?.itemStyle?.color,
       );
     });
+  });
+});
+
+/** El histograma del error de la fórmula de entrenamiento (2026-11-01). Lo
+ *  que se comprueba es lo que lo hace valer algo: que está centrado en el
+ *  cero y que cada subida cae en su cubeta. */
+describe("histogramaDeErrorOption", () => {
+  const eje = (o: Record<string, unknown>) =>
+    (o.xAxis as { data: string[] }).data;
+  const cuenta = (o: Record<string, unknown>) =>
+    (o.series as { data: number[] }[])[0]!.data;
+
+  it("está centrado en el cero y es simétrico", () => {
+    const o = histogramaDeErrorOption([-2, 1]) as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(eje(o)).toEqual(["-2", "-1", "0", "+1", "+2"]);
+    // El cero en medio: si no, el histograma engaña sobre de qué lado cae el
+    // montón.
+    expect(eje(o)[Math.floor(eje(o).length / 2)]).toBe("0");
+  });
+
+  it("cada subida cae en la cubeta de su semana", () => {
+    const o = histogramaDeErrorOption([
+      -1.2, -0.9, 0.1, 0.4, -0.3, 1.1,
+    ]) as unknown as Record<string, unknown>;
+    // -1,2 y -0,9 redondean a -1; 0,1, 0,4 y -0,3 al 0; 1,1 al +1.
+    expect(eje(o)).toEqual(["-1", "0", "+1"]);
+    expect(cuenta(o)).toEqual([2, 3, 1]);
+  });
+
+  it("con una sola subida clavada sigue habiendo gráfica", () => {
+    const o = histogramaDeErrorOption([0]) as unknown as Record<
+      string,
+      unknown
+    >;
+    expect(eje(o)).toEqual(["-1", "0", "+1"]);
+    expect(cuenta(o)).toEqual([0, 1, 0]);
+  });
+
+  it("el eje de subidas no se parte en medias subidas", () => {
+    const o = histogramaDeErrorOption([0, 1]) as unknown as Record<
+      string,
+      unknown
+    >;
+    expect((o.yAxis as { minInterval: number }).minInterval).toBe(1);
   });
 });

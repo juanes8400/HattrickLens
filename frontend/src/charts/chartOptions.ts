@@ -29,6 +29,82 @@ export function barOption(
   };
 }
 
+/** El histograma del error de una fórmula, centrado en el cero.
+ *
+ *  2026-11-01, pedido del usuario: «Transparencia / Entrenamiento debe tener
+ *  un histograma de error, sería bonito».
+ *
+ *  CON SIGNO Y CENTRADO EN EL CERO, y eso es lo único que lo hace valer algo:
+ *  el error absoluto ya está arriba, en la media y el máximo, y un histograma
+ *  de valores absolutos no dice nada que esos dos números no digan. Con signo
+ *  sí: las barras a la izquierda son subidas que costaron MÁS de lo previsto y
+ *  las de la derecha, menos. Un montón corrido a un lado es un sesgo, y se ve
+ *  de un golpe.
+ *
+ *  LA ANCHURA DE LA CUBETA es media semana, que es la unidad en la que de
+ *  verdad se mide esto: las semanas observadas son enteras y lo predicho
+ *  llega con un decimal, así que cubetas más finas serían ruido y una entera
+ *  juntaría el «clavado» con el «falló por media semana».
+ *
+ *  NO SIRVE PARA AJUSTAR NADA. Enseña el error de una fórmula externa sobre
+ *  los pops confirmados; los coeficientes son del Manual y no se tocan con
+ *  esto. Prohibido expresamente por el usuario el 2026-08-14.
+ */
+export function histogramaDeErrorOption(errores: number[]): EChartsOption {
+  // UNA SEMANA POR CUBETA, centrada en el entero: la cubeta del 0 es «cayó en
+  // la semana prevista, con medio margen», y las de al lado «una semana
+  // antes» y «una semana después». Medias semanas harían cubetas que no se
+  // pueden nombrar («-0,25»), y eso en un eje de siete píxeles no se lee.
+  const tope = Math.max(1, ...errores.map((e) => Math.round(Math.abs(e))));
+  const centros = Array.from({ length: tope * 2 + 1 }, (_, i) => i - tope);
+  const cuenta = centros.map(
+    (c) => errores.filter((e) => Math.round(e) === c).length,
+  );
+  return {
+    grid: { left: 8, right: 8, top: 24, bottom: 24, containLabel: true },
+    xAxis: {
+      type: "category",
+      data: centros.map((c) => (c > 0 ? `+${c}` : `${c}`)),
+      axisLabel: { fontSize: 10 },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: "value",
+      // Subidas, que se cuentan de una en una: un eje con «0,5 subidas» no
+      // significa nada.
+      minInterval: 1,
+      splitLine: { lineStyle: { opacity: 0.15 } },
+      axisLabel: { fontSize: 10 },
+    },
+    series: [
+      {
+        type: "bar",
+        name: tx("Subidas"),
+        data: cuenta,
+        barMaxWidth: 28,
+        itemStyle: { borderRadius: [3, 3, 0, 0] },
+      },
+    ],
+    tooltip: {
+      trigger: "item",
+      formatter: (p: unknown) => {
+        const d = p as { name?: string; value?: number };
+        const n = d.value ?? 0;
+        const semanas = Number(d.name);
+        const cuantas = `${n} ${n === 1 ? tx("subida") : tx("subidas")}`;
+        if (semanas === 0) return `${cuantas} · ${tx("en la semana prevista")}`;
+        return semanas < 0
+          ? `${cuantas} · ${tx("{{v0}} semana(s) MÁS de lo previsto", {
+              v0: Math.abs(semanas),
+            })}`
+          : `${cuantas} · ${tx("{{v0}} semana(s) menos de lo previsto", {
+              v0: semanas,
+            })}`;
+      },
+    },
+  };
+}
+
 /** Radar for skill profiles. */
 export function radarOption(
   indicators: { name: string; max: number }[],

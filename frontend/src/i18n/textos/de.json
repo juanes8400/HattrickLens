@@ -2160,5 +2160,14 @@
   "puja abierta, no promedia": "offenes Gebot, zählt nicht zum Durchschnitt",
   "sobre {{v0}} ventas": "über {{v0}} Verkäufe",
   "Promoción · por jugar": "Relegation · noch nicht gespielt",
-  "Promoción · ya jugado": "Relegation · schon gespielt"
+  "Promoción · ya jugado": "Relegation · schon gespielt",
+  "Reparto del error": "Verteilung des Fehlers",
+  "← costó más · llegó antes →": "← dauerte länger · kam früher →",
+  "Histograma del error de la fórmula de entrenamiento, en semanas": "Histogramm des Fehlers der Trainingsformel, in Wochen",
+  "Con tan pocas subidas el reparto es una anécdota, no una medida: cada sincronización con subidas nuevas lo va llenando.": "Bei so wenigen Skill-Aufstiegen ist die Verteilung eine Anekdote, keine Messung: Jede Synchronisation mit neuen Aufstiegen füllt sie weiter.",
+  "subida": "Aufstieg",
+  "subidas": "Aufstiege",
+  "en la semana prevista": "in der vorhergesagten Woche",
+  "{{v0}} semana(s) MÁS de lo previsto": "{{v0}} Woche(n) LÄNGER als vorhergesagt",
+  "{{v0}} semana(s) menos de lo previsto": "{{v0}} Woche(n) früher als vorhergesagt"
 }

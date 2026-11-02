@@ -276,6 +276,14 @@ class TrainingContextService:
                         "observed_weeks": observed_weeks,
                         "predicted_weeks": round(predicted, 1),
                         "error_weeks": round(err, 1),
+                        # EL MISMO ERROR CON SIGNO (2026-11-01, para el
+                        # histograma de Transparencia). `error_weeks` es
+                        # absoluto --es lo que comen la media y el máximo-- y
+                        # con el absoluto solo no se puede ver lo único que un
+                        # histograma tiene que enseñar: si la fórmula se queda
+                        # corta o se pasa. Negativo = predijo MENOS semanas de
+                        # las que costó.
+                        "signed_error_weeks": round(predicted - observed_weeks, 1),
                     }
                 )
 

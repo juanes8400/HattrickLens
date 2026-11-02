@@ -2160,5 +2160,14 @@
   "puja abierta, no promedia": "offerta aperta, non fa media",
   "sobre {{v0}} ventas": "su {{v0}} vendite",
   "Promoción · por jugar": "Spareggio · da giocare",
-  "Promoción · ya jugado": "Spareggio · già giocato"
+  "Promoción · ya jugado": "Spareggio · già giocato",
+  "Reparto del error": "Come si distribuisce l'errore",
+  "← costó más · llegó antes →": "← è costato di più · è arrivato prima →",
+  "Histograma del error de la fórmula de entrenamiento, en semanas": "Istogramma dell'errore della formula di allenamento, in settimane",
+  "Con tan pocas subidas el reparto es una anécdota, no una medida: cada sincronización con subidas nuevas lo va llenando.": "Con così pochi aumenti la distribuzione è un aneddoto, non una misura: ogni sincronizzazione con nuovi aumenti la riempie.",
+  "subida": "aumento",
+  "subidas": "aumenti",
+  "en la semana prevista": "nella settimana prevista",
+  "{{v0}} semana(s) MÁS de lo previsto": "{{v0}} settimana(e) IN PIÙ del previsto",
+  "{{v0}} semana(s) menos de lo previsto": "{{v0}} settimana(e) in meno del previsto"
 }

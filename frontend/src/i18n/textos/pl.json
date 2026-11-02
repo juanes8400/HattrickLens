@@ -2160,5 +2160,14 @@
   "puja abierta, no promedia": "otwarta oferta, nie wchodzi do średniej",
   "sobre {{v0}} ventas": "z {{v0}} sprzedaży",
   "Promoción · por jugar": "Baraże · jeszcze nierozegrane",
-  "Promoción · ya jugado": "Baraże · już rozegrane"
+  "Promoción · ya jugado": "Baraże · już rozegrane",
+  "Reparto del error": "Rozkład błędu",
+  "← costó más · llegó antes →": "← trwało dłużej · przyszło wcześniej →",
+  "Histograma del error de la fórmula de entrenamiento, en semanas": "Histogram błędu formuły treningu, w tygodniach",
+  "Con tan pocas subidas el reparto es una anécdota, no una medida: cada sincronización con subidas nuevas lo va llenando.": "Przy tak nielicznych awansach rozkład jest anegdotą, nie pomiarem: każda synchronizacja z nowymi awansami go uzupełnia.",
+  "subida": "awans",
+  "subidas": "awanse",
+  "en la semana prevista": "w przewidzianym tygodniu",
+  "{{v0}} semana(s) MÁS de lo previsto": "{{v0}} tygodnia(i) DŁUŻEJ niż przewidziano",
+  "{{v0}} semana(s) menos de lo previsto": "{{v0}} tygodnia(i) wcześniej niż przewidziano"
 }

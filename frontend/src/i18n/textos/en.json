@@ -2160,5 +2160,14 @@
   "puja abierta, no promedia": "open bid, does not average",
   "sobre {{v0}} ventas": "over {{v0}} sales",
   "Promoción · por jugar": "Qualifier · not played yet",
-  "Promoción · ya jugado": "Qualifier · already played"
+  "Promoción · ya jugado": "Qualifier · already played",
+  "Reparto del error": "How the error is spread",
+  "← costó más · llegó antes →": "← took longer · came earlier →",
+  "Histograma del error de la fórmula de entrenamiento, en semanas": "Histogram of the training formula's error, in weeks",
+  "Con tan pocas subidas el reparto es una anécdota, no una medida: cada sincronización con subidas nuevas lo va llenando.": "With so few skill-ups the spread is an anecdote, not a measurement: every sync with new skill-ups fills it in.",
+  "subida": "skill-up",
+  "subidas": "skill-ups",
+  "en la semana prevista": "in the predicted week",
+  "{{v0}} semana(s) MÁS de lo previsto": "{{v0}} week(s) LONGER than predicted",
+  "{{v0}} semana(s) menos de lo previsto": "{{v0}} week(s) earlier than predicted"
 }
