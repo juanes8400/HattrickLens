@@ -582,6 +582,18 @@ async def fetch_rival_matches_and_lineups(
             desde_usado = inicio
             if _cuantos_hay(archivados) >= limit:
                 break
+        else:
+            # NI CON DOS TEMPORADAS. Puede ser que el equipo no tenga tantos
+            # --uno recién creado-- o que Hattrick haya rechazado el archivo,
+            # que es un fallo nuestro disfrazado de equipo sin historia. Se
+            # distinguen por el aviso de `partidos_de_un_equipo`: si ahí no
+            # hay nada, el equipo es el que no tiene.
+            _log.warning(
+                "sólo %d partidos para el rival %s, de %d que se querían",
+                _cuantos_hay(archivados),
+                rival_ht_team_id,
+                limit,
+            )
     del_calendario = {mt["ht_match_id"] for mt in matches_raw}
     corte = desde_usado.strftime("%Y-%m-%d %H:%M:%S") if desde_usado is not None else None
     jugados = [
