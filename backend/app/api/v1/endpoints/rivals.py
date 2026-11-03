@@ -547,19 +547,25 @@ async def fetch_rival_matches_and_lineups(
     # el calendario se queda corto: cuando trae los cinco, la llamada se sigue
     # ahorrando entera.
     def _cuantos_hay(extra: list[dict[str, Any]]) -> int:
-        """Los que ya tenemos de la clase que esta ficha mira."""
+        """Los que ya tenemos DE LA CLASE QUE SE VA A ENSEÑAR.
+
+        Por el selector y no por `solo_oficiales` (2026-11-03): contra un
+        rival sin cruce oficial pendiente se miran las dos clases, y contando
+        las dos juntas parecía haber cinco cuando de oficiales había dos. El
+        archivo no se pedía, y la ficha salía corta sin que nada fallara.
+        """
         del_calendario = {mt["ht_match_id"] for mt in matches_raw}
         propios = sum(
             1
             for mt in matches_raw
             if mt["status"].upper() == "FINISHED"
-            and _match_type_allowed(mt["match_type"], True, not solo_oficiales)
+            and _match_type_allowed(mt["match_type"], include_competitive, include_friendlies)
         )
         return propios + sum(
             1
             for mt in extra
             if mt["ht_match_id"] not in del_calendario
-            and _match_type_allowed(mt["match_type"], True, not solo_oficiales)
+            and _match_type_allowed(mt["match_type"], include_competitive, include_friendlies)
         )
 
     archivados: list[dict[str, Any]] = []
@@ -626,12 +632,27 @@ async def fetch_rival_matches_and_lineups(
     hay_oficiales = any(_match_type_allowed(mt["match_type"], True, False) for mt in ventana)
     hay_amistosos = any(_match_type_allowed(mt["match_type"], False, True) for mt in ventana)
 
-    # Lo que se ANALIZA es lo que el selector deje pasar dentro de la ventana.
-    matches = [
-        mt
-        for mt in ventana
-        if _match_type_allowed(mt["match_type"], include_competitive, include_friendlies)
-    ]
+    # CINCO DE LA CLASE QUE SE MIRA, no cinco repartidos entre las dos
+    # (2026-11-03). Lo analizado salía de recortar la ventana mixta a cinco y
+    # filtrarla DESPUÉS por el selector, así que contra un rival sin cruce
+    # oficial pendiente --cualquiera, cuando la liga ha terminado-- esos cinco
+    # eran dos de liga y tres amistosos, y cada botón enseñaba su mitad: dos
+    # partidos con «Oficiales», tres con «Amistosos». Era el caso de Angkor FC
+    # el 2026-11-02, y costó media tarde porque se parecía mucho a que no
+    # llegaran los partidos, cuando llegaban todos.
+    #
+    # Ahora el recorte se hace ya filtrado: cinco de lo que se va a enseñar.
+    # Los botones siguen midiéndose sobre la ventana mixta de arriba, que es
+    # lo que decide qué clases hay para ofrecer.
+    matches = _most_recent_by_date(
+        [
+            mt
+            for mt in jugados
+            if _match_type_allowed(mt["match_type"], include_competitive, include_friendlies)
+        ],
+        "match_date",
+        limit,
+    )
 
     # EL NOMBRE SALE DE LA PLANTILLA, que se pide siempre y sin filtrar.
     #
