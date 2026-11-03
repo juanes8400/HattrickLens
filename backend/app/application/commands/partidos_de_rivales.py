@@ -260,6 +260,51 @@ async def guardar_lo_visto(
     return len(filas)
 
 
+#: Hasta dónde se retrocede en el archivo buscando los cinco. Dos temporadas:
+#: la primera cubre el caso normal y la segunda el del equipo que acaba de
+#: ascender, cuyo mes anterior puede no tener ni un oficial.
+SEMANAS_DE_ARCHIVO = 32
+
+
+async def _del_archivo(client: Any, team_ht_id: int) -> list[dict[str, Any]]:
+    """Los oficiales ya jugados de un equipo, retrocediendo de verdad.
+
+    Devuelve `[]` si Hattrick no contesta: quedarse con los pocos que dé el
+    calendario es peor que nada, pero mucho mejor que tumbar la precarga.
+    """
+    from datetime import timedelta
+
+    from app.application.commands.sync_team.comun import FILE_VERSIONS
+    from app.application.queries.prediccion_liga import partidos_de_un_equipo
+
+    ahora = datetime.now(UTC)
+    return await partidos_de_un_equipo(
+        client,
+        FILE_VERSIONS["matchesarchive"],
+        team_ht_id,
+        ahora - timedelta(weeks=SEMANAS_DE_ARCHIVO),
+        ahora,
+        TIPOS_OFICIALES,
+    )
+
+
+def _completados_con_el_archivo(
+    jugados: list[dict[str, Any]], archivados: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """El calendario manda; el archivo sólo rellena lo que falta.
+
+    El calendario trae el estado y es lo más fresco, así que un partido que
+    esté en los dos se queda con la versión del calendario. Del archivo sólo
+    salen partidos ya jugados, de ahí el `status` puesto a mano.
+    """
+    vistos = {mt["ht_match_id"] for mt in jugados}
+    return jugados + [
+        {**mt, "status": "FINISHED"}
+        for mt in archivados
+        if mt["ht_match_id"] not in vistos and mt.get("match_type") in TIPOS_OFICIALES
+    ]
+
+
 async def guardar_partidos_de_un_rival(
     session: AsyncSession,
     client: Any,
@@ -287,6 +332,15 @@ async def guardar_partidos_de_un_rival(
         for mt in calendario
         if mt.get("status", "").upper() == "FINISHED" and mt.get("match_type") in TIPOS_OFICIALES
     ]
+    # CINCO SIEMPRE, Y EL CALENDARIO NO SIEMPRE LOS TIENE (2026-11-02, pedido
+    # del usuario: «traer al menos 5 partidos oficiales anteriores para cada
+    # rival. Siempre»). `matches.xml` sólo retrocede un mes, y entre
+    # temporadas --o recién cambiado de serie-- un equipo puede llevar tres
+    # oficiales en ese mes: así quedaron guardados los rivales nuevos de
+    # IV.48, con tres y cuatro. El archivo sí retrocede, y se pide SÓLO
+    # cuando falta, así que en el caso normal no cuesta una llamada de más.
+    if len(jugados) < PARTIDOS_GUARDADOS_POR_RIVAL:
+        jugados = _completados_con_el_archivo(jugados, await _del_archivo(client, team_ht_id))
     jugados.sort(key=lambda mt: mt.get("match_date", ""))
     ultimos = jugados[-PARTIDOS_GUARDADOS_POR_RIVAL:]
     if not ultimos:

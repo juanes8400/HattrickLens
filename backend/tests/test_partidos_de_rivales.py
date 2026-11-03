@@ -41,9 +41,10 @@ class CHPPFalso:
     piden.
     """
 
-    def __init__(self, partidos: int = 7) -> None:
+    def __init__(self, partidos: int = 7, archivados: int = 0) -> None:
         self.llamadas: list[tuple[str, Any]] = []
         self.partidos = partidos
+        self.archivados = archivados
 
     async def fetch(self, file: str, version: str = "", **params: Any) -> dict[str, Any]:
         self.llamadas.append((file, params))
@@ -67,6 +68,29 @@ class CHPPFalso:
                         "away_goals": 0,
                     }
                     for i in range(self.partidos)
+                ]
+            }
+        if file == "matchesarchive":
+            # El archivo retrocede de verdad: trae los de hace meses, que son
+            # los que el calendario del último mes ya no alcanza.
+            equipo = params["teamID"]
+            base = datetime(2026, 3, 1, 20, tzinfo=UTC)
+            return {
+                "matches": [
+                    {
+                        "ht_match_id": equipo * 100 + 50 + i,
+                        "match_type": 1,
+                        "match_date": (base + timedelta(days=7 * i)).strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        ),
+                        "home_team_id": equipo,
+                        "away_team_id": 999,
+                        "home_team_name": f"Equipo {equipo}",
+                        "away_team_name": "Rival de hace meses",
+                        "home_goals": 1,
+                        "away_goals": 1,
+                    }
+                    for i in range(self.archivados)
                 ]
             }
         if file == "matchdetails":
@@ -451,5 +475,42 @@ def test_la_ventana_es_de_cinco_por_clase() -> None:
         # Cinco de cada, y los cinco MÁS RECIENTES de cada uno.
         assert de_liga == [p["ht_match_id"] for p in oficiales[-5:]]
         assert de_amistoso == [p["ht_match_id"] for p in amistosos[-5:]]
+
+    asyncio.run(go())
+
+
+def test_si_el_calendario_no_da_cinco_se_va_al_archivo() -> None:
+    """2026-11-02, pedido del usuario: «traer al menos 5 partidos oficiales
+    (o con amistosos, según el toggle) anteriores para cada rival. Siempre».
+
+    `matches.xml` sólo retrocede un mes. Entre temporadas, y sobre todo recién
+    cambiado de serie, un equipo puede llevar tres oficiales en ese mes: así
+    quedaron guardados los rivales nuevos de IV.48, con tres y cuatro.
+    """
+
+    async def go() -> None:
+        factory = await _sesion()
+        chpp = CHPPFalso(partidos=3, archivados=6)
+        async with factory() as s:
+            await guardar_partidos_de_rivales(s, chpp, {RIVAL}, "2.8", "3.1")
+            await s.commit()
+        async with factory() as s:
+            guardados = await partidos_guardados(s, RIVAL)
+        assert len(guardados) == PARTIDOS_GUARDADOS_POR_RIVAL
+        assert chpp.cuantas("matchesarchive") == 1
+
+    asyncio.run(go())
+
+
+def test_con_cinco_en_el_calendario_el_archivo_ni_se_toca() -> None:
+    """La llamada de más sólo se paga cuando falta algo."""
+
+    async def go() -> None:
+        factory = await _sesion()
+        chpp = CHPPFalso(partidos=7, archivados=6)
+        async with factory() as s:
+            await guardar_partidos_de_rivales(s, chpp, {RIVAL}, "2.8", "3.1")
+            await s.commit()
+        assert chpp.cuantas("matchesarchive") == 0
 
     asyncio.run(go())
