@@ -10,7 +10,12 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.registro import configurar_registro
 from app.i18n.middleware import TraducirRespuestas
+
+# Antes de crear nada: lo que falle al arrancar también tiene derecho a
+# contarse (2026-11-03).
+configurar_registro()
 
 
 @asynccontextmanager

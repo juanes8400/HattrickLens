@@ -320,10 +320,13 @@ def test_scouting_returns_real_tsi_and_real_lineup_names(
     # Contra CHPP de verdad, matches.xml?teamID=<rival> solo trae partidos
     # suyos y las dos ramas dan su nombre.
     assert body["rivalName"] == "Fc Aittakorven Salamat"
-    # Sin parámetros abren los OFICIALES. Y este rival no tiene cruce oficial
-    # pendiente, así que la ventana son sus CINCO últimos partidos sean de lo
-    # que sean (2026-09-09): de esos cinco, uno es de liga.
-    assert body["matchesAnalysed"] == 1
+    # Sin parámetros abren los OFICIALES, y se enseñan TODOS los oficiales que
+    # haya hasta cinco (2026-11-03, pedido del usuario: «cinco siempre»).
+    # Hasta entonces la ventana eran los cinco últimos de cualquier clase y el
+    # selector elegía dentro, así que de los dos de liga del fixture sólo
+    # entraba uno. El otro quedaba fuera por culpa de cuatro amistosos más
+    # recientes, que es justo lo que el usuario no quería ver.
+    assert body["matchesAnalysed"] == 2
 
     # top 5 por TSI, aunque se identificaron más jugadores en los partidos vistos
     roster = body["rivalRosterSample"]
@@ -631,12 +634,15 @@ def test_non_official_matches_are_excluded_from_head_to_head_by_default(
             f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting?include_non_official=true"
         )
 
-    assert default_resp.json()["matchesAnalysed"] == 1
+    # Dos: los dos de liga del fixture. Con la regla vieja --cinco de
+    # cualquier clase, filtrados después-- entraba sólo uno (2026-11-03).
+    assert default_resp.json()["matchesAnalysed"] == 2
     assert any(
         "Duelos, Escaleras y partidos de Selección nacional nunca cuentan" in c
         for c in default_resp.json()["caveats"]
     )
-    assert included_resp.json()["matchesAnalysed"] == 1
+    # Los dos oficiales, misma razón que arriba (2026-11-03).
+    assert included_resp.json()["matchesAnalysed"] == 2
 
 
 def test_top11_restricts_own_side_and_takes_highest_tsi_rivals(
@@ -731,17 +737,19 @@ def test_tactic_history_summarises_all_synced_matches_not_capped(
     body = resp.json()
     th = body["tacticHistory"]
     assert th is not None
-    # Los cuatro amistosos que caen dentro de la ventana de cinco.
-    assert th["matchesAnalysed"] == 4
+    # Los cinco amistosos más recientes: con el selector en Amistosos la
+    # ventana se llena de amistosos, no se reparte con los oficiales
+    # (2026-11-03). Antes eran cuatro, los que sobrevivían al recorte mixto.
+    assert th["matchesAnalysed"] == 5
     assert th["mostCommonTactic"]["code"] == 4
     assert th["mostCommonTactic"]["label"] == "Atacar por las bandas"
-    assert th["mostCommonTactic"]["count"] == 4
+    assert th["mostCommonTactic"]["count"] == 5
     assert th["mostCommonTactic"]["pct"] == 100.0
     # TacticSkill y Formation SÍ son públicos para el rival (a diferencia de
     # TeamAttitude), fixtures/matchdetails.xml trae TacticSkill=11 y
     # Formation="4-4-2" también para el AwayTeam.
     assert th["avgTacticSkill"] == 11.0
-    assert th["mostCommonFormation"] == {"formation": "4-4-2", "count": 4, "pct": 100.0}
+    assert th["mostCommonFormation"] == {"formation": "4-4-2", "count": 5, "pct": 100.0}
 
 
 def test_the_window_keeps_the_most_recent_matches_not_the_oldest() -> None:
@@ -840,13 +848,14 @@ def test_non_official_matches_never_feed_tactic_history_or_rotation(
 
     assert resp.status_code == 200
     body = resp.json()
-    # El duelo SÍ cuenta para nombres/posiciones (matchesAnalysed sube a 2)...
-    assert body["matchesAnalysed"] == 1
+    # El duelo SÍ cuenta para nombres/posiciones...
+    # Dos oficiales, que son los que hay: ver la nota del 2026-11-03 arriba.
+    assert body["matchesAnalysed"] == 2
     # ...pero el historial de táctica y la rotación de lado siguen viendo solo
     # el partido oficial original del fixture, aunque el duelo ahora SÍ se
     # podría resolver por posición (is_home) si se quisiera.
-    assert body["tacticHistory"]["matchesAnalysed"] == 1
-    assert body["sideRotation"]["matchesAnalysed"] == 1
+    assert body["tacticHistory"]["matchesAnalysed"] == 2
+    assert body["sideRotation"]["matchesAnalysed"] == 2
     assert any(
         "Duelos, Escaleras y partidos de Selección nacional nunca cuentan" in c
         for c in body["caveats"]
@@ -980,7 +989,9 @@ def test_pitch_zone_duels_pair_mirrored_flanks_on_both_halves(
     assert midfield["ownPct"] == round(14 / 29, 3)
     assert round(midfield["ownPct"] + midfield["rivalPct"], 3) == 1.0
 
-    assert body["pitchZonesMatchesAnalysed"] == {"own": 1, "rival": 1}
+    # Dos del rival: los dos oficiales del fixture (2026-11-03). El propio
+    # sigue en uno, que es lo que esa cuenta mira.
+    assert body["pitchZonesMatchesAnalysed"] == {"own": 1, "rival": 2}
 
 
 def test_pitch_zone_duels_are_none_without_matches_on_either_side(
@@ -1046,13 +1057,19 @@ def test_oficiales_y_amistosos_son_excluyentes_uno_u_otro(
         cuerpo = resp.json()
         return cuerpo["matchesAnalysed"], cuerpo["pitchZonesMatchesAnalysed"]["rival"]
 
-    # De los CINCO últimos del rival, uno es de liga y cuatro amistosos.
-    assert muestra(oficiales) == (1, 1)
-    assert muestra(amistosos) == (4, 4)
+    # CINCO DE LA CLASE QUE SE MIRA, no cinco repartidos entre las dos
+    # (2026-11-03). El fixture tiene dos de liga y seis amistosos: con
+    # «Oficiales» salen los dos que hay, y con «Amistosos» cinco, que es el
+    # tope. Antes salían uno y cuatro, porque la ventana mixta se recortaba
+    # primero y el selector filtraba después.
+    assert muestra(oficiales) == (2, 2)
+    assert muestra(amistosos) == (5, 5)
     # Por defecto, oficiales. Y las dos combinaciones imposibles caen ahí.
-    assert muestra(por_defecto) == (1, 1)
-    assert muestra(ninguno) == (1, 1)
-    assert muestra(ambos) == (1, 1)
+    assert muestra(por_defecto) == (2, 2)
+    assert muestra(ninguno) == (2, 2)
+    # «Los dos a la vez» no es una opción: el endpoint lo normaliza a
+    # oficiales, igual que «ninguno».
+    assert muestra(ambos) == (2, 2)
 
     # El selector propio del panel de Duelos por zona murio con esto.
     assert "pitchZoneScope" not in por_defecto.json()
