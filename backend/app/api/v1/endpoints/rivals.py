@@ -521,6 +521,7 @@ async def fetch_rival_matches_and_lineups(
     matches_raw = (
         await client.fetch("matches", version=FILE_VERSIONS["matches"], teamID=rival_ht_team_id)
     )["matches"]
+
     # ESTA TEMPORADA Y NO MÁS ATRÁS. 2026-09-09, pedido del usuario: «aclara
     # que es esta temporada, no quiero que busques más allá». Lo de la
     # temporada pasada describe a otro equipo --otra plantilla, otro nivel--
@@ -534,21 +535,55 @@ async def fetch_rival_matches_and_lineups(
     # Cuesta UNA llamada más por rival, con caché de media hora compartida. El
     # calendario manda cuando el mismo partido está en los dos: trae el estado
     # y es lo más fresco.
-    # EL ARCHIVO SÓLO CUANDO HACE FALTA. Contra un rival oficial el
-    # calendario del último mes ya trae de sobra los cinco que se miran, así
-    # que la llamada al archivo se ahorra entera.
-    archivados: list[dict[str, Any]] = []
-    if desde is not None and not solo_oficiales:
-        archivados = await partidos_de_un_equipo(
-            client,
-            FILE_VERSIONS["matchesarchive"],
-            rival_ht_team_id,
-            desde,
-            datetime.now(UTC),
-            TIPOS_OFICIALES + TIPOS_DE_AMISTOSOS,
+    # EL ARCHIVO CUANDO HACE FALTA, Y HACE FALTA MÁS DE LO QUE SE CREÍA.
+    # Decía aquí que «contra un rival oficial el calendario del último mes ya
+    # trae de sobra los cinco», y no es cierto: entre temporadas, y sobre todo
+    # al cambiar de serie, un equipo puede llevar tres o cuatro oficiales en
+    # ese mes. Los rivales nuevos de IV.48 tenían tres y cuatro guardados.
+    #
+    # 2026-11-02, pedido del usuario: «traer al menos 5 partidos oficiales (o
+    # con amistosos, según el toggle) anteriores para cada rival. Siempre».
+    # Así que el archivo se pide también contra un rival oficial, pero SÓLO si
+    # el calendario se queda corto: cuando trae los cinco, la llamada se sigue
+    # ahorrando entera.
+    def _cuantos_hay(extra: list[dict[str, Any]]) -> int:
+        """Los que ya tenemos de la clase que esta ficha mira."""
+        del_calendario = {mt["ht_match_id"] for mt in matches_raw}
+        propios = sum(
+            1
+            for mt in matches_raw
+            if mt["status"].upper() == "FINISHED"
+            and _match_type_allowed(mt["match_type"], True, not solo_oficiales)
         )
+        return propios + sum(
+            1
+            for mt in extra
+            if mt["ht_match_id"] not in del_calendario
+            and _match_type_allowed(mt["match_type"], True, not solo_oficiales)
+        )
+
+    archivados: list[dict[str, Any]] = []
+    desde_usado = desde
+    if desde is not None and (not solo_oficiales or _cuantos_hay([]) < limit):
+        # Y SI UNA TEMPORADA NO DA PARA CINCO, la anterior. Esto cruza a
+        # propósito el «esta temporada y no más allá» del 2026-09-09: las dos
+        # reglas no caben juntas, y la de ahora --cinco siempre-- es la
+        # última. Sólo se retrocede cuando la primera ventana no llega, así
+        # que en el caso normal no cuesta ninguna llamada de más.
+        for inicio in (desde, desde - timedelta(weeks=SEASON_WEEKS)):
+            archivados = await partidos_de_un_equipo(
+                client,
+                FILE_VERSIONS["matchesarchive"],
+                rival_ht_team_id,
+                inicio,
+                datetime.now(UTC),
+                TIPOS_OFICIALES + TIPOS_DE_AMISTOSOS,
+            )
+            desde_usado = inicio
+            if _cuantos_hay(archivados) >= limit:
+                break
     del_calendario = {mt["ht_match_id"] for mt in matches_raw}
-    corte = desde.strftime("%Y-%m-%d %H:%M:%S") if desde is not None else None
+    corte = desde_usado.strftime("%Y-%m-%d %H:%M:%S") if desde_usado is not None else None
     jugados = [
         mt
         for mt in [
