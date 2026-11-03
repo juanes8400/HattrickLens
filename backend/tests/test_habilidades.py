@@ -20,11 +20,29 @@ CERO = dict.fromkeys(
 MOTOR = {"form": 7, "stamina": 7, "experience": 5, "loyalty": 0}
 
 
+#: Un id por nombre, estable y SIN COLISIONES POSIBLES.
+#:
+#: 2026-11-03, prueba roja en CI y verde aquí: el id salía de
+#: `abs(hash(nombre)) % 10_000`, y el `hash` de un texto en Python cambia con
+#: cada proceso --PYTHONHASHSEED es aleatorio a propósito--. Dos nombres
+#: podían caer en el mismo número, y como el once se indexa por id, uno tapaba
+#: al otro y el recambio salía siendo quien no era. Fallaba una vez de cada
+#: muchas, sin que nadie tocara nada, y pasaba el resto por pura suerte.
+#:
+#: Un diccionario que va repartiendo números correlativos lo quita de raíz: ni
+#: depende del proceso ni puede repetir.
+_IDS: dict[str, int] = {}
+
+
+def _id_de(nombre: str) -> int:
+    return _IDS.setdefault(nombre, 1000 + len(_IDS))
+
+
 def _j(
     nombre: str, codigo: int | None, en_el_once: bool = True, lesionado: bool = False, **skills: int
 ) -> Jugador:
     return Jugador(
-        ht_player_id=abs(hash(nombre)) % 10_000,
+        ht_player_id=_id_de(nombre),
         name=nombre,
         short_name=nombre,
         age=28,

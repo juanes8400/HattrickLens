@@ -45,9 +45,16 @@ async def base():
     await engine.dispose()
 
 
+#: Lo mismo que en `test_habilidades.py` (2026-11-03): el id salía de
+#: `abs(hash(apellido))`, y el `hash` de un texto cambia con cada proceso, así
+#: que dos apellidos podían compartir id y taparse el uno al otro. Aquí
+#: todavía no había fallado, pero es la misma trampa esperando.
+_IDS: dict[str, int] = {}
+
+
 async def _juvenil(s, team_id: int, nombre: str, apellido: str, left_at: datetime | None):
     juvenil = m.YouthPlayer(
-        ht_youth_player_id=abs(hash(apellido)) % 10_000_000,
+        ht_youth_player_id=_IDS.setdefault(apellido, 1_000_000 + len(_IDS)),
         team_id=team_id,
         first_name=nombre,
         last_name=apellido,
