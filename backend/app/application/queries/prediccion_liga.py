@@ -257,7 +257,15 @@ async def partidos_de_un_equipo(
             LastMatchDate=hasta.strftime("%Y-%m-%d %H:%M:%S"),
         )
     except Exception as e:  # noqa: BLE001, sin historia se sigue sin predicción
-        _log.info("sin archivo del equipo %s: %s", ht_team_id, type(e).__name__)
+        # EN WARNING Y CON EL MOTIVO (2026-11-02). Esto era `info`, y la
+        # aplicación no configura el registro: todo lo que escriben sus
+        # módulos cae en el handler de «último recurso» de `logging`, que
+        # publica de WARNING para arriba y tira el resto. Así que un archivo
+        # que Hattrick rechaza era invisible, y la ficha de rival se quedaba
+        # con los dos partidos del calendario sin que nada lo dijera. Costó
+        # media tarde de diagnóstico: el mismo código daba cinco en local y
+        # dos en producción, y no había dónde mirarlo.
+        _log.warning("sin archivo del equipo %s: %r", ht_team_id, e)
         return []
     out = [mt for mt in archivo.get("matches", []) if mt.get("match_type") in tipos]
     _memoria_archivo[clave] = (time.monotonic(), out)
