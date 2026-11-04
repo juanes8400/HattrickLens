@@ -287,7 +287,7 @@ function Senal({
     <span
       className={clsx(
         "text-[11px]",
-        tono === "aviso" ? "text-[var(--warn)]" : "text-[var(--muted)]",
+        tono === "aviso" ? "text-[var(--warning)]" : "text-[var(--muted)]",
       )}
     >
       {children}
@@ -464,7 +464,7 @@ function TablaDeLaPlantilla({
     },
     {
       key: "coste",
-      header: tx("Lo que llevas puesto"),
+      header: tx("Costo hasta ahora"),
       align: "right",
       value: (f) => f.balance.totalCost,
       render: (f) => (
@@ -581,7 +581,7 @@ function TablaDeLaPlantilla({
         <>
           <div className="grid gap-3 px-4 py-3 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0">
             <Kpi
-              label={tx("Lo que llevas puesto")}
+              label={tx("Costo hasta ahora")}
               value={money(costeTotal, moneda)}
               hint={tx("de {{v0}} jugadores con precio y fecha", {
                 v0: number(conSaldo.length),
