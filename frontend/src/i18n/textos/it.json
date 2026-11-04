@@ -2227,5 +2227,6 @@
   "Lo que valdría vender hoy toda la plantilla, jugador a jugador. Sale del mismo sitio que la tabla de Transferencias / Mi plantilla --lo que ha costado gente parecida-- así que las dos pantallas dicen el mismo número. No es una tasación y no cuesta ninguna consulta a Hattrick.": "Quanto varrebbe vendere oggi tutta la rosa, giocatore per giocatore. Viene dalla stessa fonte della tabella in Trasferimenti / La mia rosa --quanto è costata gente simile-- così le due schermate dicono lo stesso numero. Non è una valutazione e non costa nessuna richiesta a Hattrick.",
   "Todavía no hay ninguna venta cerrada parecida a ningún jugador tuyo, así que no hay nada que sumar.": "Non c'è ancora nessuna vendita chiusa simile a un tuo giocatore, quindi non c'è niente da sommare.",
   "Las subastas abiertas se enseñan en la ficha pero no promedian, así que esta suma sólo cuenta ventas cerradas. Y es lo que pagó el mercado por gente parecida, no lo que alguien te vaya a pagar a ti.": "Le aste aperte si vedono nella scheda ma non fanno media, quindi questo totale conta solo vendite chiuse. Ed è quanto il mercato ha pagato per gente simile, non quanto qualcuno pagherà a te.",
-  "del mínimo al máximo de sus comparables": "dal minimo al massimo dei loro comparabili"
+  "del mínimo al máximo de sus comparables": "dal minimo al massimo dei loro comparabili",
+  "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}} volte la tua cassa di adesso, cioè {{v1}}"
 }

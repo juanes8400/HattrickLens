@@ -173,7 +173,10 @@ export function EconomyPage() {
         )}
 
         {section === "detalles" && <DetailsSection data={data} />}
-        <ValoracionDelEquipo activa={section === "valoracion"} />
+        <ValoracionDelEquipo
+          activa={section === "valoracion"}
+          caja={data.cash}
+        />
       </PanelDePestanas>
     </div>
   );
