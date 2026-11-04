@@ -318,6 +318,13 @@ def _portero(porteria: int, defensa: int, balon_parado: int = 0) -> dict[str, in
 DIALES_DEL_PORTERO: list[tuple[str, int, dict[str, int], str]] = [
     ("Por14 Def2 BP16: el balon parado afloja solo", 26, _portero(14, 2, 16), "holgado"),
     ("Por14 Def6 BP13: la Defensa de 6 afloja", 26, _portero(14, 6, 13), "holgado"),
+    # Y SU GEMELO CON EL BALON PARADO BAJO, medido en la FASE AM y que no estaba
+    # en este banco: `fase-a.txt:305` lo anota como «Def=6 CLAVADA» y la linea
+    # siguiente da su banda, `BP 7-11`, que es la semianchura de DOS del dial
+    # ajustado --la holgada es de tres--. Es el contraste que hace que `BP 13`
+    # signifique algo: con el mismo Por y el mismo Def, el balon parado es lo
+    # unico que cambia.
+    ("Por14 Def6 BP9: y con el balon parado bajo, ajusta", 26, _portero(14, 6, 9), "ajustado"),
     ("Por15 Def5 BP0: el par mas alto AJUSTA", 26, _portero(15, 5), "ajustado"),
     ("Por15 Def6 BP0", 26, _portero(15, 6), "holgado"),
     ("Por15 Def7 BP0", 26, _portero(15, 7), "holgado"),

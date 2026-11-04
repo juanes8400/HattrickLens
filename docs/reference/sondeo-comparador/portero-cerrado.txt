@@ -79,6 +79,16 @@ Lo que se sabe seguro, medido:
      Def 2  AJUSTADO     Def 4  AJUSTADO     Def 6  HOLGADO
      -> el salto esta entre 4 y 6
 
+  Y de la FASE AM, que no estaba contado aqui:
+     Por 14, Def 6, BP 9:  AJUSTADO  (fase-a.txt:305, banda BP 7-11)
+     -> con el mismo Por y Def, el balon parado es lo unico que cambia
+
+  [2026-11-04: NO hay sonda de `Por 14 Def 6 BP 15`. El comentario del motor
+  decia «un balon parado de 9 deja la busqueda ajustada y uno de 15 la abre»
+  desde el primer commit, y de ese par solo existen BP 9 y BP 13. El 15 se
+  deduce de BP 13; no se ha medido, y no cuenta como medida para decidir entre
+  lecturas.]
+
   Por 14, Def 2, BP 13, SIN habilidades de campo: AJUSTADO, igual que con
   ellas. Las habilidades de campo del portero no pintan nada aqui.
 

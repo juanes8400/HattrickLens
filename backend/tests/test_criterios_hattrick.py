@@ -2232,7 +2232,7 @@ def test_el_par_que_deshace_la_contradiccion_del_portero() -> None:
 
 
 #: EL RINCÓN DE `Por 14`: los siete fallos que el motor arrastró del 2026-10-26
-#: al 2026-11-04, y las cuatro medidas vecinas que los acotan.
+#: al 2026-11-04, y las tres medidas vecinas que los acotan.
 #:
 #: Es todo lo medido con Portería 14: la Defensa baja y el balón parado movido.
 #: Se puntúa por el DIAL --holgado o ajustado-- y no por la cadena, porque las
@@ -2240,7 +2240,7 @@ def test_el_par_que_deshace_la_contradiccion_del_portero() -> None:
 #: por eso no cabían en `OBSERVADO` y por eso se quedaron en `ciego-medido.txt`
 #: sin que ninguna prueba las mirara.
 #:
-#: LO QUE ESTAS ONCE LÍNEAS OBLIGAN, que es el arreglo entero:
+#: LO QUE ESTAS DIEZ LÍNEAS OBLIGAN, que es el arreglo entero:
 #:
 #:   · `Def 6 BP 13` AFLOJA y `Def 4 BP 13` AJUSTA. Mismo balón parado, así que
 #:     la Defensa entera cuenta en las dos --el 6 llega al listón de 21 y el 4
@@ -2252,6 +2252,19 @@ def test_el_par_que_deshace_la_contradiccion_del_portero() -> None:
 #:     así que tampoco vale ignorarlo por debajo de 16.
 #:   · `Def 2 BP 15` AJUSTA y `Def 2 BP 16` AFLOJA. La frontera en 16 es la
 #:     misma que la pantalla ya tenía medida en `BP_BANDA_MAXIMA`.
+#:
+#: LO QUE NO ESTÁ AQUÍ, Y POR QUÉ. `Def 6 BP 15` estuvo en esta lista unas
+#: horas, el 2026-11-04, y no es una medida: lo saqué de una frase que el
+#: comentario de `DESCUENTO_DEL_BALON_PARADO` arrastraba desde el primer commit
+#: --«un balón parado de 9 deja la búsqueda ajustada y uno de 15 la abre»-- y
+#: de `Por 14 Def 6` el registro sólo tiene DOS sondas: `BP 9`, ajustada, y
+#: `BP 13`, holgada. El 15 se deduce --si 13 ya afloja, 15 no puede
+#: desaflojar-- y deducido no es medido. En una lista que se llama «lo medido»
+#: no entra; y si entrase, el dia que alguien la use para decidir entre dos
+#: lecturas estaria decidiendo con una prediccion propia.
+#:
+#: Esto NO cambia el arreglo: lo que ata el descuento son `Def 6 BP 13`,
+#: `Def 4 BP 13` y la fila `Def 2 BP 10-15`, las tres medidas.
 #: (defensa, balón parado, si Hattrick aflojó)
 EL_RINCON_DE_POR_14: list[tuple[int, int, bool]] = [
     (2, 10, False),
@@ -2264,7 +2277,6 @@ EL_RINCON_DE_POR_14: list[tuple[int, int, bool]] = [
     (4, 13, False),
     (6, 9, False),
     (6, 13, True),
-    (6, 15, True),
 ]
 
 
