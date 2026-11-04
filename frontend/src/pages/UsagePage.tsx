@@ -7,10 +7,15 @@ import {
 } from "@tanstack/react-query";
 import { ErrorState, Panel } from "../components/Panels";
 import { PanelDePestanas, Tabs } from "../components/Tabs";
+import {
+  INSIGHT_TONE,
+  SEVERITIES,
+  SEVERITY_LABEL,
+} from "../components/Insights";
 import { CountryFlag } from "../components/CountryFlag";
 import { PersonasEnElTiempo } from "../components/PersonasEnElTiempo";
 import { api } from "../services/api";
-import type { UsageSummary, UsageUser } from "../services/api";
+import type { AvisoDelAutor, UsageSummary, UsageUser } from "../services/api";
 import { usePersistido } from "../hooks/usePersistido";
 
 import { tx } from "../i18n/tx";
@@ -164,6 +169,10 @@ const SECCIONES = [
   // propia porque es la misma pregunta que el resto --qué le pasa a quien usa
   // esto-- y porque una pantalla más en el menú por doce reportes es ruido.
   { key: "reportes", label: tx("Reportes") },
+  // 2026-11-03, pedido del usuario: el reverso de Reportes. Allí escribe
+  // cualquiera y lee el autor; aquí escribe el autor y lee cualquiera. Van
+  // pegadas porque es el mismo canal visto de los dos lados.
+  { key: "avisos", label: tx("Avisos") },
 ] as const;
 type Seccion = (typeof SECCIONES)[number]["key"];
 
@@ -270,6 +279,7 @@ export function UsagePage() {
               <Registro dias={dias} excluirme={excluirme} />
             )}
             {seccion === "reportes" && <Reportes />}
+            {seccion === "avisos" && <Avisos />}
           </PanelDePestanas>
         </>
       )}
@@ -1351,5 +1361,244 @@ function Reportes() {
         ))}
       </ul>
     </Panel>
+  );
+}
+
+// ── Avisos ─────────────────────────────────────────────────────────────────
+//
+// 2026-11-03, pedido del usuario: «un módulo para comunicarle cosas a los
+// usuarios de la herramienta: que yo escriba un mensaje que quiera que les
+// llegue en forma de alerta y ellos lo vean».
+//
+// ES EL REVERSO DE REPORTES, y por eso está en la misma pantalla: allí escribe
+// cualquiera y lee el autor; aquí escribe el autor y lee cualquiera.
+//
+// NO HAY PANTALLA DEL LADO DEL QUE LO LEE. El aviso sale por las alertas, que
+// ya se miran en el Panel, ya se ordenan por urgencia y ya tienen buzón: cada
+// uno archiva el suyo sin quitárselo a nadie. La clave que emite el servidor es
+// `author.notice.{id}`, una por aviso, así que archivar uno no tapa el
+// siguiente.
+
+// El nombre y el color de cada urgencia salen de `INSIGHT_TONE` y
+// `SEVERITY_LABEL`, los mismos que pintan las alertas en el Panel y en
+// /insights. Repetirlos aquí sería la forma de que lo que se escribe se vea de
+// un color y se publique de otro; y de paso vienen ya traducidos.
+
+function Avisos() {
+  const [titulo, setTitulo] = useState("");
+  const [cuerpo, setCuerpo] = useState("");
+  const [accion, setAccion] = useState("");
+  const [severidad, setSeveridad] = useState<AvisoDelAutor["severity"]>("info");
+  const [hasta, setHasta] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [fallo, setFallo] = useState<string | null>(null);
+  const cliente = useQueryClient();
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["avisos-del-autor"],
+    queryFn: () => api.avisos(),
+  });
+
+  const publicar = async () => {
+    setFallo(null);
+    setEnviando(true);
+    try {
+      await api.publicarAviso({
+        title: titulo.trim(),
+        detail: cuerpo.trim(),
+        action: accion.trim(),
+        severity: severidad,
+        // El `datetime-local` del navegador da hora local sin zona; `Date` la
+        // convierte a UTC, que es como la guarda el servidor. Vacío = sin
+        // caducidad.
+        until: hasta ? new Date(hasta).toISOString() : null,
+      });
+      setTitulo("");
+      setCuerpo("");
+      setAccion("");
+      setHasta("");
+      await cliente.invalidateQueries({ queryKey: ["avisos-del-autor"] });
+    } catch (e) {
+      setFallo(e instanceof Error ? e.message : String(e));
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const retirar = async (id: number, retirado: boolean) => {
+    await api.retirarAviso(id, retirado);
+    await cliente.invalidateQueries({ queryKey: ["avisos-del-autor"] });
+  };
+
+  if (error) return <ErrorState error={error} />;
+
+  const listo = titulo.trim().length > 0 && cuerpo.trim().length > 0;
+  const vivos = (data?.avisos ?? []).filter((a) => a.vivo).length;
+
+  return (
+    <div className="space-y-3">
+      <Panel
+        title={tx("Escribir un aviso")}
+        ayuda={tx(
+          "Lo que escribas aquí le aparece a todo el mundo entre sus alertas del Panel, sin que nadie tenga que sincronizar. Cada uno puede archivarlo en su buzón, y eso no se lo quita a los demás.",
+        )}
+      >
+        <div className="space-y-3 p-4">
+          {/* DICHO DONDE SE ESCRIBE, no en la documentación: el texto va tal
+              cual a todo el mundo. El diccionario traduce el texto del
+              producto, que se escribe una vez y se revisa; un mensaje suelto
+              no puede traducirse antes de existir, y quien lo escribe tiene
+              que saberlo ANTES de elegir el idioma. */}
+          <p className="text-xs text-[var(--muted)]">
+            {tx(
+              "El texto se muestra tal cual, en el idioma en que lo escribas: esto no pasa por el diccionario.",
+            )}
+          </p>
+          <label className="block space-y-1">
+            <span className="text-xs font-medium">{tx("Título")}</span>
+            <input
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              maxLength={160}
+              placeholder={tx("Lo que se lee de un golpe")}
+              className="w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm"
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-xs font-medium">{tx("Mensaje")}</span>
+            <textarea
+              value={cuerpo}
+              onChange={(e) => setCuerpo(e.target.value)}
+              maxLength={2000}
+              rows={4}
+              placeholder={tx("Qué pasa, y por qué le importa a quien lo lee")}
+              className="w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm"
+            />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-xs font-medium">
+              {tx("Qué se espera de quien lo lee")}
+            </span>
+            <input
+              value={accion}
+              onChange={(e) => setAccion(e.target.value)}
+              maxLength={2000}
+              placeholder={tx("Opcional: hay avisos que sólo informan")}
+              className="w-full rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm"
+            />
+          </label>
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="space-y-1">
+              <span className="block text-xs font-medium">
+                {tx("Urgencia")}
+              </span>
+              <select
+                value={severidad}
+                onChange={(e) =>
+                  setSeveridad(e.target.value as AvisoDelAutor["severity"])
+                }
+                className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm"
+              >
+                {SEVERITIES.map((k) => (
+                  <option key={k} value={k}>
+                    {SEVERITY_LABEL[k]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1">
+              <span className="block text-xs font-medium">
+                {tx("Deja de verse el")}
+              </span>
+              <input
+                type="datetime-local"
+                value={hasta}
+                onChange={(e) => setHasta(e.target.value)}
+                className="rounded-md border border-[var(--border)] bg-[var(--surface)] px-2 py-1.5 text-sm"
+              />
+            </label>
+            <button
+              onClick={() => void publicar()}
+              disabled={!listo || enviando}
+              data-track="Uso: publicar aviso"
+              className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50"
+            >
+              {enviando ? tx("Publicando…") : tx("Publicar")}
+            </button>
+          </div>
+          {/* Vacío = hasta que se retire a mano, y se dice: casi todos los
+              avisos caducan solos y nadie se acuerda de retirarlos. */}
+          <p className="text-xs text-[var(--muted)]">
+            {tx(
+              "Si dejas la fecha en blanco, el aviso se ve hasta que lo retires a mano.",
+            )}
+          </p>
+          {fallo && (
+            <p className="text-xs text-[var(--danger)]">
+              {tx("No se pudo publicar:")} {fallo}
+            </p>
+          )}
+        </div>
+      </Panel>
+
+      <Panel
+        title={tx("Lo que has publicado")}
+        meta={
+          data
+            ? vivos === 1
+              ? tx("1 a la vista")
+              : tx("{{v0}} a la vista", { v0: vivos })
+            : undefined
+        }
+        ayuda={tx(
+          "Los retirados siguen en la lista: es el único sitio donde queda qué se dijo y cuándo. Retirar deja de emitirlo, no lo borra.",
+        )}
+      >
+        {isLoading && (
+          <p className="p-4 text-sm text-[var(--muted)]">{tx("Cargando…")}</p>
+        )}
+        {data && data.avisos.length === 0 && (
+          <p className="p-4 text-sm text-[var(--muted)]">
+            {tx("Todavía no has escrito ninguno.")}
+          </p>
+        )}
+        <ul className="divide-y divide-[var(--border)]">
+          {(data?.avisos ?? []).map((a) => (
+            <li key={a.id} className="space-y-2 p-4">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-[var(--muted)]">
+                <span
+                  className="font-medium"
+                  style={{ color: INSIGHT_TONE[a.severity] }}
+                >
+                  {SEVERITY_LABEL[a.severity]}
+                </span>
+                <span className="tabular-nums">{dateTime(a.at)}</span>
+                {a.until && (
+                  <span className="tabular-nums">
+                    {tx("hasta")} {dateTime(a.until)}
+                  </span>
+                )}
+                {!a.vivo && (
+                  <span>{a.retiredAt ? tx("retirado") : tx("caducado")}</span>
+                )}
+              </div>
+              <p className="text-sm font-medium">{a.title}</p>
+              {/* `whitespace-pre-wrap`: un aviso con una lista pierde la
+                  mitad de su sentido sin los saltos de línea. */}
+              <p className="prosa whitespace-pre-wrap text-sm">{a.detail}</p>
+              {a.action && (
+                <p className="text-xs text-[var(--muted)]">{a.action}</p>
+              )}
+              <button
+                onClick={() => void retirar(a.id, a.retiredAt === null)}
+                data-track="Uso: retirar aviso"
+                className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)]"
+              >
+                {a.retiredAt ? tx("Volver a publicar") : tx("Retirar")}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Panel>
+    </div>
   );
 }

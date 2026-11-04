@@ -543,7 +543,46 @@ async def _insights_del_reloj(session: AsyncSession, team_id: int) -> list[ins.I
     # del usuario). Va con las del reloj porque es de hora: la misma base dice
     # que sí o que no según el momento del día en que se mire.
     groups.append(await _lo_del_amistoso(session, team, datetime.now(UTC)))
+    # Lo que el autor quiso decir (2026-11-03, pedido del usuario). Va con las
+    # del reloj y no con las guardadas por sync por dos razones: un aviso tiene
+    # que aparecer sin que nadie sincronice, y `until` lo retira solo a una
+    # hora concreta.
+    groups.append(ins.avisos_del_autor(await _avisos_vivos(session, datetime.now(UTC))))
     return ins.collect(*groups)
+
+
+async def _avisos_vivos(session: AsyncSession, ahora: datetime) -> list[ins.AvisoDelAutor]:
+    """Los avisos del autor que todavía se emiten.
+
+    Dos formas de dejar de emitirse, y las dos se comprueban aquí y no al
+    escribir: retirado a mano (`retired_at`) o caducado por su propia fecha
+    (`until`). La segunda es la que importa que viva en la lectura, porque pasa
+    sin que nadie toque nada.
+    """
+    filas = (
+        (
+            await session.execute(
+                select(m.AuthorNotice)
+                .where(
+                    m.AuthorNotice.retired_at.is_(None),
+                    or_(m.AuthorNotice.until.is_(None), m.AuthorNotice.until > ahora),
+                )
+                .order_by(m.AuthorNotice.at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [
+        ins.AvisoDelAutor(
+            id=f.id,
+            title=f.title,
+            detail=f.detail,
+            action=f.action or "",
+            severity=f.severity or "info",
+        )
+        for f in filas
+    ]
 
 
 async def _insights_guardadas(session: AsyncSession, team_id: int) -> list[ins.Insight]:

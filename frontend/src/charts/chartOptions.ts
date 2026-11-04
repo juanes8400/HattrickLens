@@ -1,5 +1,5 @@
 import type { EChartsOption } from "echarts";
-import { metric, number } from "../hooks/useFormat";
+import { decimal, metric, number } from "../hooks/useFormat";
 import { tx } from "../i18n/tx";
 
 /** Horizontal bars, the most common shape in this product. */
@@ -29,7 +29,45 @@ export function barOption(
   };
 }
 
-/** El histograma del error de una fórmula, centrado en el cero.
+/** Desviación típica muestral. Cero con menos de dos datos. */
+function desviacion(xs: number[]): number {
+  if (xs.length < 2) return 0;
+  const media = xs.reduce((a, b) => a + b, 0) / xs.length;
+  const v = xs.reduce((a, b) => a + (b - media) ** 2, 0) / (xs.length - 1);
+  return Math.sqrt(v);
+}
+
+function cuartil(ordenados: number[], q: number): number {
+  const i = (ordenados.length - 1) * q;
+  const bajo = Math.floor(i);
+  const alto = Math.ceil(i);
+  return ordenados[bajo]! + (ordenados[alto]! - ordenados[bajo]!) * (i - bajo);
+}
+
+/** El ancho de campana del kernel, por la regla de Silverman.
+ *
+ *  Se toma la menor de las dos escalas --desviación típica y rango
+ *  intercuartílico-- porque un solo error enorme infla la primera y
+ *  aplanaría toda la curva.
+ *
+ *  EL SUELO SON DOS DÉCIMAS DE SEMANA, el doble de la resolución del dato
+ *  (el backend manda los errores con un decimal). Más fino que eso dibujaría
+ *  un pico por cada observación y la curva dejaría de suavizar nada; y con
+ *  una o dos subidas, que es lo normal al principio, no hay dispersión de la
+ *  que deducir un ancho, así que manda el suelo.
+ */
+export function anchoDeKernel(errores: number[]): number {
+  const SUELO = 0.2;
+  if (errores.length < 2) return SUELO;
+  const ord = [...errores].sort((a, b) => a - b);
+  const escalas = [desviacion(errores), (cuartil(ord, 0.75) - cuartil(ord, 0.25)) / 1.349].filter(
+    (x) => x > 0,
+  );
+  if (escalas.length === 0) return SUELO;
+  return Math.max(SUELO, 0.9 * Math.min(...escalas) * errores.length ** (-1 / 5));
+}
+
+/** El reparto del error de una fórmula, centrado en el cero.
  *
  *  2026-11-01, pedido del usuario: «Transparencia / Entrenamiento debe tener
  *  un histograma de error, sería bonito».
@@ -37,69 +75,127 @@ export function barOption(
  *  CON SIGNO Y CENTRADO EN EL CERO, y eso es lo único que lo hace valer algo:
  *  el error absoluto ya está arriba, en la media y el máximo, y un histograma
  *  de valores absolutos no dice nada que esos dos números no digan. Con signo
- *  sí: las barras a la izquierda son subidas que costaron MÁS de lo previsto y
- *  las de la derecha, menos. Un montón corrido a un lado es un sesgo, y se ve
- *  de un golpe.
+ *  sí: lo de la izquierda son subidas que costaron MÁS de lo previsto y lo de
+ *  la derecha, menos. Un montón corrido a un lado es un sesgo, y se ve de un
+ *  golpe.
  *
- *  LA ANCHURA DE LA CUBETA es media semana, que es la unidad en la que de
- *  verdad se mide esto: las semanas observadas son enteras y lo predicho
- *  llega con un decimal, así que cubetas más finas serían ruido y una entera
- *  juntaría el «clavado» con el «falló por media semana».
+ *  SIN REDONDEAR, CON KERNEL (2026-11-03, pedido del usuario). Antes esto era
+ *  una cubeta por semana entera y cada error se metía en la suya con
+ *  `Math.round`: el backend manda los errores con un decimal y el dibujo los
+ *  tiraba, así que un −1,4 y un −0,6 --que no se parecen-- salían en la misma
+ *  barra, y un −0,5 y un −0,4 en barras distintas. Ahora cada subida va en su
+ *  decimal exacto: la curva es la suma de una campana gaussiana por
+ *  observación (ver `anchoDeKernel`) y debajo, en la línea del cero, está la
+ *  marca de cada subida en su sitio. El área bajo la curva es el número de
+ *  subidas, así que el eje se lee en «subidas por semana de error».
+ *
+ *  LAS MARCAS DE ABAJO NO SON DECORACIÓN: con cuatro o cinco subidas la curva
+ *  es más ancho de campana que dato, y las marcas son lo que impide leerla
+ *  como si hubiera una población detrás.
  *
  *  NO SIRVE PARA AJUSTAR NADA. Enseña el error de una fórmula externa sobre
  *  los pops confirmados; los coeficientes son del Manual y no se tocan con
  *  esto. Prohibido expresamente por el usuario el 2026-08-14.
  */
 export function histogramaDeErrorOption(errores: number[]): EChartsOption {
-  // UNA SEMANA POR CUBETA, centrada en el entero: la cubeta del 0 es «cayó en
-  // la semana prevista, con medio margen», y las de al lado «una semana
-  // antes» y «una semana después». Medias semanas harían cubetas que no se
-  // pueden nombrar («-0,25»), y eso en un eje de siete píxeles no se lee.
-  const tope = Math.max(1, ...errores.map((e) => Math.round(Math.abs(e))));
-  const centros = Array.from({ length: tope * 2 + 1 }, (_, i) => i - tope);
-  const cuenta = centros.map(
-    (c) => errores.filter((e) => Math.round(e) === c).length,
+  const datos = errores.filter((e) => Number.isFinite(e));
+  const h = anchoDeKernel(datos);
+  // El eje se estira dos campanas más allá del error más grande para que la
+  // cola no salga cortada por el borde, y nunca baja de una semana: un eje
+  // de ±0,3 haría parecer enorme un error diminuto.
+  const extremo = Math.max(1, ...datos.map((e) => Math.abs(e)));
+  const limite = Math.ceil((extremo + 2 * h) * 10) / 10;
+  const PASOS = 161;
+  const xs = Array.from(
+    { length: PASOS },
+    (_, i) => -limite + (2 * limite * i) / (PASOS - 1),
   );
+  const curva = xs.map((x) => [
+    Number(x.toFixed(3)),
+    Number(
+      (
+        datos.reduce((a, e) => a + Math.exp(-0.5 * ((x - e) / h) ** 2), 0) /
+        (h * Math.sqrt(2 * Math.PI))
+      ).toFixed(4),
+    ),
+  ]);
+  const firmado = (v: number) => (v > 0 ? `+${decimal(v, 1)}` : decimal(v, 1));
   return {
     grid: { left: 8, right: 8, top: 24, bottom: 24, containLabel: true },
     xAxis: {
-      type: "category",
-      data: centros.map((c) => (c > 0 ? `+${c}` : `${c}`)),
-      axisLabel: { fontSize: 10 },
+      type: "value",
+      min: -limite,
+      max: limite,
+      axisLabel: { fontSize: 10, formatter: (v: number) => firmado(v) },
       axisTick: { show: false },
+      splitLine: { show: false },
     },
     yAxis: {
       type: "value",
-      // Subidas, que se cuentan de una en una: un eje con «0,5 subidas» no
-      // significa nada.
-      minInterval: 1,
+      min: 0,
+      // Ya no son subidas contadas de una en una sino densidad, así que un
+      // valor intermedio SÍ significa algo y el eje puede partirse.
       splitLine: { lineStyle: { opacity: 0.15 } },
       axisLabel: { fontSize: 10 },
     },
     series: [
       {
-        type: "bar",
-        name: tx("Subidas"),
-        data: cuenta,
-        barMaxWidth: 28,
-        itemStyle: { borderRadius: [3, 3, 0, 0] },
+        type: "line",
+        name: tx("Subidas por semana"),
+        data: curva,
+        smooth: true,
+        symbol: "none",
+        lineStyle: { width: 2 },
+        areaStyle: { opacity: 0.18 },
+        markLine: {
+          silent: true,
+          symbol: "none",
+          label: { show: false },
+          lineStyle: { type: "dashed", opacity: 0.5 },
+          data: [{ xAxis: 0 }],
+        },
+      },
+      {
+        type: "scatter",
+        name: tx("Cada subida"),
+        // En la línea del cero, una marca por subida y en su decimal.
+        data: datos.map((e) => [e, 0]),
+        symbol: "rect",
+        symbolSize: [2, 9],
+        itemStyle: { opacity: 0.85 },
       },
     ],
     tooltip: {
-      trigger: "item",
+      trigger: "axis",
+      axisPointer: { type: "line" },
       formatter: (p: unknown) => {
-        const d = p as { name?: string; value?: number };
-        const n = d.value ?? 0;
-        const semanas = Number(d.name);
-        const cuantas = `${n} ${n === 1 ? tx("subida") : tx("subidas")}`;
-        if (semanas === 0) return `${cuantas} · ${tx("en la semana prevista")}`;
-        return semanas < 0
-          ? `${cuantas} · ${tx("{{v0}} semana(s) MÁS de lo previsto", {
-              v0: Math.abs(semanas),
-            })}`
-          : `${cuantas} · ${tx("{{v0}} semana(s) menos de lo previsto", {
-              v0: semanas,
-            })}`;
+        const partes = (Array.isArray(p) ? p : [p]) as {
+          seriesType?: string;
+          value?: number[];
+        }[];
+        const punto = partes.find((x) => x.seriesType === "line");
+        const x = Number(punto?.value?.[0] ?? 0);
+        const alto = Number(punto?.value?.[1] ?? 0);
+        // Cuántas subidas REALES hay bajo la campana que se está señalando.
+        // Sin esto el número de arriba es una densidad y no se puede atar a
+        // ningún dato.
+        const dentro = datos.filter((e) => Math.abs(e - x) <= h / 2);
+        const frase =
+          Math.abs(x) < 0.05
+            ? tx("en la semana prevista")
+            : x < 0
+              ? tx("{{v0}} semana(s) MÁS de lo previsto", {
+                  v0: decimal(Math.abs(x), 1),
+                })
+              : tx("{{v0}} semana(s) menos de lo previsto", {
+                  v0: decimal(x, 1),
+                });
+        const cerca = tx("{{v0}} subida(s) entre {{v1}} y {{v2}}", {
+          v0: dentro.length,
+          v1: firmado(x - h / 2),
+          v2: firmado(x + h / 2),
+        });
+        return `${frase}<br/>${decimal(alto, 2)} ${tx("subidas por semana")} · ${cerca}`;
       },
     },
   };

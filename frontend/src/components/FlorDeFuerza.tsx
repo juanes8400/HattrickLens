@@ -35,7 +35,7 @@ import { decimal, number, ordinal } from "../hooks/useFormat";
  * seguido de «(Copa …)». En Posición no aparece: es el puesto de tu Liga.
  */
 
-interface Equipo {
+export interface Equipo {
   htTeamId: number;
   nombre: string;
   propio: boolean;
@@ -53,7 +53,7 @@ function etiquetaDeCopa(copa: string | null | undefined): string {
     : i18n.t("flor.copaDe", "Copa {{copa}}", { copa });
 }
 
-interface Petalo {
+export interface Petalo {
   clave: string;
   nombre: string;
   /** Crudo por equipo; `null` si ese equipo no tiene el dato. */
@@ -64,19 +64,22 @@ interface Petalo {
   frase: (mio: string, n: number) => string;
 }
 
-interface Normalizado {
+export interface Normalizado {
   htTeamId: number;
   nombre: string;
   propio: boolean;
   copa: boolean;
   crudo: number;
+  /** 0-100 sin redondear. Es lo único comparable ENTRE pétalos. */
+  exacto: number;
+  /** 0-100 redondeado: lo que se pinta en la columna «flor». */
   valor: number;
 }
 
 /** Mismas 2.000 simulaciones que el resto del Dashboard: misma caché. */
 const RUNS = 2_000;
 
-function normalizar(p: Petalo, equipos: Equipo[]): Normalizado[] {
+export function normalizar(p: Petalo, equipos: Equipo[]): Normalizado[] {
   const con = equipos
     .map((e) => ({ ...e, crudo: p.valores.get(e.htTeamId) }))
     .filter(
@@ -89,16 +92,27 @@ function normalizar(p: Petalo, equipos: Equipo[]): Normalizado[] {
   return con
     .map((e) => {
       const t = max === min ? 1 : (e.crudo - min) / (max - min);
+      const exacto = (p.menorEsMejor ? 1 - t : t) * 100;
       return {
         htTeamId: e.htTeamId,
         nombre: e.nombre,
         propio: e.propio,
         copa: Boolean(e.copa),
         crudo: e.crudo,
-        valor: Math.round((p.menorEsMejor ? 1 - t : t) * 100),
+        exacto,
+        valor: Math.round(exacto),
       };
     })
-    .sort((a, b) => b.valor - a.valor || a.nombre.localeCompare(b.nombre));
+    // SE ORDENA POR EL DATO, NO POR LA COLUMNA «FLOR» (2026-11-03, pedido
+    // del usuario). La flor es el dato redondeado a entero, así que dos
+    // equipos que no empatan de verdad empatan ahí, y el desempate por
+    // nombre los dejaba en un orden que no es el real: el puesto que se
+    // anuncia arriba («3.º de 8») sale de esta misma lista.
+    .sort(
+      (a, b) =>
+        (p.menorEsMejor ? a.crudo - b.crudo : b.crudo - a.crudo) ||
+        a.nombre.localeCompare(b.nombre),
+    );
 }
 
 export function FlorDeFuerza() {
@@ -311,8 +325,11 @@ export function FlorDeFuerza() {
   ];
 
   const filas = petalos.map((p) => ({ p, lista: normalizar(p, equipos) }));
+  // Sin redondear, por lo mismo: aquí sí hace falta el 0-100 --los datos
+  // crudos de Ataque y de TSI no se pueden comparar entre sí-- pero el
+  // entero convierte en empate lo que no lo es y abriría otro pétalo.
   const valorPropio = (lista: Normalizado[]) =>
-    lista.find((x) => x.propio)?.valor ?? null;
+    lista.find((x) => x.propio)?.exacto ?? null;
   // Al entrar se abre el pétalo más flojo: es el que más dice.
   const masFlojo = filas
     .filter((f) => valorPropio(f.lista) != null)

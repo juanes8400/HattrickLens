@@ -464,6 +464,56 @@ class UiEvent(Base):
     visible_ms: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class AuthorNotice(Base):
+    """Un aviso que el autor escribe para TODOS los que usan la herramienta.
+
+    2026-11-03, pedido por el usuario: «un módulo para comunicarle cosas a los
+    usuarios de la herramienta: que yo escriba un mensaje que quiera que les
+    llegue en forma de alerta y ellos lo vean».
+
+    ES EL REVERSO DE `BugReport`, y por eso vive en el mismo sitio: allí
+    escribe cualquiera y lee el autor; aquí escribe el autor y lee cualquiera.
+
+    POR QUÉ SALE POR ALERTAS Y NO POR UN CARTEL PROPIO. Las alertas ya tienen
+    todo lo que hace falta: se ven en el Panel, se ordenan por urgencia, y cada
+    uno puede archivar la suya en su buzón sin que eso se la quite a nadie más.
+    Un cartel nuevo habría que enseñarlo en alguna parte, y la parte donde ya se
+    mira es ésa. La clave que emite es `author.notice.{id}`, así que dos avisos
+    distintos se archivan por separado.
+
+    NO SE TRADUCE, y eso hay que decirlo donde se escribe: el texto va tal cual
+    a todo el mundo, en el idioma en que se teclee. El diccionario traduce el
+    texto del producto, que se escribe una vez y se revisa; esto es un mensaje
+    suelto y nadie puede traducirlo antes de que exista.
+
+    RETIRADO Y NO BORRADO. Mientras un aviso está vivo se puede archivar, y la
+    fila archivada apunta a esta clave; si la fila desapareciera, el archivado
+    quedaría huérfano. Retirar deja de emitirlo y conserva el rastro de lo que
+    se dijo y cuándo.
+    """
+
+    __tablename__ = "author_notices"
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    #: Quién lo escribió. Siempre un administrador, pero se guarda igual: si
+    #: mañana hay dos, hay que poder saber de quién fue.
+    author_user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    at: Mapped[datetime] = mapped_column(UtcDateTime(), index=True)
+    #: Las tres partes de una alerta, tal como las pide `Insight`. El título es
+    #: lo que se lee de un golpe; el detalle, el cuerpo; y la acción, lo que se
+    #: espera de quien lo lee, que puede ser nada.
+    title: Mapped[str] = mapped_column(String(160))
+    detail: Mapped[str] = mapped_column(Text)
+    action: Mapped[str] = mapped_column(Text, default="")
+    #: `info`, `opportunity`, `warning` o `danger`: el mismo juego que el resto
+    #: de las alertas, porque van en la misma lista y se ordenan juntas.
+    severity: Mapped[str] = mapped_column(String(16), default="info")
+    #: Hasta cuándo se emite. Nulo = hasta que se retire a mano. Existe porque
+    #: la mayoría de los avisos caducan solos («el domingo no habrá datos») y
+    #: nadie se acuerda de retirarlos.
+    until: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    retired_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+
+
 class BugReport(Base):
     """Un fallo contado por quien lo sufre, desde dentro de la aplicación.
 
