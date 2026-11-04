@@ -304,7 +304,7 @@ def ordenes_del_extremo() -> list[tuple[dict[str, int], str]]:
 #: `ciego-medido.txt` y en ningun sitio mas, asi que ni el banco ni las pruebas
 #: las tocaban: SEXTO punto ciego del mismo tipo.
 #:
-#: Lo que costo: `portero-abierto.txt` decia que el motor fallaba «en 1 de 64»
+#: Lo que costo: `portero-cerrado.txt` decia que el motor fallaba «en 1 de 64»
 #: porteros medidos. Contadas una por una el 2026-10-28, las observaciones son
 #: 20 y los fallos SIETE, todos del mismo rincon. Un banco que no mira una
 #: salida no puede juzgar las reglas de esa salida, y esta vez el numero que
@@ -331,20 +331,32 @@ DIALES_DEL_PORTERO: list[tuple[str, int, dict[str, int], str]] = [
     # LA DEL 2026-10-28, la que deshace la contradiccion: mismo total y mismo
     # balon parado que el que afloja, y afloja. Ver el test del mismo nombre en
     # `test_criterios_hattrick`.
-    ("Por15 Def5 BP13: el balon parado gana el segundo puesto", 26, _portero(15, 5, 13), "holgado"),
+    ("Por15 Def5 BP13: el balon parado suma sin quitar puesto", 26, _portero(15, 5, 13), "holgado"),
+    # LOS SIETE DEL RINCON `Por 14`, que estuvieron en rojo del 2026-10-26 al
+    # 2026-11-04. Se arreglaron sacando el balon parado de la cola de puestos:
+    # suma aparte, lo que le pasa de once. Ver `DESCUENTO_DEL_BALON_PARADO` en
+    # el motor y `EL_RINCON_DE_POR_14` en las pruebas, que ademas fija las
+    # cuatro vecinas que acotan el rincon.
+    ("Por14 Def2 BP10", 26, _portero(14, 2, 10), "ajustado"),
+    ("Por14 Def2 BP11", 26, _portero(14, 2, 11), "ajustado"),
+    ("Por14 Def2 BP12", 26, _portero(14, 2, 12), "ajustado"),
+    ("Por14 Def2 BP13", 26, _portero(14, 2, 13), "ajustado"),
+    ("Por14 Def2 BP14", 26, _portero(14, 2, 14), "ajustado"),
+    ("Por14 Def2 BP15", 26, _portero(14, 2, 15), "ajustado"),
+    ("Por14 Def4 BP13", 26, _portero(14, 4, 13), "ajustado"),
 ]
 
-#: Y LOS SIETE QUE NO CUADRAN, todos del mismo rincon: `Por 14` con la Defensa
-#: baja. El motor los da por holgados porque el balon parado le gana el segundo
-#: puesto a la Defensa y la rareza salta; Hattrick dice que ajustan hasta que la
-#: Defensa llega a 6 (con BP 13) o el balon parado a 16 (con Defensa 2).
+#: VACIO desde el 2026-11-04. Aqui estuvieron los siete del rincon `Por 14`,
+#: que ahora estan arriba, en lo medido. Lo que no se arreglo subiendo ni
+#: bajando parametros --se barrieron cuatro mandos y no habia combinacion que
+#: diera las veinte-- se arreglo cambiando la FORMA de la cuenta: el balon
+#: parado del portero no disputa puesto.
 #:
-#: No se arreglan subiendo ni bajando parametros: se barrieron cuatro mandos
-#: sobre las observaciones y no hay combinacion que las explique. Ver
-#: `portero-abierto.txt`.
-PENDIENTES_DEL_DIAL: list[tuple[str, int, dict[str, int], str]] = [
-    (f"Por14 Def2 BP{bp}", 26, _portero(14, 2, bp), "ajustado") for bp in range(10, 16)
-] + [("Por14 Def4 BP13", 26, _portero(14, 4, 13), "ajustado")]
+#: Y EL BARRIDO NO MENTIA. Los cuatro mandos que movio eran los del modelo
+#: viejo, y ninguno de ellos era «que el balon parado deje de competir»: un
+#: espacio de parametros barrido a lo bruto solo descarta lo que hay dentro de
+#: el. El cero de aquel barrido era la pista, no el muro.
+PENDIENTES_DEL_DIAL: list[tuple[str, int, dict[str, int], str]] = []
 
 
 #: Lo que el motor TODAVIA no reproduce, de las tandas de perfiles. Se guarda

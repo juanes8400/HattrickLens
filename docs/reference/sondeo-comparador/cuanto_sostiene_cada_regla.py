@@ -220,6 +220,9 @@ sin("la rebaja del liston por empate arriba", pon, lambda: setattr(C, "REBAJA_PO
 sin("que las dos rebajas no se acumulen (acumularlas)", pon, lambda: setattr(C, "REBAJA_POR_EMPATE_ARRIBA", 3))
 pon = _guarda("DESCUENTO_DEL_BALON_PARADO")
 sin("el descuento del balon parado", pon, lambda: setattr(C, "DESCUENTO_DEL_BALON_PARADO", 0))
+sin("que el descuento propio del balon parado sea 5 y no 6", pon, lambda: setattr(C, "DESCUENTO_DEL_BALON_PARADO", 6))
+pon = _guarda("BALON_PARADO_QUE_AFLOJA_SOLO")
+sin("que el balon parado de 16 afloje solo", pon, lambda: setattr(C, "BALON_PARADO_QUE_AFLOJA_SOLO", 99))
 
 # Las DOS EXCLUSIONES EN ESPEJO, juntas y por separado.
 _espejo = C._fuera_con_defensa

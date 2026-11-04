@@ -1,6 +1,71 @@
-EL BALON PARADO DEL PORTERO: 64 OBSERVACIONES Y NINGUNA LECTURA QUE ENCAJE
-===========================================================================
-2026-10-26
+EL BALON PARADO DEL PORTERO: CERRADO EL 2026-11-04
+==================================================
+2026-10-26, cerrado el 2026-11-04
+
+CERRADO. Las veinte observaciones de portero salen todas. La lectura que las da
+esta en `DESCUENTO_DEL_BALON_PARADO`, en el motor, y fijada en
+`EL_RINCON_DE_POR_14` (pruebas) y `DIALES_DEL_PORTERO` (banco). En dos frases:
+
+  El balon parado del portero NO DISPUTA PUESTO: no compite con la Porteria ni
+  con la Defensa por los dos primeros. Suma aparte lo que le pasa de once --su
+  descuento propio de cinco mas el peaje de seis del tercer puesto-- y de 16
+  arriba afloja el solo.
+
+LO QUE LO OBLIGO es una pareja de medidas que estaba en este fichero desde el
+2026-10-26 sin que nadie la leyera asi:
+
+  Por 14 Def 6 BP 13  ->  HOLGADO
+  Por 14 Def 4 BP 13  ->  AJUSTADO
+
+Mismo balon parado y distinta respuesta, asi que la Defensa entera cuenta en las
+dos --el 6 llega al liston de 21 y el 4 no-- y por tanto el balon parado no le
+habia quitado el puesto. Con el balon parado disputando puesto NINGUN descuento
+da las dos a la vez: si adelanta a la Defensa, las dos salen iguales; si no la
+adelanta, aporta lo mismo en las dos. No hay que probar: es un argumento, no un
+barrido.
+
+POR QUE EL BARRIDO DEL 2026-10-26 NO LO ENCONTRO. Movio cuatro mandos --el
+descuento del balon parado, el del tercer puesto, si el balon parado puede
+adelantar a la Defensa, y un liston propio para la pareja-- y dio cero
+combinaciones. El cero era correcto: ninguno de los cuatro era «que el balon
+parado deje de competir por puesto», que es otra FORMA de la cuenta y no un
+numero dentro de ella. Un barrido a lo bruto solo descarta lo que hay dentro del
+espacio que barre; escribir el resultado como «ninguna lectura que encaje» --en
+el titulo de este fichero, nueve dias-- fue mio y fue de mas.
+
+LO QUE SIGUE SIN SEPARAR, dos consultas si algun dia se quieren:
+
+  · El descuento propio del balon parado, 5 o 6. Las veinte salen con los dos.
+    Lo separa  Por 14, Def 6, BP 12  ->  con 5 HOLGADO, con 6 AJUSTADO.
+  · El 16 que afloja solo, contra «de 16 arriba cuenta entero y si disputa
+    puesto». Las veinte salen con las dos.
+    Lo separa  Por 2, Def 0, BP 16  ->  con la primera HOLGADO, con la segunda
+    AJUSTADO.
+
+Ninguna de las dos mueve ninguna de las veinte, asi que el motor no espera por
+ellas.
+
+Y UNA PREDICCION, justamente la consulta que este fichero pedia como «la mas
+barata de todas»:  Por 14, Def 5, BP 13  ->  19 + 2 = 21 contra un liston de
+21, HOLGADO. Si saliera AJUSTADA, el descuento propio es 6 y no 5.
+
+DE PASO, EL UNICO FALLO DE LA PRUEBA A CIEGAS ERA UNO DE ESTOS SIETE: C09, que
+es `Por 14 Def 2 BP 13` a los 26. El motor de hoy lo reproduce clavado,
+`Ed=26 Por=14 Def=2 BP 11-15 Lat<=4 Ano<=4 Jug<=4`, que es literalmente lo que
+contesto Hattrick.
+
+EL 49/50 DEL CIEGO NO SE TOCA, y eso es a proposito: `ciego_puntua.py` puntua la
+prediccion COMMITEADA antes de medir, no el motor de ahora. Corregir un ciego
+despues de ver las respuestas lo convierte en otra cosa. Su 98 % es la marca de
+aquel dia y se queda; lo que ha cambiado es que el fallo que la bajaba ya no
+esta en el motor.
+
+
+EL REGISTRO DE CUANDO ESTABA ABIERTO
+====================================
+Lo que sigue se deja tal como se escribio, con sus conclusiones equivocadas
+marcadas donde las hay: es el unico sitio donde queda por que se tardo nueve
+dias en algo que estaba medido desde el primero.
 
 Lo que se sabe seguro, medido:
 
@@ -110,6 +175,12 @@ rareza no es monotona contra lo medido. Rareza 21 afloja (Por 15 Def 6) y
 rareza 24 ajusta (Por 14 Def 2 BP 13). Mientras el orden no se respete, ningun
 liston puede separar las dos.
 
+   [ESTE PARRAFO ERA EL BUENO, 2026-11-04. «No se arregla moviendo numeros» y
+   «mientras el orden no se respete» eran exactamente el diagnostico: lo que
+   habia que cambiar era la forma de la cuenta, no sus numeros. Con la lectura
+   de ahora el orden se respeta: Por 15 Def 6 da 21 y afloja, y Por 14 Def 2
+   BP 13 da 18 y ajusta.]
+
 LO QUE HARIA FALTA. Una rejilla de verdad en vez de sondas sueltas: Porteria en
 12, 13, 14 y 15 cruzado con Defensa de 4 a 8 y balon parado en 0, 13 y 16. Son
 unas 60 consultas y acotaria la forma, no solo los bordes. La consulta mas
@@ -118,6 +189,13 @@ salto esta en 5 o en 6.
 
 MIENTRAS TANTO el motor se queda como esta: cualquier cambio probado hasta ahora
 empeora la cuenta en vez de mejorarla.
+
+   [SUPERADO EL 2026-11-04. No hizo falta la rejilla de 60 consultas: las once
+   lineas de este rincon que ya estaban medidas bastaban, y lo que faltaba no
+   era medir mas sino leer la pareja `Def 4` / `Def 6` con el mismo balon
+   parado. Lo de «cualquier cambio empeora la cuenta» era cierto DENTRO del
+   modelo de entonces, que es justo lo que habia que salirse. Ver la cabecera
+   de este fichero.]
 
 
 DE PASO: NO HAY CASILLA «MISMA ESPECIALIDAD»

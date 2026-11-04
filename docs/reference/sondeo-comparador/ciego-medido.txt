@@ -452,7 +452,7 @@ Lateral entre débil y aceptable
 Defensa <= débil
 Portería <= débil
 
-# Las nueve sondas alrededor de C09 (ver `portero-abierto.txt`).
+# Las nueve sondas alrededor de C09 (ver `portero-cerrado.txt`).
 # No entran en la cuenta del ciego: se eligieron MIRANDO el fallo.
 
 K01
