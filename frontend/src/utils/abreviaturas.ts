@@ -41,6 +41,20 @@ export function abreviatura(clave: ClaveDeAbreviatura): string {
   return i18n.t(`abrev.${clave}`, ABREVIATURAS[clave][0]);
 }
 
+/** El nombre largo de una habilidad POR SU CLAVE, en el idioma de la app.
+ *
+ *  `nombreLargo` resuelve desde la ABREVIATURA porque nació para explicar
+ *  cabeceras de tabla; esto resuelve desde la clave interna, que es lo que
+ *  traen los perfiles de jugador del servidor. Existe para no hacer una
+ *  tercera copia del mapa de nombres: ya hay dos a mano --en
+ *  `PrecioPorComparables` y en `TransparencyPage`-- y este fichero es el único
+ *  que además los tiene traducidos. */
+export function nombreDeHabilidad(clave: string): string {
+  const k = clave as ClaveDeAbreviatura;
+  if (!(k in ABREVIATURAS)) return clave;
+  return i18n.t(`abrev.largo.${k}`, ABREVIATURAS[k][1]);
+}
+
 /** El nombre largo de una cabecera, o `undefined` si no es una abreviatura. */
 export function nombreLargo(header: string): string | undefined {
   const texto = header.trim();

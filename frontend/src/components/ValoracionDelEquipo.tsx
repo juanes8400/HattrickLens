@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ErrorState, Loading, Panel, SinDatos } from "./Panels";
-import { money, number } from "../hooks/useFormat";
+import { decimal, money, number } from "../hooks/useFormat";
+import { terminoOficial } from "../i18n/glosario";
+import { nombreDeHabilidad } from "../utils/abreviaturas";
 import { usePreciosComparables } from "../hooks/useTeam";
 import type { PrecioDeUnJugador } from "../services/api";
 import { tx } from "../i18n/tx";
@@ -65,7 +67,18 @@ export function resumenDeLaValoracion(jugadores: PrecioDeUnJugador[]) {
   };
 }
 
-export function ValoracionDelEquipo({ activa }: { activa: boolean }) {
+export function ValoracionDelEquipo({
+  activa,
+  caja,
+}: {
+  activa: boolean;
+  /** La caja de hoy, para poder decir la valoración EN VECES LA CAJA.
+   *
+   *  Es la razón de que esta sección viva en Economía y no en Transferencias:
+   *  trece millones en jugadores no significan lo mismo con dos millones en
+   *  el banco que con veinte. La cifra sola no lo dice; esta división sí. */
+  caja: number;
+}) {
   const { data, isLoading, isError, error } = usePreciosComparables({
     enabled: activa,
   });
@@ -120,6 +133,14 @@ export function ValoracionDelEquipo({ activa }: { activa: boolean }) {
                 v1: number(plantilla),
               })}
             </p>
+            {caja > 0 && (
+              <p className="text-xs text-[var(--muted)]">
+                {tx("{{v0}} veces tu caja de ahora, que son {{v1}}", {
+                  v0: decimal(total / caja, 1),
+                  v1: money(caja, moneda),
+                })}
+              </p>
+            )}
             <BandaDelTotal
               suelo={suelo}
               techo={techo}
@@ -252,6 +273,26 @@ function Dato({
   );
 }
 
+/** «Portería 15 · 28 años», con el nombre de la habilidad del glosario.
+ *
+ *  Se queda con la PRIMERA del perfil, que es la más alta: el perfil llega ya
+ *  ordenado desde el servidor y las otras dos sobran aquí --la ficha las tiene
+ *  todas-- porque lo que esta línea tiene que contestar es «¿y éste quién es?»
+ *  sin robarle sitio a la barra. */
+function quienEs(jugador: PrecioDeUnJugador): string {
+  const rasgo = jugador.perfil[0];
+  const edad = tx("{{v0}} años", { v0: number(jugador.edad) });
+  if (!rasgo) return edad;
+  // El glosario OFICIAL manda; el respaldo en español sale de
+  // `abreviaturas`, que es el único sitio que ya los tiene traducidos.
+  const nombre = terminoOficial(
+    "habilidades",
+    rasgo.habilidad,
+    nombreDeHabilidad(rasgo.habilidad),
+  );
+  return `${nombre} ${rasgo.nivel} · ${edad}`;
+}
+
 /** Un jugador: su nombre, su barra y su cifra.
  *
  *  La barra va contra el MÁS VALIOSO y no contra el total, porque lo que se
@@ -277,11 +318,18 @@ function BarraDeJugador({
     // pantalla de teléfono. La colocación es explícita para poder mantener el
     // orden del DOM --nombre, barra, cifra-- en los dos tamaños.
     <li className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 sm:grid-cols-[11rem_minmax(0,1fr)_auto]">
-      <span
-        className="col-start-1 row-start-1 truncate text-xs"
-        title={jugador.nombre}
-      >
-        {jugador.nombre}
+      {/* EL NOMBRE Y QUIÉN ES. Una lista de doce nombres con doce barras no
+          dice por qué el tercero vale la mitad que el primero; su mejor
+          habilidad y su edad sí, y caben en la misma celda sin añadir un
+          renglón a la fila. El nombre de la habilidad sale del glosario
+          OFICIAL de Hattrick, no de una traducción nuestra. */}
+      <span className="col-start-1 row-start-1 min-w-0">
+        <span className="block truncate text-xs" title={jugador.nombre}>
+          {jugador.nombre}
+        </span>
+        <span className="block truncate text-[10px] leading-tight text-[var(--muted)]">
+          {quienEs(jugador)}
+        </span>
       </span>
       <span
         className="col-span-2 col-start-1 row-start-2 h-1.5 rounded-full bg-[var(--surface-2)] sm:col-span-1 sm:col-start-2 sm:row-start-1"
