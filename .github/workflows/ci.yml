@@ -47,6 +47,17 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      # LAS PRUEBAS Y EL FORMATO ENTRAN AL CI EL 2026-11-03, pedido del
+      # usuario. Hasta hoy este trabajo corria lint, typecheck y build, de modo
+      # que las 263 pruebas del frontend y prettier solo se comprobaban en el
+      # portatil de quien subia el cambio. El dia que `main` se protegio con
+      # estos dos trabajos como obligatorios, la proteccion prometia mas de lo
+      # que medía.
+      #
+      # `test:ci` es `vitest run`: `vitest` a secas se queda vigilando ficheros
+      # y el trabajo no terminaria nunca.
+      - run: npm run test:ci
+      - run: npm run format:check
       - run: npm run build
 
   docker:

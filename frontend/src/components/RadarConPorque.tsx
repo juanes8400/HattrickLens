@@ -285,8 +285,7 @@ export function RadarConPorque({ teamName }: { teamName: string }) {
           >
             <div className="mb-1 flex items-baseline justify-between font-semibold">
               <span>
-                {tx(globo.eje)} · {ordinal(actual.puesto)}{" "}
-                {tx("de")} {n}
+                {tx(globo.eje)} · {ordinal(actual.puesto)} {tx("de")} {n}
               </span>
               <span className="tabular-nums">{Math.round(actual.valor)}</span>
             </div>

@@ -53,7 +53,8 @@ export function usePersistido<T>(clave: string, porDefecto: T) {
   // un valor recién leído en cada llamada --que con un objeto sería otro
   // objeto-- sería un bucle de renders. De ahí la caché del módulo.
   const leer = useCallback((): T => {
-    if (!EN_MEMORIA.has(clave)) EN_MEMORIA.set(clave, recordado(clave, porDefecto));
+    if (!EN_MEMORIA.has(clave))
+      EN_MEMORIA.set(clave, recordado(clave, porDefecto));
     return EN_MEMORIA.get(clave) as T;
   }, [clave, porDefecto]);
 
@@ -62,7 +63,9 @@ export function usePersistido<T>(clave: string, porDefecto: T) {
   const setValor = useCallback(
     (siguiente: T | ((previo: T) => T)) => {
       const previo = (
-        EN_MEMORIA.has(clave) ? EN_MEMORIA.get(clave) : recordado(clave, porDefecto)
+        EN_MEMORIA.has(clave)
+          ? EN_MEMORIA.get(clave)
+          : recordado(clave, porDefecto)
       ) as T;
       const nuevo =
         typeof siguiente === "function"

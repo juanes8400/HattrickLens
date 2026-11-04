@@ -195,7 +195,8 @@ describe("histogramaDeErrorOption", () => {
     (o.series as { data: number[][] }[])[0]!.data;
   const marcas = (o: Record<string, unknown>) =>
     (o.series as { data: number[][] }[])[1]!.data;
-  const eje = (o: Record<string, unknown>) => o.xAxis as { min: number; max: number };
+  const eje = (o: Record<string, unknown>) =>
+    o.xAxis as { min: number; max: number };
   const opcion = (errores: number[]) =>
     histogramaDeErrorOption(errores) as unknown as Record<string, unknown>;
 

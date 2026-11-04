@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Equipo, Petalo } from "./FlorDeFuerza";
-import { normalizar } from "./FlorDeFuerza";
+import { normalizar, valorComparable, valorPintado } from "./FlorDeFuerza";
 
 /** El orden de la flor, 2026-11-03.
  *
@@ -23,10 +23,7 @@ const EQUIPOS: Equipo[] = [
   { htTeamId: 4, nombre: "Farolillo", propio: false },
 ];
 
-function petalo(
-  valores: Record<number, number>,
-  menorEsMejor = false,
-): Petalo {
+function petalo(valores: Record<number, number>, menorEsMejor = false): Petalo {
   return {
     clave: "x",
     nombre: "X",
@@ -104,5 +101,38 @@ describe("normalizar", () => {
     const lista = normalizar(petalo({ 3: 7 }), EQUIPOS);
     expect(lista).toHaveLength(1);
     expect(lista[0]!.valor).toBe(100);
+  });
+});
+
+/** Las dos lecturas del mismo número, 2026-11-03.
+ *
+ *  Al ordenar la flor por el dato hizo falta guardar el 0-100 SIN redondear,
+ *  y durante un rato la misma función servía para pintar y para comparar: la
+ *  flor salió llena de decimales --«99.83333333333333» dentro del pétalo--.
+ *  Separadas y con nombre, lo que queda fijado aquí es cuál hace qué.
+ */
+describe("valorPintado y valorComparable", () => {
+  const lista = normalizar(petalo({ 1: 999, 2: 998, 3: 1000, 4: 0 }), EQUIPOS);
+
+  it("lo que se pinta es siempre un entero", () => {
+    const v = valorPintado(lista);
+    expect(v).not.toBeNull();
+    expect(Number.isInteger(v)).toBe(true);
+  });
+
+  it("lo que se compara no se redondea", () => {
+    // 999 sobre un rango de 1000 es 99,9: si esto fuera entero, empataría con
+    // el 100 y al entrar se abriría un pétalo que no es el más flojo.
+    const exacto = valorComparable(
+      normalizar(petalo({ 1: 1000, 2: 998, 3: 999, 4: 0 }), EQUIPOS),
+    );
+    expect(exacto).toBeCloseTo(99.9, 6);
+    expect(Number.isInteger(exacto)).toBe(false);
+  });
+
+  it("las dos devuelven nulo si el equipo propio no tiene el dato", () => {
+    const sinMio = normalizar(petalo({ 1: 10, 2: 20 }), EQUIPOS);
+    expect(valorPintado(sinMio)).toBeNull();
+    expect(valorComparable(sinMio)).toBeNull();
   });
 });

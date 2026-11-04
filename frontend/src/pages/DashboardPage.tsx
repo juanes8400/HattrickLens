@@ -247,26 +247,26 @@ export function BestElevenPitch({
           { formacion: formation },
         )}
       >
-      <PitchGrid
-        rows={lineas}
-        // Gente de banda: extremos arriba y laterales atrás. Son los que
-        // ocupan las dos columnas de los bordes.
-        isFlank={(a) =>
-          a.position.startsWith("winger") || a.position.startsWith("wingback")
-        }
-        render={(a) => (
-          <div key={a.slot} className={PITCH_CARD_CLASS}>
-            <div className="truncate text-[9px] uppercase tracking-wide text-white/70">
-              {a.label}
+        <PitchGrid
+          rows={lineas}
+          // Gente de banda: extremos arriba y laterales atrás. Son los que
+          // ocupan las dos columnas de los bordes.
+          isFlank={(a) =>
+            a.position.startsWith("winger") || a.position.startsWith("wingback")
+          }
+          render={(a) => (
+            <div key={a.slot} className={PITCH_CARD_CLASS}>
+              <div className="truncate text-[9px] uppercase tracking-wide text-white/70">
+                {a.label}
+              </div>
+              <div className="truncate text-[11px] font-semibold text-white">
+                {a.player}
+              </div>
+              <div className="tabular-nums text-sm font-semibold text-amber-300">
+                {a.rating.toFixed(2)}
+              </div>
             </div>
-            <div className="truncate text-[11px] font-semibold text-white">
-              {a.player}
-            </div>
-            <div className="tabular-nums text-sm font-semibold text-amber-300">
-              {a.rating.toFixed(2)}
-            </div>
-          </div>
-        )}
+          )}
         />
       </PitchField>
     </>

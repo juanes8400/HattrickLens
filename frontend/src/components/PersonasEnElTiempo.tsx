@@ -281,6 +281,8 @@ function detalle(t: TramoDeUso, grano: Grano): string {
       ? tx("1 persona")
       : tx("{{v0}} personas", { v0: String(t.users) });
   const nuevas =
-    t.newUsers > 0 ? ` · ${tx("{{v0}} nuevas", { v0: String(t.newUsers) })}` : "";
+    t.newUsers > 0
+      ? ` · ${tx("{{v0}} nuevas", { v0: String(t.newUsers) })}`
+      : "";
   return `${cuando}: ${gente}${nuevas} · ${t.clicks} ${tx("clics")}`;
 }

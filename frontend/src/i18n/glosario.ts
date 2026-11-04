@@ -43,7 +43,10 @@ export function escalaOficial<T extends { level: number; label: string }>(
   familia: FamiliaDelGlosario,
   escala: T[],
 ): T[] {
-  return escala.map((p) => ({ ...p, label: nivelOficial(familia, p.level) ?? p.label }));
+  return escala.map((p) => ({
+    ...p,
+    label: nivelOficial(familia, p.level) ?? p.label,
+  }));
 }
 
 /** Un término del glosario por su clave, no por nivel: habilidades, sectores,
@@ -55,5 +58,8 @@ export function terminoOficial(
   respaldo: string,
 ): string {
   if (!clave || i18n.language === "es") return respaldo;
-  return i18n.t(`${familia}.${clave}`, { ns: "glosario", defaultValue: respaldo });
+  return i18n.t(`${familia}.${clave}`, {
+    ns: "glosario",
+    defaultValue: respaldo,
+  });
 }

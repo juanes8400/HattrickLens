@@ -162,9 +162,7 @@ export function SimularJornada({ data }: { data: League }) {
         </Empty>
         {data.standings.length > 0 && (
           <Note>
-            {tx(
-              "Mientras tanto, la clasificación final está en «Resumen».",
-            )}
+            {tx("Mientras tanto, la clasificación final está en «Resumen».")}
           </Note>
         )}
       </Panel>
@@ -326,7 +324,9 @@ function TablaSimulada({
       </div>
       <Note>
         {aplicados === 0
-          ? tx("Todavía es la clasificación de hoy: no has puesto ningún resultado.")
+          ? tx(
+              "Todavía es la clasificación de hoy: no has puesto ningún resultado.",
+            )
           : tx("Con {{v0}} resultado(s) puesto(s) de esta jornada.", {
               v0: aplicados,
             })}

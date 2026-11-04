@@ -247,7 +247,7 @@ function Chispa({ valores }: { valores: number[] }) {
   if (valores.length < 2) return null;
   const lo = Math.min(...valores);
   const hi = Math.max(...valores);
-  const ancho = (valores.length - 1) || 1;
+  const ancho = valores.length - 1 || 1;
   const puntos = valores
     .map((v, i) => {
       const x = (i / ancho) * 60;
@@ -276,7 +276,13 @@ function Chispa({ valores }: { valores: number[] }) {
  *  apilaban en vertical: veinticinco filas de ochenta píxeles de alto por una
  *  columna que es un apunte al margen. En texto y en una sola línea dice lo
  *  mismo y no empuja a nadie. */
-function Senal({ children, tono }: { children: string; tono: "aviso" | "gris" }) {
+function Senal({
+  children,
+  tono,
+}: {
+  children: string;
+  tono: "aviso" | "gris";
+}) {
   return (
     <span
       className={clsx(
@@ -337,7 +343,10 @@ function TablaDeLaPlantilla({
     })
     // Primero lo que más deja, y al final lo que no se puede calcular: una
     // fila sin saldo no es «la peor», es que falta un dato.
-    .sort((a, b) => (b.simulacion?.saldo ?? -Infinity) - (a.simulacion?.saldo ?? -Infinity));
+    .sort(
+      (a, b) =>
+        (b.simulacion?.saldo ?? -Infinity) - (a.simulacion?.saldo ?? -Infinity),
+    );
 
   type Fila = (typeof filas)[number];
 
@@ -377,7 +386,9 @@ function TablaDeLaPlantilla({
           </span>
         ) : (
           <span className="whitespace-nowrap">
-            <span className="tabular-nums">{money(f.precio.media, moneda)}</span>
+            <span className="tabular-nums">
+              {money(f.precio.media, moneda)}
+            </span>
             <span className="block text-[10px] text-[var(--muted)]">
               {tx("mediana")} {money(f.precio.mediana ?? 0, moneda)}
             </span>
@@ -457,7 +468,9 @@ function TablaDeLaPlantilla({
       align: "right",
       value: (f) => f.balance.totalCost,
       render: (f) => (
-        <span className="tabular-nums">{money(f.balance.totalCost, moneda)}</span>
+        <span className="tabular-nums">
+          {money(f.balance.totalCost, moneda)}
+        </span>
       ),
     },
     {
@@ -471,7 +484,9 @@ function TablaDeLaPlantilla({
           <span className="text-[var(--muted)]">—</span>
         ) : (
           <span className="whitespace-nowrap">
-            <span className="tabular-nums">{money(f.simulacion.neto, moneda)}</span>
+            <span className="tabular-nums">
+              {money(f.simulacion.neto, moneda)}
+            </span>
             <span className="block text-[10px] text-[var(--warn)]">
               {tx("casa")} {decimal((f.agentPct ?? 0) * 100, 2)}%
             </span>
@@ -538,7 +553,9 @@ function TablaDeLaPlantilla({
           )}
           <button
             type="button"
-            onClick={() => onSimular(f.balance.htPlayerId, f.precio?.media ?? null)}
+            onClick={() =>
+              onSimular(f.balance.htPlayerId, f.precio?.media ?? null)
+            }
             className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] hover:text-[var(--text)]"
           >
             {tx("simular")}
@@ -551,7 +568,9 @@ function TablaDeLaPlantilla({
   return (
     <Panel
       title={tx("Lo que valdría vender hoy")}
-      meta={tx("el precio es lo que ha costado gente parecida, no una tasación")}
+      meta={tx(
+        "el precio es lo que ha costado gente parecida, no una tasación",
+      )}
       ayuda={tx(
         "Por cada jugador de tu plantilla: lo que ha costado gente parecida a él, lo que llevas gastado en él, y lo que dejaría venderlo a ese precio con la comisión de la casa ya quitada. El precio sale del fondo del mercado y no cuesta ninguna consulta a Hattrick.",
       )}
@@ -568,7 +587,10 @@ function TablaDeLaPlantilla({
                 v0: number(conSaldo.length),
               })}
             />
-            <Kpi label={tx("Entraría en caja")} value={money(netoTotal, moneda)} />
+            <Kpi
+              label={tx("Entraría en caja")}
+              value={money(netoTotal, moneda)}
+            />
             <Kpi
               label={tx("Saldo")}
               value={money(saldoTotal, moneda)}
