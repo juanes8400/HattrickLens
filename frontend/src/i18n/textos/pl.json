@@ -2120,8 +2120,6 @@
   "Con qué filtros buscó Hattrick": "Z jakimi filtrami szukał Hattrick",
   "Los filtros que el propio juego usa en su Comparador de Transferencias para este jugador. No son nuestros: salen de sondear su pantalla y el motor los reproduce con un 98% de acierto fuera de muestra. Una venta sólo entra en la lista si los cumple o si es idéntica.": "Filtry, których sama gra używa w swoim Porównaniu Transferów dla tego zawodnika. Nie są nasze: pochodzą z sondowania jej ekranu, a silnik odtwarza je z 98% trafnością poza próbą. Sprzedaż trafia na listę tylko wtedy, gdy je spełnia lub jest identyczna.",
   "A los 17 años Hattrick añade un tope de días, y es una constante: el mismo perfil pedido desde dos fichas con días distintos da el mismo número.": "W wieku 17 lat Hattrick dodaje limit dni i jest on stały: ten sam profil zapytany z dwóch kart o różnych dniach daje tę samą liczbę.",
-  "Búsqueda ancha: su rareza es {{v0}} y el listón que le toca {{v1}}, así que Hattrick abre la ventana de edad y las bandas.": "Szerokie wyszukiwanie: jego rzadkość to {{v0}}, a próg dla niego to {{v1}}, więc Hattrick otwiera okno wieku i przedziały.",
-  "Búsqueda estrecha: su rareza es {{v0}} y no llega al listón de {{v1}}, así que Hattrick le clava la edad y aprieta las bandas.": "Wąskie wyszukiwanie: jego rzadkość to {{v0}} i nie sięga progu {{v1}}, więc Hattrick przybija jego wiek i zacieśnia przedziały.",
   "{{v0}} ventas cerradas": "{{v0}} zamkniętych sprzedaży",
   "{{v0}} idénticas": "{{v0}} identycznych",
   "{{v0}} equivalentes": "{{v0}} równoważnych",
@@ -2228,5 +2226,6 @@
   "Todavía no hay ninguna venta cerrada parecida a ningún jugador tuyo, así que no hay nada que sumar.": "Nie ma jeszcze ani jednej zamkniętej transakcji podobnej do któregoś z twoich zawodników, więc nie ma czego sumować.",
   "Las subastas abiertas se enseñan en la ficha pero no promedian, así que esta suma sólo cuenta ventas cerradas. Y es lo que pagó el mercado por gente parecida, no lo que alguien te vaya a pagar a ti.": "Otwarte aukcje widać na karcie zawodnika, ale nie wchodzą do średniej, więc ta suma liczy tylko zamknięte transakcje. I jest to, co rynek zapłacił za podobnych zawodników, a nie to, co ktoś zapłaci tobie.",
   "del mínimo al máximo de sus comparables": "od najniższej do najwyższej z ich porównań",
-  "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}} razy twoja obecna kasa, czyli {{v1}}"
+  "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}} razy twoja obecna kasa, czyli {{v1}}",
+  "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} z kadry nie udało się jeszcze zmierzyć"
 }

@@ -29,7 +29,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.commands.mercado_comparable import a_guardado
-from app.domain.engines.criterios_hattrick import criterios_de, liston_de, rareza
+from app.domain.engines.criterios_hattrick import criterios_de
 from app.domain.engines.mercado_comparable import (
     OBJETIVO,
     PESO_DEL_CLAVADO,
@@ -180,11 +180,21 @@ class PrecioComparable:
     criterios: tuple[CriterioVisible, ...]
     edad_minima: int
     edad_maxima: int
-    #: El dial, con los dos números que lo deciden, para que «la búsqueda salió
-    #: ancha» no sea una afirmación sin cuentas: `rareza` contra `liston`.
-    dial_holgado: bool
-    rareza: int
-    liston: int
+    #: AQUÍ VIVÍAN `dial_holgado`, `rareza` y `liston`, y se fueron el
+    #: 2026-11-04 por decisión del usuario: «quita este tipo de mensajes, ya
+    #: que no aportan nada y son información del algoritmo».
+    #:
+    #: Eran los tres números con los que la pantalla explicaba por qué la
+    #: búsqueda salía ancha --«su rareza es 35 y el listón que le toca 23»--.
+    #: La pregunta que esta pantalla contesta es CON QUÉ buscó Hattrick, y eso
+    #: son los criterios de arriba; la rareza y el listón son nuestra cocina.
+    #: Quitada la frase, los tres campos no los pintaba nadie, así que se van
+    #: también del DTO en vez de quedarse viajando por si acaso.
+    #:
+    #: El motor NO pierde nada: `es_holgado`, `rareza` y `liston_de` siguen en
+    #: `criterios_hattrick`, con sus 639 casos medidos, y el dial sigue
+    #: decidiendo la forma de los criterios. Lo que se deja de hacer es
+    #: enseñarlo.
     #: El tope de días que Hattrick añade a los 17 años, o `None`. No sale en
     #: la cadena de criterios del juego pero sí filtra, así que se enseña.
     tope_de_dias: int | None
@@ -272,9 +282,6 @@ async def precio_de(
         ),
         edad_minima=criterios.edad_minima,
         edad_maxima=criterios.edad_maxima,
-        dial_holgado=criterios.holgado,
-        rareza=rareza(niveles),
-        liston=liston_de(niveles),
         tope_de_dias=criterios.tope_de_dias,
         moneda=moneda,
         serie=await _serie(session, team_id, ht_player_id, convertido),
@@ -369,6 +376,21 @@ class PreciosDeLaPlantilla:
 
     moneda: str
     jugadores: tuple[PrecioDeUnJugador, ...]
+    #: CUÁNTOS DE LA PLANTILLA NO SALEN EN `jugadores`, y por qué existe este
+    #: número (2026-11-04, lo cazó una revisión automática del PR #23).
+    #:
+    #: Esta consulta deja fuera, en silencio, a dos clases de jugador: al que
+    #: todavía no tiene ni una foto --sin habilidades no hay terna, y sin terna
+    #: no hay a quién parecerse-- y a aquél del que no se puede sacar una terna
+    #: o una edad. Mientras lo único que se enseñaba era una fila por jugador,
+    #: faltar no se notaba. Pero la pantalla de Valoración SUMA, y dice «de X de
+    #: Y jugadores»: si ese `Y` sale de contar las filas devueltas, una
+    #: plantilla de treinta con tres sin foto se anuncia como una de
+    #: veintisiete, y nadie puede verlo.
+    #:
+    #: Con esto, quien suma puede decir la verdad: cuántos cuentan, cuántos no
+    #: tienen comparables todavía, y cuántos ni siquiera se han podido medir.
+    sin_medir: int = 0
 
 
 async def precios_de_la_plantilla(
@@ -406,7 +428,8 @@ async def precios_de_la_plantilla(
     series = await _series_de_la_plantilla(session, team_id, convertido)
 
     filas: list[PrecioDeUnJugador] = []
-    for jugador, foto in await _plantilla_con_foto(session, team_id):
+    pares, en_plantilla = await _plantilla_con_foto(session, team_id)
+    for jugador, foto in pares:
         objetivo = objetivo_de(
             jugador.ht_player_id,
             foto.age_years or 0,
@@ -445,13 +468,24 @@ async def precios_de_la_plantilla(
                 serie=series.get(jugador.ht_player_id, ()),
             )
         )
-    return PreciosDeLaPlantilla(moneda=moneda, jugadores=tuple(filas))
+    # Lo que falta es la plantilla MENOS las filas que han salido, así que
+    # recoge las dos puertas de salida de una vez: el que no tiene foto y aquél
+    # del que no se pudo sacar una terna.
+    return PreciosDeLaPlantilla(
+        moneda=moneda,
+        jugadores=tuple(filas),
+        sin_medir=max(0, en_plantilla - len(filas)),
+    )
 
 
 async def _plantilla_con_foto(
     session: AsyncSession, team_id: int
-) -> list[tuple[m.Player, m.PlayerSnapshot]]:
+) -> tuple[list[tuple[m.Player, m.PlayerSnapshot]], int]:
     """La plantilla DE HOY, con la foto más reciente de cada jugador.
+
+    Devuelve también CUÁNTOS SON EN TOTAL, incluidos los que se quedan fuera.
+    Quien suma necesita ese número para no anunciar como plantilla entera lo
+    que es sólo la parte medible; ver `PreciosDeLaPlantilla.sin_medir`.
 
     Los que no tienen ni una foto se quedan fuera: sin habilidades no hay
     terna, y sin terna no hay a quién parecerse.
@@ -491,7 +525,7 @@ async def _plantilla_con_foto(
         ).scalar_one_or_none()
         if foto is not None:
             pares.append((jugador, foto))
-    return pares
+    return pares, len(jugadores)
 
 
 async def _series_de_la_plantilla(

@@ -359,6 +359,14 @@ export interface PrecioDeUnJugador {
 export interface PreciosDeLaPlantilla {
   moneda: string;
   jugadores: PrecioDeUnJugador[];
+  /** Cuántos de la plantilla NO salen en `jugadores`.
+   *
+   *  La consulta deja fuera a quien todavía no tiene una foto de sus
+   *  habilidades y a aquél del que no se puede sacar una terna. Mientras sólo
+   *  se enseñaba una fila por jugador, faltar no se notaba; en cuanto algo
+   *  SUMA y dice «de X de Y», contar las filas devueltas como si fueran la
+   *  plantilla entera es mentir sin que se pueda ver. */
+  sinMedir: number;
 }
 
 /** Un filtro de los que usaría el propio Hattrick para buscar comparables.
@@ -392,11 +400,6 @@ export interface PrecioComparable {
   criterios: CriterioDeHattrick[];
   edadMinima: number;
   edadMaxima: number;
-  /** Si el dial de Hattrick ensanchó la búsqueda, con las dos cifras que lo
-   *  deciden: la rareza del jugador contra el listón que le toca. */
-  dialHolgado: boolean;
-  rareza: number;
-  liston: number;
   /** El tope de días que añade a los 17 años, o `null`. */
   topeDeDias: number | null;
   /** Cómo se llama el dinero. Las cifras ya vienen en la moneda del

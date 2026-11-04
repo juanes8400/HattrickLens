@@ -29,6 +29,12 @@ import { tx } from "../i18n/tx";
  *  plantilla con la mitad sin medir enseñaría la mitad de su valor como si
  *  fuera el valor.
  */
+/** Desde qué peso sobre el total se etiqueta a un jugador con su porcentaje.
+ *
+ *  Ver el comentario en `BarraDeJugador`: con una plantilla de veintisiete, la
+ *  mayoría son un 1 % y el número sobra. */
+const PESO_QUE_SE_ETIQUETA = 5;
+
 /** Un jugador que SÍ tiene precio, con el `null` ya descartado por el tipo. */
 export type ConPrecio = PrecioDeUnJugador & { media: number };
 
@@ -40,7 +46,10 @@ export type ConPrecio = PrecioDeUnJugador & { media: number };
  *  jugadores es el promedio de los dos de en medio. Los tres se equivocan sin
  *  hacer ruido: el total sigue saliendo, sólo que mal.
  */
-export function resumenDeLaValoracion(jugadores: PrecioDeUnJugador[]) {
+export function resumenDeLaValoracion(
+  jugadores: PrecioDeUnJugador[],
+  sinMedir = 0,
+) {
   const conPrecio = jugadores
     .filter((j): j is ConPrecio => j.media != null)
     .sort((a, b) => b.media - a.media || a.nombre.localeCompare(b.nombre));
@@ -56,9 +65,15 @@ export function resumenDeLaValoracion(jugadores: PrecioDeUnJugador[]) {
       ? medias[mitad]!
       : Math.round(((medias[mitad - 1] ?? 0) + (medias[mitad] ?? 0)) / 2)
     : null;
+  const sinPrecio = jugadores.filter((j) => j.media == null);
   return {
     conPrecio,
-    sinPrecio: jugadores.filter((j) => j.media == null),
+    sinPrecio,
+    sinMedir,
+    // LA PLANTILLA ENTERA, no las filas que llegaron. Es la diferencia entre
+    // decir «de 23 de 27» y decir la verdad cuando tres no se han podido
+    // medir: entonces son 30 y el que mira tiene derecho a saberlo.
+    plantilla: conPrecio.length + sinPrecio.length + sinMedir,
     total,
     suelo,
     techo,
@@ -84,7 +99,7 @@ export function ValoracionDelEquipo({
   });
 
   const cuentas = useMemo(
-    () => resumenDeLaValoracion(data?.jugadores ?? []),
+    () => resumenDeLaValoracion(data?.jugadores ?? [], data?.sinMedir ?? 0),
     [data],
   );
 
@@ -94,9 +109,18 @@ export function ValoracionDelEquipo({
   if (!data) return <SinDatos />;
 
   const moneda = data.moneda;
-  const { conPrecio, sinPrecio, total, suelo, techo, mediana, tope } = cuentas;
+  const {
+    conPrecio,
+    sinPrecio,
+    sinMedir,
+    plantilla,
+    total,
+    suelo,
+    techo,
+    mediana,
+    tope,
+  } = cuentas;
   const contados = conPrecio.length;
-  const plantilla = contados + sinPrecio.length;
 
   return (
     <Panel
@@ -133,6 +157,14 @@ export function ValoracionDelEquipo({
                 v1: number(plantilla),
               })}
             </p>
+            {sinMedir > 0 && (
+              <p className="text-xs text-[var(--muted)]">
+                {tx(
+                  "a {{v0}} de la plantilla no se les ha podido medir todavía",
+                  { v0: number(sinMedir) },
+                )}
+              </p>
+            )}
             {caja > 0 && (
               <p className="text-xs text-[var(--muted)]">
                 {tx("{{v0}} veces tu caja de ahora, que son {{v1}}", {
@@ -342,8 +374,14 @@ function BarraDeJugador({
       </span>
       <span className="col-start-2 row-start-1 shrink-0 text-right text-xs tabular-nums sm:col-start-3">
         {money(jugador.media, moneda)}
-        <span className="ml-2 text-[11px] text-[var(--muted)]">
-          {peso.toFixed(0)}%
+        {/* EL PESO, SÓLO EN QUIEN PESA. Con doce jugadores el porcentaje de
+            cada uno dice algo; con veintisiete, veinte de ellos son un 1 % y lo
+            único que hacen es ensuciar la columna. Se etiqueta a quien llega al
+            5 %, que es la regla de siempre --etiquetar selectivamente, no en
+            cada punto-- y se autoajusta al tamaño de la plantilla. El hueco se
+            reserva igual para que la cifra no baile. */}
+        <span className="ml-2 inline-block w-8 text-right text-[11px] text-[var(--muted)]">
+          {peso >= PESO_QUE_SE_ETIQUETA ? `${peso.toFixed(0)}%` : ""}
         </span>
       </span>
     </li>
