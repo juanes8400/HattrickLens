@@ -272,11 +272,35 @@ class RellenoMixin(BaseDeSync):
         reventa nueva que pagar, la inmensa mayoría de estos 25 no la
         tendrán."""
         from sqlalchemy import select
+        from sqlalchemy import update as sa_update
 
         from app.infrastructure.db import models as m
 
         equipo = await uow.session.get(m.Team, team_id)
         cazando = bool(equipo is not None and equipo.commission_hunting)
+
+        # LAS PISTAS VAN PRIMERO (2026-11-03, pedido por el usuario). Un
+        # ex-jugador al que vimos en el mercado --porque estábamos pujando por
+        # recomprarlo, ver `_anotar_reventas_en_el_mercado`-- y cuya subasta ya
+        # cerró es una reventa con fecha y hora, no una conjetura entre 501
+        # nombres. Antes del plazo no se mira: la reventa aún no ha pasado.
+        ahora_pistas = datetime.now(UTC).replace(tzinfo=None)
+        pistas = list(
+            (
+                await uow.session.execute(
+                    select(m.Player.ht_player_id)
+                    .where(
+                        m.Player.team_id == team_id,
+                        m.Player.sold_at.is_not(None),
+                        m.Player.resale_deadline.is_not(None),
+                        m.Player.resale_deadline <= ahora_pistas,
+                    )
+                    .order_by(m.Player.resale_deadline)
+                )
+            )
+            .scalars()
+            .all()
+        )
 
         if cazando:
             # Hay dinero por atribuir: se persigue. Uno reciente, uno al azar
@@ -327,6 +351,13 @@ class RellenoMixin(BaseDeSync):
                 .all()
             )
 
+        # Se prepondera DESPUÉS de decidir si la cacería sigue abierta: una
+        # pista no debe mantener viva una cacería a la que ya no le queda
+        # nadie por probar, son dos preguntas distintas.
+        if pistas:
+            ya = set(pistas)
+            candidates = pistas + [x for x in candidates if x not in ya]
+
         encontrado = False
         for ht_player_id in candidates:
             identidad = (
@@ -337,9 +368,13 @@ class RellenoMixin(BaseDeSync):
                 )
             ).one()
             nombre = _full_player_name(identidad.first_name, identidad.last_name)
+            # Por qué se dice en voz alta que venía del mercado: si no, una
+            # pista certera y un tiro al azar se leen igual en pantalla, y el
+            # usuario no puede saber si esto funciona.
+            motivo = " (visto en el mercado)" if ht_player_id in pistas else ""
             await _report(
                 on_progress,
-                f"Revisando comisión de club anterior de {nombre}...",
+                f"Revisando comisión de club anterior de {nombre}{motivo}...",
             )
             try:
                 wrote = await self._check_previous_club_bonus(uow, team_id, ht_player_id)
@@ -354,6 +389,19 @@ class RellenoMixin(BaseDeSync):
                 )
             if cazando:
                 probados.add(ht_player_id)
+            if ht_player_id in pistas:
+                # Consumida, aparezca comisión o no: lo que la pista prometía
+                # era un MOMENTO en que valía la pena mirar, y ese momento ya
+                # se gastó. Si no se borrara, se quedaría para siempre a la
+                # cabeza de la cola robándole el turno a los otros 500.
+                await uow.session.execute(
+                    sa_update(m.Player)
+                    .where(
+                        m.Player.team_id == team_id,
+                        m.Player.ht_player_id == ht_player_id,
+                    )
+                    .values(resale_deadline=None)
+                )
 
         if cazando and equipo is not None:
             equipo.commission_tried_json = json.dumps(sorted(probados))

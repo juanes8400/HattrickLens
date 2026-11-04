@@ -406,6 +406,18 @@ class Player(Base):
     # momento), así que esto es una marca de tiempo para espaciar los
     # reintentos automáticos, no un "ya se intentó, nunca más".
     previous_club_bonus_checked_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    # Cuándo cierra la subasta en la que vimos a este ex-jugador.
+    #
+    # 2026-11-03, pedido por el usuario. `currentbids.xml` es la lista de
+    # pujas en las que andamos metidos, y entre ellas aparecen ex-jugadores
+    # nuestros que intentamos recomprar. Un ex-jugador EN EL MERCADO es una
+    # reventa anunciada con fecha y hora, y de la reventa sale nuestra
+    # comisión de club anterior: lo que la caza busca a ciegas entre 501
+    # nombres, aquí llega dicho. Se anota el plazo al verlo, y en cuanto pasa
+    # --se venda o no se venda-- el jugador salta a la cabeza de la cola de
+    # vigilancia. Se borra al mirarlo, porque una pista que no se consume se
+    # queda eternamente primera.
+    resale_deadline: Mapped[datetime | None] = mapped_column(UtcDateTime())
 
 
 class Sync(Base):
