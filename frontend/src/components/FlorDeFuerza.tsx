@@ -89,30 +89,56 @@ export function normalizar(p: Petalo, equipos: Equipo[]): Normalizado[] {
   if (con.length === 0) return [];
   const min = Math.min(...con.map((e) => e.crudo));
   const max = Math.max(...con.map((e) => e.crudo));
-  return con
-    .map((e) => {
-      const t = max === min ? 1 : (e.crudo - min) / (max - min);
-      const exacto = (p.menorEsMejor ? 1 - t : t) * 100;
-      return {
-        htTeamId: e.htTeamId,
-        nombre: e.nombre,
-        propio: e.propio,
-        copa: Boolean(e.copa),
-        crudo: e.crudo,
-        exacto,
-        valor: Math.round(exacto),
-      };
-    })
-    // SE ORDENA POR EL DATO, NO POR LA COLUMNA «FLOR» (2026-11-03, pedido
-    // del usuario). La flor es el dato redondeado a entero, así que dos
-    // equipos que no empatan de verdad empatan ahí, y el desempate por
-    // nombre los dejaba en un orden que no es el real: el puesto que se
-    // anuncia arriba («3.º de 8») sale de esta misma lista.
-    .sort(
-      (a, b) =>
-        (p.menorEsMejor ? a.crudo - b.crudo : b.crudo - a.crudo) ||
-        a.nombre.localeCompare(b.nombre),
-    );
+  return (
+    con
+      .map((e) => {
+        const t = max === min ? 1 : (e.crudo - min) / (max - min);
+        const exacto = (p.menorEsMejor ? 1 - t : t) * 100;
+        return {
+          htTeamId: e.htTeamId,
+          nombre: e.nombre,
+          propio: e.propio,
+          copa: Boolean(e.copa),
+          crudo: e.crudo,
+          exacto,
+          valor: Math.round(exacto),
+        };
+      })
+      // SE ORDENA POR EL DATO, NO POR LA COLUMNA «FLOR» (2026-11-03, pedido
+      // del usuario). La flor es el dato redondeado a entero, así que dos
+      // equipos que no empatan de verdad empatan ahí, y el desempate por
+      // nombre los dejaba en un orden que no es el real: el puesto que se
+      // anuncia arriba («3.º de 8») sale de esta misma lista.
+      .sort(
+        (a, b) =>
+          (p.menorEsMejor ? a.crudo - b.crudo : b.crudo - a.crudo) ||
+          a.nombre.localeCompare(b.nombre),
+      )
+  );
+}
+
+/** El número que se PINTA del equipo propio: entero.
+ *
+ *  Es lo que se lee encima del pétalo y en la columna «flor», y por eso va
+ *  redondeado: nadie quiere ver «99,8333» dentro de una flor.
+ */
+export function valorPintado(lista: Normalizado[]): number | null {
+  return lista.find((x) => x.propio)?.valor ?? null;
+}
+
+/** El número que se COMPARA entre pétalos: sin redondear.
+ *
+ *  Hace falta aparte de `valorPintado` porque el entero convierte en empate lo
+ *  que no lo es, y entonces al entrar se abriría un pétalo que no es el más
+ *  flojo. Es el 0-100 y no el dato crudo porque los datos crudos de Ataque y
+ *  de TSI no se pueden comparar entre sí.
+ *
+ *  LAS DOS NO SE PUEDEN MEZCLAR. El 2026-11-03 una sola de estas lecturas
+ *  servía para las dos cosas y devolvía el valor sin redondear: la flor se
+ *  llenó de decimales. Separadas y con nombre, cambiar una no toca la otra.
+ */
+export function valorComparable(lista: Normalizado[]): number | null {
+  return lista.find((x) => x.propio)?.exacto ?? null;
 }
 
 export function FlorDeFuerza() {
@@ -325,15 +351,12 @@ export function FlorDeFuerza() {
   ];
 
   const filas = petalos.map((p) => ({ p, lista: normalizar(p, equipos) }));
-  // Sin redondear, por lo mismo: aquí sí hace falta el 0-100 --los datos
-  // crudos de Ataque y de TSI no se pueden comparar entre sí-- pero el
-  // entero convierte en empate lo que no lo es y abriría otro pétalo.
-  const valorPropio = (lista: Normalizado[]) =>
-    lista.find((x) => x.propio)?.exacto ?? null;
-  // Al entrar se abre el pétalo más flojo: es el que más dice.
+  // Al entrar se abre el pétalo más flojo: es el que más dice. Se elige con
+  // `valorComparable`, sin redondear; lo que se pinta es `valorPintado`.
   const masFlojo = filas
-    .filter((f) => valorPropio(f.lista) != null)
-    .sort((a, b) => valorPropio(a.lista)! - valorPropio(b.lista)!)[0]?.p.clave;
+    .filter((f) => valorComparable(f.lista) != null)
+    .sort((a, b) => valorComparable(a.lista)! - valorComparable(b.lista)!)[0]
+    ?.p.clave;
   const activo =
     filas.find((f) => f.p.clave === (elegido ?? masFlojo)) ?? filas[0]!;
 
@@ -366,7 +389,7 @@ export function FlorDeFuerza() {
           filas={filas.map((f) => ({
             clave: f.p.clave,
             nombre: f.p.nombre,
-            valor: valorPropio(f.lista),
+            valor: valorPintado(f.lista),
           }))}
           activo={activo.p.clave}
           onElegir={setElegido}

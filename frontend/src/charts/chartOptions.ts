@@ -60,11 +60,15 @@ export function anchoDeKernel(errores: number[]): number {
   const SUELO = 0.2;
   if (errores.length < 2) return SUELO;
   const ord = [...errores].sort((a, b) => a - b);
-  const escalas = [desviacion(errores), (cuartil(ord, 0.75) - cuartil(ord, 0.25)) / 1.349].filter(
-    (x) => x > 0,
-  );
+  const escalas = [
+    desviacion(errores),
+    (cuartil(ord, 0.75) - cuartil(ord, 0.25)) / 1.349,
+  ].filter((x) => x > 0);
   if (escalas.length === 0) return SUELO;
-  return Math.max(SUELO, 0.9 * Math.min(...escalas) * errores.length ** (-1 / 5));
+  return Math.max(
+    SUELO,
+    0.9 * Math.min(...escalas) * errores.length ** (-1 / 5),
+  );
 }
 
 /** El reparto del error de una fórmula, centrado en el cero.
