@@ -7,6 +7,7 @@ Cada insight lleva: severidad, mensaje en lenguaje llano, el dato que lo
 sustenta y la acción sugerida. Nada de avisos sin salida.
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from enum import StrEnum
@@ -55,6 +56,7 @@ KNOWN_KEY_ROOTS: frozenset[str] = frozenset(
         "academy.prospect",
         "academy.unprofitable",
         "arena.expansion_opportunity",
+        "author.notice",
         # «arena.sold_out» sale de la lista el 2026-09-01: la regla se retiró
         # con el desglose por sector. Quitarla de aquí es lo correcto y no un
         # descuido, las archivadas de esa clave quedan huérfanas y el buzón
@@ -980,6 +982,59 @@ def amistoso_sin_programar(
             module="partidos",
         )
     ]
+
+
+@dataclass(frozen=True)
+class AvisoDelAutor:
+    """Lo que hace falta de un `author_notices` para emitirlo."""
+
+    id: int
+    title: str
+    detail: str
+    action: str
+    severity: str
+
+
+def avisos_del_autor(avisos: Sequence[AvisoDelAutor]) -> list[Insight]:
+    """Lo que el autor quiso decirle a quien usa la herramienta.
+
+    2026-11-03, pedido por el usuario: «un módulo para comunicarle cosas a los
+    usuarios de la herramienta: que yo escriba un mensaje que quiera que les
+    llegue en forma de alerta y ellos lo vean».
+
+    NO ES UNA REGLA, y es la única de este fichero que no lo es: no mira
+    ningún dato ni decide nada, sólo traslada un texto escrito a mano. Vive
+    aquí de todos modos porque el camino hasta la pantalla --el orden por
+    urgencia, el buzón, la huella del contenido-- ya está hecho para las
+    alertas, y duplicarlo para un cartel aparte sería trabajo sin pregunta
+    que responder.
+
+    UNA CLAVE POR AVISO (`author.notice.{id}`): dos avisos distintos se
+    archivan por separado. Y como la huella del buzón se saca del texto,
+    corregir una errata hace que vuelva a quien ya lo había archivado, lo cual
+    es lo correcto: el texto cambió, el aviso es otro.
+
+    La severidad llega como cadena porque viene de la base. Una que no
+    reconozcamos no tira el Panel entero: se degrada a `info`, que es lo que
+    menos molesta de las cuatro.
+    """
+    out: list[Insight] = []
+    for a in avisos:
+        try:
+            severidad = Severity(a.severity)
+        except ValueError:
+            severidad = Severity.INFO
+        out.append(
+            Insight(
+                key=f"author.notice.{a.id}",
+                severity=severidad,
+                title=a.title,
+                detail=a.detail,
+                action=a.action,
+                module="uso",
+            )
+        )
+    return out
 
 
 def mercado_rechazado(motivo: str | None) -> list[Insight]:

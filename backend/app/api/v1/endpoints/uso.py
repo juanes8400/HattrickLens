@@ -728,3 +728,146 @@ async def atender(
         raise HTTPException(status_code=404, detail="Ese reporte no existe")
     fila.atendido = atendido
     await session.commit()
+
+
+# ── Avisar a quien usa la herramienta ────────────────────────────────────────
+#
+# 2026-11-03, pedido por el usuario: «un módulo para comunicarle cosas a los
+# usuarios de la herramienta: que yo escriba un mensaje que quiera que les
+# llegue en forma de alerta y ellos lo vean».
+#
+# Es el reverso exacto del bloque de arriba, y por eso vive pegado a él: allí
+# escribe cualquiera y lee el autor; aquí escribe el autor y lee cualquiera.
+#
+# NO HAY ENDPOINT DE LECTURA PARA EL USUARIO. El aviso sale por las alertas que
+# ya se miran --`/teams/{id}/insights`, regla `avisos_del_autor`-- de modo que
+# llega ordenado por urgencia y archivable en el buzón sin escribir ni una
+# línea de pantalla nueva. Lo de aquí es sólo el lado de quien escribe.
+
+#: Tope del cuerpo. Un aviso no es un artículo: si no cabe aquí, lo que hay que
+#: mandar es un enlace.
+MAXIMO_DEL_AVISO = 2000
+
+#: Cuántos se devuelven al listarlos. Sin paginar, igual que los reportes.
+AVISOS_POR_PAGINA = 100
+
+#: Las cuatro de siempre. Se valida aquí y no sólo al emitir para que un error
+#: de dedo se vea al escribir, cuando todavía se puede corregir, y no en el
+#: Panel de doce personas.
+SEVERIDADES = ("info", "opportunity", "warning", "danger")
+
+
+class AvisoEntrante(BaseModel):
+    """Lo que manda el formulario del autor."""
+
+    title: str = Field(min_length=1, max_length=160)
+    detail: str = Field(min_length=1, max_length=MAXIMO_DEL_AVISO)
+    #: Lo que se espera de quien lo lee. Puede ser nada: hay avisos que sólo
+    #: informan.
+    action: str = Field(default="", max_length=MAXIMO_DEL_AVISO)
+    severity: str = Field(default="info")
+    #: Hasta cuándo se emite. Nulo = hasta que se retire a mano.
+    until: datetime | None = None
+
+
+@router.post("/avisos", status_code=201)
+async def publicar_aviso(
+    aviso: AvisoEntrante,
+    session: AsyncSession = Depends(get_session),
+    admin: m.User = Depends(require_admin),
+) -> dict[str, Any]:
+    """Publica un aviso para todos los que usan la herramienta.
+
+    Se ve en el Panel de cada uno en la siguiente carga de las alertas: no hace
+    falta que nadie sincronice, porque esta regla va con las que miran el reloj
+    y no con las que se guardan por sincronización.
+
+    EL TEXTO VA TAL CUAL, sin pasar por el diccionario, y eso se avisa en la
+    pantalla donde se escribe. El diccionario traduce el texto del producto,
+    que se escribe una vez y se revisa; un mensaje suelto no puede traducirse
+    antes de existir.
+    """
+    if aviso.severity not in SEVERIDADES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Severidad desconocida: {aviso.severity}. Son {', '.join(SEVERIDADES)}",
+        )
+    hasta = aviso.until
+    if hasta is not None:
+        hasta = (hasta.astimezone(UTC) if hasta.tzinfo else hasta).replace(tzinfo=None)
+    fila = m.AuthorNotice(
+        author_user_id=admin.id,
+        at=datetime.now(UTC).replace(tzinfo=None),
+        title=aviso.title.strip(),
+        detail=aviso.detail.strip(),
+        action=aviso.action.strip(),
+        severity=aviso.severity,
+        until=hasta,
+    )
+    session.add(fila)
+    await session.commit()
+    return {"id": fila.id}
+
+
+@router.get("/avisos")
+async def avisos(
+    session: AsyncSession = Depends(get_session),
+    admin: m.User = Depends(require_admin),
+) -> dict[str, Any]:
+    """Todos los avisos, vivos y retirados, para poder gestionarlos.
+
+    Los retirados siguen en la lista a propósito: es el único sitio donde
+    queda qué se dijo y cuándo, y sin eso no se puede saber si un aviso ya se
+    mandó.
+    """
+    ahora = datetime.now(UTC).replace(tzinfo=None)
+    filas = (
+        (
+            await session.execute(
+                select(m.AuthorNotice).order_by(m.AuthorNotice.at.desc()).limit(AVISOS_POR_PAGINA)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    nombres = await _nombres_de_usuario(session)
+    return {
+        "avisos": [
+            {
+                "id": f.id,
+                "at": f.at.isoformat(),
+                "author": nombres.get(f.author_user_id, f"usuario {f.author_user_id}"),
+                "title": f.title,
+                "detail": f.detail,
+                "action": f.action,
+                "severity": f.severity,
+                "until": f.until.isoformat() if f.until else None,
+                "retiredAt": f.retired_at.isoformat() if f.retired_at else None,
+                # Lo mismo que decide `_avisos_vivos` al emitir, resuelto aquí
+                # para que la pantalla no tenga que repetir la regla.
+                "vivo": f.retired_at is None and (f.until is None or f.until > ahora),
+            }
+            for f in filas
+        ],
+    }
+
+
+@router.post("/avisos/{aviso_id}/retirar", status_code=204)
+async def retirar_aviso(
+    aviso_id: int,
+    retirado: bool = Query(True),
+    session: AsyncSession = Depends(get_session),
+    admin: m.User = Depends(require_admin),
+) -> None:
+    """Deja de emitir un aviso, o lo vuelve a emitir.
+
+    NO SE BORRA NUNCA. Quien ya lo archivó tiene una fila en su buzón que
+    apunta a la clave de este aviso; si la fila de aquí desapareciera, ese
+    archivado quedaría huérfano para siempre. Retirar deja de emitirlo y
+    conserva el rastro.
+    """
+    fila = await session.get(m.AuthorNotice, aviso_id)
+    if fila is None:
+        raise HTTPException(status_code=404, detail="Ese aviso no existe")
+    fila.retired_at = datetime.now(UTC).replace(tzinfo=None) if retirado else None
+    await session.commit()

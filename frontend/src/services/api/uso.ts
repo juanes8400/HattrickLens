@@ -188,6 +188,35 @@ export interface ReportesDeFallos {
   rows: ReporteDeFallo[];
 }
 
+/** Un aviso del autor para todos los que usan la herramienta.
+ *
+ *  2026-11-03. Sale por las alertas que ya se miran, con la clave
+ *  `author.notice.{id}`, así que no hay pantalla nueva del lado del que lo
+ *  lee: lo de aquí es sólo el lado del que lo escribe. */
+export interface AvisoDelAutor {
+  id: number;
+  at: string;
+  author: string;
+  title: string;
+  detail: string;
+  action: string;
+  severity: "info" | "opportunity" | "warning" | "danger";
+  /** Nulo = hasta que se retire a mano. */
+  until: string | null;
+  retiredAt: string | null;
+  /** Si ahora mismo se está emitiendo. Lo resuelve el servidor para que la
+   *  pantalla no tenga que repetir la regla de `until` + `retiredAt`. */
+  vivo: boolean;
+}
+
+export interface AvisoNuevo {
+  title: string;
+  detail: string;
+  action?: string;
+  severity?: AvisoDelAutor["severity"];
+  until?: string | null;
+}
+
 export const apiUso = {
   usage: (dias = 0, excluirme = false) =>
     request<UsageSummary>(
@@ -222,6 +251,20 @@ export const apiUso = {
     ),
   atenderReporte: (id: number, atendido: boolean) =>
     request<void>(`/feedback/${id}/atendido?atendido=${atendido}`, {
+      method: "POST",
+    }),
+
+  /** Publica un aviso para todos. Sólo el administrador. */
+  publicarAviso: (aviso: AvisoNuevo) =>
+    request<{ id: number }>(`/avisos`, {
+      method: "POST",
+      body: JSON.stringify(aviso),
+    }),
+  /** Todos los avisos, vivos y retirados. Los retirados siguen porque son el
+   *  único sitio donde queda qué se dijo y cuándo. */
+  avisos: () => request<{ avisos: AvisoDelAutor[] }>(`/avisos`),
+  retirarAviso: (id: number, retirado: boolean) =>
+    request<void>(`/avisos/${id}/retirar?retirado=${retirado}`, {
       method: "POST",
     }),
 };

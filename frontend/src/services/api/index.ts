@@ -193,6 +193,8 @@ export type {
   TransfersHistorySyncResult,
 } from "./transferencias";
 export type {
+  AvisoDelAutor,
+  AvisoNuevo,
   Grano,
   ReporteDeFallo,
   ReportesDeFallos,
