@@ -22,6 +22,7 @@ from app.domain.engines.criterios_hattrick import (
     _umbral_de_portero,
     criterios_de,
     es_holgado,
+    liston_de,
     rareza,
 )
 
@@ -2378,6 +2379,37 @@ def test_la_defensa_del_portero_entra_desde_cinco() -> None:
     # Y la frontera del dial cae donde la deja esa entrada.
     assert not criterios_de(26, perfil(keeper=16, defending=4)).holgado
     assert criterios_de(26, perfil(keeper=16, defending=5)).holgado
+
+
+def test_el_balon_parado_no_empata_con_la_porteria() -> None:
+    """Un numero que no entra en la cuenta no puede decidir el resultado.
+
+    `Por 11 Def 9 BP 11` a los 26: el balon parado aporta CERO a la rareza
+    --11 menos su descuento de once-- y la rareza sale 20, por debajo del listón
+    de 21. Pero empataba en nivel con la Portería, y la rebaja por empate arriba
+    bajaba el listón a 20 y lo aflojaba, mientras que el mismo portero con el
+    balón parado a 0 salía ajustado.
+
+    No lo puede hacer: `_puestos` deja el balón parado SIEMPRE tercero en el
+    portero, así que no es una de «las dos primeras». Igual que no disputa
+    puesto en `rareza`, tampoco empata arriba en `liston_de`.
+
+    NO HAY MEDIDA QUE TOQUE ESTE CASO --de las treinta y seis observaciones de
+    portero, ninguna tiene la Portería empatada con el balón parado-- así que
+    esto se fija por coherencia con la forma que sí está medida, no contra una
+    respuesta de Hattrick. Si algún día se mide y sale al revés, manda la
+    medida. Lo cazó una revisión automática del PR #22.
+    """
+    con_balon = perfil(keeper=11, defending=9, set_pieces=11)
+    sin_balon = perfil(keeper=11, defending=9)
+    # El balón parado no aporta nada a la cuenta en este perfil...
+    assert rareza(con_balon) == rareza(sin_balon) == 20
+    # ...así que tampoco puede mover el listón ni el dial.
+    assert liston_de(con_balon) == liston_de(sin_balon) == 21
+    assert not criterios_de(26, con_balon).holgado
+    assert not criterios_de(26, sin_balon).holgado
+    # Y el empate que SÍ cuenta sigue contando: Portería con Defensa.
+    assert liston_de(perfil(keeper=11, defending=11)) == 20
 
 
 def test_el_balon_parado_de_16_le_afloja_solo_al_portero() -> None:

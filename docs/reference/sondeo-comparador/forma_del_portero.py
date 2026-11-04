@@ -21,6 +21,14 @@ COMO SE USA. Se ejecuta, dice la mejor consulta, se mide esa consulta en el
 panel, se anota en `MEDIDO` y se vuelve a ejecutar. Cada respuesta parte el
 conjunto; con suerte, cinco o seis respuestas lo dejan en una sola lectura.
 
+EL LISTON SE MODELA PLANO AQUI, sin las rebajas que `liston_de` aplica --la del
+empate arriba y la del cuarto criterio--. No es un descuido: de las treinta y
+seis observaciones de portero NINGUNA las dispara. Ninguna tiene la Porteria
+empatada con la Defensa, y ninguna tiene una cuarta habilidad, porque todas se
+midieron con Lateral, Anotacion y Jugadas por debajo de 5. Asi que para este
+conjunto el liston plano es exacto. Si alguna vez se mide un portero con la
+Porteria empatada con la Defensa, hay que meter la rebaja en la familia.
+
 LA LECTURA BARATA DE CADA CONSULTA: si la linea de Edad sale con un ano clavado
 --«Edad = 26»-- el dial va AJUSTADO; si sale con ventana --«Edad >= 25 y
 Edad <= 27»-- va HOLGADO. No hace falta copiar la cadena entera.

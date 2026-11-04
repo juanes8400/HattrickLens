@@ -1041,7 +1041,23 @@ def liston_de(niveles: dict[str, int], tipo: str | None = None, edad: int | None
     # Porteria como segunda y lo aflojaba --empate arriba y liston a 25--
     # cuando Hattrick le clava la edad. Medido con Jugadas 14, Porteria 13,
     # Lateral 9, Pases 8 y Defensa 5 a los 29 anos: sale ajustado.
-    elegibles = [h for h in PLANTILLAS[tipo] if h not in _corta(tipo, niveles)[0]]
+    # Y EL BALON PARADO NO CUENTA AQUI TAMPOCO, por el mismo motivo que no
+    # cuenta en `rareza`: no disputa puesto. `_puestos` lo deja SIEMPRE tercero
+    # en el portero, asi que no puede ser una de «las dos primeras» y no puede
+    # disparar la rebaja por empate arriba.
+    #
+    # Sin esto, un portero de Porteria 11, Defensa 9 y balon parado 11 a los 26
+    # salia HOLGADO: el balon parado aportaba CERO a la rareza --11 - 11-- y aun
+    # asi empataba con la Porteria, bajaba el liston de 21 a 20 y volcaba el
+    # dial, mientras que el mismo portero con el balon parado a 0 salia
+    # ajustado. Un numero que no entra en la cuenta no puede decidir el
+    # resultado. Lo cazo una revision automatica del PR #22 el 2026-11-04; no
+    # hay medida que lo toque --ninguna de las treinta y seis tiene la Porteria
+    # empatada con el balon parado-- asi que se arregla por coherencia con la
+    # forma que si esta medida, y se deja fijado abajo.
+    elegibles = [
+        h for h in PLANTILLAS[tipo] if h not in _corta(tipo, niveles)[0] and h != BALON_PARADO
+    ]
     v = sorted((max(0, niveles.get(h, 0)) for h in elegibles), reverse=True)
     orden = _puestos(niveles, tipo)
     segunda = orden[1] if len(orden) > 1 else ""
