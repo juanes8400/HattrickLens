@@ -374,6 +374,39 @@ async def test_a_un_ex_jugador_tampoco_le_sale_FILA_en_la_tabla(base) -> None:
     assert quienes == {ALBERTO}
 
 
+async def test_el_que_no_tiene_foto_no_desaparece_de_la_cuenta(base) -> None:
+    """Quien no sale en las filas tiene que salir en el NUMERO (2026-11-04).
+
+    Esta consulta deja fuera, en silencio, a quien todavia no tiene una foto de
+    sus habilidades: sin terna no hay a quien parecerse. Mientras lo unico que
+    se ensenaba era una fila por jugador, faltar no se notaba.
+
+    Pero desde el 2026-11-04 la pantalla de Valoracion SUMA y dice «de X de Y
+    jugadores». Si ese Y sale de contar las filas devueltas, una plantilla de
+    tres con uno sin foto se anuncia como una de dos, y nadie puede verlo. Lo
+    cazo una revision automatica del PR #23.
+    """
+    session, equipo = base
+    session.add(
+        m.Player(team_id=equipo.id, ht_player_id=777_000_111, first_name="Sin", last_name="Foto")
+    )
+    await session.flush()
+
+    plantilla = await precios_de_la_plantilla(session, equipo.id, AHORA)
+    # No sale como fila: sin habilidades no se le puede buscar parecido...
+    assert {f.ht_player_id for f in plantilla.jugadores} == {ALBERTO, GEMELO}
+    # ...pero la cuenta lo declara, que es lo que permite decir la verdad.
+    assert plantilla.sin_medir == 1
+
+
+async def test_con_todos_fotografiados_no_falta_nadie(base) -> None:
+    """El contraste: si no falta nadie, el numero es cero y no estorba."""
+    session, equipo = base
+    plantilla = await precios_de_la_plantilla(session, equipo.id, AHORA)
+    assert len(plantilla.jugadores) == 2
+    assert plantilla.sin_medir == 0
+
+
 async def test_sin_ventas_parecidas_la_fila_existe_y_el_precio_no(base) -> None:
     """«Las que hayan. Si no hay, no hay» --decision del usuario, 2026-10-27--.
 
@@ -420,11 +453,13 @@ async def test_los_filtros_de_hattrick_viajan_a_la_pantalla(base) -> None:
     # El Balon parado NO es criterio de un jugador de campo aunque lo tenga a 9,
     # y eso es parte de lo que la pantalla tiene que poder decir.
     assert all(c.habilidad != "set_pieces" for c in precio.criterios)
-    # El dial, con las cuentas a la vista: su rareza pasa del liston, asi que
-    # Hattrick ensancha la ventana de edad y las bandas.
-    assert precio.dial_holgado is True
-    assert (precio.rareza, precio.liston) == (32, 27)
-    assert precio.rareza >= precio.liston, "y por eso afloja"
+    # EL DIAL SIGUE DECIDIENDO, aunque sus cuentas ya no viajen a la pantalla
+    # (2026-11-04). Hasta entonces esto miraba `rareza` y `liston` en el DTO;
+    # ahora se mira donde de verdad se nota, que es la FORMA de los criterios:
+    # con el dial holgado Hattrick abre la ventana de edad en vez de clavar el
+    # anio. Es la misma afirmacion, comprobada por su efecto y no por el numero
+    # que la explicaba.
+    assert precio.edad_minima != precio.edad_maxima, "dial holgado: edad en ventana"
     # El tope de dias es cosa de los 17 anos, no de los 31.
     assert precio.tope_de_dias is None
 

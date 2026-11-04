@@ -113,6 +113,31 @@ describe("resumenDeLaValoracion", () => {
     expect(r.mediana).toBe(300);
   });
 
+  it("cuenta la plantilla ENTERA, no las filas que llegaron", () => {
+    // 2026-11-04, lo cazó una revisión automática del PR #23: el servidor deja
+    // fuera a quien todavía no tiene una foto de sus habilidades, así que
+    // contar las filas devueltas anunciaba una plantilla de 30 como una de 27
+    // y nadie podía verlo.
+    const r = resumenDeLaValoracion(
+      [jugador("Medido", 1000), jugador("Sin precio", null)],
+      3,
+    );
+    expect(r.plantilla).toBe(5);
+    expect(r.sinMedir).toBe(3);
+    // Y los que no se han podido medir NO entran en la suma, igual que los que
+    // no tienen comparables: no se sabe lo que valen.
+    expect(r.total).toBe(1000);
+  });
+
+  it("sin nadie fuera, la plantilla son los que llegaron", () => {
+    const r = resumenDeLaValoracion([
+      jugador("Uno", 1000),
+      jugador("Otro", null),
+    ]);
+    expect(r.plantilla).toBe(2);
+    expect(r.sinMedir).toBe(0);
+  });
+
   it("con la plantilla vacía no divide por cero ni inventa un total", () => {
     const r = resumenDeLaValoracion([]);
     expect(r.total).toBe(0);
