@@ -63,9 +63,7 @@ export function OrientacionDeLaCancha({
                 : "rounded px-3 py-1 text-xs text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
             }
           >
-            {arriba
-              ? `↑ ${tx("Portero arriba")}`
-              : `↓ ${tx("Portero abajo")}`}
+            {arriba ? `↑ ${tx("Portero arriba")}` : `↓ ${tx("Portero abajo")}`}
           </button>
         ))}
       </div>

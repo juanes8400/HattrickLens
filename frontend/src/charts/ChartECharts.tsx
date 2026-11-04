@@ -270,7 +270,8 @@ function Lienzo({
     if (!g || !onEvents) return undefined;
     for (const [nombre, mano] of Object.entries(onEvents)) g.on(nombre, mano);
     return () => {
-      for (const [nombre, mano] of Object.entries(onEvents)) g.off(nombre, mano);
+      for (const [nombre, mano] of Object.entries(onEvents))
+        g.off(nombre, mano);
     };
   }, [onEvents]);
 

@@ -73,12 +73,31 @@ function metricTone(label: string): string {
   // Los movimientos de plantilla, ahora que llegan con su etiqueta de verdad
   // en vez de como «Cambio»: entra dinero, sale un jugador, o se refuerza el
   // de enfrente. Tres cosas distintas y tres colores distintos.
-  if (["venta", "alta", "comision de club anterior", "sale", "joined", "previous club commission"].includes(key)) {
+  if (
+    [
+      "venta",
+      "alta",
+      "comision de club anterior",
+      "sale",
+      "joined",
+      "previous club commission",
+    ].includes(key)
+  ) {
     return "text-[var(--positive)]";
   }
   if (key === "baja" || key === "departure") return "text-[var(--muted)]";
-  if (key === "fichaje rival" || key === "opponent signing") return "text-[var(--warning)]";
-  if (["experiencia", "fidelidad", "liderazgo", "experience", "loyalty", "leadership"].includes(key)) {
+  if (key === "fichaje rival" || key === "opponent signing")
+    return "text-[var(--warning)]";
+  if (
+    [
+      "experiencia",
+      "fidelidad",
+      "liderazgo",
+      "experience",
+      "loyalty",
+      "leadership",
+    ].includes(key)
+  ) {
     return "text-[var(--positive)]";
   }
   if (key === "lesión" || key === "injury") return "text-[var(--danger)]";
@@ -108,10 +127,18 @@ function classify(
   }
 
   const lower = summary.toLowerCase();
-  if (lower.includes("subio") || lower.includes("subió") || lower.includes("went up")) {
+  if (
+    lower.includes("subio") ||
+    lower.includes("subió") ||
+    lower.includes("went up")
+  ) {
     return { kind: "Subida", tone: "text-[var(--positive)]" };
   }
-  if (lower.includes("bajo") || lower.includes("bajó") || lower.includes("went down")) {
+  if (
+    lower.includes("bajo") ||
+    lower.includes("bajó") ||
+    lower.includes("went down")
+  ) {
     return { kind: "Bajada", tone: "text-[var(--danger)]" };
   }
   if (lower.includes("tsi")) {
@@ -135,13 +162,21 @@ function classify(
   if (lower.includes("liderazgo")) {
     return { kind: "Liderazgo", tone: "text-[var(--positive)]" };
   }
-  if (lower.includes("lesion") || lower.includes("lesión") || lower.includes("injur")) {
+  if (
+    lower.includes("lesion") ||
+    lower.includes("lesión") ||
+    lower.includes("injur")
+  ) {
     return { kind: "Lesión", tone: "text-[var(--danger)]" };
   }
   if (lower.includes("mercado") || lower.includes("market")) {
     return { kind: "Mercado", tone: "text-[var(--warning)]" };
   }
-  if (lower.includes("se unio") || lower.includes("se unió") || lower.includes("joined")) {
+  if (
+    lower.includes("se unio") ||
+    lower.includes("se unió") ||
+    lower.includes("joined")
+  ) {
     return { kind: "Alta", tone: "text-[var(--positive)]" };
   }
   return { kind: "Cambio", tone: "text-[var(--muted)]" };
@@ -344,7 +379,9 @@ export function parseNumericDelta(detail: string): NumericDelta | null {
     };
   }
 
-  m = detail.match(/^(?:lesión de nivel|injury from level) (\d+) (?:a|to) (\d+)\s*$/i);
+  m = detail.match(
+    /^(?:lesión de nivel|injury from level) (\d+) (?:a|to) (\d+)\s*$/i,
+  );
   if (m) {
     const before = toNum(m[1] ?? "0");
     const after = toNum(m[2] ?? "0");

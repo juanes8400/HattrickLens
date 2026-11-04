@@ -9,12 +9,7 @@ import { CountryFlag } from "./CountryFlag";
 import { Panel } from "./Panels";
 import { nombreDePais } from "../utils/countryCodes";
 import { cifra } from "../hooks/useFormat";
-import {
-  leyendaDe,
-  pasoDeColor,
-  tono,
-  valorDe,
-} from "../utils/mapaDeUso";
+import { leyendaDe, pasoDeColor, tono, valorDe } from "../utils/mapaDeUso";
 import type { Magnitud, UsoPorPais } from "../utils/mapaDeUso";
 import { tx } from "../i18n/tx";
 
@@ -97,7 +92,9 @@ export function MapaDeUso({
       meta={
         // Con un solo país «1 países» canta, y el sistema de textos traduce
         // frases enteras, no plurales.
-        situados.length === 1 ? tx("1 país") : tx("{{v0}} países", { v0: situados.length })
+        situados.length === 1
+          ? tx("1 país")
+          : tx("{{v0}} países", { v0: situados.length })
       }
       // El selector va en la cabecera y no sobre el dibujo: encima del mapa
       // taparía un país, y aquí se lee antes de mirar, que es el orden en que
@@ -162,7 +159,9 @@ export function MapaDeUso({
                   cx={centro[0]}
                   cy={centro[1]}
                   r={encima === p.code ? 6 : 4}
-                  fill={tono(Math.max(2, pasoDeColor(valorDe(p, magnitud), maximo)))}
+                  fill={tono(
+                    Math.max(2, pasoDeColor(valorDe(p, magnitud), maximo)),
+                  )}
                   stroke="var(--surface)"
                   strokeWidth={1.5}
                   onMouseEnter={() => setEncima(p.code)}

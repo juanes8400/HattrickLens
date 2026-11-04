@@ -11,13 +11,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import {
-  TONOS,
-  leyendaDe,
-  pasoDeColor,
-  tono,
-  valorDe,
-} from "./mapaDeUso";
+import { TONOS, leyendaDe, pasoDeColor, tono, valorDe } from "./mapaDeUso";
 import type { UsoPorPais } from "./mapaDeUso";
 
 function pais(code: string, users: number, clicks: number): UsoPorPais {
@@ -155,7 +149,9 @@ describe("la leyenda", () => {
   });
 
   it("nunca tiene más renglones que tonos", () => {
-    const muchos = Array.from({ length: 200 }, (_, i) => pais(`p${i}`, i + 1, 0));
+    const muchos = Array.from({ length: 200 }, (_, i) =>
+      pais(`p${i}`, i + 1, 0),
+    );
     expect(leyendaDe(muchos, "users", 200).length).toBeLessThanOrEqual(
       TONOS.length,
     );

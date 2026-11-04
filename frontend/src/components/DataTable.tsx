@@ -394,9 +394,7 @@ export function DataTable<T>({
               </tr>
             )}
             {filaFijada != null && (
-              <tr
-                className="border-t border-[var(--border)] bg-[var(--accent-soft)] ring-1 ring-inset ring-[var(--accent)]"
-              >
+              <tr className="border-t border-[var(--border)] bg-[var(--accent-soft)] ring-1 ring-inset ring-[var(--accent)]">
                 {visible.map((c) => (
                   <td
                     key={c.key}

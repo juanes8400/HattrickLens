@@ -895,16 +895,15 @@ function forecastColumns(): Column<LevelForecastMilestone>[] {
  *  pinchar una fila de la plantilla, como siempre, y en la pestaña «Mejoras»,
  *  donde se elige al jugador en un desplegable. Lo que se pintaba sólo al
  *  pinchar no lo encontraba nadie que no supiera que había que pinchar. */
-function PanelDeSubidasConfirmadas({
-  datos,
-}: {
-  datos: PlayerTrainingLevels;
-}) {
+function PanelDeSubidasConfirmadas({ datos }: { datos: PlayerTrainingLevels }) {
   return (
     <>
       <Panel
         title={t("entrenamiento.subidasConfirmadas", "Subidas confirmadas")}
-        meta={t("entrenamiento.confirmadasHattrick", "confirmadas por Hattrick")}
+        meta={t(
+          "entrenamiento.confirmadasHattrick",
+          "confirmadas por Hattrick",
+        )}
       >
         {datos.confirmed.length === 0 && (
           <Empty>
@@ -939,9 +938,13 @@ function PanelDePrevision({ datos }: { datos: PlayerTrainingLevels }) {
   return (
     <ProjectionPanel
       title={t("entrenamiento.previsionTitulo", "Previsión de subidas")}
-      meta={t("entrenamiento.previsionMeta", "hasta nivel 20 · {{n}} nivel(es)", {
-        n: datos.forecast.length,
-      })}
+      meta={t(
+        "entrenamiento.previsionMeta",
+        "hasta nivel 20 · {{n}} nivel(es)",
+        {
+          n: datos.forecast.length,
+        },
+      )}
     >
       <DataTable
         emptyMessage={t(
@@ -1437,7 +1440,10 @@ export function TrainingPage() {
                   >
                     {candidatosAMejoras.length === 0 && (
                       <option value="">
-                        {t("posiciones.vacia", "Sin jugadores en la plantilla.")}
+                        {t(
+                          "posiciones.vacia",
+                          "Sin jugadores en la plantilla.",
+                        )}
                       </option>
                     )}
                     {candidatosAMejoras

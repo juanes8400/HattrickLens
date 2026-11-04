@@ -35,7 +35,10 @@ const ROLE_TABS: RoleTab[] = [
         key: "central_defender_towards_wing",
         label: tx("Defensa Central hacia Lateral"),
       },
-      { key: "central_defender_offensive", label: tx("Defensa Central Ofensivo") },
+      {
+        key: "central_defender_offensive",
+        label: tx("Defensa Central Ofensivo"),
+      },
     ],
   },
   {
@@ -43,7 +46,10 @@ const ROLE_TABS: RoleTab[] = [
     label: tx("Defensa Lateral"),
     orders: [
       { key: "wingback", label: tx("Defensa Lateral") },
-      { key: "wingback_towards_middle", label: tx("Defensa Lateral hacia Medio") },
+      {
+        key: "wingback_towards_middle",
+        label: tx("Defensa Lateral hacia Medio"),
+      },
       { key: "wingback_offensive", label: tx("Defensa Lateral Ofensivo") },
       { key: "wingback_defensive", label: tx("Defensa Lateral Defensivo") },
     ],
