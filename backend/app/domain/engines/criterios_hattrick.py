@@ -885,6 +885,19 @@ def rareza(niveles: dict[str, int], tipo: str | None = None) -> int:
     no le quita el puesto a nadie, y suma aparte lo que le pasa de su propio
     descuento más el peaje del tercer puesto. Ver
     `DESCUENTO_DEL_BALON_PARADO`, que dice qué dos medidas lo obligan.
+
+    Y LA DEFENSA DEL PORTERO ENTRA DESDE CINCO, que es el mismo umbral de
+    entrada que gobierna todo lo demás --`ENTRADA_TERCERO`--. Por debajo no
+    suma nada, aunque vaya segunda. Medido el 2026-11-04 con seis consultas en
+    el panel, elegidas para partir en dos el conjunto de lecturas que cuadraban
+    con lo medido; ver `LA_TANDA_DEL_PANEL` en las pruebas y
+    `forma_del_portero.py` en el sondeo.
+
+    NO SE SABE SI ES DE LA DEFENSA O DEL SEGUNDO PUESTO. En el portero el
+    segundo puesto es SIEMPRE la Defensa, así que las dos lecturas son la misma
+    aquí, y en los jugadores de campo no hay ninguna medida con la segunda por
+    debajo de cinco. Se escribe como regla del portero porque es lo único que
+    la medida sostiene.
     """
     tipo = tipo or _tipo(niveles)
     # LO QUE NO PUEDE SER CRITERIO TAMPOCO CUENTA PARA LA RAREZA. Medido con un
@@ -906,6 +919,10 @@ def rareza(niveles: dict[str, int], tipo: str | None = None) -> int:
             # qué puesto habría ocupado.
             aparte = max(0, nivel - DESCUENTO_DEL_BALON_PARADO - DESCUENTO_DESDE_LA_TERCERA)
             continue
+        if tipo == "keeper" and h == "defending" and nivel < ENTRADA_TERCERO:
+            # LA DEFENSA DEL PORTERO ENTRA DESDE 5, igual que todo lo demás.
+            # Medido el 2026-11-04 en el panel; ver `LA_TANDA_DEL_PANEL`.
+            nivel = 0
         pesados.append(nivel)
     v = sorted(pesados, reverse=True)
     v += [0] * (HABILIDADES_QUE_CUENTAN - len(v))

@@ -2,14 +2,49 @@ EL BALON PARADO DEL PORTERO: CERRADO EL 2026-11-04
 ==================================================
 2026-10-26, cerrado el 2026-11-04
 
-CERRADO. Las veinte observaciones de portero salen todas. La lectura que las da
-esta en `DESCUENTO_DEL_BALON_PARADO`, en el motor, y fijada en
-`EL_RINCON_DE_POR_14` (pruebas) y `DIALES_DEL_PORTERO` (banco). En dos frases:
+CERRADO, Y ESTA VEZ POR SU FORMA. Las treinta y seis observaciones de portero
+salen todas, y salen con UNA SOLA lectura de las 595 545 candidatas:
 
-  El balon parado del portero NO DISPUTA PUESTO: no compite con la Porteria ni
-  con la Defensa por los dos primeros. Suma aparte lo que le pasa de once --su
-  descuento propio de cinco mas el peaje de seis del tercer puesto-- y de 16
-  arriba afloja el solo.
+  rareza = Porteria + Defensa (desde 5) + max(0, balon parado - 11)
+  afloja si rareza >= 21, o la Porteria llega a 17, o el balon parado a 16
+
+Tres piezas, y cada una con lo que la obliga:
+
+  · EL BALON PARADO NO DISPUTA PUESTO. No compite con la Porteria ni con la
+    Defensa por los dos primeros: suma aparte lo que le pasa de once --su
+    descuento propio de cinco mas el peaje de seis del tercer puesto--.
+  · LA DEFENSA ENTRA DESDE CINCO, el mismo umbral que gobierna todo lo demas
+    (`ENTRADA_TERCERO`). Por debajo no suma nada aunque vaya segunda. Esta es
+    la pieza del 2026-11-04 por la tarde.
+  · DE 16 ARRIBA EL BALON PARADO AFLOJA EL SOLO, en la misma frontera que la
+    pantalla ya tenia medida en `BP_BANDA_MAXIMA`.
+
+COMO SE CERRO LA FORMA, que es lo que no se habia hecho nunca. Por la manana se
+arreglo el rincon `Por 14` y las treinta observaciones de entonces salian...
+pero salian con 43 lecturas distintas, porque las medidas de portero caen casi
+todas en una diagonal, y en una diagonal `Por + Def >= 21` y
+`Por + (Def-3) >= 18` son la misma recta corrida. Por la tarde se enumero la
+familia entera de lecturas, se filtro por lo medido, y se pidieron las seis
+consultas que partian en dos el conjunto que seguia vivo:
+
+  94 lecturas, 43 clases  ->  Por 15 Def 2 BP 15  AJUSTADO  ->  22 clases
+                          ->  Por 16 Def 0 BP 15  AJUSTADO  ->  10
+                          ->  Por  9 Def 8 BP 15  HOLGADO   ->   6
+                          ->  Por 14 Def 6 BP 12  HOLGADO   ->   3
+                          ->  Por 14 Def 3 BP 15  AJUSTADO  ->   2
+                          ->  Por 14 Def 4 BP 14  AJUSTADO  ->   1
+
+La primera ya destapo que el arreglo de la manana estaba incompleto: el motor la
+daba por HOLGADA --15 + 2 + 4 = 21 contra el liston de 21-- y Hattrick la da
+AJUSTADA. Lo que faltaba era la entrada de cinco de la Defensa.
+
+DE CONTROL: el modelo viejo, el que dejaba al balon parado disputar el segundo
+puesto, estaba DENTRO de la familia enumerada y no sobrevivio a lo medido. Un
+arnes que no elimina lo que ya sabemos que falla no sirve para elegir entre lo
+que queda.
+
+El guion esta en `forma_del_portero.py`, con las observaciones y de donde sale
+cada una, y se vuelve a ejecutar si aparece una medida nueva.
 
 LO QUE LO OBLIGO es una pareja de medidas que estaba en este fichero desde el
 2026-10-26 sin que nadie la leyera asi:
@@ -33,21 +68,26 @@ numero dentro de ella. Un barrido a lo bruto solo descarta lo que hay dentro del
 espacio que barre; escribir el resultado como «ninguna lectura que encaje» --en
 el titulo de este fichero, nueve dias-- fue mio y fue de mas.
 
-LO QUE SIGUE SIN SEPARAR, dos consultas si algun dia se quieren:
+RESUELTO EL DESCUENTO PROPIO DEL BALON PARADO: es 5. Lo contesto
+`Por 14, Def 6, BP 12`, que salio HOLGADA; con 6 habria salido ajustada.
 
-  · El descuento propio del balon parado, 5 o 6. Las veinte salen con los dos.
-    Lo separa  Por 14, Def 6, BP 12  ->  con 5 HOLGADO, con 6 AJUSTADO.
+LO QUE SIGUE SIN SEPARAR, y es poco:
+
+  · Si la entrada de cinco es de la DEFENSA o del SEGUNDO PUESTO. En el portero
+    el segundo es siempre la Defensa, asi que aqui las dos lecturas coinciden,
+    y en los jugadores de campo no hay ninguna medida con la segunda por debajo
+    de cinco. Se escribe como regla del portero porque es lo unico que la
+    medida sostiene. La separaria un jugador de campo con la primera alta y la
+    segunda en 4.
   · El 16 que afloja solo, contra «de 16 arriba cuenta entero y si disputa
-    puesto». Las veinte salen con las dos.
-    Lo separa  Por 2, Def 0, BP 16  ->  con la primera HOLGADO, con la segunda
+    puesto». Las treinta y seis salen con las dos, porque esa variante no entro
+    en la familia enumerada.
+    La separa  Por 2, Def 0, BP 16  ->  con la primera HOLGADO, con la segunda
     AJUSTADO.
 
-Ninguna de las dos mueve ninguna de las veinte, asi que el motor no espera por
-ellas.
-
-Y UNA PREDICCION, justamente la consulta que este fichero pedia como «la mas
-barata de todas»:  Por 14, Def 5, BP 13  ->  19 + 2 = 21 contra un liston de
-21, HOLGADO. Si saliera AJUSTADA, el descuento propio es 6 y no 5.
+Y UNA PREDICCION, la consulta que este fichero pedia como «la mas barata de
+todas»:  Por 14, Def 5, BP 13  ->  14 + 5 + 2 = 21 contra el liston de 21,
+HOLGADO.
 
 DE PASO, EL UNICO FALLO DE LA PRUEBA A CIEGAS ERA UNO DE ESTOS SIETE: C09, que
 es `Por 14 Def 2 BP 13` a los 26. El motor de hoy lo reproduce clavado,
@@ -214,5 +254,13 @@ DE PASO: NO HAY CASILLA «MISMA ESPECIALIDAD»
 especialidad». Quedaba como el ultimo cabo sin medir del sondeo --y sin medir
 por una instruccion mia, no por falta de ocasion--. No existe: el comparador no
 filtra por especialidad, asi que la especialidad del vendido no entra en el
-sello. Donde si cuenta es en NUESTRO desempate, como ultimo criterio de orden
+sello.
+
+  [CORREGIDO EL 2026-11-04. LA CASILLA SI EXISTE: el panel «Editar habilidades»
+  tiene un «Misma especialidad» con su checkbox, visto al conducirlo. Lo que
+  sigue siendo cierto es la CONCLUSION, y por otro motivo: la casilla va
+  desmarcada por defecto y, desmarcada, la especialidad no aparece en los
+  criterios --las treinta y seis consultas de portero lo confirman, ninguna la
+  saco--. Lo que NO se ha medido es que pasa con la casilla marcada; no se
+  toco. Si alguien la marca alguna vez, es otra observacion.] Donde si cuenta es en NUESTRO desempate, como ultimo criterio de orden
 entre comparables con el mismo peso y la misma fecha.

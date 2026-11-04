@@ -2289,21 +2289,95 @@ def test_el_rincon_de_por_14(defensa: int, balon_parado: int, holgado: bool) -> 
 def test_el_balon_parado_no_le_quita_el_puesto_a_la_defensa() -> None:
     """La FORMA de la cuenta, no sólo el sí o el no del dial.
 
-    Es lo que separa la lectura buena de la vieja, y lo que volvería a cazar el
-    fallo si alguien devuelve el balón parado a la cola de puestos: subir la
-    Defensa de 4 a 6 tiene que mover la rareza dos puntos, porque la Defensa
-    está entera en las dos. Con el balón parado disputándole el puesto --valía
-    10 con BP 13-- la Defensa quedaba tercera, y por debajo de 6 no sumaba
-    nada, así que las dos daban 24 y ningún listón podía separarlas.
+    Es lo que volvería a cazar el fallo si alguien devuelve el balón parado a
+    la cola de puestos. El contraste tiene que hacerse ARRIBA del umbral de
+    entrada de la Defensa, porque por debajo de 5 la Defensa no suma y el
+    contraste no distinguiría una cosa de la otra: con el balón parado en 13,
+    pasar la Defensa de 5 a 6 tiene que mover la rareza UN punto, porque las
+    dos están enteras en la cuenta. Con el balón parado disputándole el puesto
+    --valía 10 con BP 13-- la Defensa caía al tercer puesto, donde por debajo
+    de 6 no suma nada, así que las dos daban lo mismo y ningún listón podía
+    separarlas.
     """
-    con_cuatro = perfil(keeper=14, defending=4, set_pieces=13)
-    con_seis = perfil(keeper=14, defending=6, set_pieces=13)
-    assert rareza(con_cuatro) == 20
-    assert rareza(con_seis) == 22
-    # Y el balón parado aporta lo que le pasa de once --su descuento de cinco
-    # más el peaje del tercer puesto-- sin tocar lo que había debajo.
+    assert rareza(perfil(keeper=14, defending=5, set_pieces=13)) == 21
+    assert rareza(perfil(keeper=14, defending=6, set_pieces=13)) == 22
+    # Y LA ENTRADA DE CINCO, que es la pieza del 2026-11-04: con la Defensa en
+    # 4 no suma nada, así que caen seis puntos de golpe y no uno.
+    assert rareza(perfil(keeper=14, defending=4, set_pieces=13)) == 16
+    # El balón parado aporta lo que le pasa de once --su descuento propio de
+    # cinco más el peaje de seis del tercer puesto-- sin tocar lo de debajo.
     assert rareza(perfil(keeper=14, defending=6)) == 20
     assert rareza(perfil(keeper=14, defending=6, set_pieces=11)) == 20
+    assert rareza(perfil(keeper=14, defending=6, set_pieces=12)) == 21
+
+
+#: LA TANDA DEL PANEL (2026-11-04), seis consultas que cierran la FORMA del
+#: dial del portero.
+#:
+#: POR QUE HICIERON FALTA. El 2026-11-04 por la mañana se cerró el rincón
+#: `Por 14`: las treinta observaciones de portero salían todas. Pero salían con
+#: MÁS DE UNA lectura. Las medidas de portero caen casi todas en una diagonal
+#: --Portería alta con Defensa baja, o al revés-- y en una diagonal no se
+#: distingue `Por + Def >= 21` de `Por + (Def − 3) >= 18`, que son la misma
+#: recta corrida. El rincón estaba fijado por sus bordes, no por su forma.
+#:
+#: COMO SE ELIGIERON. `forma_del_portero.py` enumera 595 545 lecturas de una
+#: familia --listón, descuento y umbral de entrada de la Defensa, descuento y
+#: umbral de entrada del balón parado, desde dónde afloja solo, y si disputa
+#: puesto--, se queda con las que reproducen lo medido y busca el perfil cuya
+#: respuesta parte ese conjunto en dos mitades. Cada respuesta lo partió:
+#:
+#:   94 lecturas / 43 clases  ->  Por 15 Def 2 BP 15  AJUSTADO  ->  22 clases
+#:                            ->  Por 16 Def 0 BP 15  AJUSTADO  ->  10
+#:                            ->  Por  9 Def 8 BP 15  HOLGADO   ->   6
+#:                            ->  Por 14 Def 6 BP 12  HOLGADO   ->   3
+#:                            ->  Por 14 Def 3 BP 15  AJUSTADO  ->   2
+#:                            ->  Por 14 Def 4 BP 14  AJUSTADO  ->   1
+#:
+#: Y DE CONTROL: el modelo viejo --el balón parado disputando el segundo
+#: puesto-- estaba dentro de la familia, y de las 94 que cuadraban con lo
+#: medido no era NINGUNA. Un arnés que no elimina lo que sabemos que falla no
+#: sirve para elegir entre lo que queda.
+#:
+#: LO QUE LA PRIMERA DESTAPÓ. `Por 15 Def 2 BP 15` salió AJUSTADA y el motor de
+#: esa mañana la daba por holgada --15 + 2 + 4 = 21 contra un listón de 21--.
+#: O sea que el arreglo de la mañana estaba incompleto, y lo que faltaba es que
+#: LA DEFENSA DEL PORTERO NO SUMA POR DEBAJO DE 5, el mismo umbral de entrada
+#: que gobierna todo lo demás. Con eso, la cuenta es `Portería + Defensa (desde
+#: 5) + max(0, balón parado − 11)` contra un listón de 21.
+#: (porteria, defensa, balón parado, si Hattrick aflojó)
+LA_TANDA_DEL_PANEL: list[tuple[int, int, int, bool]] = [
+    (15, 2, 15, False),
+    (16, 0, 15, False),
+    (9, 8, 15, True),
+    (14, 6, 12, True),
+    (14, 3, 15, False),
+    (14, 4, 14, False),
+]
+
+
+@pytest.mark.parametrize("porteria,defensa,balon_parado,holgado", LA_TANDA_DEL_PANEL)
+def test_la_tanda_del_panel(
+    porteria: int, defensa: int, balon_parado: int, holgado: bool
+) -> None:
+    niveles = perfil(keeper=porteria, defending=defensa, set_pieces=balon_parado)
+    assert criterios_de(26, niveles).holgado is holgado
+
+
+def test_la_defensa_del_portero_entra_desde_cinco() -> None:
+    """La pieza que faltaba, en la frontera y a los dos lados.
+
+    Con Portería 16 y el balón parado a cero, la Defensa es lo único que puede
+    llevar la cuenta al listón de 21, y hacen falta cinco. Si contara desde 4
+    --o desde 0, como contaba hasta el 2026-11-04-- la de 4 ya llegaría a 20 y
+    la de 2 a 18, y `Por 15 Def 2 BP 15` habría aflojado, que es justo lo que
+    el panel desmintió.
+    """
+    assert rareza(perfil(keeper=16, defending=4)) == 16
+    assert rareza(perfil(keeper=16, defending=5)) == 21
+    # Y la frontera del dial cae donde la deja esa entrada.
+    assert not criterios_de(26, perfil(keeper=16, defending=4)).holgado
+    assert criterios_de(26, perfil(keeper=16, defending=5)).holgado
 
 
 def test_el_balon_parado_de_16_le_afloja_solo_al_portero() -> None:

@@ -351,6 +351,16 @@ DIALES_DEL_PORTERO: list[tuple[str, int, dict[str, int], str]] = [
     ("Por14 Def2 BP14", 26, _portero(14, 2, 14), "ajustado"),
     ("Por14 Def2 BP15", 26, _portero(14, 2, 15), "ajustado"),
     ("Por14 Def4 BP13", 26, _portero(14, 4, 13), "ajustado"),
+    # LA TANDA DEL PANEL, 2026-11-04. Seis consultas elegidas por
+    # `forma_del_portero.py`: de las 595 545 lecturas candidatas, 94 cuadraban
+    # con lo medido y estas seis respuestas las dejaron en UNA. Cada una se
+    # eligio para partir en dos el conjunto que seguia vivo.
+    ("Por15 Def2 BP15: la Defensa de 2 no suma", 26, _portero(15, 2, 15), "ajustado"),
+    ("Por16 Def0 BP15", 26, _portero(16, 0, 15), "ajustado"),
+    ("Por9 Def8 BP15: con la Defensa dentro, afloja", 26, _portero(9, 8, 15), "holgado"),
+    ("Por14 Def6 BP12: el descuento del BP es 5 y no 6", 26, _portero(14, 6, 12), "holgado"),
+    ("Por14 Def3 BP15", 26, _portero(14, 3, 15), "ajustado"),
+    ("Por14 Def4 BP14: la Defensa de 4 tampoco suma", 26, _portero(14, 4, 14), "ajustado"),
 ]
 
 #: VACIO desde el 2026-11-04. Aqui estuvieron los siete del rincon `Por 14`,
