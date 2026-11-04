@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  anchoDeKernel,
   bandBetween,
   histogramaDeErrorOption,
   serieDePuntosOption,
@@ -185,49 +186,84 @@ describe("las gráficas del comparador", () => {
   });
 });
 
-/** El histograma del error de la fórmula de entrenamiento (2026-11-01). Lo
- *  que se comprueba es lo que lo hace valer algo: que está centrado en el
- *  cero y que cada subida cae en su cubeta. */
+/** El reparto del error de la fórmula de entrenamiento (2026-11-01; sin
+ *  redondear, con kernel, 2026-11-03). Lo que se comprueba es lo que lo hace
+ *  valer algo: que está centrado en el cero, que cada subida aparece en su
+ *  decimal exacto y que el área bajo la curva son las subidas que hay. */
 describe("histogramaDeErrorOption", () => {
-  const eje = (o: Record<string, unknown>) =>
-    (o.xAxis as { data: string[] }).data;
-  const cuenta = (o: Record<string, unknown>) =>
-    (o.series as { data: number[] }[])[0]!.data;
+  const curva = (o: Record<string, unknown>) =>
+    (o.series as { data: number[][] }[])[0]!.data;
+  const marcas = (o: Record<string, unknown>) =>
+    (o.series as { data: number[][] }[])[1]!.data;
+  const eje = (o: Record<string, unknown>) => o.xAxis as { min: number; max: number };
+  const opcion = (errores: number[]) =>
+    histogramaDeErrorOption(errores) as unknown as Record<string, unknown>;
 
   it("está centrado en el cero y es simétrico", () => {
-    const o = histogramaDeErrorOption([-2, 1]) as unknown as Record<
-      string,
-      unknown
-    >;
-    expect(eje(o)).toEqual(["-2", "-1", "0", "+1", "+2"]);
-    // El cero en medio: si no, el histograma engaña sobre de qué lado cae el
+    const o = opcion([-2, 1]);
+    expect(eje(o).min).toBe(-eje(o).max);
+    // El cero en medio: si no, el reparto engaña sobre de qué lado cae el
     // montón.
-    expect(eje(o)[Math.floor(eje(o).length / 2)]).toBe("0");
+    const xs = curva(o).map((p) => p[0]!);
+    expect(xs[0]).toBe(eje(o).min);
+    expect(xs[xs.length - 1]).toBe(eje(o).max);
   });
 
-  it("cada subida cae en la cubeta de su semana", () => {
-    const o = histogramaDeErrorOption([
+  it("cada subida se marca en su decimal, sin redondear", () => {
+    // Éste es el fallo que había: con `Math.round` por cubetas, -1,2 y -0,9
+    // caían juntas en la de -1 y -0,3 se iba con 0,1 y 0,4 a la del cero.
+    const o = opcion([-1.2, -0.9, 0.1, 0.4, -0.3, 1.1]);
+    expect(marcas(o).map((m) => m[0])).toEqual([
       -1.2, -0.9, 0.1, 0.4, -0.3, 1.1,
-    ]) as unknown as Record<string, unknown>;
-    // -1,2 y -0,9 redondean a -1; 0,1, 0,4 y -0,3 al 0; 1,1 al +1.
-    expect(eje(o)).toEqual(["-1", "0", "+1"]);
-    expect(cuenta(o)).toEqual([2, 3, 1]);
+    ]);
+    // Y todas en la línea del cero, que es donde se leen contra la curva.
+    expect(marcas(o).every((m) => m[1] === 0)).toBe(true);
   });
 
-  it("con una sola subida clavada sigue habiendo gráfica", () => {
-    const o = histogramaDeErrorOption([0]) as unknown as Record<
-      string,
-      unknown
-    >;
-    expect(eje(o)).toEqual(["-1", "0", "+1"]);
-    expect(cuenta(o)).toEqual([0, 1, 0]);
+  it("el área bajo la curva son las subidas que hay", () => {
+    // Lo que hace legible el eje: si el área no fuera el número de subidas,
+    // «subidas por semana» sería una etiqueta inventada.
+    const errores = [-1.2, -0.9, 0.1, 0.4, -0.3, 1.1];
+    const o = opcion(errores);
+    const puntos = curva(o);
+    let area = 0;
+    for (let i = 1; i < puntos.length; i += 1) {
+      const [x0, y0] = puntos[i - 1]! as [number, number];
+      const [x1, y1] = puntos[i]! as [number, number];
+      area += ((y0 + y1) / 2) * (x1 - x0);
+    }
+    expect(area).toBeCloseTo(errores.length, 1);
   });
 
-  it("el eje de subidas no se parte en medias subidas", () => {
-    const o = histogramaDeErrorOption([0, 1]) as unknown as Record<
-      string,
-      unknown
-    >;
-    expect((o.yAxis as { minInterval: number }).minInterval).toBe(1);
+  it("dos errores que no se parecen no acaban en el mismo sitio", () => {
+    // -1,4 y -0,6 redondeaban los dos a -1 y salían en la misma barra.
+    const o = opcion([-1.4, -0.6]);
+    const ms = marcas(o).map((m) => m[0]);
+    expect(ms).toEqual([-1.4, -0.6]);
+    expect(ms[0]).not.toBe(ms[1]);
+  });
+
+  it("con una sola subida clavada sigue habiendo curva", () => {
+    const o = opcion([0]);
+    expect(marcas(o)).toEqual([[0, 0]]);
+    // El eje no se encoge alrededor de un único punto: ±1 semana como
+    // mínimo, o un error diminuto parecería enorme.
+    expect(eje(o).max).toBeGreaterThanOrEqual(1);
+    expect(curva(o).some((pt) => pt[1]! > 0)).toBe(true);
+  });
+
+  it("sin ninguna subida no revienta", () => {
+    const o = opcion([]);
+    expect(marcas(o)).toEqual([]);
+    expect(curva(o).every((pt) => pt[1] === 0)).toBe(true);
+  });
+
+  it("el ancho de campana nunca baja del suelo", () => {
+    // Con una sola observación no hay dispersión de la que deducirlo, y con
+    // muchas idénticas tampoco: en los dos casos manda el suelo.
+    expect(anchoDeKernel([0.3])).toBeCloseTo(0.2, 6);
+    expect(anchoDeKernel([0.3, 0.3, 0.3])).toBeCloseTo(0.2, 6);
+    // Y con dispersión de verdad, lo supera.
+    expect(anchoDeKernel([-3, -1, 0, 1, 3])).toBeGreaterThan(0.2);
   });
 });
