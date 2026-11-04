@@ -644,7 +644,20 @@ def parse_transfersearch(xml: bytes) -> dict[str, Any]:
 
 @register("currentbids")
 def parse_currentbids(xml: bytes) -> dict[str, Any]:
-    """currentbids.xml, jugadores propios ACTUALMENTE en el mercado.
+    """currentbids.xml, las PUJAS en las que este equipo anda metido.
+
+    NO es el censo de tus transferibles, aunque se le parezca. CHPP lo define
+    como «el equipo cuyas pujas se muestran», y trae de todo mezclado: tus
+    propios jugadores en venta Y los ajenos por los que estás pujando.
+    Comprobado en vivo el 2026-11-03 con el dueño: de nueve entradas, ocho
+    eran suyas y una era un jugador de otro equipo por el que pujaba.
+
+    El docstring decía antes «jugadores propios ACTUALMENTE en el mercado», y
+    esa frase hizo sospechar de un fallo que no existe: quien decide si un
+    jugador está en venta es `players.xml` (`TransferListed`), y
+    `_persist_currentbids` sólo recorre la plantilla propia, así que un ajeno
+    no puede colarse como intento de venta. De este fichero se aprovecha sólo
+    lo que el otro no trae: el plazo de cierre y la puja más alta.
 
     HL-161: CHPP no da un historial de cuántas veces se ha listado un
     jugador (solo esta foto del momento), así que `listing_count` se

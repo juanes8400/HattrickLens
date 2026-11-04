@@ -619,6 +619,46 @@ class TransferenciasMixin(BaseDeSync):
             uow, team_id, en_venta_ahora
         )
 
+        result.snapshots_written += self._anotar_reventas_en_el_mercado(roster, listed_now)
+
+    def _anotar_reventas_en_el_mercado(
+        self,
+        roster: list[Any],
+        listed_now: dict[int, dict[str, Any]],
+    ) -> int:
+        """Un ex-jugador nuestro al que estamos pujando es una reventa con fecha.
+
+        2026-11-03, pedido por el usuario. Arriba, este mismo fichero se usa
+        sólo para enriquecer NUESTROS intentos de venta, y un ajeno se
+        descarta con `sigue_siendo_nuestro`. Pero el descarte tira una pista
+        que vale mucho: si un ex-jugador nuestro está en el mercado, quien lo
+        vende es el club al que se lo vendimos, y de esa venta nos toca
+        comisión de club anterior. La caza de comisiones no sabe a quién
+        mirar --501 en la cola, unos pocos por sync-- y aquí llega un nombre
+        con hora de cierre.
+
+        Se anota el plazo, no un «sí»: mirarlo antes de que cierre la subasta
+        no sirve porque la reventa todavía no ha pasado. Cuando el plazo pasa,
+        la pista está madura, y lo está igual se venda o no se venda, que es
+        justo lo que el usuario pidió. Quien la consume y la borra es
+        `_backfill_sold_player_details`.
+        """
+        anotados = 0
+        for player in roster:
+            if player.left_team_at is None or player.sold_at is None:
+                # Todavía es nuestro, o nunca lo vendimos: no hay comisión de
+                # club anterior que esperar.
+                continue
+            en_mercado = listed_now.get(player.ht_player_id)
+            if en_mercado is None:
+                continue
+            plazo = en_mercado.get("deadline")
+            if plazo is None or player.resale_deadline == plazo:
+                continue
+            player.resale_deadline = plazo
+            anotados += 1
+        return anotados
+
     async def _marcar_quien_esta_en_venta(
         self, uow: UnitOfWork, team_id: int, captured_at: datetime
     ) -> None:
