@@ -2227,5 +2227,7 @@
   "Las subastas abiertas se enseñan en la ficha pero no promedian, así que esta suma sólo cuenta ventas cerradas. Y es lo que pagó el mercado por gente parecida, no lo que alguien te vaya a pagar a ti.": "Laufende Auktionen werden auf der Spielerseite gezeigt, fließen aber nicht in den Durchschnitt ein, also zählt diese Summe nur abgeschlossene Verkäufe. Und es ist, was der Markt für ähnliche Spieler gezahlt hat, nicht was dir jemand zahlen wird.",
   "del mínimo al máximo de sus comparables": "vom niedrigsten bis zum höchsten ihrer Vergleichswerte",
   "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}}-mal deine jetzige Kasse, also {{v1}}",
-  "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} aus dem Kader konnten noch nicht gemessen werden"
+  "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} aus dem Kader konnten noch nicht gemessen werden",
+  "de {{v0}} ventas": "aus {{v0}} Verkäufen",
+  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} dieser Preise stammen aus wenigen Verkäufen und bewegen die Summe stärker, als es scheint"
 }

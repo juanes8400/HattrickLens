@@ -138,6 +138,30 @@ describe("resumenDeLaValoracion", () => {
     expect(r.sinMedir).toBe(0);
   });
 
+  it("cuenta cuántos precios se apoyan en pocas ventas", () => {
+    // Esta pantalla SUMA, así que un precio de tres ventas y uno de ocho
+    // acaban en la misma cifra. Si no se declara cuántos son flojos, el total
+    // aparenta saber más de lo que sabe. El umbral es `faltan > 0`, el mismo
+    // que usa la ficha del jugador: una sola definición de «pocas».
+    const r = resumenDeLaValoracion([
+      jugador("Sólido", 1000, { n: 8, faltan: 0 }),
+      jugador("Flojo", 500, { n: 3, faltan: 5 }),
+      jugador("Otro flojo", 200, { n: 1, faltan: 7 }),
+      jugador("Sin precio", null),
+    ]);
+    expect(r.flojos).toBe(2);
+    // Siguen contando en el total: son lo que hay, y esconderlos sería peor.
+    expect(r.total).toBe(1700);
+  });
+
+  it("si ningún precio es flojo, no hay nada que avisar", () => {
+    const r = resumenDeLaValoracion([
+      jugador("Uno", 1000, { n: 9, faltan: 0 }),
+      jugador("Otro", 800, { n: 8, faltan: 0 }),
+    ]);
+    expect(r.flojos).toBe(0);
+  });
+
   it("con la plantilla vacía no divide por cero ni inventa un total", () => {
     const r = resumenDeLaValoracion([]);
     expect(r.total).toBe(0);

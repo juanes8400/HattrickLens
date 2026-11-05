@@ -2227,5 +2227,7 @@
   "Las subastas abiertas se enseñan en la ficha pero no promedian, así que esta suma sólo cuenta ventas cerradas. Y es lo que pagó el mercado por gente parecida, no lo que alguien te vaya a pagar a ti.": "Open auctions are shown on the player page but do not average, so this total only counts closed sales. And it is what the market paid for similar players, not what someone is going to pay you.",
   "del mínimo al máximo de sus comparables": "from the lowest to the highest of their comparables",
   "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}} times your current cash, which is {{v1}}",
-  "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} of the squad could not be measured yet"
+  "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} of the squad could not be measured yet",
+  "de {{v0}} ventas": "from {{v0}} sales",
+  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} of those prices come from few sales and move the total more than it looks"
 }
