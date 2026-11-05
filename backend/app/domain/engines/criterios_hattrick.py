@@ -690,10 +690,46 @@ PRIMERA_QUE_AFLOJA_SOLA = 17
 #:   Lat12 Ano12 Pas7  rareza 25, afloja -> 25-1 = 24, o min(25,26) = 25
 #:   Lat12 Pas12 Ano7  rareza 25, ajusta -> 27-1 = 26, o min(27,26) = 26
 REBAJA_POR_EMPATE_ARRIBA = 1
-#: El balón parado del portero cuenta para la rareza, pero descontándole más
-#: que a una habilidad normal: con Portería 14 y Defensa 6, un balón parado de
-#: 9 deja la búsqueda ajustada y uno de 15 la abre.
-DESCUENTO_DEL_BALON_PARADO = 9
+#: EL BALÓN PARADO DEL PORTERO NO DISPUTA PUESTO: suma aparte.
+#:
+#: Cuenta para la rareza --con Portería 14 y Defensa 6, un balón parado de 9
+#: deja la búsqueda ajustada y uno de 13 la abre-- pero NO compite con la
+#: Portería ni con la Defensa por los dos primeros puestos. Lo segundo es el
+#: arreglo del 2026-11-04 y lo fuerzan dos medidas que sólo se diferencian en
+#: la Defensa:
+#:
+#:   Por 14 Def 6 BP 13  ->  HOLGADO
+#:   Por 14 Def 4 BP 13  ->  AJUSTADO
+#:
+#: Las dos llevan el mismo balón parado, así que la Defensa entera tiene que
+#: estar en la cuenta en las dos --con 6 afloja y con 4 no-- y por tanto el
+#: balón parado no puede haberle quitado el puesto. El modelo viejo, con el
+#: balón parado disputando el segundo puesto, NO TIENE DESCUENTO que dé esas
+#: dos a la vez: si adelanta a la Defensa las dos salen iguales, y si no la
+#: adelanta su aportación es la misma en las dos. Eran los siete fallos del
+#: rincón `Por 14` que arrastraba `portero-cerrado.txt` desde el 2026-10-26.
+#:
+#: SU DESCUENTO PROPIO SON CINCO --el mismo umbral de entrada que gobierna
+#: todo lo demás-- y ADEMÁS paga el peaje del tercer puesto, así que aporta
+#: `max(0, nivel - 5 - 6)`. Lo fijan las mismas dos medidas: con Por 14 Def 6,
+#: que son 20 contra un listón de 21, un balón parado de 13 tiene que aportar
+#: 1 o 2; y con Por 14 Def 4, que son 18, no puede aportar 3.
+#:
+#: LO QUE LAS VEINTE OBSERVACIONES NO SEPARAN: un descuento propio de 6 en vez
+#: de 5 también las da todas. La consulta que lo separa es **Por 14, Def 6,
+#: BP 12**, que con 5 sale HOLGADO y con 6 AJUSTADO.
+DESCUENTO_DEL_BALON_PARADO = 5
+#: Y DE 16 ARRIBA AFLOJA ÉL SOLO, como una primera de 17. Medido: `Por 8 Def 0`
+#: ajusta con el balón parado en 11, 12, 13 y 14 y AFLOJA en 16, con una
+#: Portería de 8 que sumando no llega ni de lejos al listón. Es la misma
+#: frontera que la pantalla ya tenía medida --`BP_BANDA_MAXIMA = 15`: de 16
+#: arriba el criterio deja de ser una banda y pasa a ser un suelo abierto--,
+#: así que el 16 no es un número puesto para tapar este caso; ya estaba.
+#:
+#: TAMPOCO ESTÁ SEPARADO de «de 16 arriba cuenta entero y sí disputa puesto»,
+#: que da las veinte igual. La consulta que las separaría: `Por 2 Def 0 BP 16`,
+#: que afloja con esta lectura y ajusta con la otra.
+BALON_PARADO_QUE_AFLOJA_SOLO = 16
 #: HASTA AQUÍ NO HAY DIAL QUE VALGA. El mismo perfil --Defensa 17, Jugadas 3--
 #: sale ajustado a los 19, 20 y 21 y holgado a los 22 y 25. No es que la edad
 #: tenga su propia regla: es que al jugador joven le aprietan TODA la búsqueda.
@@ -844,6 +880,24 @@ def rareza(niveles: dict[str, int], tipo: str | None = None) -> int:
     que pasa de seis, y sólo cuentan cuatro habilidades. Es la fórmula que
     reproduce las parejas frontera medidas: (16,9) afloja y (16,8) no; (13,12)
     afloja y (12,12) no; (14,10,7) afloja y (14,10,6) no.
+
+    EL BALÓN PARADO DEL PORTERO ES LA EXCEPCIÓN: no entra en esa cola, así que
+    no le quita el puesto a nadie, y suma aparte lo que le pasa de su propio
+    descuento más el peaje del tercer puesto. Ver
+    `DESCUENTO_DEL_BALON_PARADO`, que dice qué dos medidas lo obligan.
+
+    Y LA DEFENSA DEL PORTERO ENTRA DESDE CINCO, que es el mismo umbral de
+    entrada que gobierna todo lo demás --`ENTRADA_TERCERO`--. Por debajo no
+    suma nada, aunque vaya segunda. Medido el 2026-11-04 con seis consultas en
+    el panel, elegidas para partir en dos el conjunto de lecturas que cuadraban
+    con lo medido; ver `LA_TANDA_DEL_PANEL` en las pruebas y
+    `forma_del_portero.py` en el sondeo.
+
+    NO SE SABE SI ES DE LA DEFENSA O DEL SEGUNDO PUESTO. En el portero el
+    segundo puesto es SIEMPRE la Defensa, así que las dos lecturas son la misma
+    aquí, y en los jugadores de campo no hay ninguna medida con la segunda por
+    debajo de cinco. Se escribe como regla del portero porque es lo único que
+    la medida sostiene.
     """
     tipo = tipo or _tipo(niveles)
     # LO QUE NO PUEDE SER CRITERIO TAMPOCO CUENTA PARA LA RAREZA. Medido con un
@@ -856,18 +910,26 @@ def rareza(niveles: dict[str, int], tipo: str | None = None) -> int:
     plantilla = [
         h for h in PLANTILLAS[tipo] if h not in EXCLUIDAS[tipo] and h not in segunda_vuelta
     ]
+    aparte = 0
     pesados = []
     for h in plantilla:
         nivel = max(0, niveles.get(h, 0))
         if h == BALON_PARADO:
-            nivel = max(0, nivel - DESCUENTO_DEL_BALON_PARADO + DESCUENTO_DESDE_LA_TERCERA)
+            # FUERA DE LA COLA, no al final de ella: lo que suma no depende de
+            # qué puesto habría ocupado.
+            aparte = max(0, nivel - DESCUENTO_DEL_BALON_PARADO - DESCUENTO_DESDE_LA_TERCERA)
+            continue
+        if tipo == "keeper" and h == "defending" and nivel < ENTRADA_TERCERO:
+            # LA DEFENSA DEL PORTERO ENTRA DESDE 5, igual que todo lo demás.
+            # Medido el 2026-11-04 en el panel; ver `LA_TANDA_DEL_PANEL`.
+            nivel = 0
         pesados.append(nivel)
     v = sorted(pesados, reverse=True)
     v += [0] * (HABILIDADES_QUE_CUENTAN - len(v))
     total = v[0] + v[1]
     for nivel in v[2:HABILIDADES_QUE_CUENTAN]:
         total += max(0, nivel - DESCUENTO_DESDE_LA_TERCERA)
-    return total
+    return total + aparte
 
 
 #: EL LISTON NO ES POR TIPO: ES POR PAREJA. Se media con una sola segunda
@@ -923,7 +985,8 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
     La segunda condición es aparte y no es redundante: una habilidad de 17 ya
     hace raro al jugador ella sola. Se vio con (17,5), que afloja con una
     rareza de sólo 22, y con (18,0), que afloja sin segunda habilidad. Vale
-    también para el portero: Portería 15 sola no abre, Portería 17 sí.
+    también para el portero: Portería 15 sola no abre, Portería 17 sí. Y al
+    portero le afloja sola, además, una tercera cosa: el balón parado de 16.
 
     Y las dos primeras empatadas bajan el listón a 25: un extremo con Lateral y
     Anotación a 12 y Pases 7 --rareza 25-- afloja, mientras que el mismo extremo
@@ -947,9 +1010,14 @@ def es_holgado(niveles: dict[str, int], tipo: str | None = None, edad: int | Non
     # excepción --26, 23 y 23, por debajo del 27 de la pareja-- mientras que su
     # gemelo de Lateral 7, Defensa 7 y Pases 20 llega a 28 y sí afloja.
     primera = max(0, niveles.get(orden[0], 0)) if orden else 0
+    # Y EL BALÓN PARADO DE 16 AFLOJA ÉL SOLO, pero sólo a quien lo tiene en la
+    # plantilla, que es el portero: a un jugador de campo el balón parado no le
+    # cambia ni una línea, lo tenga en 0, en 12 o en 20.
+    balon_parado = max(0, niveles.get(BALON_PARADO, 0)) if BALON_PARADO in PLANTILLAS[tipo] else 0
     return (
         rareza(niveles, tipo) >= liston_de(niveles, tipo, edad)
         or primera >= PRIMERA_QUE_AFLOJA_SOLA
+        or balon_parado >= BALON_PARADO_QUE_AFLOJA_SOLO
     )
 
 
@@ -973,7 +1041,23 @@ def liston_de(niveles: dict[str, int], tipo: str | None = None, edad: int | None
     # Porteria como segunda y lo aflojaba --empate arriba y liston a 25--
     # cuando Hattrick le clava la edad. Medido con Jugadas 14, Porteria 13,
     # Lateral 9, Pases 8 y Defensa 5 a los 29 anos: sale ajustado.
-    elegibles = [h for h in PLANTILLAS[tipo] if h not in _corta(tipo, niveles)[0]]
+    # Y EL BALON PARADO NO CUENTA AQUI TAMPOCO, por el mismo motivo que no
+    # cuenta en `rareza`: no disputa puesto. `_puestos` lo deja SIEMPRE tercero
+    # en el portero, asi que no puede ser una de «las dos primeras» y no puede
+    # disparar la rebaja por empate arriba.
+    #
+    # Sin esto, un portero de Porteria 11, Defensa 9 y balon parado 11 a los 26
+    # salia HOLGADO: el balon parado aportaba CERO a la rareza --11 - 11-- y aun
+    # asi empataba con la Porteria, bajaba el liston de 21 a 20 y volcaba el
+    # dial, mientras que el mismo portero con el balon parado a 0 salia
+    # ajustado. Un numero que no entra en la cuenta no puede decidir el
+    # resultado. Lo cazo una revision automatica del PR #22 el 2026-11-04; no
+    # hay medida que lo toque --ninguna de las treinta y seis tiene la Porteria
+    # empatada con el balon parado-- asi que se arregla por coherencia con la
+    # forma que si esta medida, y se deja fijado abajo.
+    elegibles = [
+        h for h in PLANTILLAS[tipo] if h not in _corta(tipo, niveles)[0] and h != BALON_PARADO
+    ]
     v = sorted((max(0, niveles.get(h, 0)) for h in elegibles), reverse=True)
     orden = _puestos(niveles, tipo)
     segunda = orden[1] if len(orden) > 1 else ""

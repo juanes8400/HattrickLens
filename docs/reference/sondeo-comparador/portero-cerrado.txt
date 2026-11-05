@@ -1,0 +1,266 @@
+EL BALON PARADO DEL PORTERO: CERRADO EL 2026-11-04
+==================================================
+2026-10-26, cerrado el 2026-11-04
+
+CERRADO, Y ESTA VEZ POR SU FORMA. Las treinta y seis observaciones de portero
+salen todas, y salen con UNA SOLA lectura de las 595 545 candidatas:
+
+  rareza = Porteria + Defensa (desde 5) + max(0, balon parado - 11)
+  afloja si rareza >= 21, o la Porteria llega a 17, o el balon parado a 16
+
+Tres piezas, y cada una con lo que la obliga:
+
+  · EL BALON PARADO NO DISPUTA PUESTO. No compite con la Porteria ni con la
+    Defensa por los dos primeros: suma aparte lo que le pasa de once --su
+    descuento propio de cinco mas el peaje de seis del tercer puesto--.
+  · LA DEFENSA ENTRA DESDE CINCO, el mismo umbral que gobierna todo lo demas
+    (`ENTRADA_TERCERO`). Por debajo no suma nada aunque vaya segunda. Esta es
+    la pieza del 2026-11-04 por la tarde.
+  · DE 16 ARRIBA EL BALON PARADO AFLOJA EL SOLO, en la misma frontera que la
+    pantalla ya tenia medida en `BP_BANDA_MAXIMA`.
+
+COMO SE CERRO LA FORMA, que es lo que no se habia hecho nunca. Por la manana se
+arreglo el rincon `Por 14` y las treinta observaciones de entonces salian...
+pero salian con 43 lecturas distintas, porque las medidas de portero caen casi
+todas en una diagonal, y en una diagonal `Por + Def >= 21` y
+`Por + (Def-3) >= 18` son la misma recta corrida. Por la tarde se enumero la
+familia entera de lecturas, se filtro por lo medido, y se pidieron las seis
+consultas que partian en dos el conjunto que seguia vivo:
+
+  94 lecturas, 43 clases  ->  Por 15 Def 2 BP 15  AJUSTADO  ->  22 clases
+                          ->  Por 16 Def 0 BP 15  AJUSTADO  ->  10
+                          ->  Por  9 Def 8 BP 15  HOLGADO   ->   6
+                          ->  Por 14 Def 6 BP 12  HOLGADO   ->   3
+                          ->  Por 14 Def 3 BP 15  AJUSTADO  ->   2
+                          ->  Por 14 Def 4 BP 14  AJUSTADO  ->   1
+
+La primera ya destapo que el arreglo de la manana estaba incompleto: el motor la
+daba por HOLGADA --15 + 2 + 4 = 21 contra el liston de 21-- y Hattrick la da
+AJUSTADA. Lo que faltaba era la entrada de cinco de la Defensa.
+
+DE CONTROL: el modelo viejo, el que dejaba al balon parado disputar el segundo
+puesto, estaba DENTRO de la familia enumerada y no sobrevivio a lo medido. Un
+arnes que no elimina lo que ya sabemos que falla no sirve para elegir entre lo
+que queda.
+
+El guion esta en `forma_del_portero.py`, con las observaciones y de donde sale
+cada una, y se vuelve a ejecutar si aparece una medida nueva.
+
+LO QUE LO OBLIGO es una pareja de medidas que estaba en este fichero desde el
+2026-10-26 sin que nadie la leyera asi:
+
+  Por 14 Def 6 BP 13  ->  HOLGADO
+  Por 14 Def 4 BP 13  ->  AJUSTADO
+
+Mismo balon parado y distinta respuesta, asi que la Defensa entera cuenta en las
+dos --el 6 llega al liston de 21 y el 4 no-- y por tanto el balon parado no le
+habia quitado el puesto. Con el balon parado disputando puesto NINGUN descuento
+da las dos a la vez: si adelanta a la Defensa, las dos salen iguales; si no la
+adelanta, aporta lo mismo en las dos. No hay que probar: es un argumento, no un
+barrido.
+
+POR QUE EL BARRIDO DEL 2026-10-26 NO LO ENCONTRO. Movio cuatro mandos --el
+descuento del balon parado, el del tercer puesto, si el balon parado puede
+adelantar a la Defensa, y un liston propio para la pareja-- y dio cero
+combinaciones. El cero era correcto: ninguno de los cuatro era «que el balon
+parado deje de competir por puesto», que es otra FORMA de la cuenta y no un
+numero dentro de ella. Un barrido a lo bruto solo descarta lo que hay dentro del
+espacio que barre; escribir el resultado como «ninguna lectura que encaje» --en
+el titulo de este fichero, nueve dias-- fue mio y fue de mas.
+
+RESUELTO EL DESCUENTO PROPIO DEL BALON PARADO: es 5. Lo contesto
+`Por 14, Def 6, BP 12`, que salio HOLGADA; con 6 habria salido ajustada.
+
+LO QUE SIGUE SIN SEPARAR, y es poco:
+
+  · Si la entrada de cinco es de la DEFENSA o del SEGUNDO PUESTO. En el portero
+    el segundo es siempre la Defensa, asi que aqui las dos lecturas coinciden,
+    y en los jugadores de campo no hay ninguna medida con la segunda por debajo
+    de cinco. Se escribe como regla del portero porque es lo unico que la
+    medida sostiene. La separaria un jugador de campo con la primera alta y la
+    segunda en 4.
+  · El 16 que afloja solo, contra «de 16 arriba cuenta entero y si disputa
+    puesto». Las treinta y seis salen con las dos, porque esa variante no entro
+    en la familia enumerada.
+    La separa  Por 2, Def 0, BP 16  ->  con la primera HOLGADO, con la segunda
+    AJUSTADO.
+
+Y UNA PREDICCION, la consulta que este fichero pedia como «la mas barata de
+todas»:  Por 14, Def 5, BP 13  ->  14 + 5 + 2 = 21 contra el liston de 21,
+HOLGADO.
+
+DE PASO, EL UNICO FALLO DE LA PRUEBA A CIEGAS ERA UNO DE ESTOS SIETE: C09, que
+es `Por 14 Def 2 BP 13` a los 26. El motor de hoy lo reproduce clavado,
+`Ed=26 Por=14 Def=2 BP 11-15 Lat<=4 Ano<=4 Jug<=4`, que es literalmente lo que
+contesto Hattrick.
+
+EL 49/50 DEL CIEGO NO SE TOCA, y eso es a proposito: `ciego_puntua.py` puntua la
+prediccion COMMITEADA antes de medir, no el motor de ahora. Corregir un ciego
+despues de ver las respuestas lo convierte en otra cosa. Su 98 % es la marca de
+aquel dia y se queda; lo que ha cambiado es que el fallo que la bajaba ya no
+esta en el motor.
+
+
+EL REGISTRO DE CUANDO ESTABA ABIERTO
+====================================
+Lo que sigue se deja tal como se escribio, con sus conclusiones equivocadas
+marcadas donde las hay: es el unico sitio donde queda por que se tardo nueve
+dias en algo que estaba medido desde el primero.
+
+Lo que se sabe seguro, medido:
+
+  Por 14, Def 2, habilidades de campo bajas, a los 26 anios:
+     BP 10  AJUSTADO     BP 13  AJUSTADO     BP 15  AJUSTADO
+     BP 11  AJUSTADO     BP 14  AJUSTADO     BP 16  HOLGADO
+     BP 12  AJUSTADO
+     -> el salto esta entre 15 y 16
+
+  Por 14, BP 13, a los 26:
+     Def 2  AJUSTADO     Def 4  AJUSTADO     Def 6  HOLGADO
+     -> el salto esta entre 4 y 6
+
+  Y de la FASE AM, que no estaba contado aqui:
+     Por 14, Def 6, BP 9:  AJUSTADO  (fase-a.txt:305, banda BP 7-11)
+     -> con el mismo Por y Def, el balon parado es lo unico que cambia
+
+  [2026-11-04: NO hay sonda de `Por 14 Def 6 BP 15`. El comentario del motor
+  decia «un balon parado de 9 deja la busqueda ajustada y uno de 15 la abre»
+  desde el primer commit, y de ese par solo existen BP 9 y BP 13. El 15 se
+  deduce de BP 13; no se ha medido, y no cuenta como medida para decidir entre
+  lecturas.]
+
+  Por 14, Def 2, BP 13, SIN habilidades de campo: AJUSTADO, igual que con
+  ellas. Las habilidades de campo del portero no pintan nada aqui.
+
+  Y de antes, en el banco:
+     Por 15, BP 0:  Def 5 AJUSTADO,  Def 6 HOLGADO,  Def 7 HOLGADO
+     Por 12, Def 8, BP 0:  AJUSTADO
+     Por 16, Def 0, BP 0:  AJUSTADO
+     Por  8, Def 0:  BP 11, 12, 13, 14 AJUSTADO;  BP 16 HOLGADO
+
+POR QUE NO SE ARREGLA TODAVIA. Se barrio a lo bruto el espacio de parametros de
+la lectura actual --descuento del balon parado cuando sube de puesto, descuento
+del tercer puesto, si el balon parado puede adelantar a la Defensa, y un liston
+propio para la pareja (portero, balon parado)-- sobre las 64 observaciones:
+
+  combinaciones que las explican: 0
+
+El arnes de esa busqueda esta comprobado: con los parametros del motor de ahora
+reproduce al motor de ahora, fallando exactamente donde el motor falla. Asi que
+el cero es real y no un fallo del arnes.
+
+LO QUE LAS MEDIDAS DESCARTAN, una por una:
+
+  · «El balon parado nunca sube al segundo puesto»: lo rompe Por 8 Def 0 BP 16,
+    que afloja cuando sumando por puestos no llegaria ni de lejos.
+  · «El balon parado solo cuenta de 16 para arriba»: explica las seis primeras
+    pero rompe Por 14 Def 6 BP 13, que afloja con el balon parado en 13.
+  · «Defensa desde 6 afloja sola»: lo rompe Por 12 Def 8, que ajusta.
+  · «Rareza = Portería + Defensa, liston 21»: explica Por15 Def5/Def6,
+    Por12 Def8 y Por16 Def0, pero rompe Por 14 Def 6 BP 13.
+
+EL ARGUMENTO DE «LOS DOS PARES QUE SUMAN 20» ESTABA MAL. RETIRADO EL 2026-10-28.
+================================================================================
+
+Este fichero concluia que el dial del portero NO PUEDE ser una suma contra un
+liston, y lo apoyaba asi:
+
+    Hay dos pares con el MISMO total y distinta respuesta --Por 15 Def 5
+    (ajusta) y Por 14 Def 6 (afloja), los dos suman 20-- asi que el dial del
+    portero no puede ser una suma con un liston.
+
+TENIA UNA TRAMPA. Esos dos perfiles no se diferencian solo en el reparto: uno
+lleva el balon parado en 0 y el otro en 13. Asi que la diferencia podia ser el
+balon parado, y el argumento no distinguia entre las dos cosas.
+
+Se tapo la grieta con una consulta: el mismo total (20) y el mismo balon parado
+(13) que el que afloja.
+
+    Por 15, Def 5, BP 13, a los 26  ->  HOLGADO
+
+    Edad >= 25 y Edad <= 27
+    Porteria = titanico
+    Defensa = insuficiente
+    Balon parado entre destacado y extraterrestre
+    Lateral <= insuficiente
+    Anotacion <= insuficiente
+    Jugadas <= insuficiente
+
+Las SIETE lineas, exactamente como las predecia el motor. Y la explicacion es la
+que ya tiene escrita: para el portero, el balon parado cuenta con tres de
+descuento y DISPUTA EL SEGUNDO PUESTO. Con BP 13 vale 10, adelanta a la Defensa
+de 5, y la rareza pasa de 20 a 25. El total de Porteria+Defensa nunca fue la
+cuenta, asi que no habia contradiccion que explicar.
+
+
+CUANTO FALLA DE VERDAD: SIETE DE VEINTE, NO UNA DE 64
+=====================================================
+
+Este fichero decia «falla en 1 de 64 porteros medidos». Contadas una por una el
+2026-10-28, las observaciones de portero son VEINTE y los fallos son SIETE:
+
+    Por 14 Def 2 BP 10, 11, 12, 13, 14 y 15   Hattrick AJUSTA, el motor afloja
+    Por 14 Def 4 BP 13                        Hattrick AJUSTA, el motor afloja
+
+DE DONDE SALIO EL NUMERO MALO. Estas sondas anotaron solo si la busqueda salia
+ancha o estrecha --se pidio asi, «mirame solo la linea de Edad»-- y por eso no
+cabian en el banco, que compara la cadena entera. Se quedaron en
+`ciego-medido.txt` y en ningun sitio mas: ni el banco ni las pruebas las
+miraban. El unico fallo que se contaba era el que si estaba en el ciego.
+
+YA NO PASA. Las veinte estan en `banco.py`: las trece que cuadran en
+`DIALES_DEL_PORTERO`, dentro del total medido, y las siete en
+`PENDIENTES_DEL_DIAL`, que el banco lista por su nombre en cada pasada.
+
+
+LO QUE DICEN LOS SIETE QUE QUEDAN
+
+Todos son del mismo rincon: Porteria 14 con la Defensa baja. Con BP 13 el motor
+da 24 de rareza para Defensa 2, 4 y 6 --la Defensa va tercera y por debajo de 6
+no suma nada-- y Hattrick cambia de respuesta entre 4 y 6. O sea que al portero
+la Defensa le cuenta en un tramo donde nuestra cuenta la ignora.
+
+Y no se arregla moviendo numeros: con los parametros de la lectura actual, la
+rareza no es monotona contra lo medido. Rareza 21 afloja (Por 15 Def 6) y
+rareza 24 ajusta (Por 14 Def 2 BP 13). Mientras el orden no se respete, ningun
+liston puede separar las dos.
+
+   [ESTE PARRAFO ERA EL BUENO, 2026-11-04. «No se arregla moviendo numeros» y
+   «mientras el orden no se respete» eran exactamente el diagnostico: lo que
+   habia que cambiar era la forma de la cuenta, no sus numeros. Con la lectura
+   de ahora el orden se respeta: Por 15 Def 6 da 21 y afloja, y Por 14 Def 2
+   BP 13 da 18 y ajusta.]
+
+LO QUE HARIA FALTA. Una rejilla de verdad en vez de sondas sueltas: Porteria en
+12, 13, 14 y 15 cruzado con Defensa de 4 a 8 y balon parado en 0, 13 y 16. Son
+unas 60 consultas y acotaria la forma, no solo los bordes. La consulta mas
+barata de todas, si solo se va a hacer una: Por 14, Def 5, BP 13, que dice si el
+salto esta en 5 o en 6.
+
+MIENTRAS TANTO el motor se queda como esta: cualquier cambio probado hasta ahora
+empeora la cuenta en vez de mejorarla.
+
+   [SUPERADO EL 2026-11-04. No hizo falta la rejilla de 60 consultas: las once
+   lineas de este rincon que ya estaban medidas bastaban, y lo que faltaba no
+   era medir mas sino leer la pareja `Def 4` / `Def 6` con el mismo balon
+   parado. Lo de «cualquier cambio empeora la cuenta» era cierto DENTRO del
+   modelo de entonces, que es justo lo que habia que salirse. Ver la cabecera
+   de este fichero.]
+
+
+DE PASO: NO HAY CASILLA «MISMA ESPECIALIDAD»
+============================================
+2026-10-28, comprobado por el usuario en el formulario: «aqui no hay
+especialidad». Quedaba como el ultimo cabo sin medir del sondeo --y sin medir
+por una instruccion mia, no por falta de ocasion--. No existe: el comparador no
+filtra por especialidad, asi que la especialidad del vendido no entra en el
+sello.
+
+  [CORREGIDO EL 2026-11-04. LA CASILLA SI EXISTE: el panel «Editar habilidades»
+  tiene un «Misma especialidad» con su checkbox, visto al conducirlo. Lo que
+  sigue siendo cierto es la CONCLUSION, y por otro motivo: la casilla va
+  desmarcada por defecto y, desmarcada, la especialidad no aparece en los
+  criterios --las treinta y seis consultas de portero lo confirman, ninguna la
+  saco--. Lo que NO se ha medido es que pasa con la casilla marcada; no se
+  toco. Si alguien la marca alguna vez, es otra observacion.] Donde si cuenta es en NUESTRO desempate, como ultimo criterio de orden
+entre comparables con el mismo peso y la misma fecha.

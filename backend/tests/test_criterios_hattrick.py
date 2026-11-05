@@ -22,6 +22,7 @@ from app.domain.engines.criterios_hattrick import (
     _umbral_de_portero,
     criterios_de,
     es_holgado,
+    liston_de,
     rareza,
 )
 
@@ -2196,7 +2197,7 @@ def test_el_balon_parado_abajo(balon_parado: int, esperado: str) -> None:
 #: EL PAR QUE DESHACE LA CONTRADICCIÓN DEL PORTERO (2026-10-28, medido por el
 #: usuario a petición mía).
 #:
-#: `portero-abierto.txt` concluía que el dial del portero NO PUEDE ser una suma
+#: `portero-cerrado.txt` concluía que el dial del portero NO PUEDE ser una suma
 #: contra un listón, y lo apoyaba en dos perfiles con el mismo total y distinta
 #: respuesta: `Por 15 Def 5` ajusta y `Por 14 Def 6` afloja, los dos suman 20.
 #:
@@ -2206,16 +2207,18 @@ def test_el_balon_parado_abajo(balon_parado: int, esperado: str) -> None:
 #: cosas. Esta medida tapa esa grieta: mismo total (20) y mismo balón parado
 #: (13) que el que afloja.
 #:
-#: AFLOJA. Las siete líneas salieron exactamente como las predecía el motor, que
-#: para el portero cuenta el balón parado con tres de descuento y le deja
-#: disputar el SEGUNDO puesto: con BP 13 vale 10, adelanta a la Defensa de 5 y
-#: la rareza salta de 20 a 25. O sea que el total de Portería+Defensa nunca fue
-#: la cuenta, y la contradicción se deshace sin tocar nada.
+#: AFLOJA. O sea que el total de Portería+Defensa nunca fue la cuenta, y la
+#: contradicción se deshace sin tocar nada.
 #:
-#: Lo que esto NO arregla está en `portero-abierto.txt`: siete de las veinte
-#: observaciones de portero siguen sin cuadrar, todas del mismo rincón
-#: --`Por 14` con la Defensa baja-- y están en `PENDIENTES` del banco.
-def test_el_balon_parado_le_gana_el_segundo_puesto_a_la_defensa() -> None:
+#: LA EXPLICACIÓN QUE SE ESCRIBIÓ AQUÍ ERA OTRA Y ESTABA MAL. Decía que el
+#: balón parado le disputa el SEGUNDO puesto a la Defensa: con BP 13 valdría
+#: 10, adelantaría a la Defensa de 5 y la rareza saltaría de 20 a 25. Esa
+#: lectura predecía bien estas siete líneas y fallaba en siete observaciones
+#: más, las del rincón `Por 14`. El 2026-11-04 se cambió por la que las da
+#: todas --el balón parado NO disputa puesto: suma aparte-- y esta medida sigue
+#: saliendo igual: 15 + 5 + max(0, 13 − 11) = 22, contra un listón de 21.
+#: Ver `EL_RINCON_DE_POR_14`, justo debajo, y `DESCUENTO_DEL_BALON_PARADO`.
+def test_el_par_que_deshace_la_contradiccion_del_portero() -> None:
     niveles = perfil(keeper=15, defending=5, set_pieces=13)
     assert (
         _pinta(criterios_de(26, niveles))
@@ -2226,6 +2229,205 @@ def test_el_balon_parado_le_gana_el_segundo_puesto_a_la_defensa() -> None:
     assert (
         _pinta(criterios_de(26, perfil(keeper=15, defending=5)))
         == "Ed=26 Por=15 Def=5 BP<=4 Lat<=4 Ano<=4 Jug<=4"
+    )
+
+
+#: EL RINCÓN DE `Por 14`: los siete fallos que el motor arrastró del 2026-10-26
+#: al 2026-11-04, y las tres medidas vecinas que los acotan.
+#:
+#: Es todo lo medido con Portería 14: la Defensa baja y el balón parado movido.
+#: Se puntúa por el DIAL --holgado o ajustado-- y no por la cadena, porque las
+#: sondas que lo midieron anotaron sólo si la búsqueda salía ancha o estrecha;
+#: por eso no cabían en `OBSERVADO` y por eso se quedaron en `ciego-medido.txt`
+#: sin que ninguna prueba las mirara.
+#:
+#: LO QUE ESTAS DIEZ LÍNEAS OBLIGAN, que es el arreglo entero:
+#:
+#:   · `Def 6 BP 13` AFLOJA y `Def 4 BP 13` AJUSTA. Mismo balón parado, así que
+#:     la Defensa entera cuenta en las dos --el 6 llega al listón de 21 y el 4
+#:     no-- y por tanto el balón parado NO le ha quitado el puesto. Con el
+#:     balón parado disputando puesto no hay descuento que dé las dos a la vez:
+#:     si adelanta a la Defensa, las dos salen iguales; si no la adelanta,
+#:     aporta lo mismo en las dos. Era el modelo que fallaba.
+#:   · `Def 6 BP 9` AJUSTA y `Def 6 BP 13` AFLOJA: el balón parado sí cuenta,
+#:     así que tampoco vale ignorarlo por debajo de 16.
+#:   · `Def 2 BP 15` AJUSTA y `Def 2 BP 16` AFLOJA. La frontera en 16 es la
+#:     misma que la pantalla ya tenía medida en `BP_BANDA_MAXIMA`.
+#:
+#: LO QUE NO ESTÁ AQUÍ, Y POR QUÉ. `Def 6 BP 15` estuvo en esta lista unas
+#: horas, el 2026-11-04, y no es una medida: lo saqué de una frase que el
+#: comentario de `DESCUENTO_DEL_BALON_PARADO` arrastraba desde el primer commit
+#: --«un balón parado de 9 deja la búsqueda ajustada y uno de 15 la abre»-- y
+#: de `Por 14 Def 6` el registro sólo tiene DOS sondas: `BP 9`, ajustada, y
+#: `BP 13`, holgada. El 15 se deduce --si 13 ya afloja, 15 no puede
+#: desaflojar-- y deducido no es medido. En una lista que se llama «lo medido»
+#: no entra; y si entrase, el dia que alguien la use para decidir entre dos
+#: lecturas estaria decidiendo con una prediccion propia.
+#:
+#: Esto NO cambia el arreglo: lo que ata el descuento son `Def 6 BP 13`,
+#: `Def 4 BP 13` y la fila `Def 2 BP 10-15`, las tres medidas.
+#: (defensa, balón parado, si Hattrick aflojó)
+EL_RINCON_DE_POR_14: list[tuple[int, int, bool]] = [
+    (2, 10, False),
+    (2, 11, False),
+    (2, 12, False),
+    (2, 13, False),
+    (2, 14, False),
+    (2, 15, False),
+    (2, 16, True),
+    (4, 13, False),
+    (6, 9, False),
+    (6, 13, True),
+]
+
+
+@pytest.mark.parametrize("defensa,balon_parado,holgado", EL_RINCON_DE_POR_14)
+def test_el_rincon_de_por_14(defensa: int, balon_parado: int, holgado: bool) -> None:
+    niveles = perfil(keeper=14, defending=defensa, set_pieces=balon_parado)
+    assert criterios_de(26, niveles).holgado is holgado
+
+
+def test_el_balon_parado_no_le_quita_el_puesto_a_la_defensa() -> None:
+    """La FORMA de la cuenta, no sólo el sí o el no del dial.
+
+    Es lo que volvería a cazar el fallo si alguien devuelve el balón parado a
+    la cola de puestos. El contraste tiene que hacerse ARRIBA del umbral de
+    entrada de la Defensa, porque por debajo de 5 la Defensa no suma y el
+    contraste no distinguiría una cosa de la otra: con el balón parado en 13,
+    pasar la Defensa de 5 a 6 tiene que mover la rareza UN punto, porque las
+    dos están enteras en la cuenta. Con el balón parado disputándole el puesto
+    --valía 10 con BP 13-- la Defensa caía al tercer puesto, donde por debajo
+    de 6 no suma nada, así que las dos daban lo mismo y ningún listón podía
+    separarlas.
+    """
+    assert rareza(perfil(keeper=14, defending=5, set_pieces=13)) == 21
+    assert rareza(perfil(keeper=14, defending=6, set_pieces=13)) == 22
+    # Y LA ENTRADA DE CINCO, que es la pieza del 2026-11-04: con la Defensa en
+    # 4 no suma nada, así que caen seis puntos de golpe y no uno.
+    assert rareza(perfil(keeper=14, defending=4, set_pieces=13)) == 16
+    # El balón parado aporta lo que le pasa de once --su descuento propio de
+    # cinco más el peaje de seis del tercer puesto-- sin tocar lo de debajo.
+    assert rareza(perfil(keeper=14, defending=6)) == 20
+    assert rareza(perfil(keeper=14, defending=6, set_pieces=11)) == 20
+    assert rareza(perfil(keeper=14, defending=6, set_pieces=12)) == 21
+
+
+#: LA TANDA DEL PANEL (2026-11-04), seis consultas que cierran la FORMA del
+#: dial del portero.
+#:
+#: POR QUE HICIERON FALTA. El 2026-11-04 por la mañana se cerró el rincón
+#: `Por 14`: las treinta observaciones de portero salían todas. Pero salían con
+#: MÁS DE UNA lectura. Las medidas de portero caen casi todas en una diagonal
+#: --Portería alta con Defensa baja, o al revés-- y en una diagonal no se
+#: distingue `Por + Def >= 21` de `Por + (Def − 3) >= 18`, que son la misma
+#: recta corrida. El rincón estaba fijado por sus bordes, no por su forma.
+#:
+#: COMO SE ELIGIERON. `forma_del_portero.py` enumera 595 545 lecturas de una
+#: familia --listón, descuento y umbral de entrada de la Defensa, descuento y
+#: umbral de entrada del balón parado, desde dónde afloja solo, y si disputa
+#: puesto--, se queda con las que reproducen lo medido y busca el perfil cuya
+#: respuesta parte ese conjunto en dos mitades. Cada respuesta lo partió:
+#:
+#:   94 lecturas / 43 clases  ->  Por 15 Def 2 BP 15  AJUSTADO  ->  22 clases
+#:                            ->  Por 16 Def 0 BP 15  AJUSTADO  ->  10
+#:                            ->  Por  9 Def 8 BP 15  HOLGADO   ->   6
+#:                            ->  Por 14 Def 6 BP 12  HOLGADO   ->   3
+#:                            ->  Por 14 Def 3 BP 15  AJUSTADO  ->   2
+#:                            ->  Por 14 Def 4 BP 14  AJUSTADO  ->   1
+#:
+#: Y DE CONTROL: el modelo viejo --el balón parado disputando el segundo
+#: puesto-- estaba dentro de la familia, y de las 94 que cuadraban con lo
+#: medido no era NINGUNA. Un arnés que no elimina lo que sabemos que falla no
+#: sirve para elegir entre lo que queda.
+#:
+#: LO QUE LA PRIMERA DESTAPÓ. `Por 15 Def 2 BP 15` salió AJUSTADA y el motor de
+#: esa mañana la daba por holgada --15 + 2 + 4 = 21 contra un listón de 21--.
+#: O sea que el arreglo de la mañana estaba incompleto, y lo que faltaba es que
+#: LA DEFENSA DEL PORTERO NO SUMA POR DEBAJO DE 5, el mismo umbral de entrada
+#: que gobierna todo lo demás. Con eso, la cuenta es `Portería + Defensa (desde
+#: 5) + max(0, balón parado − 11)` contra un listón de 21.
+#: (porteria, defensa, balón parado, si Hattrick aflojó)
+LA_TANDA_DEL_PANEL: list[tuple[int, int, int, bool]] = [
+    (15, 2, 15, False),
+    (16, 0, 15, False),
+    (9, 8, 15, True),
+    (14, 6, 12, True),
+    (14, 3, 15, False),
+    (14, 4, 14, False),
+]
+
+
+@pytest.mark.parametrize("porteria,defensa,balon_parado,holgado", LA_TANDA_DEL_PANEL)
+def test_la_tanda_del_panel(
+    porteria: int, defensa: int, balon_parado: int, holgado: bool
+) -> None:
+    niveles = perfil(keeper=porteria, defending=defensa, set_pieces=balon_parado)
+    assert criterios_de(26, niveles).holgado is holgado
+
+
+def test_la_defensa_del_portero_entra_desde_cinco() -> None:
+    """La pieza que faltaba, en la frontera y a los dos lados.
+
+    Con Portería 16 y el balón parado a cero, la Defensa es lo único que puede
+    llevar la cuenta al listón de 21, y hacen falta cinco. Si contara desde 4
+    --o desde 0, como contaba hasta el 2026-11-04-- la de 4 ya llegaría a 20 y
+    la de 2 a 18, y `Por 15 Def 2 BP 15` habría aflojado, que es justo lo que
+    el panel desmintió.
+    """
+    assert rareza(perfil(keeper=16, defending=4)) == 16
+    assert rareza(perfil(keeper=16, defending=5)) == 21
+    # Y la frontera del dial cae donde la deja esa entrada.
+    assert not criterios_de(26, perfil(keeper=16, defending=4)).holgado
+    assert criterios_de(26, perfil(keeper=16, defending=5)).holgado
+
+
+def test_el_balon_parado_no_empata_con_la_porteria() -> None:
+    """Un numero que no entra en la cuenta no puede decidir el resultado.
+
+    `Por 11 Def 9 BP 11` a los 26: el balon parado aporta CERO a la rareza
+    --11 menos su descuento de once-- y la rareza sale 20, por debajo del listón
+    de 21. Pero empataba en nivel con la Portería, y la rebaja por empate arriba
+    bajaba el listón a 20 y lo aflojaba, mientras que el mismo portero con el
+    balón parado a 0 salía ajustado.
+
+    No lo puede hacer: `_puestos` deja el balón parado SIEMPRE tercero en el
+    portero, así que no es una de «las dos primeras». Igual que no disputa
+    puesto en `rareza`, tampoco empata arriba en `liston_de`.
+
+    NO HAY MEDIDA QUE TOQUE ESTE CASO --de las treinta y seis observaciones de
+    portero, ninguna tiene la Portería empatada con el balón parado-- así que
+    esto se fija por coherencia con la forma que sí está medida, no contra una
+    respuesta de Hattrick. Si algún día se mide y sale al revés, manda la
+    medida. Lo cazó una revisión automática del PR #22.
+    """
+    con_balon = perfil(keeper=11, defending=9, set_pieces=11)
+    sin_balon = perfil(keeper=11, defending=9)
+    # El balón parado no aporta nada a la cuenta en este perfil...
+    assert rareza(con_balon) == rareza(sin_balon) == 20
+    # ...así que tampoco puede mover el listón ni el dial.
+    assert liston_de(con_balon) == liston_de(sin_balon) == 21
+    assert not criterios_de(26, con_balon).holgado
+    assert not criterios_de(26, sin_balon).holgado
+    # Y el empate que SÍ cuenta sigue contando: Portería con Defensa.
+    assert liston_de(perfil(keeper=11, defending=11)) == 20
+
+
+def test_el_balon_parado_de_16_le_afloja_solo_al_portero() -> None:
+    """Con una Portería de 8, que sumando no llega al listón ni de lejos.
+
+    Medido: `Por 8 Def 0` ajusta con el balón parado en 11, 12, 13 y 14 --las
+    cadenas están en `EL_DESCUENTO_DEL_BALON_PARADO`-- y afloja en 16.
+    """
+    assert not es_holgado(perfil(keeper=8, set_pieces=14), edad=26)
+    assert es_holgado(perfil(keeper=8, set_pieces=16), edad=26)
+    # Y NO SE LE APLICA AL JUGADOR DE CAMPO, que es lo que esta regla podría
+    # romper de un tirón: a un defensa el balón parado no le cambia ni una
+    # línea, lo tenga en 0 o en 20. Está medido en
+    # `EL_BALON_PARADO_Y_EL_TOPE_DE_DIAS`, y aquí se compara con el gemelo sin
+    # balón parado para que quede fijada la cadena ENTERA.
+    assert not es_holgado(perfil(defending=16, set_pieces=20), edad=25)
+    assert _pinta(criterios_de(25, perfil(defending=16, set_pieces=20))) == _pinta(
+        criterios_de(25, perfil(defending=16))
     )
 
 
