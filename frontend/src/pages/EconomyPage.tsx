@@ -69,7 +69,7 @@ export function EconomyPage() {
             { key: "resumen", label: tx("Resumen") },
             { key: "proyeccion", label: tx("Proyección") },
             { key: "detalles", label: tx("Detalles") },
-            { key: "valoracion", label: tx("Valoración") },
+            { key: "valoracion", label: tx("Valor de Plantilla") },
           ]}
           active={section}
           onChange={setSection}

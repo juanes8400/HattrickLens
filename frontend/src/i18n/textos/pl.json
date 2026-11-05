@@ -2211,8 +2211,6 @@
   "caducado": "wygasły",
   "Volver a publicar": "Opublikuj ponownie",
   "Retirar": "Wycofaj",
-  "Valoración del equipo": "Wartość kadry",
-  "Valoración": "Wartość",
   "Costo hasta ahora": "Koszt dotychczas",
   "ver la tabla completa": "zobacz pełną tabelę",
   "El más valioso": "Najcenniejszy",
@@ -2229,5 +2227,6 @@
   "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}} razy twoja obecna kasa, czyli {{v1}}",
   "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} z kadry nie udało się jeszcze zmierzyć",
   "de {{v0}} ventas": "z {{v0}} transakcji",
-  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} z tych cen pochodzi z niewielu transakcji i rusza sumę bardziej, niż się wydaje"
+  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} z tych cen pochodzi z niewielu transakcji i rusza sumę bardziej, niż się wydaje",
+  "Valor de Plantilla": "Wartość kadry"
 }
