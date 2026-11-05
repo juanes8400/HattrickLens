@@ -70,6 +70,9 @@ export function resumenDeLaValoracion(
     conPrecio,
     sinPrecio,
     sinMedir,
+    //: CUÁNTOS DE LOS QUE SUMAN SE APOYAN EN POCAS VENTAS. Sin esto, el total
+    //: mezcla cifras sólidas y cifras de tres ventas y las presenta igual.
+    flojos: conPrecio.filter((j) => j.faltan > 0).length,
     // LA PLANTILLA ENTERA, no las filas que llegaron. Es la diferencia entre
     // decir «de 23 de 27» y decir la verdad cuando tres no se han podido
     // medir: entonces son 30 y el que mira tiene derecho a saberlo.
@@ -113,6 +116,7 @@ export function ValoracionDelEquipo({
     conPrecio,
     sinPrecio,
     sinMedir,
+    flojos,
     plantilla,
     total,
     suelo,
@@ -157,6 +161,14 @@ export function ValoracionDelEquipo({
                 v1: number(plantilla),
               })}
             </p>
+            {flojos > 0 && (
+              <p className="text-xs text-[var(--muted)]">
+                {tx(
+                  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece",
+                  { v0: number(flojos) },
+                )}
+              </p>
+            )}
             {sinMedir > 0 && (
               <p className="text-xs text-[var(--muted)]">
                 {tx(
@@ -356,9 +368,19 @@ function BarraDeJugador({
           renglón a la fila. El nombre de la habilidad sale del glosario
           OFICIAL de Hattrick, no de una traducción nuestra. */}
       <span className="col-start-1 row-start-1 min-w-0">
-        <span className="block truncate text-xs" title={jugador.nombre}>
+        {/* Y LLEVA A SU FICHA. Era el gesto que uno intenta primero --ves
+            «2.900.000» y quieres saber de dónde sale-- y no llevaba a ninguna
+            parte: el detalle, con sus ventas una a una, vive en la ficha del
+            jugador. Se pinta como texto hasta que el ratón pasa por encima,
+            para que doce o veintisiete renglones de enlaces azules no griten
+            más que las cifras, que es lo que se viene a leer. */}
+        <Link
+          to={`/players/${jugador.htPlayerId}`}
+          className="block truncate text-xs hover:text-[var(--accent)] hover:underline"
+          title={jugador.nombre}
+        >
           {jugador.nombre}
-        </span>
+        </Link>
         <span className="block truncate text-[10px] leading-tight text-[var(--muted)]">
           {quienEs(jugador)}
         </span>
@@ -383,6 +405,17 @@ function BarraDeJugador({
         <span className="ml-2 inline-block w-8 text-right text-[11px] text-[var(--muted)]">
           {peso >= PESO_QUE_SE_ETIQUETA ? `${peso.toFixed(0)}%` : ""}
         </span>
+        {/* DE CUÁNTAS VENTAS SALE, cuando son pocas. La ficha del jugador ya
+            avisa de esto --«este número sale de 3 ventas, no de 8»-- y aquí
+            faltaba justo donde más importa: esta pantalla SUMA, así que un
+            precio flojo y uno sólido acaban en la misma cifra sin que se
+            distingan. El umbral es el mismo de siempre, `faltan > 0`, para no
+            tener dos definiciones de «pocas». */}
+        {jugador.faltan > 0 && (
+          <span className="block text-[10px] leading-tight text-[var(--muted)]">
+            {tx("de {{v0}} ventas", { v0: number(jugador.n) })}
+          </span>
+        )}
       </span>
     </li>
   );
