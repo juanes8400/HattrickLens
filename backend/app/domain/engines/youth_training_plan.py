@@ -28,7 +28,7 @@ Los cupos a media ración cuentan como plazas normales; lo único que cambia es
 que se llenan al final de su región.
 """
 
-from collections.abc import Container
+from collections.abc import Container, Mapping, Sequence
 from dataclasses import dataclass, field
 
 from app.domain.engines.youth_skill_score import (
@@ -600,6 +600,115 @@ def _orden_de_cola(jugadores: list[PlayerNote]) -> list[PlayerNote]:
     return list(jugadores)
 
 
+#: Cuánto pesa cada punto de descubrimiento frente a la edad. Separar los dos
+#: criterios en órdenes de magnitud es lo que los hace jerárquicos de verdad:
+#: ninguna diferencia de edad puede volcar un punto de descubrimiento.
+PESO_DEL_DESCUBRIMIENTO = 10_000
+#: Un tope de días por encima de cualquier juvenil (17 años son 1.904), para
+#: convertir «menos días» en «más puntos» sin números negativos.
+DIAS_DE_SOBRA = 10_000
+
+
+def _candidatos_de_relleno(
+    cola_principal: Sequence[PlayerNote],
+    cola_secundaria: Sequence[PlayerNote],
+    cantera: Sequence[PlayerNote],
+    ya_puestos: Container[str],
+) -> list[PlayerNote]:
+    """Quién puede ocupar una plaza sin entrenamiento, sin repetir a nadie.
+
+    Las tres fuentes en orden --principal, secundaria, cantera-- y el primero
+    que aparezca gana, que es el que trae la nota más relevante. La cantera va
+    al final porque es la red de seguridad: lo que hace que el once llegue a
+    once cuando las dos colas se quedan cortas.
+    """
+    vistos: set[str] = set()
+    fuera: list[PlayerNote] = []
+    for lista in (cola_principal, cola_secundaria, cantera):
+        for p in lista:
+            if p.name in ya_puestos or p.name in vistos:
+                continue
+            vistos.add(p.name)
+            fuera.append(p)
+    return fuera
+
+
+def _habilidades_que_suben(*codigos: str) -> frozenset[str]:
+    """Lo que los entrenamientos elegidos ya iluminan, para no contarlo dos veces.
+
+    Si al chico le va a salir Lateral por el entrenamiento, que una plaza
+    pueda destaparle Lateral no aporta nada nuevo. Es la misma regla que el
+    usuario subrayó en `reparto_por_descubrimiento`.
+    """
+    salen: set[str] = set()
+    for codigo in codigos:
+        ent = ENTRENAMIENTOS.get(codigo)
+        if ent is None:
+            continue
+        if ent.skill:
+            salen.add(ent.skill)
+        if ent.tambien_sube:
+            salen.add(ent.tambien_sube)
+    return frozenset(salen)
+
+
+def _relleno_con_criterio(
+    libres: list[str],
+    candidatos: Sequence[PlayerNote],
+    sin_revelar: Mapping[str, frozenset[str]] | None,
+    principal: str,
+    secundaria: str,
+) -> list[tuple[PlayerNote, str]]:
+    """A quién se le da cada plaza sin entrenamiento, y por qué.
+
+    El orden de decisión, que es lo que pidió el usuario:
+
+    1. **Lo que esa plaza puede destaparle.** La ruleta de «Individual» dice
+       qué habilidades usa cada puesto, y ésa es la definición de «relevante
+       para la posición»: no una lista aparte que se nos desparejaría, sino la
+       tabla que ya gobierna el descubrimiento. De ahí se descuenta lo que los
+       entrenamientos ya van a iluminar.
+    2. **La edad**, más joven primero, entre los que iluminan lo mismo. Al que
+       se va el año que viene, esa plaza le sirve de poco.
+
+    Se resuelve con el emparejamiento ÓPTIMO y no por turnos, por el mismo
+    motivo que en `reparto_por_descubrimiento`: quitarle el portero a quien más
+    lo aprovecha puede costar más de lo que gana quien se lo queda.
+
+    Sin `sin_revelar` no hay con qué juzgar, así que se cae al comportamiento
+    de siempre: por orden de cola y la primera plaza libre.
+    """
+    from app.domain.engines.asignacion_optima import asignacion_maxima
+
+    if not candidatos:
+        return []
+    if sin_revelar is None or not libres:
+        return [(p, libres.pop(0) if libres else "") for p in candidatos]
+
+    individual = ENTRENAMIENTOS.get(CODIGO_INDIVIDUAL)
+    excluidas = _habilidades_que_suben(principal, secundaria)
+
+    def vale(jugador: PlayerNote, plaza: tuple[int, str]) -> float:
+        _, puesto = plaza
+        ruleta = individual.reparto_en(puesto) if individual else {}
+        tapadas = sin_revelar.get(jugador.name, frozenset())
+        descubre = sum(
+            p for skill, p in ruleta.items() if skill in tapadas and skill not in excluidas
+        )
+        juventud = max(0, DIAS_DE_SOBRA - jugador.age_days_total)
+        return descubre * PESO_DEL_DESCUBRIMIENTO + juventud
+
+    numeradas = list(enumerate(libres))
+    pares = asignacion_maxima(list(candidatos), numeradas, vale)
+    por_indice = {plaza[0]: jugador for jugador, plaza in pares}
+    emparejados = [(por_indice[i], puesto) for i, puesto in numeradas if i in por_indice]
+
+    # Quien no cogió plaza va detrás, por si quedan sillas sin puesto (el once
+    # cuenta once asignaciones aunque alguna se quede sin dibujar).
+    con_plaza = {j.name for j, _ in emparejados}
+    return emparejados + [(p, "") for p in candidatos if p.name not in con_plaza]
+
+
 def youth_training_plan(
     principal: str,
     secundaria: str,
@@ -609,12 +718,24 @@ def youth_training_plan(
     tope_principal: set[str] | None = None,
     tope_secundaria: set[str] | None = None,
     plazas: int = PLAZAS_DE_UNA_ALINEACION,
+    cantera: Sequence[PlayerNote] = (),
+    sin_revelar: Mapping[str, frozenset[str]] | None = None,
 ) -> PlanDeEntrenamiento:
     """El once propuesto: quién ocupa cada plaza y qué entrenamiento recibe.
 
     `cola_principal` y `cola_secundaria` son las listas que ya ordena
     `score_skills` por los nueve peldaños, cada una para SU habilidad. Aquí no
     se reordena nada: se van tomando por turnos.
+
+    `cantera` es LA PLANTILLA JUVENIL ENTERA, y existe para poder llegar a
+    once. Las colas no la contienen: cada una trae a los de SU habilidad, así
+    que con un entrenamiento principal de ocho candidatos el once salía con
+    ocho jugadores y tres sillas vacías, no por falta de chicos sino porque a
+    los demás no se les miraba nunca. (2026-11-04, lo vio el usuario.)
+
+    `sin_revelar` dice, por jugador, qué habilidades no se le conocen todavía
+    y aún pueden subir. Es lo que permite dar criterio a las plazas que no
+    entrena nadie; sin ella, esas plazas se reparten como antes, por orden.
     """
     ambos, solo_a, solo_b = _reparte_por_region(principal, secundaria)
 
@@ -710,16 +831,26 @@ def youth_training_plan(
         faltan = cabidas - usados.get(puesto, 0)
         libres.extend([puesto] * max(0, faltan))
 
-    # Lo que sobra: las plazas que no entrenan nada, con quien quede.
-    restantes = [p for p in cola_principal if p.name not in ya_puestos]
-    for jugador in restantes:
+    # LAS PLAZAS QUE NO ENTRENAN NADA TIENEN SU PROPIO CRITERIO (2026-11-04,
+    # pedido del usuario). Hasta hoy eran un vertedero: se llenaban con lo que
+    # quedara de la cola del principal, por orden, y el puesto era el primero
+    # libre --`libres.pop(0)`--, sin mirar a quién se le daba.
+    #
+    # Son plazas que no suben ninguna habilidad, pero NO son inútiles: jugar un
+    # puesto destapa lo que ese puesto usa, aunque no se esté entrenando. Así
+    # que se reparten por lo que pueden iluminar, y entre los que iluminan lo
+    # mismo manda la edad.
+    restantes = _candidatos_de_relleno(cola_principal, cola_secundaria, cantera, ya_puestos)
+    for jugador, puesto in _relleno_con_criterio(
+        libres, restantes, sin_revelar, principal, secundaria
+    ):
         if len(plan.asignaciones) >= plazas:
             break
         ya_puestos.add(jugador.name)
         plan.asignaciones.append(
             Asignacion(
                 player=jugador.name,
-                puesto=libres.pop(0) if libres else "",
+                puesto=puesto,
                 region=REGION_SIN_ENTRENAMIENTO,
                 racion_principal=0.0,
                 racion_secundaria=0.0,
