@@ -109,6 +109,44 @@ def _sin_revelar_por_jugador(rows: list[Any]) -> dict[str, int]:
     return cuenta
 
 
+def _sin_revelar_cuales(rows: list[Any]) -> dict[str, frozenset[str]]:
+    """CUALES no se saben, por canterano, no cuantas.
+
+    Hermana de `_sin_revelar_por_jugador`, que cuenta. La cola de «Individual»
+    solo necesita el numero --a mas tapadas, antes--, pero repartir las plazas
+    que no entrenan nada necesita saber QUE esta tapado: una plaza solo puede
+    destapar lo que su puesto usa, asi que hay que cruzar las dos listas.
+
+    Misma definicion de «tapada» que la hermana, y a proposito: sin techo
+    conocido y sin haberlo alcanzado. Si las dos se separan, una plaza se
+    elegiria por un hueco que la otra no cuenta.
+    """
+    cuales: dict[str, set[str]] = {}
+    for fila in rows:
+        if fila.skill not in rpd.HABILIDADES_DE_PUESTO:
+            continue
+        for p in list(fila.players) + list(fila.at_max):
+            cuales.setdefault(p.name, set())
+            if p.maximum is None and not p.max_reached:
+                cuales[p.name].add(fila.skill)
+    return {nombre: frozenset(skills) for nombre, skills in cuales.items()}
+
+
+def _toda_la_cantera(rows: list[Any]) -> list[Any]:
+    """Todos los juveniles, una vez cada uno.
+
+    El motor necesita esto para poder llegar a once: las colas traen a los de
+    SU habilidad, y con un entrenamiento de ocho candidatos el once salia con
+    ocho jugadores y tres sillas vacias --no por falta de chicos, sino porque a
+    los demas no se les miraba--. (2026-11-04, lo vio el usuario.)
+    """
+    todos: dict[str, Any] = {}
+    for fila in rows:
+        for p in list(fila.players) + list(fila.at_max):
+            todos.setdefault(p.name, p)
+    return list(todos.values())
+
+
 #: Los peldanos que cuentan como «lo sabemos Y es bueno». Los de ignorancia
 #: (⅓ y ¹⁄₂₇ en la escalera) y el de los que ya tocaron techo quedan fuera a
 #: proposito: son justo lo que el metodo 5 quiere distinguir.
@@ -564,6 +602,8 @@ def _pareja_sugerida(
         _cola_para(codigo_sec, por_skill.get(secundaria), rows),
         tope_principal=_topes(por_skill.get(principal)),
         tope_secundaria=_topes(por_skill.get(secundaria)),
+        cantera=_toda_la_cantera(rows),
+        sin_revelar=_sin_revelar_cuales(rows),
     )
     return {
         "main": principal,
@@ -745,6 +785,8 @@ async def academy_training_plan(
         cola_de(secondary, skill_sec),
         tope_principal=topes_de(main, skill_main),
         tope_secundaria=topes_de(secondary, skill_sec),
+        cantera=_toda_la_cantera(rows),
+        sin_revelar=_sin_revelar_cuales(rows),
     )
     vacias = _recoloca_para_descubrir(plan, main, secondary, lecturas)
     _rellena_banquillo(
