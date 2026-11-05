@@ -161,8 +161,20 @@ function criterioLegible(c: CriterioDeHattrick): string {
  *  muestra. Por eso se pueden enseñar como lo que pide el juego y no como lo
  *  que creemos que pide.
  *
- *  EL DIAL SE ENSEÑA CON SUS CUENTAS. Decir «la búsqueda salió ancha» sin los
- *  números es pedir fe; con la rareza y el listón al lado, se comprueba. */
+ *  EL DIAL YA NO SE ENSEÑA (2026-11-04, pedido del usuario: «quita este tipo
+ *  de mensajes, ya que no aportan nada y son información del algoritmo»).
+ *  Debajo de los filtros había una frase --«su rareza es 35 y el listón que le
+ *  toca 23, así que Hattrick abre la ventana de edad»-- que explicaba por qué
+ *  la búsqueda salía ancha. Y tenía razón él: lo que ESTA pantalla contesta es
+ *  con qué buscó Hattrick, y eso ya está arriba, en las pastillas. La rareza y
+ *  el listón son nuestra cocina, no su pregunta.
+ *
+ *  Los tres campos --`rareza`, `liston` y `dialHolgado`-- se fueron también
+ *  del DTO, en la misma vuelta: quitada la frase no los pintaba nadie, y un
+ *  campo que viaja sin que nadie lo lea es deuda, no previsión. El motor no
+ *  pierde nada --`es_holgado` y `liston_de` siguen decidiendo la forma de los
+ *  criterios-- y si algún día hay que enseñar la cocina, su sitio es
+ *  Transparencia y se vuelve a exponer entonces. */
 function CriteriosDeHattrick({ datos }: { datos: PrecioComparable }) {
   const edad =
     datos.edadMinima === datos.edadMaxima
@@ -197,17 +209,6 @@ function CriteriosDeHattrick({ datos }: { datos: PrecioComparable }) {
           />
         ))}
       </div>
-      <p className="prosa mt-2 text-xs text-[var(--muted)]">
-        {datos.dialHolgado
-          ? tx(
-              "Búsqueda ancha: su rareza es {{v0}} y el listón que le toca {{v1}}, así que Hattrick abre la ventana de edad y las bandas.",
-              { v0: datos.rareza, v1: datos.liston },
-            )
-          : tx(
-              "Búsqueda estrecha: su rareza es {{v0}} y no llega al listón de {{v1}}, así que Hattrick le clava la edad y aprieta las bandas.",
-              { v0: datos.rareza, v1: datos.liston },
-            )}
-      </p>
     </section>
   );
 }

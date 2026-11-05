@@ -17,6 +17,7 @@ from app.domain.engines.youth_training_plan import (
     REGION_SIN_ENTRENAMIENTO,
     REGION_SOLO_PRINCIPAL,
     REGION_SOLO_SECUNDARIA,
+    _relleno_con_criterio,
     _reparte_por_region,
     cupos_de,
     factor_secundario,
@@ -541,3 +542,109 @@ def test_al_reubicar_para_descubrir_la_edad_viaja_con_el_chico() -> None:
     # Y la plaza no se mueve: eso sí es de la silla.
     assert correcto.puesto == "keeper"
     assert correcto.racion_principal == 1.0
+
+
+# ---------------------------------------------------------------------------
+# EL ONCE SE COMPLETA, Y LAS PLAZAS SIN ENTRENAMIENTO TIENEN CRITERIO
+# (2026-11-04, pedido del usuario: «la formacion de juveniles que sugiere no
+# tiene al menos 11; se sugiere rellenar al menos con jugadores a los que pueda
+# descubrirseles la habilidad que, aunque no se este entrenando, sea relevante
+# para la posicion. Luego por edad»).
+# ---------------------------------------------------------------------------
+
+
+def _nota(nombre: str, *, dias: int = 1000) -> PlayerNote:
+    return PlayerNote(
+        name=nombre,
+        note=8,
+        bucket="excelente",
+        leaves_soon=False,
+        max_reached=False,
+        priority=1,
+        age_days_total=dias,
+    )
+
+
+def test_el_once_llega_a_once_tirando_de_la_cantera() -> None:
+    """Las colas traen a los de SU habilidad; la cantera es todos.
+
+    Antes el relleno salia de `cola_principal` y de nadie mas, asi que un
+    entrenamiento con cuatro candidatos daba un once de cuatro jugadores y
+    siete sillas vacias. No faltaban chicos: faltaba mirarlos.
+    """
+    cola = _cola("A", "B", "C", "D")
+    resto = [_nota(f"J{i}") for i in range(10)]
+
+    sin_cantera = youth_training_plan("defending", "winger", cola, list(cola))
+    con_cantera = youth_training_plan("defending", "winger", cola, list(cola), cantera=resto)
+
+    assert len(sin_cantera.asignaciones) == 4, "el fallo que se arregla"
+    assert len(con_cantera.asignaciones) == 11
+    # Y nadie sale dos veces.
+    nombres = [a.player for a in con_cantera.asignaciones]
+    assert len(set(nombres)) == len(nombres)
+
+
+TODAS_TAPADAS = frozenset(
+    {"keeper", "defending", "playmaking", "winger", "passing", "scoring"}
+)
+
+
+def _quien_entra(candidatos, sin_revelar, *, plazas=("forward",)):
+    """A quien le toca la UNICA plaza libre, que es donde se ve la regla.
+
+    Se prueba contra `_relleno_con_criterio` y no contra el plan entero a
+    proposito: el emparejamiento devuelve las parejas EN ORDEN DE PLAZA, no de
+    calidad, asi que mirar quien sale primero en el once no dice quien gano
+    --dice que silla se dibujo antes--. Con una sola plaza no hay ambiguedad.
+    """
+    pares = _relleno_con_criterio(list(plazas), candidatos, sin_revelar, "defending", "winger")
+    return pares[0][0].name
+
+
+def test_la_plaza_sin_entrenamiento_va_a_quien_puede_destaparle_algo() -> None:
+    """Primero lo que el puesto puede iluminar, y solo despues la edad.
+
+    `Leido` esta entero descubierto, asi que la plaza se desperdiciaria en el.
+    Se le pone MAS JOVEN a proposito: si la edad mandara por encima del
+    descubrimiento ganaria el, y no debe.
+    """
+    candidatos = [_nota("Leido", dias=200), _nota("Tapado", dias=1800)]
+    quien = _quien_entra(
+        candidatos, {"Tapado": TODAS_TAPADAS, "Leido": frozenset()}
+    )
+    assert quien == "Tapado"
+
+
+def test_entre_dos_que_destapan_lo_mismo_manda_la_edad() -> None:
+    """La segunda mitad de la regla, con el descubrimiento empatado a proposito."""
+    candidatos = [_nota("Viejo", dias=1800), _nota("Joven", dias=300)]
+    quien = _quien_entra(
+        candidatos, {"Viejo": TODAS_TAPADAS, "Joven": TODAS_TAPADAS}
+    )
+    assert quien == "Joven"
+
+
+def test_lo_que_ya_entrena_el_plan_no_cuenta_como_descubrimiento() -> None:
+    """Si el entrenamiento ya va a iluminar esa habilidad, la plaza no aporta.
+
+    `SoloDefensa` tiene tapada justo la que entrena el principal, asi que
+    destaparla por puesto no anade nada nuevo; `OtraCosa` tiene tapada una que
+    ningun entrenamiento toca y gana la plaza aunque sea mucho mayor.
+    """
+    candidatos = [_nota("SoloDefensa", dias=300), _nota("OtraCosa", dias=1800)]
+    quien = _quien_entra(
+        candidatos,
+        {
+            "SoloDefensa": frozenset({"defending"}),
+            "OtraCosa": frozenset({"scoring", "passing"}),
+        },
+    )
+    assert quien == "OtraCosa"
+
+
+def test_sin_saber_que_esta_tapado_se_reparte_como_siempre() -> None:
+    """El respaldo: sin `sin_revelar` no hay con que juzgar, y manda el orden."""
+    candidatos = [_nota("Primero"), _nota("Segundo")]
+    pares = _relleno_con_criterio(["forward"], candidatos, None, "defending", "winger")
+    assert pares[0][0].name == "Primero"

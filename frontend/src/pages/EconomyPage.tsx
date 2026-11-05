@@ -16,6 +16,7 @@ import {
   SinDatos,
 } from "../components/Panels";
 import { Tabs, PanelDePestanas } from "../components/Tabs";
+import { ValoracionDelEquipo } from "../components/ValoracionDelEquipo";
 import { decimal, money, number } from "../hooks/useFormat";
 import { useEconomy } from "../hooks/useTeam";
 import type {
@@ -27,14 +28,21 @@ import type {
 
 import { tx } from "../i18n/tx";
 type ObservedLayer = "income" | "costs" | "balance" | "cash";
-type EconomySection = "resumen" | "proyeccion" | "detalles";
+type EconomySection = "resumen" | "proyeccion" | "detalles" | "valoracion";
 type Horizon = "2" | "4" | "8" | "12" | "16";
 
 /**
- * Economía, en 3 secciones (2026-08-09, pedido explícito: mismo patrón de
+ * Economía, en 4 secciones (2026-08-09, pedido explícito: mismo patrón de
  * `Tabs` píldora ya usado en Liga/Transferencias), Resumen es lo que
  * Hattrick ya reportó, Proyección es nuestro modelo, Detalles es la
- * pantalla equivalente de Hattrick Control (desglose semana a semana).
+ * pantalla equivalente de Hattrick Control (desglose semana a semana) y
+ * Valoración es lo que vale la plantilla (2026-11-04, pedido del usuario).
+ *
+ * VALORACIÓN NO PIDE NADA SUYO: reusa `usePreciosComparables`, el mismo
+ * `/precios-comparables` que pide Transferencias / Mi plantilla y con la misma
+ * clave de react-query, así que comparten respuesta y, lo que importa, el
+ * mismo número. Y va con `enabled` para que abrir Economía por el Resumen no
+ * arrastre la petición de una pestaña que nadie ha pulsado.
  */
 export function EconomyPage() {
   const [section, setSection] = useState<EconomySection>("resumen");
@@ -61,6 +69,7 @@ export function EconomyPage() {
             { key: "resumen", label: tx("Resumen") },
             { key: "proyeccion", label: tx("Proyección") },
             { key: "detalles", label: tx("Detalles") },
+            { key: "valoracion", label: tx("Valoración") },
           ]}
           active={section}
           onChange={setSection}
@@ -164,6 +173,10 @@ export function EconomyPage() {
         )}
 
         {section === "detalles" && <DetailsSection data={data} />}
+        <ValoracionDelEquipo
+          activa={section === "valoracion"}
+          caja={data.cash}
+        />
       </PanelDePestanas>
     </div>
   );
