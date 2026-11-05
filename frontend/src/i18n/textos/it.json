@@ -2211,8 +2211,6 @@
   "caducado": "scaduto",
   "Volver a publicar": "Pubblicare di nuovo",
   "Retirar": "Ritira",
-  "Valoración del equipo": "Valore della rosa",
-  "Valoración": "Valore",
   "Costo hasta ahora": "Costo finora",
   "ver la tabla completa": "vedi la tabella completa",
   "El más valioso": "Il più prezioso",
@@ -2229,5 +2227,6 @@
   "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}} volte la tua cassa di adesso, cioè {{v1}}",
   "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} della rosa non si sono ancora potuti misurare",
   "de {{v0}} ventas": "da {{v0}} vendite",
-  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} di quei prezzi vengono da poche vendite e muovono il totale più di quanto sembri"
+  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} di quei prezzi vengono da poche vendite e muovono il totale più di quanto sembri",
+  "Valor de Plantilla": "Valore della rosa"
 }

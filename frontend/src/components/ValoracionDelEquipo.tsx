@@ -128,7 +128,7 @@ export function ValoracionDelEquipo({
 
   return (
     <Panel
-      title={tx("Valoración del equipo")}
+      title={tx("Valor de Plantilla")}
       meta={
         <Link
           to="/transfers/balance"
