@@ -1925,7 +1925,6 @@
   "sin partido programado": "no match scheduled",
   "sin partidos sincronizados todavía": "no matches synced yet",
   "sin plantilla sincronizada": "no squad synced",
-  "sin pujas": "no bids",
   "sin ratings · se completan al sincronizar": "no ratings · they fill in when you sync",
   "sin rival confirmado": "no confirmed opponent",
   "sin sueldo conocido": "no known wage",
@@ -2230,5 +2229,10 @@
   "Alguno de los dos no tiene partidos de Copa todavía, así que de ese lado se han leído los de Liga. En Copa se juega con otro equipo, así que esta predicción describe peor de lo normal.": "One of the two has no Cup matches yet, so that side was read from its League matches. Cup is played with a different side, so this prediction describes worse than usual.",
   "Sin predicción": "No prediction",
   "sin datos con los que predecir": "no data to predict with",
-  "Hace falta una sesión de Hattrick activa y al menos un partido de alguno de los dos equipos con el que medir sus zonas. La fecha y el rival de arriba sí son datos sincronizados; aquí no se pone un número inventado para rellenar el hueco.": "It needs an active Hattrick session and at least one match from either team to measure their zones. The date and the opponent above are synced data; no made-up number is put here to fill the gap."
+  "Hace falta una sesión de Hattrick activa y al menos un partido de alguno de los dos equipos con el que medir sus zonas. La fecha y el rival de arriba sí son datos sincronizados; aquí no se pone un número inventado para rellenar el hueco.": "It needs an active Hattrick session and at least one match from either team to measure their zones. The date and the opponent above are synced data; no made-up number is put here to fill the gap.",
+  "NO PUJA DETECTADA": "NO BID DETECTED",
+  "sin puja vista": "no bid seen",
+  "Pedía": "Asking",
+  "{{v0}} a {{v1}} d": "{{v0}}y {{v1}}d",
+  "{{v0}} a": "{{v0}}y"
 }

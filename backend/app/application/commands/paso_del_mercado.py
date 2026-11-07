@@ -48,6 +48,7 @@ from app.application.commands.mercado_comparable import (
     a_quien_le_toca_hoy,
     anotar_si_cambio,
     aplicar_resolucion,
+    descartar_lo_que_no_se_vendio,
     fondo_del_equipo,
     guardar,
     pendientes_de_resolver,
@@ -112,6 +113,11 @@ class PasoDelMercado:
     cuota_agotada: bool = False
     #: Canarios gastados. Es lo que cuesta poder fiarse de los vacíos.
     canarios: int = 0
+    #: Anuncios sin una sola puja que se borraron por no haberse vendido
+    #: (2026-11-07). Es la contrapartida de guardarlos: entran todos, incluso a
+    #: cero, y el que al final no fue se va. Sin esta cuenta, el fondo creciendo
+    #: y el fondo limpiándose se verían igual desde fuera.
+    anuncios_descartados: int = 0
 
 
 async def correr_el_paso_del_mercado(
@@ -124,6 +130,14 @@ async def correr_el_paso_del_mercado(
 ) -> PasoDelMercado:
     """Resuelve lo pendiente y barre el mercado de quien no se haya mirado hoy."""
     resueltas = await _resolver(session, equipo, historial_de, ahora)
+    # SE BORRA DESPUÉS DE RESOLVER, Y EN ESTE ORDEN. La resolución es la que
+    # convierte un anuncio en venta o le gasta el último intento, así que
+    # borrar antes dejaría un día de retraso en cada descarte; y borrar lo que
+    # acaba de resolverse es imposible, porque `se_puede_descartar` deja fuera
+    # todo lo firme.
+    descartados = await descartar_lo_que_no_se_vendio(session, equipo.id, ahora)
+    if descartados:
+        await session.flush()
 
     plantilla = await _plantilla(session, equipo.id)
     toca = set(a_quien_le_toca_hoy(plantilla, ahora))
@@ -139,6 +153,7 @@ async def correr_el_paso_del_mercado(
             busquedas=0,
             se_busco=False,
             puntos_anotados=puntos,
+            anuncios_descartados=descartados,
         )
 
     centinela = Centinela()
@@ -195,6 +210,7 @@ async def correr_el_paso_del_mercado(
         resueltas=resueltas,
         jugadores_barridos=tuple(barridos),
         ventas_nuevas=nuevas,
+        anuncios_descartados=descartados,
         puntos_anotados=puntos,
         busquedas=busquedas,
         se_busco=bool(barridos),

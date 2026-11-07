@@ -76,6 +76,19 @@ _RANGO = {habilidad: puesto for puesto, habilidad in enumerate(ORDEN_DE_DESEMPAT
 #: disparar la cuota, que es lo que de verdad cuesta cada plaza más.
 OBJETIVO = 8
 
+#: Cuantos anuncios SIN NINGUNA PUJA se enseñan como mucho en la tabla de un
+#: jugador. Hace falta desde el 2026-11-07, el dia que se empezaron a guardar.
+#:
+#: No cambia ningun numero: un anuncio a cero no ocupa plaza ni cuenta para la
+#: media, y esto es solo cuantos de ellos se pintan. Pero sin tope la tabla se
+#: hunde: el barrido es diario, cada barrido trae decenas de anuncios parecidos
+#: a alguien de la plantilla, y en siete semanas la tabla de un jugador serian
+#: cientos de filas muertas delante de sus ocho comparables de verdad.
+#:
+#: Ocho, como `OBJETIVO`: tantos anuncios a cero como comparables de verdad
+#: caben. Se enseñan los que mas se parecen, que es el orden que ya tenian.
+SIN_PUJA_QUE_SE_ENSENAN = OBJETIVO
+
 #: Cuánto vive un dato antes de volverse reemplazable. No se borra al
 #: cumplirlo: queda a la espera de que algo mejor lo sustituya, y si no
 #: aparece nada se queda, porque un dato viejo informa más que ninguno.
@@ -252,6 +265,10 @@ class Candidato:
     tiene_puja: bool
     plazo: str
     tsi: int
+    #: Su FORMA, de 1 a 8. No entra en el parecido --el usuario comparo por
+    #: habilidades-- pero se guarda y se enseña: es columna del Comparador de
+    #: Transferencias del propio juego. `-1` es «no la sabemos».
+    forma: int
     especialidad: int
     lesion: int
     vendedor: int
@@ -326,6 +343,23 @@ class Guardado:
     tsi: int = 0
     #: Su pais de nacimiento, para la bandera.
     pais: int = 0
+    #: Su FORMA al encontrarlo, de 1 a 8. `-1` en las ventas guardadas antes
+    #: de que hubiera columna.
+    forma: int = -1
+    #: Lo que PEDIA el vendedor cuando se abrio la fila. Cero es «no lo
+    #: sabemos»: ni las ventas viejas ni una fila abierta antes del 2026-11-07.
+    precio_pedido: int = 0
+    #: CUANDO CIERRA SU SUBASTA, que para una venta ya resuelta es cuando se
+    #: vendio. Viaja aqui desde el 2026-11-07, y antes no: se decia que «deja
+    #: de importar en cuanto la venta se resuelve». Importa, por dos cosas.
+    #:
+    #: La columna «Fecha» que pidio el usuario es esta, y hasta hoy la pantalla
+    #: la sacaba de un diccionario `{jugador: plazo}`. Desde la 0105 un mismo
+    #: jugador puede tener DOS subastas --el 490357848 sale dos veces en su
+    #: propio Comparador, a 215.220 y a 125.000-- asi que esa clave se quedaba
+    #: con el plazo de una de las dos y lo pegaba a las dos filas. Con el plazo
+    #: dentro de la venta, cada fila lleva el suyo.
+    plazo: datetime | None = None
     #: El identificador del traspaso en Hattrick, en cuanto se resuelve.
     #: Cero mientras siga siendo una puja.
     ht_transfer_id: int = 0
@@ -683,6 +717,8 @@ def candidato_de(fila: Mapping[str, Any]) -> Candidato | None:
         tiene_puja=bool(fila["has_bids"]) if "has_bids" in fila else puja > 0,
         plazo=str(fila.get("deadline", "") or ""),
         tsi=int(fila.get("tsi", 0) or 0),
+        # `parse_transfersearch` ya la devolvia; se tiraba aqui.
+        forma=int(fila["form"]) if fila.get("form") is not None else -1,
         especialidad=int(fila.get("specialty", 0) or 0),
         lesion=int(fila["injury_level"]) if fila.get("injury_level") is not None else -1,
         vendedor=int(fila.get("seller_team_id", 0) or 0),
@@ -840,7 +876,20 @@ def comparables_de(
     if len(ocupan) > OBJETIVO:
         corte = ocupan[OBJETIVO - 1].peso
         ocupan = [c for c in ocupan if c.peso >= corte]
-    return (*ocupan, *sobran)
+    # LOS ANUNCIOS A CERO, CON TOPE (2026-11-07). Desde hoy se guardan, y son
+    # muchos: el barrido es diario y cada pasada trae decenas. Sin tope
+    # entrarian todos en `sobran` y la tabla seria una lista de anuncios
+    # muertos por delante de los ocho comparables de verdad.
+    #
+    # Las pujas abandonadas NO llevan tope, igual que ayer: son pocas --una
+    # puja garantiza la venta, asi que casi todas se resuelven-- y cada una
+    # conserva un dato, que alguien ofrecio ese dinero por alguien asi.
+    muertos: list[Comparable] = []
+    resto: list[Comparable] = []
+    for c in sobran:
+        destino = muertos if (nunca_tuvo_puja(c.venta) and not c.venta.firme) else resto
+        destino.append(c)
+    return (*ocupan, *resto, *muertos[:SIN_PUJA_QUE_SE_ENSENAN])
 
 
 def ocupa_plaza(venta: Guardado) -> bool:
@@ -872,6 +921,59 @@ def ocupa_plaza(venta: Guardado) -> bool:
     if venta.precio <= 0:
         return False
     return venta.intentos <= REINTENTOS_DE_RESOLUCION
+
+
+def nunca_tuvo_puja(venta: Guardado) -> bool:
+    """Si en ningun momento vimos una puja sobre este anuncio.
+
+    `HighestBid` vale 0 EXACTAMENTE cuando no hay pujas --lo dice la
+    documentacion oficial y por eso el parser manda tambien `has_bids`-- asi
+    que un cero aqui no es «ofrecieron cero», es «nadie habia ofrecido nada
+    cuando lo miramos».
+
+    ES LA COLUMNA «NO PUJA DETECTADA» que pidio el usuario el 2026-11-07, y el
+    caso que importa no es el anuncio muerto: es el que SI SE VENDIO sin que
+    nosotros llegaramos a ver una sola puja. Esa fila dice dos cosas a la vez
+    --se pago tanto, y la subasta se movio entre dos barridos nuestros-- y es
+    justo lo que le paso al 472301981.
+    """
+    return venta.puja <= 0
+
+
+def se_puede_descartar(venta: Guardado, ahora: datetime | None = None) -> bool:
+    """Si este anuncio sin pujas ya se puede borrar del fondo.
+
+    LA OTRA MITAD DE LA DECISION DEL USUARIO (2026-11-07): «buscar todos los
+    jugadores que esten en el mercado, asi sea en 0, y guardarlos para el
+    futuro; descartarlos si al final no se vendieron».
+
+    Guardar los anuncios a cero es lo que permite cazar al que recibe su puja
+    en la ultima hora. Pero el que nunca la recibio es basura: no ocupa plaza,
+    no cuenta para la media y no va a convertirse en nada. Se le dan las mismas
+    oportunidades de resolucion que a los demas, y cuando se le agotan sin que
+    Hattrick publique traspaso alguno, se borra.
+
+    POR QUE BORRAR Y NO DEJARLO MARCADO, que es lo que se hace con una puja
+    abandonada. Una puja abandonada conserva un dato: alguien ofrecio ese
+    dinero por alguien asi. Un anuncio sin pujas no conserva ninguno --el
+    precio pedido es lo que una persona decidio pedir-- y en cambio ocupa fila
+    para siempre y sale en la tabla. El fondo crece todos los dias desde que el
+    barrido es diario; sin este borrado, en siete semanas la tabla de cualquier
+    jugador serian anuncios muertos.
+
+    UNA VENTA FIRME NO SE DESCARTA NUNCA, aunque nunca le vieramos puja. Esa es
+    precisamente la que se vino a buscar.
+
+    `ahora` NO SE USA hoy: los intentos ya sellan el paso del tiempo --uno al
+    dia, y solo despues del cierre-- asi que pasados los reintentos el anuncio
+    lleva por definicion dias muerto. Se queda en la firma porque el dia que el
+    criterio quiera mirar el reloj de verdad, quien llama no tiene que cambiar.
+    """
+    if venta.firme:
+        return False
+    if not nunca_tuvo_puja(venta):
+        return False
+    return venta.intentos > REINTENTOS_DE_RESOLUCION
 
 
 def cuenta_para_el_numero(venta: Guardado) -> bool:

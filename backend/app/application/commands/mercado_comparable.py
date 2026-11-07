@@ -40,6 +40,7 @@ from app.domain.engines.mercado_comparable import (
     Traspaso,
     le_toca_hoy,
     precio_cerrado,
+    se_puede_descartar,
     se_puede_resolver,
 )
 from app.domain.value_objects.ht_time import ht_to_utc
@@ -131,6 +132,9 @@ def a_guardado(fila: m.MarketSale) -> Guardado:
         habilidades=_habilidades(fila.skills_json),
         especialidad=fila.specialty,
         tsi=fila.tsi,
+        forma=fila.form,
+        precio_pedido=fila.asking_price,
+        plazo=fila.deadline,
         pais=fila.country_id,
         intentos=fila.resolve_attempts,
         ht_transfer_id=fila.ht_transfer_id,
@@ -214,10 +218,59 @@ async def guardar(
         fila.tertiary_level = venta.terciaria.nivel
         fila.specialty = venta.especialidad
         fila.tsi = venta.tsi
+        fila.form = venta.forma
+        # EL PRECIO PEDIDO SE ESCRIBE UNA SOLA VEZ (2026-11-07, pedido del
+        # usuario: «guardar el precio inicial, para analizar la relación entre
+        # precio inicial, final y horario»).
+        #
+        # Volver a ver el anuncio no lo pisa, porque los vendedores BAJAN el
+        # precio pedido cuando no entran pujas: con el barrido diario, pisarlo
+        # cada día dejaría el último, que es justo el que no se pidió. Tampoco
+        # se pisa un cero con un cero, para que una fila vieja que algún día
+        # traiga el dato lo pueda estrenar.
+        if not fila.asking_price and venta.precio_pedido > 0:
+            fila.asking_price = venta.precio_pedido
         fila.country_id = venta.pais
         if venta.habilidades:
             fila.skills_json = json.dumps(dict(venta.habilidades), sort_keys=True)
     return nuevas
+
+
+async def descartar_lo_que_no_se_vendio(
+    session: AsyncSession, team_id: int, ahora: datetime
+) -> int:
+    """Borra los anuncios sin pujas a los que se les agotaron los intentos.
+
+    LA SEGUNDA MITAD DE LO QUE PIDIÓ EL USUARIO el 2026-11-07: «buscar todos
+    los jugadores que estén en el mercado, así sea en 0, y guardarlos para el
+    futuro; descartarlos si al final no se vendieron».
+
+    Guardarlos es lo que permite cazar al que recibe su primera puja en la
+    última hora --el 472301981-- porque cuando se venda ya estará en el fondo
+    y la resolución le preguntará por su precio como a cualquiera. El que
+    nunca la recibió no deja nada: no ocupó plaza, no contó para la media y no
+    va a convertirse en nada. Se borra, y el fondo no crece sin freno.
+
+    Lo decide `se_puede_descartar`, que es del dominio y se prueba solo. Aquí
+    sólo se trae lo que podría serlo --sin puja y sin resolver-- para no leer
+    el fondo entero en cada paso del mercado.
+    """
+    filas = (
+        await session.execute(
+            select(m.MarketSale).where(
+                m.MarketSale.team_id == team_id,
+                m.MarketSale.is_final.is_(False),
+                m.MarketSale.bid_price <= 0,
+                m.MarketSale.resolve_attempts > REINTENTOS_DE_RESOLUCION,
+            )
+        )
+    ).scalars()
+    borradas = 0
+    for fila in filas:
+        if se_puede_descartar(a_guardado(fila), ahora):
+            await session.delete(fila)
+            borradas += 1
+    return borradas
 
 
 # --------------------------------------------------------------------------

@@ -1925,7 +1925,6 @@
   "sin partido programado": "kein Spiel angesetzt",
   "sin partidos sincronizados todavía": "noch keine Spiele synchronisiert",
   "sin plantilla sincronizada": "kein Kader synchronisiert",
-  "sin pujas": "keine Gebote",
   "sin ratings · se completan al sincronizar": "keine Bewertungen · sie füllen sich beim Synchronisieren",
   "sin rival confirmado": "kein bestätigter Gegner",
   "sin sueldo conocido": "kein bekanntes Gehalt",
@@ -2230,5 +2229,10 @@
   "Alguno de los dos no tiene partidos de Copa todavía, así que de ese lado se han leído los de Liga. En Copa se juega con otro equipo, así que esta predicción describe peor de lo normal.": "Einer der beiden hat noch keine Pokalspiele, also wurde diese Seite aus ihren Ligaspielen gelesen. Im Pokal spielt man mit einer anderen Mannschaft, daher beschreibt diese Prognose schlechter als sonst.",
   "Sin predicción": "Keine Prognose",
   "sin datos con los que predecir": "keine Daten für eine Prognose",
-  "Hace falta una sesión de Hattrick activa y al menos un partido de alguno de los dos equipos con el que medir sus zonas. La fecha y el rival de arriba sí son datos sincronizados; aquí no se pone un número inventado para rellenar el hueco.": "Es braucht eine aktive Hattrick-Sitzung und mindestens ein Spiel einer der beiden Mannschaften, um ihre Zonen zu messen. Datum und Gegner oben sind synchronisierte Daten; hier wird keine erfundene Zahl eingesetzt, um die Lücke zu füllen."
+  "Hace falta una sesión de Hattrick activa y al menos un partido de alguno de los dos equipos con el que medir sus zonas. La fecha y el rival de arriba sí son datos sincronizados; aquí no se pone un número inventado para rellenar el hueco.": "Es braucht eine aktive Hattrick-Sitzung und mindestens ein Spiel einer der beiden Mannschaften, um ihre Zonen zu messen. Datum und Gegner oben sind synchronisierte Daten; hier wird keine erfundene Zahl eingesetzt, um die Lücke zu füllen.",
+  "NO PUJA DETECTADA": "KEIN GEBOT ERKANNT",
+  "sin puja vista": "kein Gebot gesehen",
+  "Pedía": "Forderung",
+  "{{v0}} a {{v1}} d": "{{v0}} J {{v1}} T",
+  "{{v0}} a": "{{v0}} J"
 }

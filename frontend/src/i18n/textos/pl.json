@@ -1925,7 +1925,6 @@
   "sin partido programado": "bez zaplanowanego meczu",
   "sin partidos sincronizados todavía": "jeszcze bez zsynchronizowanych meczów",
   "sin plantilla sincronizada": "bez zsynchronizowanej kadry",
-  "sin pujas": "brak ofert",
   "sin ratings · se completan al sincronizar": "bez ocen · uzupełnią się przy synchronizacji",
   "sin rival confirmado": "bez potwierdzonego przeciwnika",
   "sin sueldo conocido": "bez znanej pensji",
@@ -2230,5 +2229,10 @@
   "Alguno de los dos no tiene partidos de Copa todavía, así que de ese lado se han leído los de Liga. En Copa se juega con otro equipo, así que esta predicción describe peor de lo normal.": "Jeden z dwóch nie ma jeszcze meczów pucharowych, więc tę stronę odczytano z jego meczów ligowych. W pucharze gra się innym składem, więc ta prognoza opisuje gorzej niż zwykle.",
   "Sin predicción": "Brak prognozy",
   "sin datos con los que predecir": "brak danych do prognozy",
-  "Hace falta una sesión de Hattrick activa y al menos un partido de alguno de los dos equipos con el que medir sus zonas. La fecha y el rival de arriba sí son datos sincronizados; aquí no se pone un número inventado para rellenar el hueco.": "Potrzebna jest aktywna sesja Hattricka i co najmniej jeden mecz którejś z drużyn, by zmierzyć ich strefy. Data i rywal powyżej to dane zsynchronizowane; nie wstawia się tu wymyślonej liczby, by zapełnić lukę."
+  "Hace falta una sesión de Hattrick activa y al menos un partido de alguno de los dos equipos con el que medir sus zonas. La fecha y el rival de arriba sí son datos sincronizados; aquí no se pone un número inventado para rellenar el hueco.": "Potrzebna jest aktywna sesja Hattricka i co najmniej jeden mecz którejś z drużyn, by zmierzyć ich strefy. Data i rywal powyżej to dane zsynchronizowane; nie wstawia się tu wymyślonej liczby, by zapełnić lukę.",
+  "NO PUJA DETECTADA": "NIE WYKRYTO OFERTY",
+  "sin puja vista": "nie widziano oferty",
+  "Pedía": "Cena wyw.",
+  "{{v0}} a {{v1}} d": "{{v0}} l {{v1}} d",
+  "{{v0}} a": "{{v0}} l"
 }
