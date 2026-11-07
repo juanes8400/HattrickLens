@@ -130,14 +130,31 @@ async def correr_el_turno(
         filas = await buscar(ventana)
         busquedas += 1
         vistas += len(filas)
-        con_puja, _sin_puja = cosecha(
+        con_puja, sin_puja = cosecha(
             objetivo,
             filas,
             mi_equipo=mi_equipo,
             ya_vistos=[v.ht_player_id for v in acumulado],
             tambien_para=tambien_para,
         )
-        for candidato, _peso in con_puja:
+        # LOS DOS MONTONES SE ANOTAN (2026-11-07, pedido del usuario), y hasta
+        # hoy sólo el primero. El segundo --los anuncios sin una sola puja-- se
+        # devolvía para poder CONTARLO y se tiraba.
+        #
+        # El usuario encontró lo que costaba, por su nombre: «472301981, este
+        # jugador debió haber entrado al comparador. No lo tomó porque no tuvo
+        # puja sino hasta el final». Un anuncio que pasa días a cero y recibe su
+        # primera puja en la última hora no volvía a verse: cuando se vendió,
+        # para nosotros no existía, y su precio de cierre --el único dato que
+        # cuenta para la media-- se perdía.
+        #
+        # No mueve ningún número de hoy. Un anuncio a cero no ocupa plaza
+        # (`ocupa_plaza` mira el precio) ni cuenta para la media
+        # (`cuenta_para_el_numero` pide `firme`). Lo que gana es que ahora puede
+        # CONVERTIRSE en una venta cerrada, porque entra en la cola de
+        # resolución igual que los demás. Y el que al final no se vendió se
+        # borra solo: `descartar_lo_que_no_se_vendio`.
+        for candidato, _peso in (*con_puja, *sin_puja):
             venta = _provisional(candidato, ahora)
             acumulado.append(venta)
             nuevas.append(venta)
@@ -161,7 +178,18 @@ async def correr_el_turno(
 
 def _provisional(candidato: Candidato, ahora: datetime) -> Guardado:
     """El comparable tal como entra, con la puja de precio hasta que se
-    resuelva. `firme` queda en falso para que la pantalla pueda avisar."""
+    resuelva. `firme` queda en falso para que la pantalla pueda avisar.
+
+    SIRVE TAMBIÉN PARA EL ANUNCIO SIN PUJAS, y no hace falta otra función:
+    `candidato.puja` vale cero en ese caso --`HighestBid` vale cero exactamente
+    cuando no hay pujas-- así que la venta entra con precio cero, que es lo que
+    `ocupa_plaza` ya sabe leer como «esto no ocupa nada».
+
+    Lo que NO se pone de precio es `precio_pedido`. Un precio pedido es lo que
+    una persona decidió pedir, no lo que nadie pagó; se guarda aparte para
+    poder mirar luego la relación entre pedido, cerrado y hora del cierre, y
+    nunca entra en una media.
+    """
     return Guardado(
         ht_player_id=candidato.ht_player_id,
         nombre=candidato.nombre,
@@ -177,5 +205,7 @@ def _provisional(candidato: Candidato, ahora: datetime) -> Guardado:
         habilidades=dict(candidato.habilidades),
         especialidad=candidato.especialidad,
         tsi=candidato.tsi,
+        forma=candidato.forma,
+        precio_pedido=candidato.precio_pedido,
         pais=candidato.pais,
     )

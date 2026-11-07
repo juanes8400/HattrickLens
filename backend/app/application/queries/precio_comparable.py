@@ -38,6 +38,7 @@ from app.domain.engines.mercado_comparable import (
     Objetivo,
     comparables_de,
     estimar,
+    nunca_tuvo_puja,
     objetivo_de,
 )
 from app.domain.value_objects.ht_constants import SPECIALTIES
@@ -94,6 +95,11 @@ class FilaDeComparable:
     cuenta: bool
     viejo: bool
     edad: int
+    #: Los DÍAS de su edad, además de los años (2026-11-07, pedido del
+    #: usuario: el Comparador de Transferencias del juego los enseña, y a los
+    #: 17 años son parte de la regla). `-1` es «no los sabemos»: las ventas
+    #: anotadas antes de la migración 0103.
+    dias: int
     perfil: tuple[RasgoVisible, RasgoVisible, RasgoVisible]
     semanas: int
     #: Cuándo cierra su subasta, mientras siga siendo una puja. Es lo que
@@ -104,6 +110,19 @@ class FilaDeComparable:
     #: lo que el componente del icono sabe leer (`SPECIALTIES` del dominio).
     especialidad: str
     tsi: int
+    #: Su FORMA, de 1 a 8. Columna del Comparador de Transferencias que el
+    #: usuario pidió el 2026-11-07. `-1` es «no la sabemos»: toda venta
+    #: anotada antes de la migración 0112.
+    forma: int
+    #: Lo que PEDÍA el vendedor cuando se encontró el anuncio. Cero es «no lo
+    #: sabemos». NO es un precio: es lo que una persona decidió pedir, y por
+    #: eso no entra en ninguna media. Se enseña al lado del que se pagó
+    #: porque la distancia entre los dos es el dato.
+    precio_pedido: int
+    #: Si en ningún momento vimos una puja sobre este anuncio. Es la columna
+    #: «NO PUJA DETECTADA»: en una venta ya cerrada dice que la subasta se
+    #: movió entre dos barridos nuestros, que es lo que pasó con el 472301981.
+    sin_puja: bool
     #: El código de dos letras, que es lo que pinta la bandera. Vacío cuando
     #: la venta se anotó antes de que se guardara el país.
     pais_codigo: str
@@ -240,7 +259,6 @@ async def precio_de(
     )
     # El plazo no viaja dentro de `Guardado` --deja de importar en cuanto la
     # venta se resuelve-- así que se queda aquí al lado, por identificador.
-    plazos = {f.ht_player_id: f.deadline for f in filas}
     elegidos = comparables_de([a_guardado(f) for f in filas], objetivo, momento)
     estimacion = estimar(elegidos)
     # SOLO LAS QUE CUENTAN, o sea las ventas CERRADAS. `elegidos` lleva también
@@ -300,11 +318,19 @@ async def precio_de(
             cuenta=False,
             viejo=False,
             edad=foto.age_years or 0,
+            dias=foto.age_days if foto.age_days is not None else -1,
             perfil=_perfil(objetivo),
             semanas=0,
             cierra=None,
             especialidad=SPECIALTIES.get(foto.specialty or 0, ""),
             tsi=foto.tsi or 0,
+            forma=foto.form if foto.form is not None else -1,
+            # Tu jugador no está en venta: no pide precio y nadie le ha pujado.
+            # Un cero aquí se leería como «vale cero», que es lo contrario de
+            # lo que dice, así que `sin_puja` queda en falso para que la
+            # pantalla no le ponga el sello de «NO PUJA DETECTADA».
+            precio_pedido=0,
+            sin_puja=False,
             pais_codigo=paises.get(foto.country_id or 0, ("", ""))[0],
             pais_nombre=paises.get(foto.country_id or 0, ("", ""))[1],
             propio=True,
@@ -321,11 +347,22 @@ async def precio_de(
                 firme=c.venta.firme,
                 viejo=c.viejo,
                 edad=c.venta.edad,
+                dias=c.venta.dias,
                 perfil=_perfil(c.venta),
                 semanas=_semanas(c.venta.visto_el, momento),
-                cierra=plazos.get(c.venta.ht_player_id),
+                # EL PLAZO SALE DE LA VENTA, no de un diccionario por jugador
+                # (2026-11-07). Desde la migración 0105 un mismo jugador puede
+                # tener DOS subastas --el 490357848 sale dos veces en su propio
+                # Comparador, a 215.220 y a 125.000-- y una clave `{jugador:
+                # plazo}` se quedaba con el plazo de una de las dos y lo pegaba
+                # a las dos filas. Importa más desde hoy, porque ese plazo es
+                # también la columna «Fecha».
+                cierra=c.venta.plazo,
                 especialidad=SPECIALTIES.get(c.venta.especialidad, ""),
                 tsi=c.venta.tsi,
+                forma=c.venta.forma,
+                precio_pedido=convertido(c.venta.precio_pedido),
+                sin_puja=nunca_tuvo_puja(c.venta),
                 pais_codigo=paises.get(c.venta.pais, ("", ""))[0],
                 pais_nombre=paises.get(c.venta.pais, ("", ""))[1],
             )

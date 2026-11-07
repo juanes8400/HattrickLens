@@ -1930,7 +1930,6 @@
   "sin partido programado": "kein Spiel angesetzt",
   "sin partidos sincronizados todavía": "noch keine Spiele synchronisiert",
   "sin plantilla sincronizada": "kein Kader synchronisiert",
-  "sin pujas": "keine Gebote",
   "sin ratings · se completan al sincronizar": "keine Bewertungen · sie füllen sich beim Synchronisieren",
   "sin rival confirmado": "kein bestätigter Gegner",
   "sin sueldo conocido": "kein bekanntes Gehalt",
@@ -2229,5 +2228,10 @@
   "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}}-mal deine jetzige Kasse, also {{v1}}",
   "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} aus dem Kader konnten noch nicht gemessen werden",
   "de {{v0}} ventas": "aus {{v0}} Verkäufen",
-  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} dieser Preise stammen aus wenigen Verkäufen und bewegen die Summe stärker, als es scheint"
+  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} dieser Preise stammen aus wenigen Verkäufen und bewegen die Summe stärker, als es scheint",
+  "NO PUJA DETECTADA": "KEIN GEBOT ERKANNT",
+  "sin puja vista": "kein Gebot gesehen",
+  "Pedía": "Forderung",
+  "{{v0}} a {{v1}} d": "{{v0}} J {{v1}} T",
+  "{{v0}} a": "{{v0}} J"
 }

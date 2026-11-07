@@ -1930,7 +1930,6 @@
   "sin partido programado": "no match scheduled",
   "sin partidos sincronizados todavía": "no matches synced yet",
   "sin plantilla sincronizada": "no squad synced",
-  "sin pujas": "no bids",
   "sin ratings · se completan al sincronizar": "no ratings · they fill in when you sync",
   "sin rival confirmado": "no confirmed opponent",
   "sin sueldo conocido": "no known wage",
@@ -2229,5 +2228,10 @@
   "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}} times your current cash, which is {{v1}}",
   "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} of the squad could not be measured yet",
   "de {{v0}} ventas": "from {{v0}} sales",
-  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} of those prices come from few sales and move the total more than it looks"
+  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} of those prices come from few sales and move the total more than it looks",
+  "NO PUJA DETECTADA": "NO BID DETECTED",
+  "sin puja vista": "no bid seen",
+  "Pedía": "Asking",
+  "{{v0}} a {{v1}} d": "{{v0}}y {{v1}}d",
+  "{{v0}} a": "{{v0}}y"
 }

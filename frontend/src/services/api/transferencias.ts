@@ -293,6 +293,9 @@ export interface ComparableDeMercado {
   /** Ya cumplió sus siete semanas y sigue por no haber nada mejor. */
   viejo: boolean;
   edad: number;
+  /** Los DÍAS de su edad, además de los años. `-1` es «no los sabemos»: las
+   *  ventas anotadas antes de que hubiera columna. */
+  dias: number;
   perfil: RasgoVisible[];
   semanas: number;
   /** Cuándo cierra su subasta, mientras sea una puja. Nulo si ya es firme. */
@@ -300,6 +303,15 @@ export interface ComparableDeMercado {
   /** El nombre, ya resuelto por el servidor. Vacío si no tiene. */
   especialidad: string;
   tsi: number;
+  /** Su forma, de 1 a 8. `-1` es «no la sabemos». */
+  forma: number;
+  /** Lo que PEDÍA el vendedor cuando se encontró el anuncio. Cero es «no lo
+   *  sabemos». No es un precio: es lo que una persona decidió pedir, y por
+   *  eso no entra en ninguna media. */
+  precioPedido: number;
+  /** Si en ningún momento se vio una puja sobre este anuncio. En una venta ya
+   *  cerrada dice que la subasta se movió entre dos barridos nuestros. */
+  sinPuja: boolean;
   /** Código de dos letras para la bandera. Vacío si no se guardó. */
   paisCodigo: string;
   paisNombre: string;
