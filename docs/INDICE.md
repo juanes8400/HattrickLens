@@ -56,7 +56,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1195 | libro | 0 | 1 |
 | `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4020 | 15912 | academy | 13 | 29 |
 | `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 684 | 6168 | matches | 4 | 12 |
-| `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1689 | 17542 | league | 13 | 67 |
+| `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1757 | 17610 | league | 13 | 67 |
 | `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1082 | 16890 | cup, rivals | 16 | 77 |
 | `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 343 | 14394 | cup, league | 10 | 55 |
 | `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1374 | 22098 | rivals, dashboard | 17 | 80 |
@@ -593,7 +593,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/league`
 
-- **Página:** [frontend/src/pages/LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) (1689 líneas)
+- **Página:** [frontend/src/pages/LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) (1757 líneas)
 - **Componentes y hooks suyos (21):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)

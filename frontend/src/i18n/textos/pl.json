@@ -2229,5 +2229,11 @@
   "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}} razy twoja obecna kasa, czyli {{v1}}",
   "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} z kadry nie udało się jeszcze zmierzyć",
   "de {{v0}} ventas": "z {{v0}} transakcji",
-  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} z tych cen pochodzi z niewielu transakcji i rusza sumę bardziej, niż się wydaje"
+  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} z tych cen pochodzi z niewielu transakcji i rusza sumę bardziej, niż się wydaje",
+  "Hattrick todavía no ha publicado tu serie": "Hattrick jeszcze nie opublikował twojej grupy",
+  "· sin serie publicada todavía": "· brak opublikowanej grupy",
+  "Sabemos que tu serie es {{v0}}, pero no quiénes la juegan: la clasificación y el calendario llegan cuando Hattrick hace el sorteo, unos días después de que acabe la temporada.": "Wiemy, że twoja grupa to {{v0}}, ale nie wiemy, kto w niej gra: tabela i terminarz przychodzą, gdy Hattrick przeprowadzi losowanie, kilka dni po końcu sezonu.",
+  "La clasificación y el calendario llegan cuando Hattrick hace el sorteo, unos días después de que acabe la temporada.": "Tabela i terminarz przychodzą, gdy Hattrick przeprowadzi losowanie, kilka dni po końcu sezonu.",
+  "Hasta entonces no hay nada que sincronizar: esto no se arregla volviendo a sincronizar, porque lo que falta no está de nuestro lado. En cuanto Hattrick lo publique, entra en la siguiente sincronización y esta pantalla se llena sola.": "Do tego czasu nie ma czego synchronizować: ponowna synchronizacja tego nie naprawi, bo brakującej rzeczy nie ma u nas. Gdy tylko Hattrick to opublikuje, wejdzie przy następnej synchronizacji i ten ekran sam się wypełni.",
+  "Mientras tanto, lo de la temporada pasada sigue en Partidos y en el histórico de Cambios: no se borra nada al cambiar de temporada.": "W tym czasie dane z poprzedniego sezonu zostają w Mecze i w historii Zmian: przy zmianie sezonu nic nie jest usuwane."
 }

@@ -2229,5 +2229,11 @@
   "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}} times your current cash, which is {{v1}}",
   "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} of the squad could not be measured yet",
   "de {{v0}} ventas": "from {{v0}} sales",
-  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} of those prices come from few sales and move the total more than it looks"
+  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} of those prices come from few sales and move the total more than it looks",
+  "Hattrick todavía no ha publicado tu serie": "Hattrick has not published your series yet",
+  "· sin serie publicada todavía": "· no series published yet",
+  "Sabemos que tu serie es {{v0}}, pero no quiénes la juegan: la clasificación y el calendario llegan cuando Hattrick hace el sorteo, unos días después de que acabe la temporada.": "We know your series is {{v0}}, but not who plays in it: the table and the fixture arrive when Hattrick runs the draw, a few days after the season ends.",
+  "La clasificación y el calendario llegan cuando Hattrick hace el sorteo, unos días después de que acabe la temporada.": "The table and the fixture arrive when Hattrick runs the draw, a few days after the season ends.",
+  "Hasta entonces no hay nada que sincronizar: esto no se arregla volviendo a sincronizar, porque lo que falta no está de nuestro lado. En cuanto Hattrick lo publique, entra en la siguiente sincronización y esta pantalla se llena sola.": "Until then there is nothing to sync: syncing again does not fix this, because what is missing is not on our side. As soon as Hattrick publishes it, it comes in on the next sync and this screen fills itself.",
+  "Mientras tanto, lo de la temporada pasada sigue en Partidos y en el histórico de Cambios: no se borra nada al cambiar de temporada.": "Meanwhile, last season's data is still in Matches and in the Changes history: nothing is deleted when the season turns over."
 }

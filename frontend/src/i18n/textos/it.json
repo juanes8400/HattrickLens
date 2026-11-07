@@ -2229,5 +2229,11 @@
   "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}} volte la tua cassa di adesso, cioè {{v1}}",
   "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} della rosa non si sono ancora potuti misurare",
   "de {{v0}} ventas": "da {{v0}} vendite",
-  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} di quei prezzi vengono da poche vendite e muovono il totale più di quanto sembri"
+  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} di quei prezzi vengono da poche vendite e muovono il totale più di quanto sembri",
+  "Hattrick todavía no ha publicado tu serie": "Hattrick non ha ancora pubblicato il tuo girone",
+  "· sin serie publicada todavía": "· nessun girone pubblicato ancora",
+  "Sabemos que tu serie es {{v0}}, pero no quiénes la juegan: la clasificación y el calendario llegan cuando Hattrick hace el sorteo, unos días después de que acabe la temporada.": "Sappiamo che il tuo girone è {{v0}}, ma non chi lo gioca: la classifica e il calendario arrivano quando Hattrick fa il sorteggio, qualche giorno dopo la fine della stagione.",
+  "La clasificación y el calendario llegan cuando Hattrick hace el sorteo, unos días después de que acabe la temporada.": "La classifica e il calendario arrivano quando Hattrick fa il sorteggio, qualche giorno dopo la fine della stagione.",
+  "Hasta entonces no hay nada que sincronizar: esto no se arregla volviendo a sincronizar, porque lo que falta no está de nuestro lado. En cuanto Hattrick lo publique, entra en la siguiente sincronización y esta pantalla se llena sola.": "Fino ad allora non c'è nulla da sincronizzare: risincronizzare non risolve, perché quello che manca non è da parte nostra. Appena Hattrick lo pubblica, entra con la sincronizzazione successiva e questa schermata si riempie da sola.",
+  "Mientras tanto, lo de la temporada pasada sigue en Partidos y en el histórico de Cambios: no se borra nada al cambiar de temporada.": "Nel frattempo, i dati della stagione passata restano in Partite e nello storico di Cambiamenti: al cambio di stagione non si cancella nulla."
 }
