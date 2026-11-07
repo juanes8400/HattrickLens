@@ -1817,5 +1817,12 @@
   "No hay nada que arreglar de tu lado: los precios comparables se quedan como estaban y se vuelve a intentar en la próxima sincronización.": "Non c'è nulla da sistemare da parte tua: i prezzi comparabili restano come erano e si riprova alla prossima sincronizzazione.",
   "No tienes amistoso programado para esta semana": "Non hai nessuna amichevole in programma questa settimana",
   "El hueco de amistosos de tu país se cierra el {} a las {}.": "La finestra delle amichevoli del tuo paese si chiude il {} alle {}.",
-  "Concierta uno en Hattrick: un amistoso entrena igual que un partido oficial y es la única forma de dar minutos sin arriesgar la liga.": "Organizzane una in Hattrick: un'amichevole allena come una partita ufficiale ed è l'unico modo per dare minuti senza rischiare il campionato."
+  "Concierta uno en Hattrick: un amistoso entrena igual que un partido oficial y es la única forma de dar minutos sin arriesgar la liga.": "Organizzane una in Hattrick: un'amichevole allena come una partita ufficiale ed è l'unico modo per dare minuti senza rischiare il campionato.",
+  "La clasificación llegó con {} equipos de {}: no se ha dado por cambiada la liga": "La classifica è arrivata con {} squadre su {}: la liga non è stata data per cambiata",
+  "{} fue reemplazado por {} en la liga": "{} è stato sostituito da {} nella liga",
+  "La liga cambió de equipos: entraron {} y se fueron {}": "La liga ha cambiato squadre: ne sono entrate {} e ne sono uscite {}",
+  "{} entró en la liga": "{} è entrato nella liga",
+  "{} ya no está en la liga": "{} non è più nella liga",
+  "{} ahora se llama {}": "{} ora si chiama {}",
+  "Composición de la liga": "Composizione della liga"
 }

@@ -2,10 +2,11 @@
 
 Aqui se vigila el GASTO y el orden, que es lo que aporta esta capa: que no se
 llame a nadie cuando no hace falta, que se pare en el escalon que completa el
-fondo y no antes de terminarlo, y que los anuncios sin puja sean el ultimo
-recurso y no el primero.
+fondo y no antes de terminarlo, y que un anuncio sin puja se guarde --para
+poder cazarlo si algun dia se vende-- sin convertirse en un precio.
 """
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -18,7 +19,11 @@ from app.domain.engines.mercado_comparable import (
     Guardado,
     Objetivo,
     Ventana,
+    cuenta_para_el_numero,
+    nunca_tuvo_puja,
     objetivo_de,
+    ocupa_plaza,
+    se_puede_descartar,
     terna,
 )
 
@@ -215,19 +220,38 @@ async def test_lo_caducado_cuenta_y_YA_NO_manda_a_buscar() -> None:
     assert len(r.nuevas) == 1
 
 
-async def test_un_anuncio_sin_puja_no_se_anota_nunca() -> None:
-    """Un precio pedido es lo que una persona decidio pedir, no lo que el
-    mercado pago.
+async def test_un_anuncio_sin_puja_se_anota_pero_no_vale_como_precio() -> None:
+    """Se guarda, y NO cuenta. Son dos cosas distintas, y hasta hoy eran una.
 
-    Hasta el 2026-10-07 se anotaban como ultimo recurso, para preguntarles el
-    precio dias despues. Se quito al medir lo que eran: de 25 anuncios
-    parecidos a un jugador, 19 no tenian ni una puja, y los que entraban por
-    esa puerta lo hacian con precio CERO, porque cero es lo que vale
+    Del 2026-10-07 al 2026-11-07 un anuncio sin pujas no se anotaba: se medio
+    lo que eran --de 25 parecidos a un jugador, 19 sin una sola puja-- y se
+    decidio tirarlos, porque entraban con precio CERO y cero es lo que vale
     `HighestBid` sin pujas.
+
+    EL USUARIO ENCONTRO LO QUE ESO COSTABA, por su nombre: «472301981, este
+    jugador debio haber entrado al comparador. No lo tomo porque no tuvo puja
+    sino hasta el final». Un anuncio que pasa dias a cero y recibe su primera
+    puja en la ultima hora no volvia a verse NUNCA: cuando se vendio, para
+    nosotros no existia, y el precio de cierre --el unico dato que cuenta para
+    la media-- se perdia.
+
+    Asi que ahora se anota, y lo que se defiende aqui es que anotarlo no lo
+    convierte en un precio: entra con cero, no ocupa plaza y no da media.
     """
     mercado = _Mercado([_fila(1), _fila(2, puja=0), _fila(3, puja=0)])
     r = await _turno(mercado)
-    assert {v.ht_player_id for v in r.nuevas} == {1}
+    # LOS TRES SE GUARDAN, que es el cambio.
+    assert {v.ht_player_id for v in r.nuevas} == {1, 2, 3}
+    # Y LOS TRES VAN A LA COLA DE RESOLUCION, que es para lo que se guardan:
+    # el dia que uno de ellos se venda, se le preguntara su precio real.
+    assert {p.ht_player_id for p in r.por_resolver} == {1, 2, 3}
+    # Los dos de cero entran con precio cero y sin puja. Un precio pedido es lo
+    # que una persona decidio pedir, y no se usa de precio jamas.
+    ceros = [v for v in r.nuevas if v.ht_player_id in (2, 3)]
+    assert [v.precio for v in ceros] == [0, 0]
+    assert all(nunca_tuvo_puja(v) for v in ceros)
+    assert not any(ocupa_plaza(v) for v in ceros)
+    assert not any(cuenta_para_el_numero(v) for v in ceros)
     # Una peticion, la unica que hay. Antes se recorria la escalera entera
     # buscando lo que si sirve; desde el 2026-10-26 lo que falta se busca
     # manana, no mas abajo.
@@ -238,15 +262,44 @@ async def test_un_anuncio_sin_puja_no_se_anota_nunca() -> None:
     assert r.filas_vistas == 3
 
 
-async def test_un_mercado_entero_sin_pujas_no_deja_nada(_mercado=None) -> None:
-    """El caso de Kurt Schonhueb y el de Alberto: todo el mercado parecido
-    esta en venta y nadie ha pujado por ninguno. Lo correcto es quedarse sin
-    comparables, no llenarse de ceros."""
+async def test_un_mercado_entero_sin_pujas_no_da_ningun_numero() -> None:
+    """El caso de Kurt Schonhueb y el de Alberto: todo el mercado parecido esta
+    en venta y nadie ha pujado por ninguno.
+
+    Lo correcto sigue siendo quedarse SIN CIFRA, no llenarse de ceros. Lo que
+    cambio el 2026-11-07 es que los ocho se guardan para poder cazarlos si
+    alguno se vende; lo que no cambia, y es lo que esta prueba defiende, es que
+    ocho anuncios a cero no producen ni una media ni llenan el fondo.
+    """
     mercado = _Mercado([_fila(i, puja=0) for i in range(1, 9)])
     r = await _turno(mercado)
-    assert r.nuevas == ()
-    assert r.por_resolver == ()
+    assert len(r.nuevas) == 8
     assert r.estimacion.media is None
+    assert r.estimacion.n == 0
+    # NINGUNO OCUPA PLAZA, y por eso la busqueda se declara agotada: el fondo
+    # sigue vacio de material util, que es justo lo que hay que poder decir.
+    assert not any(ocupa_plaza(v) for v in r.nuevas)
+    assert r.agotada is True
+
+
+async def test_el_anuncio_que_nunca_se_vendio_se_descarta() -> None:
+    """Y la otra mitad de la decision: «descartarlos si al final no se
+    vendieron».
+
+    Sin esto, guardar los anuncios a cero haria crecer el fondo todos los dias
+    sin devolver nada: el barrido es diario y la mayoria de los anuncios
+    parecidos no tienen puja. Con esto, el que agoto sus intentos sin que
+    Hattrick publicara traspaso alguno se va.
+    """
+    muerto = _venta(1, exacta=False)
+    muerto = replace(muerto, puja=0, precio=0, firme=False, intentos=99)
+    assert se_puede_descartar(muerto) is True
+    # Con puja NO se descarta: conserva un dato --alguien ofrecio ese dinero
+    # por alguien asi-- y se queda marcada como provisional abandonada.
+    assert se_puede_descartar(replace(muerto, puja=5_000, precio=5_000)) is False
+    # Y una venta firme no se descarta nunca, aunque nunca le vieramos puja:
+    # esa es precisamente la que se vino a buscar.
+    assert se_puede_descartar(replace(muerto, firme=True, precio=1_200_000)) is False
 
 
 async def test_todo_lo_que_entra_queda_anotado_para_resolver() -> None:

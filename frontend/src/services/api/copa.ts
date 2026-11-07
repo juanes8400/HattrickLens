@@ -90,8 +90,12 @@ export interface Cup {
     nextCupMatchDate: string | null;
   };
   /** La predicción del próximo cruce con el motor de zonas. `null` cuando no
-   *  hay con qué: sin cruce pendiente, sin sesión de Hattrick, o sin historia
-   *  de Copa del rival (su primera ronda). */
+   *  hay con qué: sin cruce pendiente, sin sesión de Hattrick, o sin NINGÚN
+   *  partido con el que resumir a alguno de los dos.
+   *
+   *  Ya NO es `null` por falta de historia de copa del rival: desde el
+   *  2026-11-05 ese caso se resuelve leyendo sus partidos de liga con el mismo
+   *  motor, y `rivalSource` lo dice. */
   prediction: {
     ownProbability: number;
     rivalProbability: number;
@@ -109,6 +113,15 @@ export interface Cup {
      *  dos de acciones indirectas a balón parado se toman de lo ya jugado,
      *  porque Hattrick no los prevé. */
     indirectasPrestadas: boolean;
+    /** De qué competición salen los partidos con los que se resumió cada
+     *  lado: `"copa"` o `"liga"`.
+     *
+     *  Se prefiere la copa, y sólo cuando un equipo NO tiene partidos de copa
+     *  --su primera ronda-- se leen los de liga. Viaja porque una predicción
+     *  hecha con liga vale menos que una hecha con copa, y quien la lee tiene
+     *  derecho a saber cuál está mirando. */
+    ownSource: "copa" | "liga";
+    rivalSource: "copa" | "liga";
   } | null;
   goal: {
     stage: string | null;

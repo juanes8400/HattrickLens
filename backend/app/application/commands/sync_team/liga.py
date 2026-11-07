@@ -8,15 +8,111 @@ con este mixin y los demas, asi que los `self.` siguen valiendo igual.
 from datetime import UTC, datetime
 from typing import Any
 
+from sqlalchemy import select
+
 from app.application.commands.sync_team.base import BaseDeSync
 from app.application.commands.sync_team.comun import (
     SyncResult,
     _as_change_row,
     trasladar_equipo_reemplazado,
 )
+from app.domain.engines.composicion_de_liga import (
+    Equipo,
+    cambios_de,
+    sin_repetir,
+    verificar,
+)
 from app.domain.engines.sync_diff import diff_standing
 from app.domain.ports.repositories import UnitOfWork
 from app.domain.value_objects.ht_time import ht_to_utc
+from app.infrastructure.db import models as m
+
+
+async def _verificar_la_composicion(
+    session: Any,
+    team_id: int,
+    series_ht_id: int,
+    season: int,
+    payload: dict[str, Any],
+    result: SyncResult,
+) -> None:
+    """Compara los equipos que llegaron con los que teníamos, y lo anota.
+
+    2026-11-07, pedido del usuario: «crea un mecanismo continuo de verificación
+    para verificar la composición de la liga».
+
+    CONTRA LA ÚLTIMA JORNADA GUARDADA de esta misma temporada, que es la foto
+    más reciente que tenemos de quién está en la serie. No contra la primera: la
+    liga cambia dentro de la temporada --un equipo abandonado se reemplaza por
+    otro con otro id-- y comparar con la jornada 1 en la jornada 12 anunciaría
+    otra vez el reemplazo de la jornada 8 en cada sincronización.
+
+    NI TEMPORADA NI SERIE, NO SE COMPRUEBA NADA. Sin `series_ht_id` no se sabe
+    de qué serie hablar, y con `season` en cero --que es lo que se guarda
+    cuando todavía no hay `worlddetails`-- la foto guardada y la que llega
+    podrían ser de temporadas distintas. Comparar a ciegas daría ocho equipos
+    entrando y ocho saliendo cada vez que se sincroniza antes de conocer el
+    mundo.
+
+    El veredicto es del dominio y se prueba solo. Aquí sólo se lee lo guardado,
+    se le pasa, y lo que vuelva se anota en Cambios.
+    """
+    if not series_ht_id or not season:
+        return
+    ultima = await session.scalar(
+        select(m.Standing.match_round)
+        .where(
+            m.Standing.series_ht_id == series_ht_id,
+            m.Standing.season == season,
+        )
+        .order_by(m.Standing.match_round.desc())
+        .limit(1)
+    )
+    guardados: list[Equipo] = []
+    if ultima is not None:
+        filas = (
+            await session.execute(
+                select(m.Standing).where(
+                    m.Standing.series_ht_id == series_ht_id,
+                    m.Standing.season == season,
+                    m.Standing.match_round == ultima,
+                )
+            )
+        ).scalars()
+        guardados = [Equipo(ht_team_id=f.team_ht_id, nombre=f.team_name) for f in filas]
+    llegados = [
+        Equipo(ht_team_id=int(e.get("ht_team_id", 0) or 0), nombre=str(e.get("name", "") or ""))
+        for e in payload.get("teams", [])
+    ]
+    veredicto = verificar(guardados, llegados)
+    hallazgos = cambios_de(veredicto)
+    if not hallazgos:
+        return
+    # LO QUE YA SE DIJO, para no decirlo otra vez. Ver `sin_repetir`: la foto
+    # guardada no se actualiza hasta la jornada siguiente, así que el mismo
+    # hallazgo volvería a salir en cada sincronización mientras tanto.
+    #
+    # Sólo las de composición y sólo las recientes: el histórico entero de
+    # Cambios puede ser largo, y un reemplazo de hace tres temporadas no tiene
+    # por qué silenciar el de hoy.
+    #
+    # Se filtra por `category` y no por el metric: `sync_changes` guarda el
+    # metric DENTRO de `detail_json`, no en una columna, y meter un `LIKE`
+    # sobre un JSON para ahorrar unas filas no vale lo que cuesta. Las frases
+    # de composición no se parecen a las de posición, así que no hay choque.
+    ya_dichos = (
+        await session.execute(
+            select(m.SyncChange.summary)
+            .where(
+                m.SyncChange.team_id == team_id,
+                m.SyncChange.category == "liga",
+            )
+            .order_by(m.SyncChange.id.desc())
+            .limit(60)
+        )
+    ).scalars()
+    for cambio in sin_repetir(hallazgos, list(ya_dichos)):
+        result.changes.append(_as_change_row(cambio))
 
 
 class LigaMixin(BaseDeSync):
@@ -93,6 +189,23 @@ class LigaMixin(BaseDeSync):
         )
         if trasladados:
             result.snapshots_written += trasladados
+
+        # LA VERIFICACIÓN, AQUÍ Y NO MÁS ABAJO (2026-11-07, pedido del usuario:
+        # «crea un mecanismo continuo de verificación para verificar la
+        # composición de la liga»).
+        #
+        # Va antes del `if exists`, que corta en seco cuando la jornada ya se
+        # guardó. Eso es lo que la hace CONTINUA: la composición se comprueba en
+        # cada sincronización, no una vez por jornada. Un reemplazo de equipo
+        # ocurre cuando ocurre --el 2026-09-13, justo después de la jornada 8--
+        # y esperar a la jornada siguiente para notarlo es esperar una semana.
+        #
+        # Y sólo MIRA. El arreglo del calendario es la línea de arriba, que ya
+        # existía; esto dice lo que pasó, incluido lo que ese arreglo no sabe
+        # hacer: dos reemplazos a la vez, un renombrado, o una foto a medias.
+        # Hasta hoy, en esos tres casos `trasladar_equipo_reemplazado` devolvía
+        # 0 y nadie se enteraba.
+        await _verificar_la_composicion(uow.session, team_id, series_ht_id, season, payload, result)
         exists = await uow.session.scalar(
             select(m.Standing.id).where(
                 m.Standing.series_ht_id == series_ht_id,

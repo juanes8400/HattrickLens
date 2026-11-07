@@ -1908,6 +1908,14 @@ class MarketSale(Base):
     specialty: Mapped[int] = mapped_column(Integer, default=0)
     #: Su TSI al encontrarlo. No decide el parecido; se enseña.
     tsi: Mapped[int] = mapped_column(Integer, default=0)
+    #: Su FORMA al encontrarlo, de 1 a 8. Columna del comparador que el usuario
+    #: pidió el 2026-11-07; el parser del mercado ya la traía y se tiraba.
+    #: `-1` es «no la sabemos», que son todas las ventas guardadas antes.
+    form: Mapped[int] = mapped_column(Integer, default=-1)
+    #: Lo que PEDÍA el vendedor cuando se abrió esta fila, y sólo entonces:
+    #: volver a ver el anuncio no lo pisa, porque los vendedores lo bajan y lo
+    #: que se quiere guardar es el precio INICIAL. Cero es «no lo sabemos».
+    asking_price: Mapped[int] = mapped_column(BigInteger, default=0)
     #: El pais de nacimiento, para la bandera de la tabla.
     country_id: Mapped[int] = mapped_column(Integer, default=0)
     #: Las SIETE habilidades, en JSON (2026-10-10). Las tres de arriba bastan

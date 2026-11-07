@@ -18,7 +18,7 @@ import {
   PITCH_ZONE_METHODS,
   SUBMITTED_METHOD,
 } from "../components/pitchZoneMethods";
-import { useCup, useRivalScouting } from "../hooks/useTeam";
+import { useCup } from "../hooks/useTeam";
 import { date, money, number } from "../hooks/useFormat";
 import type {
   Cup,
@@ -47,7 +47,6 @@ export function CupPage() {
   // otro toggle abría en amistosos: un rival de Copa descrito por sus
   // amistosos. Desde que los dos son un selector excluyente eso ya no se
   // sostiene solo, y tampoco debería haberse sostenido nunca.
-  const probability = useRivalScouting(nextOpponentId, false, true, true);
   const [section, setSection] = useState<CupSection>("resumen");
 
   if (isLoading) return <Loading />;
@@ -232,7 +231,7 @@ export function CupPage() {
                     meta={
                       data.prediction
                         ? tx("modelo de zonas · sin empate: hay prórroga")
-                        : tx("modelo simple por TSI, no calibrado")
+                        : tx("sin datos con los que predecir")
                     }
                   >
                     {data.prediction ? (
@@ -292,19 +291,43 @@ export function CupPage() {
                           {tx("Comparando zona por zona")}{" "}
                           {data.prediction.indirectasPrestadas
                             ? tx("tu alineación enviada")
-                            : tx(
-                                "tus {{v0}} partido(s) de Copa de esta temporada",
-                                { v0: data.prediction.ownMatches },
-                              )}{" "}
-                          {tx("contra sus")} {data.prediction.rivalMatches}{" "}
+                            : data.prediction.ownSource === "liga"
+                              ? tx("tus {{v0}} partido(s) de Liga", {
+                                  v0: data.prediction.ownMatches,
+                                })
+                              : tx(
+                                  "tus {{v0}} partido(s) de Copa de esta temporada",
+                                  { v0: data.prediction.ownMatches },
+                                )}{" "}
+                          {data.prediction.rivalSource === "liga"
+                            ? tx("contra sus {{v0}} partido(s) de Liga", {
+                                v0: data.prediction.rivalMatches,
+                              })
+                            : tx("contra sus {{v0}} partido(s) de Copa", {
+                                v0: data.prediction.rivalMatches,
+                              })}
                           {tx(
-                            "partido(s). El empate se reparte entre los dos porque en Copa alguien tiene que pasar. Tiene en cuenta la táctica, estimada; no sabe de bajas.",
+                            ". El empate se reparte entre los dos porque en Copa alguien tiene que pasar. Tiene en cuenta la táctica, estimada; no sabe de bajas.",
                           )}{" "}
                           <EnlaceATransparencia
                             seccion="pronostico"
                             calculo="pronostico-resumen"
                           />
                         </p>
+                        {/* CUANDO LA FUENTE ES LA LIGA, se dice. En Copa se juega
+                        con otro equipo que en Liga --medido en este club: su
+                        mediocampo de Copa dobla al de Liga-- así que leer la
+                        liga describe peor. Sigue siendo el mismo motor, que es
+                        lo que se pidió; lo que baja es la calidad de la
+                        muestra, y eso no se esconde. */}
+                        {(data.prediction.ownSource === "liga" ||
+                          data.prediction.rivalSource === "liga") && (
+                          <p className="prosa text-xs leading-relaxed text-[var(--warning)]">
+                            {tx(
+                              "Alguno de los dos no tiene partidos de Copa todavía, así que de ese lado se han leído los de Liga. En Copa se juega con otro equipo, así que esta predicción describe peor de lo normal.",
+                            )}
+                          </p>
+                        )}
                         {/* El único aviso, y sólo cuando toca: Hattrick prevé
                         siete ratings para unas órdenes enviadas y no prevé las
                         acciones indirectas a balón parado. */}
@@ -316,57 +339,27 @@ export function CupPage() {
                           </p>
                         )}
                       </div>
-                    ) : probability.isError ? (
+                    ) : (
+                      /* YA NO HAY MODELO POR TSI (2026-11-05, pedido del
+                      usuario: «no debe ser predicho el resultado como se hacía
+                      antes con TSI sino con el método actual de las Poisson»).
+                      Aquí caía una estimación por suma de TSI, sin calibrar y
+                      sin zonas, que se parecía a una predicción sin serlo.
+
+                      Con el respaldo por Liga en el servidor, llegar hasta aquí
+                      significa que de verdad no hay con qué: sin sesión de
+                      Hattrick, o sin un solo partido con el que resumir a
+                      alguno de los dos. Un hueco honesto, y dicho. */
                       <div className="p-4">
                         <div className="text-lg font-semibold">
-                          {tx("No disponible en esta sesión")}
+                          {tx("Sin predicción")}
                         </div>
                         <p className="prosa mt-2 text-xs leading-relaxed text-[var(--muted)]">
                           {tx(
-                            "El scouting del rival necesita una sesión de Hattrick activa. La fecha y el rival de arriba siguen siendo datos sincronizados; aquí no se sustituye la probabilidad faltante por un valor sintético.",
+                            "Hace falta una sesión de Hattrick activa y al menos un partido de alguno de los dos equipos con el que medir sus zonas. La fecha y el rival de arriba sí son datos sincronizados; aquí no se pone un número inventado para rellenar el hueco.",
                           )}
                         </p>
                       </div>
-                    ) : probability.data ? (
-                      <div className="p-4">
-                        <div className="flex items-center gap-4">
-                          <div className="text-3xl font-semibold tabular-nums text-[var(--accent)]">
-                            {(
-                              probability.data.winProbability.ownProbability *
-                              100
-                            ).toFixed(0)}
-                            %
-                          </div>
-                          <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
-                            <div
-                              className="h-full rounded-full bg-[var(--accent)]"
-                              style={{
-                                width: `${probability.data.winProbability.ownProbability * 100}%`,
-                              }}
-                            />
-                          </div>
-                        </div>
-                        {/* La reserva: cuando el rival no tiene historia de Copa
-                        --su primera ronda-- el motor de zonas no puede decir
-                        nada y se enseña el modelo viejo, diciendo cuál es. */}
-                        <p className="prosa mt-3 text-xs leading-relaxed text-[var(--muted)]">
-                          {tx(
-                            "Sin partidos de Copa suficientes de alguno de los dos, así que esto es el modelo por TSI. Estimación",
-                          )}{" "}
-                          {probability.data.winProbability.confidence}
-                          {tx(". TSI de los dos onces de referencia:")}{" "}
-                          {number(probability.data.winProbability.ownTsiTotal)}{" "}
-                          {tx("contra")}{" "}
-                          {number(
-                            probability.data.winProbability.rivalTsiTotal,
-                          )}
-                          .
-                        </p>
-                      </div>
-                    ) : (
-                      <p className="p-4 text-xs text-[var(--muted)]">
-                        {tx("Calculando…")}
-                      </p>
                     )}
                   </ProjectionPanel>
                 ) : (

@@ -1817,5 +1817,12 @@
   "No hay nada que arreglar de tu lado: los precios comparables se quedan como estaban y se vuelve a intentar en la próxima sincronización.": "There is nothing to fix on your side: comparable prices stay as they were and it will be tried again on the next sync.",
   "No tienes amistoso programado para esta semana": "You have no friendly scheduled for this week",
   "El hueco de amistosos de tu país se cierra el {} a las {}.": "Your country's friendly slot closes on {} at {}.",
-  "Concierta uno en Hattrick: un amistoso entrena igual que un partido oficial y es la única forma de dar minutos sin arriesgar la liga.": "Arrange one in Hattrick: a friendly trains just like a competitive match and it is the only way to give minutes without risking the league."
+  "Concierta uno en Hattrick: un amistoso entrena igual que un partido oficial y es la única forma de dar minutos sin arriesgar la liga.": "Arrange one in Hattrick: a friendly trains just like a competitive match and it is the only way to give minutes without risking the league.",
+  "La clasificación llegó con {} equipos de {}: no se ha dado por cambiada la liga": "The table arrived with {} teams out of {}: the league was not taken as changed",
+  "{} fue reemplazado por {} en la liga": "{} was replaced by {} in the league",
+  "La liga cambió de equipos: entraron {} y se fueron {}": "The league changed teams: {} came in and {} left",
+  "{} entró en la liga": "{} came into the league",
+  "{} ya no está en la liga": "{} is no longer in the league",
+  "{} ahora se llama {}": "{} is now called {}",
+  "Composición de la liga": "League composition"
 }

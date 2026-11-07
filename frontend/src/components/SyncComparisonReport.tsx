@@ -1,7 +1,8 @@
 import clsx from "clsx";
-import { number } from "../hooks/useFormat";
-import type { NationalMatchAppearance } from "../services/api";
+import { money, number } from "../hooks/useFormat";
+import type { NationalMatchAppearance, ValueMove } from "../services/api";
 import { Empty, Panel } from "./Panels";
+import { PlayerLink } from "./PlayerLink";
 import type { ClubComparisonChange } from "../services/api";
 
 import { tx } from "../i18n/tx";
@@ -200,6 +201,136 @@ export function ClubMoraleSection({
  * por ningún lado: un jugador se iba el martes, volvía con un partido más de
  * experiencia, y en Cambios no se veía nada.
  */
+/** Los cuatro grupos de movimientos, en el orden en que se leen.
+ *
+ *  VAN SEPARADOS A PROPOSITO, y es la decisión que sostiene todo el apartado:
+ *  un jugador que cumplió años se compara desde ese día con OTRA gente, así
+ *  que su cifra se movió sin que el mercado hiciera nada. El proyecto ya
+ *  decidió el 2026-10-26 que esos dos tramos no se unen ni en la gráfica.
+ *
+ *  EL PORCENTAJE SÍ SE ENSEÑA EN LOS CUATRO CASOS QUE LO TIENEN (2026-11-07,
+ *  pedido del usuario: «quiero que se notifique el cambio en % de valoración
+ *  así haya habido cambio de edad y lo otro»). Lo había hecho sin él en el
+ *  grupo de «otra gente» y se lo discutí; lo reafirmó, y tiene su razón: el
+ *  número que ve en Valor de Plantilla cambió de verdad, y el total de su
+ *  plantilla con él. Callar la cifra no la hacía desaparecer, sólo obligaba a
+ *  calcularla a mano.
+ *
+ *  Lo que sigue separado es el SIGNIFICADO, que es lo que de verdad había que
+ *  no mezclar: el grupo y su nota dicen que esa subida no la hizo el mercado.
+ */
+const GRUPOS_DE_VALOR: {
+  clase: ValueMove["kind"];
+  titulo: string;
+  nota: string;
+}[] = [
+  {
+    clase: "movimiento",
+    titulo: "Se movieron",
+    nota: "mismo jugador, misma gente con la que se le compara",
+  },
+  {
+    clase: "estreno",
+    titulo: "Estrenaron valor",
+    nota: "antes no había ventas cerradas bastantes para dar un número",
+  },
+  {
+    clase: "otra gente",
+    titulo: "Ahora se les compara con otra gente",
+    nota: "cumplieron años o les subió una habilidad, así que Hattrick los compara con otros: la cifra cambió de verdad, pero el mercado no la movió",
+  },
+  {
+    clase: "perdido",
+    titulo: "Se quedaron sin número",
+    nota: "no valen menos; dejamos de saber lo que valen",
+  },
+];
+
+function FilaDeValor({ mv }: { mv: ValueMove }) {
+  return (
+    <li className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-1.5 text-sm">
+      <span className="font-medium">
+        <PlayerLink htPlayerId={mv.htPlayerId} name={mv.name} />
+      </span>
+      {/* EL PORCENTAJE PRIMERO cuando lo hay: es lo que decide si esta línea
+          merece atención hoy. El dinero va detrás, que es el detalle de
+          cuánto. */}
+      {mv.percent != null && (
+        <span
+          className={clsx(
+            "font-semibold tabular-nums",
+            mv.percent > 0 ? "text-[var(--positive)]" : "text-[var(--danger)]",
+          )}
+        >
+          {mv.percent > 0 ? "+" : ""}
+          {number(mv.percent)}%
+        </span>
+      )}
+      <span className="text-xs tabular-nums text-[var(--muted)]">
+        {mv.before != null && mv.after != null
+          ? `${money(mv.before, mv.currency)} → ${money(mv.after, mv.currency)}`
+          : mv.after != null
+            ? money(mv.after, mv.currency)
+            : mv.before != null
+              ? tx("tenía {{v0}}", { v0: money(mv.before, mv.currency) })
+              : ""}
+      </span>
+      {/* CON CUANTAS VENTAS. Un movimiento apoyado en dos ventas cerradas y
+          otro apoyado en diez no merecen la misma confianza, y la cifra sola
+          no lo dice. */}
+      <span className="text-xs text-[var(--muted)]">
+        {tx("({{v0}} → {{v1}} ventas)", {
+          v0: number(mv.nBefore),
+          v1: number(mv.nAfter),
+        })}
+      </span>
+    </li>
+  );
+}
+
+/** Qué valores se movieron desde la última vez que entraste.
+ *
+ *  2026-11-07, pedido del usuario: «advertir qué movimientos de valor de los
+ *  jugadores ocurrieron al conectar, con umbrales (±5 % del valor)».
+ *
+ *  POR QUE VA ARRIBA, antes del detalle por jugador: un jugador que vale un
+ *  30 % más que la semana pasada es una decisión --venderlo, o dejar de pensar
+ *  en venderlo-- y hasta hoy había que ir a buscarlo a su ficha de uno en uno.
+ *
+ *  Y POR QUE NO SALE SIEMPRE. Sin nada que avisar no se pinta: un panel que
+ *  dice «no se movió nada» en cada sincronización enseña a saltárselo, y el
+ *  día que sí traiga algo no se mira.
+ */
+export function ValueMovesSection({ moves }: { moves: ValueMove[] }) {
+  if (moves.length === 0) return null;
+  return (
+    <Panel
+      title={tx("Movimientos de valor")}
+      meta={tx("desde la última vez que entraste, a partir del ±5 %")}
+    >
+      <div className="divide-y divide-[var(--border)]">
+        {GRUPOS_DE_VALOR.map((g) => {
+          const suyos = moves.filter((mv) => mv.kind === g.clase);
+          if (suyos.length === 0) return null;
+          return (
+            <div key={g.clase} className="py-3">
+              <div className="px-3 text-sm font-semibold">{tx(g.titulo)}</div>
+              <p className="prosa mt-0.5 px-3 text-xs leading-relaxed text-[var(--muted)]">
+                {tx(g.nota)}
+              </p>
+              <ul className="mt-1">
+                {suyos.map((mv) => (
+                  <FilaDeValor key={mv.htPlayerId} mv={mv} />
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
 export function NationalTeamSection({
   appearances,
 }: {

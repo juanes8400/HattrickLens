@@ -58,8 +58,67 @@ import { tx } from "../i18n/tx";
  * clasificación. Pasa la semana del ascenso --Hattrick publica los ocho
  * equipos nuevos a cero antes de que empiece la temporada-- y también en el
  * club recién creado (2026-11-02, dicho por el usuario). */
-function sinEmpezar(data: League): boolean {
+export function sinEmpezar(data: League): boolean {
   return data.roundsPlayed === 0 && data.standings.every((s) => s.played === 0);
+}
+
+/** Ni clasificación: Hattrick todavía no ha publicado tu serie nueva.
+ *
+ *  SON DOS HECHOS DISTINTOS Y `sinEmpezar` los juntaba (2026-11-07). Con la
+ *  tabla vacía, `every` sobre una lista vacía es `true`, así que un sorteo que
+ *  todavía no existe salía como «la temporada no ha empezado»: una frase que
+ *  da por hecho que ya sabemos con quién juegas, cuando no lo sabemos.
+ *
+ *  La diferencia importa porque la respuesta es distinta. Si el sorteo está
+ *  hecho y nadie ha jugado, no hay nada que esperar: empieza el sábado. Si
+ *  Hattrick no ha publicado la serie, lo que falta no está de nuestro lado, y
+ *  sincronizar otra vez no lo trae antes. Lo preguntó un lector en el foro
+ *  --«¿cuándo llegan los datos de la nueva liga?»-- y la pantalla, que es
+ *  donde debería estar la respuesta, se quedaba con cara de vacía.
+ */
+export function sinSerieTodavia(data: League): boolean {
+  return data.standings.length === 0;
+}
+
+/** Lo único honesto que se puede decir mientras no haya serie.
+ *
+ *  VA ARRIBA Y EN TODAS LAS PESTAÑAS. Sin clasificación, la proyección reparte
+ *  a partes iguales, la comparativa no tiene a quién comparar y «Simular
+ *  jornada» no tiene jornada: cuatro pestañas de números vacíos sin una sola
+ *  línea que diga por qué. Un aviso arriba cuesta menos que arreglar las
+ *  cuatro, y dice la verdad entera.
+ */
+export function SinSerieTodavia({ serie }: { serie: string | null }) {
+  return (
+    <div
+      role="alert"
+      className="rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-4 py-3"
+    >
+      <div className="text-sm font-semibold text-[var(--warning)]">
+        {tx("Hattrick todavía no ha publicado tu serie")}
+      </div>
+      <p className="prosa mt-1 text-sm leading-relaxed text-[var(--warning)]">
+        {serie
+          ? tx(
+              "Sabemos que tu serie es {{v0}}, pero no quiénes la juegan: la clasificación y el calendario llegan cuando Hattrick hace el sorteo, unos días después de que acabe la temporada.",
+              { v0: serie },
+            )
+          : tx(
+              "La clasificación y el calendario llegan cuando Hattrick hace el sorteo, unos días después de que acabe la temporada.",
+            )}
+      </p>
+      <p className="prosa mt-1 text-sm leading-relaxed text-[var(--warning)]">
+        {tx(
+          "Hasta entonces no hay nada que sincronizar: esto no se arregla volviendo a sincronizar, porque lo que falta no está de nuestro lado. En cuanto Hattrick lo publique, entra en la siguiente sincronización y esta pantalla se llena sola.",
+        )}
+      </p>
+      <p className="prosa mt-1 text-xs leading-relaxed text-[var(--muted)]">
+        {tx(
+          "Mientras tanto, lo de la temporada pasada sigue en Partidos y en el histórico de Cambios: no se borra nada al cambiar de temporada.",
+        )}
+      </p>
+    </div>
+  );
 }
 
 /** Puntos sobre el líder (si vas primero) o bajo el líder (si no), de
@@ -149,7 +208,9 @@ export function LeaguePage() {
                 siguiente; y «jornada 0» no es una jornada. Con la tabla a cero
                 no se dice ningún número: lo único cierto es que no ha
                 empezado. */}
-            {sinEmpezar(data) ? (
+            {sinSerieTodavia(data) ? (
+              tx("· sin serie publicada todavía")
+            ) : sinEmpezar(data) ? (
               tx("· la temporada todavía no ha empezado")
             ) : (
               <>
@@ -172,6 +233,10 @@ export function LeaguePage() {
           onChange={setSection}
         />
       </header>
+
+      {/* ANTES DE CUALQUIER PESTAÑA. Sin clasificación, las cuatro enseñan
+          números vacíos; esto dice por qué, una sola vez. */}
+      {sinSerieTodavia(data) && <SinSerieTodavia serie={data.seriesName} />}
 
       <PanelDePestanas grupo="liga" activa={section} className="space-y-4">
         {section === "resumen" && (
@@ -232,7 +297,10 @@ export function LeaguePage() {
                 un 50 % de Top 4 que son 1/8 y 4/8 clavados: el reparto a
                 partes iguales, no un pronóstico. Decirlo es más útil que
                 llamarlo «confianza baja». */}
-            {sinEmpezar(data) ? (
+            {/* SIN SERIE NO SE REPITE: el aviso de arriba ya lo dijo, y
+                mejor. Dos cuadros amarillos seguidos diciendo casi lo mismo
+                hacen que no se lea ninguno. */}
+            {sinSerieTodavia(data) ? null : sinEmpezar(data) ? (
               <div
                 role="alert"
                 className="rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-4 py-3 text-sm text-[var(--warning)]"

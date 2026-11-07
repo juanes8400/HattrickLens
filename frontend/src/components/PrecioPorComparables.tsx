@@ -324,6 +324,17 @@ function columnasDe(
                 {salto(f.puja, f.precio)}
               </span>
             )}
+            {/* UNA VENTA CERRADA A LA QUE NUNCA LE VIMOS PUJA (2026-11-07).
+                Es el caso que el usuario encontro: el 472301981 se vendio de
+                verdad y para nosotros estuvo a cero hasta el final. Desde hoy
+                esas ventas SI entran, y el sello dice por que no hay salto que
+                enseñar al lado del precio: no es que la puja fuera igual, es
+                que no llegamos a ver ninguna. */}
+            {f.sinPuja && (
+              <span className="ml-1 text-xs text-[var(--muted)]">
+                {tx("sin puja vista")}
+              </span>
+            )}
           </span>
         ) : (
           <span className="whitespace-nowrap text-xs text-[var(--warn)]">
@@ -335,11 +346,32 @@ function columnasDe(
 
                 Cortos y de una pieza: partidos en dos lineas estiraban toda
                 la fila, porque el alto lo manda la celda mas alta. */}
-            {f.puja <= 0
-              ? tx("sin pujas")
+            {f.sinPuja
+              ? tx("NO PUJA DETECTADA")
               : f.cuenta
                 ? tx("sin cerrar")
                 : tx("sin confirmar")}
+          </span>
+        ),
+    },
+    {
+      key: "precioPedido",
+      header: tx("Pedía"),
+      align: "right",
+      value: (f) => f.precioPedido,
+      // LO QUE PEDIA, AL LADO DE LO QUE SE PAGO (2026-11-07, pedido del
+      // usuario: «guardar el precio inicial, para analizar la relacion entre
+      // precio inicial, final y horario»). No es un precio y no promedia; es
+      // la referencia contra la que se lee el cierre.
+      //
+      // Cero NO es gratis, es «no lo sabemos»: toda venta anotada antes de que
+      // hubiera columna. Un 0 US$ ahi diria que el vendedor regalaba.
+      render: (f) =>
+        f.propio || f.precioPedido <= 0 ? (
+          <span className="text-[var(--muted)]">—</span>
+        ) : (
+          <span className="tabular-nums text-[var(--muted)]">
+            {money(f.precioPedido, moneda)}
           </span>
         ),
     },
@@ -392,7 +424,25 @@ function columnasDe(
       key: "edad",
       header: tx("Edad"),
       align: "right",
-      value: (f) => f.edad,
+      // ORDENA POR LA EDAD EXACTA, no por los años (2026-11-07). Dentro del
+      // mismo año, el de 24 días es más viejo que el de 2, y en el mercado eso
+      // se paga: ordenar sólo por años dejaba el orden interno al azar.
+      // 112 días tiene el año de Hattrick.
+      value: (f) => f.edad * 112 + Math.max(0, f.dias),
+      // LOS DIAS AL LADO (pedido del usuario: son columna del Comparador de
+      // Transferencias del juego, y a los 17 años son parte de la regla con la
+      // que Hattrick elige a quien comparar). `-1` es «no los sabemos»: las
+      // ventas anotadas antes de que hubiera columna, y ahi se calla.
+      render: (f) => (
+        <span className="whitespace-nowrap tabular-nums">
+          {f.dias >= 0
+            ? tx("{{v0}} a {{v1}} d", {
+                v0: number(f.edad),
+                v1: number(f.dias),
+              })
+            : tx("{{v0}} a", { v0: number(f.edad) })}
+        </span>
+      ),
     },
     ...perfil.map((rasgo, i) => ({
       key: `habilidad${i}`,
@@ -423,6 +473,29 @@ function columnasDe(
       value: (f) => f.tsi,
     },
     {
+      key: "forma",
+      header: tx("Forma"),
+      align: "right",
+      value: (f) => f.forma,
+      // EL NOMBRE OFICIAL Y NO EL NUMERO. La forma se mide de 1 a 8 y Hattrick
+      // la dice con las MISMAS palabras que un nivel de habilidad --«excelente»,
+      // «aceptable»-- asi que sale del glosario oficial por `skillLevelLabel` y
+      // no de una traduccion nuestra: se lee igual que en el juego. El numero se
+      // queda para ordenar.
+      //
+      // `-1` es «no la sabemos»: toda venta anotada antes del 2026-11-07, el
+      // dia que se empezo a guardar. Un 0 ahi diria «forma nula», que es un
+      // nivel de verdad del juego y seria mentira.
+      render: (f) =>
+        f.forma >= 1 ? (
+          <span className="whitespace-nowrap">
+            {skillLevelLabel(f.forma, true)}
+          </span>
+        ) : (
+          <span className="text-[var(--muted)]">—</span>
+        ),
+    },
+    {
       key: "cierra",
       header: tx("Cierra"),
       align: "right",
@@ -438,6 +511,28 @@ function columnasDe(
         ) : (
           <span className="whitespace-nowrap tabular-nums">
             {cuantoFalta(f.cierra, f.firme)}
+          </span>
+        ),
+    },
+    {
+      key: "fecha",
+      header: tx("Fecha"),
+      align: "right",
+      // LA FECHA DE LA VENTA, que es columna del Comparador de Transferencias
+      // (2026-11-07, pedido del usuario). «Cierra» dice cuanto FALTA y «Fecha»
+      // dice CUANDO fue: son la misma marca de tiempo leida para dos preguntas
+      // distintas, y la segunda es la que sirve para poner una venta en su
+      // contexto --«esto se pago en septiembre»-- sin restar mentalmente.
+      //
+      // En una subasta todavia abierta es la fecha en que cerrara, y es
+      // honesto: es el dia en que ese precio existira.
+      value: (f) => (f.cierra ? new Date(f.cierra).getTime() : 0),
+      render: (f) =>
+        f.propio || !f.cierra ? (
+          <span className="text-[var(--muted)]">—</span>
+        ) : (
+          <span className="whitespace-nowrap tabular-nums">
+            {date(f.cierra)}
           </span>
         ),
     },

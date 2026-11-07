@@ -174,6 +174,7 @@ export type {
   SyncResult,
   SyncSaleEconomics,
   SyncStreamEvent,
+  ValueMove,
   YouthComparisonChange,
   YouthComparisonRow,
   YouthSummary,
