@@ -19,6 +19,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.queries.player_balance import PlayerBalanceQueryService
 from app.application.queries.weekly import start_of_iso_week
 from app.domain.engines import academy_engine as academy
+from app.domain.engines.movimiento_de_valor import (
+    Lectura,
+    Movimiento,
+    movimiento_de,
+    ordenados,
+)
 from app.domain.engines.sync_diff import (
     Change,
     detalle_de_resumen_viejo,
@@ -1130,6 +1136,7 @@ async def build_sync_comparison(
             "summary": list(_metric_summary().values()),
             "clubChanges": [],
             "nationalMatches": [],
+            "valueMoves": [],
             "availableReports": [],
         }
 
@@ -1231,6 +1238,14 @@ async def build_sync_comparison(
         desde=anterior.started_at if anterior else None,
         hasta=report_sync.started_at,
     )
+    value_moves = await _movimientos_de_valor(
+        session,
+        team_id,
+        _fin_de(anterior),
+        _fin_de(report_sync) or report_sync.started_at,
+        currency_rate,
+        currency,
+    )
 
     return {
         "syncId": latest.id,
@@ -1255,6 +1270,10 @@ async def build_sync_comparison(
         "summary": summary,
         "clubChanges": club_changes,
         "nationalMatches": national_matches,
+        # QUE VALORES SE MOVIERON (2026-11-07, pedido del usuario). Sale de las
+        # lecturas del precio comparable, no de una llamada: el valor de
+        # cualquier jugador en cualquier momento pasado ya estaba guardado.
+        "valueMoves": value_moves,
         "availableReports": [
             {
                 "syncId": s.id,
@@ -1264,6 +1283,165 @@ async def build_sync_comparison(
             for s in available
         ],
     }
+
+
+def _fin_de(sync: m.Sync | None) -> datetime | None:
+    """Cuándo ACABÓ una sincronización, que no es cuándo empezó.
+
+    PARECE UN DETALLE Y NO LO ES. Las lecturas del precio comparable se
+    escriben con `datetime.now(UTC)` en el momento en que corre el paso del
+    mercado, que es DENTRO de la sincronización y por tanto después de
+    `started_at`. Cortando por `started_at`, las lecturas que acaba de producir
+    este mismo sync caerían fuera y el aviso de movimientos iría siempre una
+    sincronización por detrás: enseñaría lo de la vez pasada como si fuera lo
+    de ahora.
+
+    `or started_at` por si acaso: una fila sin `finished_at` no debería llegar
+    aquí --se piden `completed` o `partial`-- pero quedarse sin borde sería
+    peor que usar el de salida.
+    """
+    if sync is None:
+        return None
+    return sync.finished_at or sync.started_at
+
+
+async def _movimientos_de_valor(
+    session: AsyncSession,
+    team_id: int,
+    desde: datetime | None,
+    hasta: datetime,
+    currency_rate: float,
+    currency: str,
+) -> list[dict[str, Any]]:
+    """Qué valores se movieron entre el informe anterior y éste.
+
+    2026-11-07, pedido del usuario: «Cambios: advertir qué movimientos de valor
+    de los jugadores ocurrieron al conectar, con umbrales (±5 % del valor)».
+
+    NO PIDE NADA A HATTRICK. `market_estimates` guarda una lectura por cada vez
+    que el número de un jugador cambia de verdad, así que lo que valía en
+    cualquier momento pasado es una consulta y no una llamada.
+
+    DOS LECTURAS POR JUGADOR, y las dos son «la última antes de»: la última
+    anterior al informe previo, y la última anterior a éste. No se cogen las
+    dos filas más recientes, y la diferencia importa: entre dos sincronizaciones
+    puede haber tres lecturas de un mismo jugador --el barrido es diario y una
+    resolución mueve el número-- y comparar las dos últimas contaría sólo el
+    último escalón en vez del salto entero que el usuario no ha visto.
+
+    SIN INFORME ANTERIOR NO HAY NADA QUE DECIR. La primera vez que se abre esto
+    todo sería un estreno, y anunciar la plantilla entera como novedad es ruido.
+
+    `currency_rate` convierte a la moneda del equipo, igual que el resto de la
+    pantalla: las cifras de CHPP vienen en la moneda base del juego.
+    """
+    if desde is None:
+        return []
+
+    def _en_moneda(valor: int | None) -> int | None:
+        return None if valor is None else int(round(valor / currency_rate))
+
+    jugadores = {
+        p.ht_player_id: f"{p.first_name} {p.last_name}".strip()
+        for p in (
+            await session.execute(select(m.Player).where(m.Player.team_id == team_id))
+        ).scalars()
+    }
+    if not jugadores:
+        return []
+
+    async def _lecturas_hasta(momento: datetime) -> dict[int, Lectura]:
+        """La última lectura de CADA jugador anterior a `momento`.
+
+        DOS CONSULTAS Y NO UNA POR JUGADOR. La versión obvia --un `ORDER BY
+        captured_at DESC LIMIT 1` dentro del bucle-- son veintiséis idas y
+        vueltas por cada borde, cincuenta y dos por cada vez que se abre
+        Cambios. Contra la base local no se nota; contra la de producción, que
+        está al otro lado de la red, son unos cuantos cientos de milisegundos
+        en una pantalla que se abre en cada sesión.
+
+        Así son dos: una que pregunta CUÁNDO fue la última de cada uno, y otra
+        que trae esas filas. El índice `ix_market_estimates_serie` cubre las
+        dos.
+        """
+        ultimas = (
+            await session.execute(
+                select(
+                    m.MarketEstimate.ht_player_id,
+                    func.max(m.MarketEstimate.captured_at),
+                )
+                .where(
+                    m.MarketEstimate.team_id == team_id,
+                    m.MarketEstimate.captured_at <= momento,
+                )
+                .group_by(m.MarketEstimate.ht_player_id)
+            )
+        ).all()
+        parejas = [(int(pid), cuando) for pid, cuando in ultimas if pid in jugadores]
+        if not parejas:
+            return {}
+        filas = (
+            await session.execute(
+                select(m.MarketEstimate).where(
+                    m.MarketEstimate.team_id == team_id,
+                    or_(
+                        *(
+                            and_(
+                                m.MarketEstimate.ht_player_id == pid,
+                                m.MarketEstimate.captured_at == cuando,
+                            )
+                            for pid, cuando in parejas
+                        )
+                    ),
+                )
+            )
+        ).scalars()
+        return {
+            f.ht_player_id: Lectura(
+                ht_player_id=f.ht_player_id,
+                nombre=jugadores.get(f.ht_player_id, ""),
+                valor=_en_moneda(f.mean_price),
+                criterios=f.criteria_key,
+                n=f.n,
+                cuando=f.captured_at,
+            )
+            for f in filas
+        }
+
+    de_antes = await _lecturas_hasta(desde)
+    de_ahora = await _lecturas_hasta(hasta)
+
+    movimientos: list[Movimiento] = []
+    for ht_player_id, ahora in de_ahora.items():
+        antes = de_antes.get(ht_player_id)
+        # La MISMA lectura a los dos lados no es un movimiento: es que entre
+        # las dos sincronizaciones no entró ni una venta para este jugador.
+        if antes is not None and antes.cuando == ahora.cuando:
+            continue
+        mv = movimiento_de(antes, ahora)
+        if mv is not None:
+            movimientos.append(mv)
+
+    return [
+        {
+            "htPlayerId": mv.ht_player_id,
+            "name": mv.nombre,
+            "kind": mv.clase,
+            "before": mv.antes,
+            "after": mv.ahora,
+            "delta": mv.diferencia,
+            "percent": round(mv.porcentaje, 1) if mv.porcentaje is not None else None,
+            "nBefore": mv.n_antes,
+            "nAfter": mv.n_ahora,
+            "from": mv.desde.isoformat(),
+            "to": mv.hasta.isoformat(),
+            # La moneda viaja en la FILA, que es lo que ya hace el resto de
+            # esta pantalla (`PlayerComparisonRow`): asi el componente que
+            # pinta una fila no necesita saber de que equipo es.
+            "currency": currency,
+        }
+        for mv in ordenados(movimientos)
+    ]
 
 
 #: Los tres codigos que son "jugo con su seleccion": competitiva con reglas

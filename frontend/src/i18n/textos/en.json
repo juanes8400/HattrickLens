@@ -2234,5 +2234,17 @@
   "sin puja vista": "no bid seen",
   "Pedía": "Asking",
   "{{v0}} a {{v1}} d": "{{v0}}y {{v1}}d",
-  "{{v0}} a": "{{v0}}y"
+  "{{v0}} a": "{{v0}}y",
+  "Movimientos de valor": "Value movements",
+  "desde la última vez que entraste, a partir del ±5 %": "since the last time you connected, from ±5% up",
+  "Se movieron": "They moved",
+  "mismo jugador, misma gente con la que se le compara": "same player, same people they are compared with",
+  "Estrenaron valor": "First value ever",
+  "antes no había ventas cerradas bastantes para dar un número": "there were not enough closed sales before to give a figure",
+  "Ahora se les compara con otra gente": "Now compared with different players",
+  "cumplieron años o les subió una habilidad, así que Hattrick los compara con otros: el número cambió, el mercado no": "they had a birthday or a skill went up, so Hattrick compares them with others: the figure changed, the market did not",
+  "Se quedaron sin número": "Left without a figure",
+  "no valen menos; dejamos de saber lo que valen": "they are not worth less; we stopped knowing what they are worth",
+  "tenía {{v0}}": "was {{v0}}",
+  "({{v0}} → {{v1}} ventas)": "({{v0}} → {{v1}} sales)"
 }

@@ -2234,5 +2234,17 @@
   "sin puja vista": "kein Gebot gesehen",
   "Pedía": "Forderung",
   "{{v0}} a {{v1}} d": "{{v0}} J {{v1}} T",
-  "{{v0}} a": "{{v0}} J"
+  "{{v0}} a": "{{v0}} J",
+  "Movimientos de valor": "Wertänderungen",
+  "desde la última vez que entraste, a partir del ±5 %": "seit deinem letzten Besuch, ab ±5 %",
+  "Se movieron": "Haben sich bewegt",
+  "mismo jugador, misma gente con la que se le compara": "gleicher Spieler, gleiche Vergleichsgruppe",
+  "Estrenaron valor": "Erstmals ein Wert",
+  "antes no había ventas cerradas bastantes para dar un número": "vorher gab es nicht genug abgeschlossene Verkäufe für eine Zahl",
+  "Ahora se les compara con otra gente": "Werden jetzt mit anderen verglichen",
+  "cumplieron años o les subió una habilidad, así que Hattrick los compara con otros: el número cambió, el mercado no": "sie hatten Geburtstag oder eine Fähigkeit stieg, also vergleicht Hattrick sie mit anderen: die Zahl änderte sich, der Markt nicht",
+  "Se quedaron sin número": "Ohne Zahl geblieben",
+  "no valen menos; dejamos de saber lo que valen": "sie sind nicht weniger wert; wir wissen nur nicht mehr, wie viel",
+  "tenía {{v0}}": "war {{v0}}",
+  "({{v0}} → {{v1}} ventas)": "({{v0}} → {{v1}} Verkäufe)"
 }

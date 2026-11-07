@@ -7,6 +7,7 @@ import {
   EconomySection,
   NationalTeamSection,
   TrainingSection,
+  ValueMovesSection,
 } from "../components/SyncComparisonReport";
 import { YouthChanges } from "../components/YouthChanges";
 import { AvisoDelBarrido } from "../components/AvisoDelBarrido";
@@ -832,6 +833,10 @@ export function SyncChangesPage() {
           teamName={data.youthTeamName}
         />
       )}
+
+      {/* Los valores, antes del detalle por jugador: es lo que puede cambiar
+          una decisión hoy mismo. */}
+      {data && <ValueMovesSection moves={data.valueMoves ?? []} />}
 
       {data && <TrainingSection changes={data.clubChanges} />}
       {data && <EconomySection changes={data.clubChanges} />}
