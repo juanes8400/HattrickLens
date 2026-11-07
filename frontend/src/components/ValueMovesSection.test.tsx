@@ -91,15 +91,21 @@ describe("movimientos de valor", () => {
     expect(html).toContain("150.000");
   });
 
-  it("un cambio de criterios se dice, pero sin porcentaje", () => {
-    // ES LA REGLA QUE SOSTIENE EL APARTADO: desde que le cambian los
-    // criterios, Hattrick compara al jugador con OTRA gente, así que la resta
-    // no es un movimiento del mercado. Ponerle un porcentaje sería dibujar una
-    // subida que no ocurrió.
-    const html = pintar({ kind: "otra gente", percent: null });
+  it("un cambio de criterios SÍ lleva porcentaje, y dice que no es del mercado", () => {
+    // 2026-11-07, pedido del usuario: «quiero que se notifique el cambio en %
+    // de valoración así haya habido cambio de edad y lo otro». Lo había hecho
+    // sin porcentaje y se lo discutí; lo reafirmó, y tiene su razón: la cifra
+    // que ve en Valor de Plantilla cambió de verdad, y el total de su
+    // plantilla con ella.
+    //
+    // LO QUE NO SE PIERDE es el significado: el grupo y su nota siguen
+    // diciendo que esa subida no la hizo el mercado, que es lo que de verdad
+    // había que no mezclar.
+    const html = pintar({ kind: "otra gente", percent: 18 });
     expect(html).toContain("Ahora se les compara con otra gente");
-    expect(html).toContain("el número cambió, el mercado no");
-    expect(porcentajesEnFilas(html)).toBe(0);
+    expect(html).toContain("el mercado no la movió");
+    expect(html).toContain("+18%");
+    expect(porcentajesEnFilas(html)).toBe(1);
   });
 
   it("perder el número no se cuenta como una caída", () => {
@@ -120,7 +126,7 @@ describe("movimientos de valor", () => {
     const html = pintar(
       {},
       { kind: "estreno", before: null, percent: null, delta: null },
-      { kind: "otra gente", percent: null },
+      { kind: "otra gente", percent: 18 },
       { kind: "perdido", after: null, percent: null, delta: null },
     );
     for (const titulo of [

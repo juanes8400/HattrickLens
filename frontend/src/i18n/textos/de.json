@@ -2242,7 +2242,6 @@
   "Estrenaron valor": "Erstmals ein Wert",
   "antes no había ventas cerradas bastantes para dar un número": "vorher gab es nicht genug abgeschlossene Verkäufe für eine Zahl",
   "Ahora se les compara con otra gente": "Werden jetzt mit anderen verglichen",
-  "cumplieron años o les subió una habilidad, así que Hattrick los compara con otros: el número cambió, el mercado no": "sie hatten Geburtstag oder eine Fähigkeit stieg, also vergleicht Hattrick sie mit anderen: die Zahl änderte sich, der Markt nicht",
   "Se quedaron sin número": "Ohne Zahl geblieben",
   "no valen menos; dejamos de saber lo que valen": "sie sind nicht weniger wert; wir wissen nur nicht mehr, wie viel",
   "tenía {{v0}}": "war {{v0}}",
@@ -2252,5 +2251,6 @@
   "Sabemos que tu serie es {{v0}}, pero no quiénes la juegan: la clasificación y el calendario llegan cuando Hattrick hace el sorteo, unos días después de que acabe la temporada.": "Wir wissen, dass deine Liga {{v0}} ist, aber nicht, wer darin spielt: Tabelle und Spielplan kommen, wenn Hattrick die Auslosung macht, einige Tage nach Saisonende.",
   "La clasificación y el calendario llegan cuando Hattrick hace el sorteo, unos días después de que acabe la temporada.": "Tabelle und Spielplan kommen, wenn Hattrick die Auslosung macht, einige Tage nach Saisonende.",
   "Hasta entonces no hay nada que sincronizar: esto no se arregla volviendo a sincronizar, porque lo que falta no está de nuestro lado. En cuanto Hattrick lo publique, entra en la siguiente sincronización y esta pantalla se llena sola.": "Bis dahin gibt es nichts zu synchronisieren: erneutes Synchronisieren hilft nicht, denn was fehlt, liegt nicht bei uns. Sobald Hattrick es veröffentlicht, kommt es mit der nächsten Synchronisierung und diese Seite füllt sich von selbst.",
-  "Mientras tanto, lo de la temporada pasada sigue en Partidos y en el histórico de Cambios: no se borra nada al cambiar de temporada.": "In der Zwischenzeit bleiben die Daten der letzten Saison in Spiele und im Änderungsverlauf: beim Saisonwechsel wird nichts gelöscht."
+  "Mientras tanto, lo de la temporada pasada sigue en Partidos y en el histórico de Cambios: no se borra nada al cambiar de temporada.": "In der Zwischenzeit bleiben die Daten der letzten Saison in Spiele und im Änderungsverlauf: beim Saisonwechsel wird nichts gelöscht.",
+  "cumplieron años o les subió una habilidad, así que Hattrick los compara con otros: la cifra cambió de verdad, pero el mercado no la movió": "sie hatten Geburtstag oder eine Fähigkeit stieg, also vergleicht Hattrick sie mit anderen: die Zahl hat sich wirklich geändert, aber nicht der Markt hat sie bewegt"
 }

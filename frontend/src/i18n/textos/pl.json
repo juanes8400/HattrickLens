@@ -2242,7 +2242,6 @@
   "Estrenaron valor": "Pierwsza wartość",
   "antes no había ventas cerradas bastantes para dar un número": "wcześniej nie było dość zamkniętych transakcji na liczbę",
   "Ahora se les compara con otra gente": "Teraz porównywani z innymi",
-  "cumplieron años o les subió una habilidad, así que Hattrick los compara con otros: el número cambió, el mercado no": "mieli urodziny albo wzrosła im umiejętność, więc Hattrick porównuje ich z innymi: liczba się zmieniła, rynek nie",
   "Se quedaron sin número": "Zostali bez liczby",
   "no valen menos; dejamos de saber lo que valen": "nie są warci mniej; przestaliśmy wiedzieć ile są warci",
   "tenía {{v0}}": "było {{v0}}",
@@ -2252,5 +2251,6 @@
   "Sabemos que tu serie es {{v0}}, pero no quiénes la juegan: la clasificación y el calendario llegan cuando Hattrick hace el sorteo, unos días después de que acabe la temporada.": "Wiemy, że twoja grupa to {{v0}}, ale nie wiemy, kto w niej gra: tabela i terminarz przychodzą, gdy Hattrick przeprowadzi losowanie, kilka dni po końcu sezonu.",
   "La clasificación y el calendario llegan cuando Hattrick hace el sorteo, unos días después de que acabe la temporada.": "Tabela i terminarz przychodzą, gdy Hattrick przeprowadzi losowanie, kilka dni po końcu sezonu.",
   "Hasta entonces no hay nada que sincronizar: esto no se arregla volviendo a sincronizar, porque lo que falta no está de nuestro lado. En cuanto Hattrick lo publique, entra en la siguiente sincronización y esta pantalla se llena sola.": "Do tego czasu nie ma czego synchronizować: ponowna synchronizacja tego nie naprawi, bo brakującej rzeczy nie ma u nas. Gdy tylko Hattrick to opublikuje, wejdzie przy następnej synchronizacji i ten ekran sam się wypełni.",
-  "Mientras tanto, lo de la temporada pasada sigue en Partidos y en el histórico de Cambios: no se borra nada al cambiar de temporada.": "W tym czasie dane z poprzedniego sezonu zostają w Mecze i w historii Zmian: przy zmianie sezonu nic nie jest usuwane."
+  "Mientras tanto, lo de la temporada pasada sigue en Partidos y en el histórico de Cambios: no se borra nada al cambiar de temporada.": "W tym czasie dane z poprzedniego sezonu zostają w Mecze i w historii Zmian: przy zmianie sezonu nic nie jest usuwane.",
+  "cumplieron años o les subió una habilidad, así que Hattrick los compara con otros: la cifra cambió de verdad, pero el mercado no la movió": "mieli urodziny albo wzrosła im umiejętność, więc Hattrick porównuje ich z innymi: liczba naprawdę się zmieniła, ale nie rynek ją poruszył"
 }

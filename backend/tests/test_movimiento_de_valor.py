@@ -90,14 +90,23 @@ def test_justo_en_el_umbral_se_avisa() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_un_cambio_de_criterios_no_es_un_movimiento_del_mercado() -> None:
-    """ES LA REGLA QUE SOSTIENE TODO EL APARTADO, y viene de antes: el
-    2026-10-26 se decidió que cuando cambian los criterios la gráfica VUELVE A
-    EMPEZAR, porque desde ese día Hattrick compara al jugador con otra gente y
-    unir los dos tramos dibuja una subida que no ocurrió.
+def test_un_cambio_de_criterios_lleva_porcentaje_pero_no_es_del_mercado() -> None:
+    """DOS COSAS A LA VEZ, y hay que no confundirlas.
 
-    Aquí vale lo mismo. El número que el usuario ve sí cambió --y por eso se
-    enseña-- pero no lleva porcentaje: cambió la pregunta, no la respuesta.
+    Cuando cambian los criterios, el 2026-10-26 se decidió que la gráfica del
+    precio VUELVE A EMPEZAR: desde ese día Hattrick compara al jugador con otra
+    gente, y unir los dos tramos dibuja una subida que no ocurrió. Eso sigue en
+    pie, y por eso esta fila va en su propio grupo con su nota.
+
+    PERO EL PORCENTAJE SE ENSEÑA (2026-11-07, pedido del usuario: «quiero que
+    se notifique el cambio en % de valoración así haya habido cambio de edad y
+    lo otro»). Lo había hecho sin él y se lo discutí; lo reafirmó, y tiene su
+    razón: el número que él ve en Valor de Plantilla sí cambió, y el total de
+    su plantilla con él. Callar la cifra no la hacía desaparecer, sólo obligaba
+    a calcularla a mano.
+
+    Lo que queda separado es el SIGNIFICADO, que es lo que de verdad había que
+    no mezclar.
     """
     mv = movimiento_de(
         _lectura(1_000_000),
@@ -105,20 +114,36 @@ def test_un_cambio_de_criterios_no_es_un_movimiento_del_mercado() -> None:
     )
     assert mv is not None
     assert mv.clase == "otra gente"
-    assert mv.porcentaje is None
     assert mv.diferencia == 400_000
+    assert mv.porcentaje == 40.0
 
 
-def test_los_criterios_se_miran_antes_del_porcentaje() -> None:
-    """El orden de las preguntas importa: si cambiaron, la resta no significa
-    nada POR GRANDE QUE SEA. Un 400 % con otra gente detrás sigue sin ser un
-    movimiento del mercado."""
+def test_el_umbral_tambien_se_aplica_al_cambio_de_criterios() -> None:
+    """Un cumpleaños que mueve la cifra un 1 % no es noticia.
+
+    Sin umbral, este grupo saldría en el informe de cada jugador que cumple
+    años --que es uno por semana y pico-- y se llenaría de ruido justo por ser
+    el que menos acción pide.
+    """
+    assert (
+        movimiento_de(
+            _lectura(1_000_000),
+            _lectura(1_010_000, criterios=OTRA, cuando=AHORA),
+        )
+        is None
+    )
+
+
+def test_un_salto_enorme_con_otros_criterios_sigue_sin_ser_del_mercado() -> None:
+    """El porcentaje se enseña, pero la clase no cambia: un 4.900 % con otra
+    gente detrás sigue siendo un cambio de pregunta y no una subida."""
     mv = movimiento_de(
         _lectura(100_000),
         _lectura(5_000_000, criterios=OTRA, cuando=AHORA),
     )
     assert mv is not None
     assert mv.clase == "otra gente"
+    assert mv.porcentaje == 4900.0
 
 
 def test_mismo_numero_con_otros_criterios_no_dice_nada() -> None:

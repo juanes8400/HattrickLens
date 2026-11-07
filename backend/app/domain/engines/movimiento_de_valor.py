@@ -23,11 +23,18 @@ inventaría movimientos que no ocurrieron:
   porcentaje: no se puede dividir por lo que no había. Se cuenta aparte.
 
 · **Un cambio de con quién se compara.** El jugador cumplió años, o le subió
-  una habilidad, y desde ese día Hattrick lo compara con OTRA gente. El
-  proyecto ya decidió el 2026-10-26 que entonces la gráfica vuelve a empezar,
-  porque unir los dos tramos dibuja una subida que no ocurrió; aquí vale lo
-  mismo. La diferencia existe y se enseña, pero no es un movimiento del
-  mercado y no se le pone un porcentaje: cambió la pregunta, no la respuesta.
+  una habilidad, y desde ese día Hattrick lo compara con OTRA gente. Cambió la
+  pregunta, no la respuesta, así que esto NO es un movimiento del mercado y va
+  en su propio grupo con su nota: el proyecto ya decidió el 2026-10-26 que
+  entonces la gráfica del precio vuelve a empezar, porque unir los dos tramos
+  dibuja una subida que no ocurrió.
+
+  LLEVA PORCENTAJE IGUAL, por decisión del usuario del 2026-11-07. Se lo
+  discutí --un 18 % ahí no dice que el mercado se moviera-- y lo reafirmó con
+  razón: el número que él ve en Valor de Plantilla sí cambió un 18 %, y el
+  total de su plantilla con él. Callar la cifra no la hacía desaparecer, sólo
+  obligaba a calcularla a mano. Lo que queda separado es el SIGNIFICADO, que
+  es lo que de verdad había que no mezclar.
 
 Y UNA CUARTA QUE NO SE AVISA: el que tenía número y lo perdió. Pasa cuando sus
 comparables caducan sin que entren otros, y no es que el jugador valga menos
@@ -84,10 +91,11 @@ class Movimiento:
 
     `clase` dice cuál de los tres casos es, y la pantalla los agrupa por ella:
 
-    · `"movimiento"` --el único con `porcentaje`--
-    · `"estreno"`    --antes no había número--
-    · `"otra gente"` --cambiaron los criterios, así que no es comparable--
-    · `"perdido"`    --había número y ya no--
+    · `"movimiento"` --mismo jugador, misma gente, con porcentaje--
+    · `"estreno"`    --antes no había número, así que sin porcentaje--
+    · `"otra gente"` --cambiaron los criterios: con porcentaje, pero no es un
+                       movimiento del mercado--
+    · `"perdido"`    --había número y ya no, así que sin porcentaje--
     """
 
     ht_player_id: int
@@ -96,8 +104,14 @@ class Movimiento:
     antes: int | None
     ahora: int | None
     diferencia: int | None
-    #: `None` en todo lo que no es un movimiento de verdad: no hay nada por lo
-    #: que dividir, y un 0 % ahí se leería como «no se movió».
+    #: `None` SÓLO cuando no hay nada por lo que dividir: un estreno no tenía
+    #: número antes, y un perdido no lo tiene ahora. Un 0 % ahí se leería como
+    #: «no se movió», que es justo lo contrario.
+    #:
+    #: El cambio de criterios SÍ lo lleva, desde el 2026-11-07: los dos valores
+    #: existen, así que el porcentaje existe. Lo que no existe es la lectura
+    #: «el mercado lo movió», y eso lo dice el grupo, no la ausencia del
+    #: número.
     porcentaje: float | None
     n_antes: int
     n_ahora: int
@@ -161,17 +175,34 @@ def movimiento_de(
     if antes.valor is None or antes.valor <= 0:
         return _como("estreno", valor_antes=antes.valor, valor_ahora=ahora.valor)
 
-    # Cambió con quién se le compara, así que la resta no es un movimiento del
-    # mercado. Se enseña igual --el número que el usuario ve SÍ cambió-- pero
-    # sin porcentaje y en su propio grupo.
+    # Cambió con quién se le compara. La resta NO es un movimiento del mercado
+    # --cambió la pregunta, no la respuesta-- y por eso sigue en su propio
+    # grupo, con su nota al lado.
+    #
+    # PERO LLEVA PORCENTAJE (2026-11-07, pedido del usuario: «quiero que se
+    # notifique el cambio en % de valoración así haya habido cambio de edad y
+    # lo otro»). Lo había pedido sin él y se lo discutí: un 18 % ahí no dice
+    # que el mercado se moviera. Lo reafirmó, y tiene su razón: el número que
+    # ve en Valor de Plantilla SÍ cambió un 18 %, y la suma de su plantilla con
+    # él. Callar la cifra no hacía que la cifra no existiera; sólo obligaba a
+    # calcularla a mano.
+    #
+    # El umbral se le aplica igual. Sin él, un cumpleaños que mueve la cifra un
+    # 1 % saldría en el informe de cada jugador que cumpla años, y el grupo se
+    # llenaría de ruido justo por ser el que menos acción pide.
     if antes.criterios != ahora.criterios:
-        if antes.valor == ahora.valor:
+        diferencia = ahora.valor - antes.valor
+        if not diferencia:
+            return None
+        porcentaje = diferencia / antes.valor * 100
+        if abs(porcentaje) < umbral:
             return None
         return _como(
             "otra gente",
             valor_antes=antes.valor,
             valor_ahora=ahora.valor,
-            diferencia=ahora.valor - antes.valor,
+            diferencia=diferencia,
+            porcentaje=porcentaje,
         )
 
     diferencia = ahora.valor - antes.valor

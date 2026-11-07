@@ -203,12 +203,21 @@ export function ClubMoraleSection({
  */
 /** Los cuatro grupos de movimientos, en el orden en que se leen.
  *
- *  VAN SEPARADOS A PROPOSITO, y es la decisión que sostiene todo el apartado.
- *  La tentación es una lista con un porcentaje al lado, pero eso inventaría
- *  movimientos: un jugador que cumplió años se compara desde ese día con OTRA
- *  gente, así que su número cambió sin que el mercado se moviera. Enseñarlo
- *  como un «+18 %» sería dibujar una subida que no ocurrió, y el proyecto ya
+ *  VAN SEPARADOS A PROPOSITO, y es la decisión que sostiene todo el apartado:
+ *  un jugador que cumplió años se compara desde ese día con OTRA gente, así
+ *  que su cifra se movió sin que el mercado hiciera nada. El proyecto ya
  *  decidió el 2026-10-26 que esos dos tramos no se unen ni en la gráfica.
+ *
+ *  EL PORCENTAJE SÍ SE ENSEÑA EN LOS CUATRO CASOS QUE LO TIENEN (2026-11-07,
+ *  pedido del usuario: «quiero que se notifique el cambio en % de valoración
+ *  así haya habido cambio de edad y lo otro»). Lo había hecho sin él en el
+ *  grupo de «otra gente» y se lo discutí; lo reafirmó, y tiene su razón: el
+ *  número que ve en Valor de Plantilla cambió de verdad, y el total de su
+ *  plantilla con él. Callar la cifra no la hacía desaparecer, sólo obligaba a
+ *  calcularla a mano.
+ *
+ *  Lo que sigue separado es el SIGNIFICADO, que es lo que de verdad había que
+ *  no mezclar: el grupo y su nota dicen que esa subida no la hizo el mercado.
  */
 const GRUPOS_DE_VALOR: {
   clase: ValueMove["kind"];
@@ -228,7 +237,7 @@ const GRUPOS_DE_VALOR: {
   {
     clase: "otra gente",
     titulo: "Ahora se les compara con otra gente",
-    nota: "cumplieron años o les subió una habilidad, así que Hattrick los compara con otros: el número cambió, el mercado no",
+    nota: "cumplieron años o les subió una habilidad, así que Hattrick los compara con otros: la cifra cambió de verdad, pero el mercado no la movió",
   },
   {
     clase: "perdido",

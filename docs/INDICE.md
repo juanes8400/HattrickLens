@@ -64,7 +64,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3851 | arena | 3 | 9 |
 | `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 20662 | alertas | 19 | 86 |
 | `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 202 | 9259 | dashboard | 10 | 36 |
-| `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 873 | 13899 | player_balance, cambios, partidos, plantilla | 11 | 40 |
+| `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 873 | 13939 | player_balance, cambios, partidos, plantilla | 11 | 40 |
 | `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 1025 | 15544 | entrenamiento, modelos, modelos | 14 | 31 |
 | `/wiki` | [WikiPage.tsx](../frontend/src/pages/WikiPage.tsx) | 171 | - | - | 0 | 0 |
 | `/uso` | [UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) | 1604 | 4667 | uso | 1 | 6 |
