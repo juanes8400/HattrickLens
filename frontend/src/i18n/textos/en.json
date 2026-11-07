@@ -2211,8 +2211,6 @@
   "caducado": "expired",
   "Volver a publicar": "Publish again",
   "Retirar": "Withdraw",
-  "Valoración del equipo": "Squad value",
-  "Valoración": "Value",
   "Costo hasta ahora": "Cost so far",
   "ver la tabla completa": "see the full table",
   "El más valioso": "Most valuable",
@@ -2229,5 +2227,6 @@
   "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}} times your current cash, which is {{v1}}",
   "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} of the squad could not be measured yet",
   "de {{v0}} ventas": "from {{v0}} sales",
-  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} of those prices come from few sales and move the total more than it looks"
+  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} of those prices come from few sales and move the total more than it looks",
+  "Valor de Plantilla": "Squad value"
 }
