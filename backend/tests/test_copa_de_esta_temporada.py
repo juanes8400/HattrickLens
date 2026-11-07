@@ -198,3 +198,60 @@ def test_los_partidos_de_fuera_tambien_dejan_taquilla() -> None:
     # fuera.
     assert d["observed_gross_gate"] == TAQUILLA * 2
     assert d["observed_share"] == round(TAQUILLA * 0.67 + TAQUILLA * 0.33)
+
+
+# ---------------------------------------------------------------------------
+# LOS PRÓXIMOS TAMBIÉN SON DE ESTA TEMPORADA (2026-11-05)
+#
+# Lo vio el usuario en Rivales: «todavía siguen en la lista aquellos rivales de
+# Copa de temporadas pasadas». El historial sí se recortaba; los próximos no.
+#
+# Una llave vieja que nunca llegó a `FINISHED` --abandonada, o sincronizada a
+# medias el día que el equipo quedó eliminado-- se quedaba en «próximos» para
+# siempre, y su rival volvía a salir en Elegir rival marcado «programado»,
+# temporada tras temporada. Una copa es de su temporada por definición.
+# ---------------------------------------------------------------------------
+
+from app.api.v1.endpoints.cup import solo_de_la_temporada  # noqa: E402
+
+
+class _Falso:
+    """Lo mínimo que mira el corte: su temporada."""
+
+    def __init__(self, nombre: str, temporada: int | None) -> None:
+        self.nombre = nombre
+        self.temporada = temporada
+
+
+def _temporada_de(p: _Falso) -> int | None:
+    return p.temporada
+
+
+def test_el_corte_deja_fuera_lo_de_temporadas_pasadas() -> None:
+    partidos = [
+        _Falso("de ahora", 83),
+        _Falso("del año pasado", 82),
+        _Falso("de hace tres", 80),
+    ]
+    quedan = solo_de_la_temporada(partidos, 83, _temporada_de)
+    assert [p.nombre for p in quedan] == ["de ahora"]
+
+
+def test_sin_mundo_no_se_corta_nada() -> None:
+    """Sin `worlddetails` no hay ancla para fechar una temporada.
+
+    Tirar partidos a ciegas sería peor que enseñarlos: se devuelven todos.
+    """
+    partidos = [_Falso("uno", 83), _Falso("otro", 80)]
+    assert len(solo_de_la_temporada(partidos, None, _temporada_de)) == 2
+
+
+def test_un_partido_sin_fecha_utilizable_no_cuenta_como_de_esta() -> None:
+    """`temporada_de` devuelve None cuando no se puede fechar.
+
+    Y entonces NO entra: con un mundo sincronizado, lo que no se puede situar
+    en esta temporada no se enseña como si lo estuviera.
+    """
+    partidos = [_Falso("sin fecha", None), _Falso("de ahora", 83)]
+    quedan = solo_de_la_temporada(partidos, 83, _temporada_de)
+    assert [p.nombre for p in quedan] == ["de ahora"]

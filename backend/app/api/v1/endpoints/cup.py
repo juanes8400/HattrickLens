@@ -7,6 +7,7 @@ Nacional/Divisional y CupLevel distingue Principal/Desafío/Consuelo.
 """
 
 import json
+from collections.abc import Callable, Iterable
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
@@ -31,6 +32,7 @@ from app.domain.engines.economy_engine import SEASON_WEEKS
 from app.domain.engines.match_analysis import hatstats
 from app.domain.engines.prediccion import (
     TIPOS_DE_COPA,
+    TIPOS_DE_LIGA,
     factor_de_tactica,
     goles_esperados,
     marcador_mas_probable,
@@ -617,6 +619,33 @@ def _metodo_de_copa(pedido: str) -> str:
     return pedido if pedido in METODOS_SOBRE_LO_JUGADO else PitchZoneMethod.AVERAGE
 
 
+def solo_de_la_temporada(
+    partidos: Iterable[m.Match],
+    temporada: int | None,
+    temporada_de: Callable[[m.Match], int | None],
+) -> list[m.Match]:
+    """Los partidos de la temporada en curso, y nada más.
+
+    EXISTE PARA QUE HAYA UN SOLO CORTE. Lo había en el historial y no en los
+    próximos, y esa asimetría es justo lo que el usuario vio el 2026-11-05 en
+    Rivales: «todavía siguen en la lista aquellos rivales de Copa de temporadas
+    pasadas».
+
+    Una llave vieja que nunca llegó a `FINISHED` --abandonada, o sincronizada a
+    medias el día que el equipo quedó eliminado-- se quedaba en «próximos» para
+    siempre, y su rival volvía a salir en Elegir rival marcado «programado»,
+    temporada tras temporada. Una copa es de su temporada por definición: la
+    del año pasado no tiene próximos.
+
+    SIN MUNDO NO SE CORTA. Sin `worlddetails` no hay ancla para saber de qué
+    temporada es una fecha, y tirar partidos a ciegas sería peor que
+    enseñarlos: se devuelven todos y la pantalla dice lo que sabe.
+    """
+    if temporada is None:
+        return list(partidos)
+    return [p for p in partidos if temporada_de(p) == temporada]
+
+
 async def _prediccion_del_cruce(
     session: AsyncSession,
     team: m.Team,
@@ -671,26 +700,45 @@ async def _prediccion_del_cruce(
     enviada: dict[str, int] | None = None
     tactica_propia: int | None = None
     try:
-        mias = await lecturas_de_un_equipo(
-            session,
-            client,
-            FILE_VERSIONS["matchdetails"],
-            FILE_VERSIONS["matchesarchive"],
-            team.ht_team_id,
-            desde,
-            ahora,
-            TIPOS_DE_COPA,
-        )
-        suyas = await lecturas_de_un_equipo(
-            session,
-            client,
-            FILE_VERSIONS["matchdetails"],
-            FILE_VERSIONS["matchesarchive"],
-            rival_ht_id,
-            desde,
-            ahora,
-            TIPOS_DE_COPA,
-        )
+
+        async def _lecturas(ht_id: int, tipos: tuple[int, ...]) -> list[Any]:
+            return await lecturas_de_un_equipo(
+                session,
+                client,
+                FILE_VERSIONS["matchdetails"],
+                FILE_VERSIONS["matchesarchive"],
+                ht_id,
+                desde,
+                ahora,
+                tipos,
+            )
+
+        # LA COPA PRIMERO, LA LIGA COMO RESPALDO (2026-11-05, pedido del
+        # usuario: «no debe ser predicho el resultado como se hacía antes con
+        # TSI sino con el método actual de las Poisson»).
+        #
+        # Hasta hoy, sin partidos de copa de alguno de los dos --su primera
+        # ronda-- esto devolvía `None` y la pantalla caía al modelo viejo por
+        # TSI, que no está calibrado y no entiende de zonas. Ahora se leen sus
+        # partidos de LIGA y se aplica el mismo motor y el mismo método: una
+        # fuente peor, pero el mismo modelo, y dicho en pantalla.
+        #
+        # POR QUÉ RESPALDO Y NO MEZCLA. El resumen de un equipo sale de UNA
+        # competición porque en copa se juega con otro equipo que en liga
+        # --medido en el equipo del usuario, su mediocampo de copa dobla al de
+        # liga--. Mezclarlas describiría mal a los dos. Así que se prefiere la
+        # copa, y sólo cuando NO HAY copa se mira la liga, por separado para
+        # cada lado: puede que yo tenga historia de copa y el rival no.
+        mias = await _lecturas(team.ht_team_id, TIPOS_DE_COPA)
+        fuente_mia = "copa"
+        if not mias:
+            mias = await _lecturas(team.ht_team_id, TIPOS_DE_LIGA)
+            fuente_mia = "liga"
+        suyas = await _lecturas(rival_ht_id, TIPOS_DE_COPA)
+        fuente_suya = "copa"
+        if not suyas:
+            suyas = await _lecturas(rival_ht_id, TIPOS_DE_LIGA)
+            fuente_suya = "liga"
         if quiere_enviada:
             cruce = await partido_pendiente_contra(session, team.ht_team_id, rival_ht_id)
             if cruce is not None:
@@ -753,6 +801,11 @@ async def _prediccion_del_cruce(
         ),
         "metodo_rival": _metodo_de_copa(metodo_rival),
         "indirectas_prestadas": indirectas_prestadas,
+        # DE DÓNDE SALE CADA LADO. Una predicción hecha con partidos de liga
+        # vale menos que una hecha con partidos de copa, y quien la lee tiene
+        # derecho a saber cuál está mirando. Sin esto, las dos se verían igual.
+        "own_source": fuente_mia,
+        "rival_source": fuente_suya,
     }
 
 
@@ -848,7 +901,28 @@ async def _cup_sin_cache(
         ).scalars()
     )
     played = [mt for mt in matches if mt.status.upper() == "FINISHED"]
-    upcoming = [mt for mt in matches if mt.status.upper() != "FINISHED"]
+    # LOS PRÓXIMOS, SÓLO DE ESTA TEMPORADA (2026-11-05, lo vio el usuario en
+    # Rivales: «todavía siguen en la lista aquellos rivales de Copa de
+    # temporadas pasadas»).
+    #
+    # `upcoming` salía de `matches`, que son TODAS las temporadas, mientras que
+    # el historial sí se recortaba. Una llave vieja que nunca llegó a
+    # `FINISHED` --abandonada, o sincronizada a medias el día que el equipo
+    # quedó eliminado-- se quedaba en «próximos» para siempre: temporada tras
+    # temporada, su rival volvía a aparecer en Elegir rival marcado como
+    # «programado». Una copa es de su temporada por definición; la del año
+    # pasado no tiene próximos.
+    #
+    # Arrastra con él a `still_in_cup` y a `next_match`, y es lo correcto en
+    # los tres: seguir en la copa es seguir en la de ESTE año.
+    # Los próximos, SÓLO de esta temporada. Arrastra con él a `still_in_cup` y
+    # a `next_match`, y es lo correcto en los tres: seguir en la copa es seguir
+    # en la de ESTE año.
+    upcoming = solo_de_la_temporada(
+        [mt for mt in matches if mt.status.upper() != "FINISHED"],
+        current_season,
+        match_season,
+    )
     next_match = min(upcoming, key=lambda mt: mt.played_at, default=None)
     latest_match = next_match or max(played, key=lambda mt: mt.played_at, default=None)
 
@@ -922,11 +996,7 @@ async def _cup_sin_cache(
 
     # Historial: solo la temporada actual (pedido explícito 2026-08-13), sin
     # aviso, el usuario ya sabe que es así.
-    matches_this_season = (
-        [mt for mt in matches if match_season(mt) == current_season]
-        if current_season is not None
-        else matches
-    )
+    matches_this_season = solo_de_la_temporada(matches, current_season, match_season)
     played_this_season = [mt for mt in matches_this_season if mt.status.upper() == "FINISHED"]
 
     ratings_by_match = {
