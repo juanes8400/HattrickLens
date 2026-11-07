@@ -18,6 +18,7 @@ from app.application.commands.sync_team.comun import (
 )
 from app.domain.engines.composicion_de_liga import (
     Equipo,
+    Veredicto,
     cambios_de,
     sin_repetir,
     verificar,
@@ -26,6 +27,58 @@ from app.domain.engines.sync_diff import diff_standing
 from app.domain.ports.repositories import UnitOfWork
 from app.domain.value_objects.ht_time import ht_to_utc
 from app.infrastructure.db import models as m
+
+
+def _arreglar_la_foto(foto: list[m.Standing], veredicto: Veredicto) -> int:
+    """Pone en la foto guardada al equipo que de verdad ocupa esa plaza.
+
+    POR QUÉ HACE FALTA. La clasificación que se enseña sale de la última foto
+    guardada, y una jornada se guarda UNA vez: `_persist_standings` corta con
+    `if exists: return`. Un equipo abandonado se reemplaza cuando se reemplaza,
+    no en el cambio de jornada, así que entre el reemplazo y la jornada
+    siguiente la tabla enseñaba al equipo viejo y no al nuevo. Hasta siete días.
+
+    QUÉ SE CORRIGE, Y NADA MÁS:
+
+    · El REEMPLAZO LIMPIO, uno por uno. Se sabe qué plaza es --la del que se
+      fue-- así que se le cambia el id y el nombre. Los puntos y los goles se
+      quedan: Hattrick le pasa el expediente de la plaza al sustituto, y esa
+      fila describe la plaza, no al club que la ocupaba.
+    · El RENOMBRADO. Mismo id, nombre nuevo. Trivial y sin riesgo.
+
+    QUÉ NO SE TOCA, y es la mitad del valor de esto:
+
+    · Una foto incompleta. Con siete equipos de ocho, el «uno que falta» puede
+      ser el que no llegó y no el que se fue; `se_arregla_solo` ya lo exige.
+    · Dos reemplazos a la vez. No hay forma de saber cuál ocupa el sitio de
+      cuál sin preguntar, y adivinar mandaría los puntos al club equivocado.
+      Eso se avisa y se queda sin arreglar, que es lo honesto.
+    · Las jornadas ANTERIORES. Esas sí las jugó el equipo viejo, y reescribirlas
+      sería falsear el histórico. Sólo se corrige la última, que es la que
+      representa el AHORA.
+
+    Devuelve cuántas filas se cambiaron.
+    """
+    if not foto:
+        return 0
+    por_id = {f.team_ht_id: f for f in foto}
+    cambiadas = 0
+
+    if veredicto.se_arregla_solo and veredicto.reemplazo_limpio is not None:
+        viejo, nuevo = veredicto.reemplazo_limpio
+        fila = por_id.get(viejo.ht_team_id)
+        if fila is not None and nuevo.ht_team_id:
+            fila.team_ht_id = nuevo.ht_team_id
+            fila.team_name = nuevo.nombre
+            cambiadas += 1
+
+    for r in veredicto.renombrados:
+        fila = por_id.get(r.ht_team_id)
+        if fila is not None and fila.team_name != r.ahora:
+            fila.team_name = r.ahora
+            cambiadas += 1
+
+    return cambiadas
 
 
 async def _verificar_la_composicion(
@@ -54,8 +107,19 @@ async def _verificar_la_composicion(
     entrando y ocho saliendo cada vez que se sincroniza antes de conocer el
     mundo.
 
-    El veredicto es del dominio y se prueba solo. Aquí sólo se lee lo guardado,
-    se le pasa, y lo que vuelva se anota en Cambios.
+    Y CORRIGE LA FOTO, que es lo que faltaba (2026-11-07, lo vio el usuario:
+    «lo de la Liga no funcionó, porque veo un equipo que ya no está y no veo al
+    equipo que lo reemplazó»).
+
+    Tenía razón y el fallo era de diseño: esto sólo avisaba. La clasificación
+    que se enseña sale de la última foto guardada, y `_persist_standings` corta
+    en seco cuando la jornada ya está --`if exists: return`-- así que un
+    reemplazo a mitad de semana dejaba el equipo viejo en la tabla hasta la
+    jornada siguiente. Hasta siete días con un fantasma en la clasificación y
+    sin su sustituto, que es exactamente lo que vio.
+
+    El veredicto es del dominio y se prueba solo. Aquí se lee lo guardado, se le
+    pasa, lo que vuelva se anota en Cambios, y además se arregla la foto.
     """
     if not series_ht_id or not season:
         return
@@ -69,22 +133,32 @@ async def _verificar_la_composicion(
         .limit(1)
     )
     guardados: list[Equipo] = []
+    foto: list[m.Standing] = []
     if ultima is not None:
-        filas = (
-            await session.execute(
-                select(m.Standing).where(
-                    m.Standing.series_ht_id == series_ht_id,
-                    m.Standing.season == season,
-                    m.Standing.match_round == ultima,
+        foto = list(
+            (
+                await session.execute(
+                    select(m.Standing).where(
+                        m.Standing.series_ht_id == series_ht_id,
+                        m.Standing.season == season,
+                        m.Standing.match_round == ultima,
+                    )
                 )
-            )
-        ).scalars()
-        guardados = [Equipo(ht_team_id=f.team_ht_id, nombre=f.team_name) for f in filas]
+            ).scalars()
+        )
+        guardados = [Equipo(ht_team_id=f.team_ht_id, nombre=f.team_name) for f in foto]
     llegados = [
         Equipo(ht_team_id=int(e.get("ht_team_id", 0) or 0), nombre=str(e.get("name", "") or ""))
         for e in payload.get("teams", [])
     ]
     veredicto = verificar(guardados, llegados)
+    # SE CORRIGE ANTES DE AVISAR, y el orden da igual para el resultado pero no
+    # para leer esto: lo que importa es que la corrección sale del MISMO
+    # veredicto que el aviso, así que nunca se arregla una cosa y se anuncia
+    # otra.
+    arreglados = _arreglar_la_foto(foto, veredicto)
+    if arreglados:
+        result.snapshots_written += arreglados
     hallazgos = cambios_de(veredicto)
     if not hallazgos:
         return

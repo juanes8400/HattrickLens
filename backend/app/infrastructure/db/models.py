@@ -1873,7 +1873,8 @@ class MarketSale(Base):
     bid_price: Mapped[int] = mapped_column(BigInteger, default=0)
     #: Cuándo cierra la subasta. Pasada esa fecha se puede preguntar el precio.
     deadline: Mapped[datetime | None] = mapped_column(UtcDateTime())
-    #: Cuándo se encontró. Gobierna la caducidad de siete semanas.
+    #: Cuándo se encontró. Gobierna la caducidad: `VIDA`, veinticuatro
+    #: semanas desde el 2026-11-07 (antes siete).
     seen_at: Mapped[datetime] = mapped_column(UtcDateTime())
     #: Cuántas veces se ha intentado resolver sin encontrar la venta.
     resolve_attempts: Mapped[int] = mapped_column(Integer, default=0)

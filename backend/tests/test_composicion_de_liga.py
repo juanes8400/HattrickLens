@@ -17,6 +17,10 @@ sólo «quién falta», y cada confusión tiene su propio coste:
   novedad cada vez que se asciende o se baja.
 """
 
+from datetime import UTC, datetime
+from typing import Any
+
+from app.application.commands.sync_team.liga import _arreglar_la_foto
 from app.domain.engines.composicion_de_liga import (
     PLAZAS_DE_UNA_SERIE,
     Equipo,
@@ -387,3 +391,108 @@ def test_todas_las_frases_estan_en_los_cuatro_idiomas() -> None:
             if tr.texto(frase) == frase:
                 sin_traducir.append(f"{idioma}: {frase}")
     assert sin_traducir == []
+
+
+# --------------------------------------------------------------------------
+# La foto se corrige, no sólo se avisa
+# --------------------------------------------------------------------------
+
+
+def _foto(equipos: list[Equipo]) -> list[Any]:
+    """La última foto guardada de la clasificación, como filas de `standings`."""
+    from app.infrastructure.db import models as m
+
+    return [
+        m.Standing(
+            sync_id=1,
+            series_ht_id=700,
+            season=83,
+            match_round=11,
+            captured_at=datetime(2026, 11, 7, tzinfo=UTC),
+            team_ht_id=e.ht_team_id,
+            team_name=e.nombre,
+            position=i + 1,
+            played=11,
+            won=5,
+            draws=3,
+            lost=3,
+            goals_for=20,
+            goals_against=18,
+            points=18,
+        )
+        for i, e in enumerate(equipos)
+    ]
+
+
+def test_un_reemplazo_se_arregla_en_la_foto_guardada() -> None:
+    """2026-11-07, lo vio el usuario: «veo un equipo que ya no está y no veo al
+    equipo que lo reemplazó».
+
+    Tenía razón y el fallo era de diseño: la verificación sólo AVISABA. La
+    clasificación que se enseña sale de la última foto guardada, y una jornada
+    se guarda una vez; un reemplazo a mitad de semana dejaba el equipo viejo en
+    la tabla hasta la jornada siguiente. Hasta siete días con un fantasma.
+
+    Y LOS PUNTOS SE QUEDAN. Hattrick le pasa el expediente de la plaza al
+    sustituto: esa fila describe la PLAZA, no al club que la ocupaba. Ponerla a
+    cero sería inventar una clasificación que no existe en el juego.
+    """
+    nuevo = Equipo(ht_team_id=999, nombre="Kivaré")
+    foto = _foto(OCHO)
+    veredicto = verificar(OCHO, [*OCHO[:-1], nuevo])
+    assert _arreglar_la_foto(foto, veredicto) == 1
+
+    fila = next(f for f in foto if f.position == 8)
+    assert fila.team_ht_id == 999
+    assert fila.team_name == "Kivaré"
+    # El expediente de la plaza, intacto.
+    assert fila.points == 18
+    assert fila.played == 11
+    assert fila.goals_for == 20
+    # Y el equipo viejo ya no está en ninguna fila.
+    assert OCHO[-1].ht_team_id not in {f.team_ht_id for f in foto}
+
+
+def test_un_renombrado_se_arregla_tambien() -> None:
+    renombrado = Equipo(ht_team_id=OCHO[2].ht_team_id, nombre="Kivaré")
+    foto = _foto(OCHO)
+    veredicto = verificar(OCHO, [*OCHO[:2], renombrado, *OCHO[3:]])
+    assert _arreglar_la_foto(foto, veredicto) == 1
+    assert next(f for f in foto if f.position == 3).team_name == "Kivaré"
+
+
+def test_dos_reemplazos_a_la_vez_no_se_arreglan_a_ciegas() -> None:
+    """NO HAY FORMA de saber cuál ocupa el sitio de cuál sin preguntar, y
+    adivinar mandaría los puntos de una plaza al club equivocado. Se avisa y se
+    queda sin arreglar, que es lo honesto."""
+    a = Equipo(ht_team_id=901, nombre="Uno")
+    b = Equipo(ht_team_id=902, nombre="Otro")
+    foto = _foto(OCHO)
+    veredicto = verificar(OCHO, [*OCHO[:-2], a, b])
+    assert _arreglar_la_foto(foto, veredicto) == 0
+    # La foto se queda como estaba: ni se inventa ni se borra nada.
+    assert {f.team_ht_id for f in foto} == {e.ht_team_id for e in OCHO}
+    # Pero SÍ se avisa.
+    assert cambios_de(veredicto) != ()
+
+
+def test_una_foto_a_medias_no_se_toca() -> None:
+    """Con siete de ocho, el «uno que falta» puede ser el que no llegó y no el
+    que se fue."""
+    foto = _foto(OCHO)
+    assert _arreglar_la_foto(foto, verificar(OCHO, OCHO[:7])) == 0
+    assert len({f.team_ht_id for f in foto}) == 8
+
+
+def test_una_serie_nueva_no_toca_la_foto_de_la_vieja() -> None:
+    """Sin nada guardado no hay nada que corregir, y con la foto de otra
+    temporada tampoco: eso lo filtra quien llama, por `season`."""
+    assert _arreglar_la_foto([], verificar([], OCHO)) == 0
+
+
+def test_lo_que_cuadra_no_cambia_ni_una_fila() -> None:
+    """Y esto es lo que hace que no se corrija lo mismo cada sincronización: en
+    cuanto la foto se arregló, el siguiente sync la ve cuadrada y no toca nada.
+    Se cura solo, igual que `trasladar_equipo_reemplazado`."""
+    foto = _foto(OCHO)
+    assert _arreglar_la_foto(foto, verificar(OCHO, OCHO)) == 0

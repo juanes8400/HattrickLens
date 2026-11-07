@@ -20,7 +20,8 @@
  *    rangos, y el dial que los ensancha. Es lo único que esta pantalla no
  *    podía decir --enseñaba las ventas pero no por qué ésas-- y el por qué
  *    está medido contra su propio Comparador, no supuesto.
- *  · **De cuándo son.** Una venta sigue contando pasadas las siete semanas si
+ *  · **De cuándo son.** Una venta sigue contando pasadas sus veinticuatro
+ *    semanas si
  *    no apareció nada mejor, y entonces habla de un mercado que pudo cambiar.
  *
  *  No pide nada a Hattrick: todo sale del fondo que dejó el paso semanal, así
@@ -39,7 +40,7 @@ import {
   serieDePuntosOption,
   tiraDePuntosOption,
 } from "../charts/chartOptions";
-import { date, money, number } from "../hooks/useFormat";
+import { date, htAge, money, number } from "../hooks/useFormat";
 import { usePrecioComparable } from "../hooks/useTeam";
 import { tx } from "../i18n/tx";
 import { terminoOficial } from "../i18n/glosario";
@@ -429,18 +430,18 @@ function columnasDe(
       // se paga: ordenar sólo por años dejaba el orden interno al azar.
       // 112 días tiene el año de Hattrick.
       value: (f) => f.edad * 112 + Math.max(0, f.dias),
-      // LOS DIAS AL LADO (pedido del usuario: son columna del Comparador de
-      // Transferencias del juego, y a los 17 años son parte de la regla con la
-      // que Hattrick elige a quien comparar). `-1` es «no los sabemos»: las
-      // ventas anotadas antes de que hubiera columna, y ahi se calla.
+      // EL MISMO FORMATO QUE LA TABLA DE JUGADORES (2026-11-07, pedido del
+      // usuario), que es `htAge`: «28;101». Antes esta columna inventaba el
+      // suyo --«28 a 101 d»-- y eso obligaba a traducir mentalmente entre dos
+      // pantallas que hablan de lo mismo. Un formato por pantalla es un
+      // formato de más.
+      //
+      // `-1` es «no los sabemos»: las ventas anotadas antes de que hubiera
+      // columna. Ahi va el año solo, sin inventar unos dias que no tenemos, y
+      // sin el `;000` que se leeria como «cumplio hoy».
       render: (f) => (
         <span className="whitespace-nowrap tabular-nums">
-          {f.dias >= 0
-            ? tx("{{v0}} a {{v1}} d", {
-                v0: number(f.edad),
-                v1: number(f.dias),
-              })
-            : tx("{{v0}} a", { v0: number(f.edad) })}
+          {f.dias >= 0 ? htAge(f.edad, f.dias) : number(f.edad)}
         </span>
       ),
     },
