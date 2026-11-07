@@ -2246,5 +2246,11 @@
   "Se quedaron sin número": "Left without a figure",
   "no valen menos; dejamos de saber lo que valen": "they are not worth less; we stopped knowing what they are worth",
   "tenía {{v0}}": "was {{v0}}",
-  "({{v0}} → {{v1}} ventas)": "({{v0}} → {{v1}} sales)"
+  "({{v0}} → {{v1}} ventas)": "({{v0}} → {{v1}} sales)",
+  "Hattrick todavía no ha publicado tu serie": "Hattrick has not published your series yet",
+  "· sin serie publicada todavía": "· no series published yet",
+  "Sabemos que tu serie es {{v0}}, pero no quiénes la juegan: la clasificación y el calendario llegan cuando Hattrick hace el sorteo, unos días después de que acabe la temporada.": "We know your series is {{v0}}, but not who plays in it: the table and the fixture arrive when Hattrick runs the draw, a few days after the season ends.",
+  "La clasificación y el calendario llegan cuando Hattrick hace el sorteo, unos días después de que acabe la temporada.": "The table and the fixture arrive when Hattrick runs the draw, a few days after the season ends.",
+  "Hasta entonces no hay nada que sincronizar: esto no se arregla volviendo a sincronizar, porque lo que falta no está de nuestro lado. En cuanto Hattrick lo publique, entra en la siguiente sincronización y esta pantalla se llena sola.": "Until then there is nothing to sync: syncing again does not fix this, because what is missing is not on our side. As soon as Hattrick publishes it, it comes in on the next sync and this screen fills itself.",
+  "Mientras tanto, lo de la temporada pasada sigue en Partidos y en el histórico de Cambios: no se borra nada al cambiar de temporada.": "Meanwhile, last season's data is still in Matches and in the Changes history: nothing is deleted when the season turns over."
 }
