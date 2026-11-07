@@ -211,9 +211,45 @@ export interface LastSyncChanges {
   clubChanges: ClubComparisonChange[];
   /** Partidos de selección jugados desde el informe anterior. */
   nationalMatches: NationalMatchAppearance[];
+  /** Qué valores se movieron desde el informe anterior. Puede faltar en
+   *  respuestas de una versión anterior del servidor. */
+  valueMoves?: ValueMove[];
   /** Snapshots navegables, sólo los que tuvieron cambios reales, del más
    *  reciente al más antiguo. Elegir uno recalcula toda la comparación. */
   availableReports: { syncId: number; syncedAt: string; changeCount: number }[];
+}
+
+/** Un valor de jugador que se movió desde la última vez que entraste.
+ *
+ *  `kind` dice de qué clase es, y los cuatro casos NO son el mismo:
+ *
+ *  · `"movimiento"` — mismo jugador, misma gente con la que se le compara, y
+ *    la diferencia pasa del ±5 %. Es el único que lleva `percent`.
+ *  · `"estreno"` — antes no había número y ahora sí. No tiene porcentaje
+ *    porque no se puede dividir por lo que no había.
+ *  · `"otra gente"` — cumplió años o le subió una habilidad, así que desde ese
+ *    día Hattrick lo compara con OTROS jugadores. El número cambió, pero no es
+ *    un movimiento del mercado: cambió la pregunta, no la respuesta.
+ *  · `"perdido"` — tenía número y ya no. No vale menos: dejamos de saberlo.
+ */
+export interface ValueMove {
+  htPlayerId: number;
+  name: string;
+  kind: "movimiento" | "estreno" | "otra gente" | "perdido";
+  /** En la moneda del equipo. `null` cuando no había número. */
+  before: number | null;
+  after: number | null;
+  delta: number | null;
+  /** Sólo en `"movimiento"`. */
+  percent: number | null;
+  /** Con cuántas ventas cerradas se hizo cada lectura. Un movimiento apoyado
+   *  en dos ventas y otro apoyado en diez no merecen la misma confianza. */
+  nBefore: number;
+  nAfter: number;
+  from: string;
+  to: string;
+  /** Cómo se llama el dinero, igual que en las filas de jugador. */
+  currency: string;
 }
 
 export interface NationalMatchAppearance {

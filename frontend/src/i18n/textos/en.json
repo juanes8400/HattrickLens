@@ -2229,5 +2229,17 @@
   "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}} times your current cash, which is {{v1}}",
   "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} of the squad could not be measured yet",
   "de {{v0}} ventas": "from {{v0}} sales",
-  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} of those prices come from few sales and move the total more than it looks"
+  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} of those prices come from few sales and move the total more than it looks",
+  "Movimientos de valor": "Value movements",
+  "desde la última vez que entraste, a partir del ±5 %": "since the last time you connected, from ±5% up",
+  "Se movieron": "They moved",
+  "mismo jugador, misma gente con la que se le compara": "same player, same people they are compared with",
+  "Estrenaron valor": "First value ever",
+  "antes no había ventas cerradas bastantes para dar un número": "there were not enough closed sales before to give a figure",
+  "Ahora se les compara con otra gente": "Now compared with different players",
+  "cumplieron años o les subió una habilidad, así que Hattrick los compara con otros: el número cambió, el mercado no": "they had a birthday or a skill went up, so Hattrick compares them with others: the figure changed, the market did not",
+  "Se quedaron sin número": "Left without a figure",
+  "no valen menos; dejamos de saber lo que valen": "they are not worth less; we stopped knowing what they are worth",
+  "tenía {{v0}}": "was {{v0}}",
+  "({{v0}} → {{v1}} ventas)": "({{v0}} → {{v1}} sales)"
 }

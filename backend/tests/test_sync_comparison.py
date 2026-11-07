@@ -641,3 +641,268 @@ def test_una_fila_vieja_sin_detail_sale_con_el_detail_puesto() -> None:
         await engine.dispose()
 
     asyncio.run(scenario())
+
+
+def _lectura_de_valor(
+    team_id: int,
+    ht_player_id: int,
+    captured_at: datetime,
+    mean_price: int | None,
+    *,
+    criteria_key: str = "edad=24;JU=7;PA=6;DE=6",
+    n: int = 8,
+):
+    return m.MarketEstimate(
+        team_id=team_id,
+        ht_player_id=ht_player_id,
+        captured_at=captured_at,
+        mean_price=mean_price,
+        median_price=mean_price,
+        n=n,
+        min_weight=75,
+        provisional=0,
+        prices_json="[]",
+        criteria_key=criteria_key,
+    )
+
+
+def test_los_movimientos_de_valor_salen_en_moneda_local_y_con_su_porcentaje() -> None:
+    """2026-11-07, pedido del usuario: «Cambios: advertir qué movimientos de
+    valor de los jugadores ocurrieron al conectar, con umbrales (±5 % del
+    valor)».
+
+    DOS COSAS SE DEFIENDEN AQUI, y las dos son de esta capa y no del dominio:
+
+    · La moneda. `market_estimates` guarda en la moneda BASE del juego, como
+      todo lo que viene de CHPP, y esta pantalla habla en la del equipo. Con
+      tasa 10, un millón de la base son cien mil aquí.
+
+    · Que se cogen las lecturas «última ANTES de cada borde» y no las dos más
+      recientes. Entre dos sincronizaciones puede haber tres lecturas del mismo
+      jugador --el barrido es diario y una resolución mueve el número-- y
+      comparar las dos últimas contaría sólo el último escalón en vez del salto
+      entero que el usuario no ha visto. Por eso este escenario pone una
+      lectura intermedia: si se usara, el movimiento saldría del 20 % en vez
+      del 50 %.
+    """
+
+    async def scenario() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        ayer = datetime.now(UTC) - timedelta(days=7)
+        hoy = ayer + timedelta(days=7)
+        async with factory() as session:
+            team = m.Team(
+                ht_team_id=537758,
+                name="Pulgas Arrechas",
+                currency_rate=10.0,
+                currency_name="US$",
+            )
+            session.add(team)
+            await session.flush()
+            player = m.Player(
+                ht_player_id=472301981,
+                team_id=team.id,
+                first_name="Iñaki",
+                last_name="Bordalás",
+            )
+            session.add(player)
+            await session.flush()
+
+            for momento in (ayer, hoy):
+                sync = m.Sync(
+                    user_id=1,
+                    team_id=team.id,
+                    kind="players",
+                    status="completed",
+                    started_at=momento,
+                    finished_at=momento,
+                )
+                session.add(sync)
+                await session.flush()
+                session.add(_player_snapshot(sync.id, player.id, momento))
+
+            # Antes del informe anterior: un millón de la base.
+            session.add(
+                _lectura_de_valor(
+                    team.id, player.ht_player_id, ayer - timedelta(hours=1), 1_000_000
+                )
+            )
+            # Una lectura INTERMEDIA, entre los dos informes. No es ninguno de
+            # los dos bordes, así que no debe entrar en la cuenta.
+            session.add(
+                _lectura_de_valor(
+                    team.id, player.ht_player_id, ayer + timedelta(days=3), 1_250_000
+                )
+            )
+            # La última antes de este informe: millón y medio.
+            session.add(
+                _lectura_de_valor(
+                    team.id, player.ht_player_id, hoy - timedelta(hours=1), 1_500_000
+                )
+            )
+            await session.commit()
+
+            report = await build_sync_comparison(session, team.id)
+
+        movimientos = report["valueMoves"]
+        assert len(movimientos) == 1
+        mv = movimientos[0]
+        assert mv["kind"] == "movimiento"
+        assert mv["htPlayerId"] == 472301981
+        # En la moneda del equipo, no en la base.
+        assert mv["before"] == 100_000
+        assert mv["after"] == 150_000
+        assert mv["delta"] == 50_000
+        # El salto ENTERO, no el último escalón.
+        assert mv["percent"] == 50.0
+        assert mv["currency"] == "US$"
+        await engine.dispose()
+
+    asyncio.run(scenario())
+
+
+def test_sin_informe_anterior_no_se_anuncia_la_plantilla_entera() -> None:
+    """La primera vez que se abre Cambios, todo sería un estreno. Anunciar la
+    plantilla completa como novedad es ruido, así que sin informe previo no hay
+    movimientos que contar."""
+
+    async def scenario() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        hoy = datetime.now(UTC)
+        async with factory() as session:
+            team = m.Team(ht_team_id=537758, name="Pulgas Arrechas", currency_rate=1.0)
+            session.add(team)
+            await session.flush()
+            player = m.Player(
+                ht_player_id=123, team_id=team.id, first_name="Uno", last_name="Solo"
+            )
+            session.add(player)
+            await session.flush()
+            sync = m.Sync(
+                user_id=1,
+                team_id=team.id,
+                kind="players",
+                status="completed",
+                started_at=hoy,
+                finished_at=hoy,
+            )
+            session.add(sync)
+            await session.flush()
+            session.add(_player_snapshot(sync.id, player.id, hoy))
+            session.add(
+                _lectura_de_valor(
+                    team.id, player.ht_player_id, hoy - timedelta(hours=1), 900_000
+                )
+            )
+            await session.commit()
+
+            report = await build_sync_comparison(session, team.id)
+
+        assert report["valueMoves"] == []
+        await engine.dispose()
+
+    asyncio.run(scenario())
+
+
+def test_una_lectura_de_este_mismo_sync_ya_cuenta() -> None:
+    """EL AVISO NO VA UNA SINCRONIZACION POR DETRAS, y podría.
+
+    Las lecturas del precio comparable se escriben con `datetime.now(UTC)` en
+    el momento en que corre el paso del mercado, que es DENTRO de la
+    sincronización y por tanto después de su `started_at`. Si el corte fuera
+    `started_at`, la lectura que acaba de producir este mismo sync caería fuera
+    y la pantalla enseñaría el movimiento de la vez pasada como si fuera el de
+    ahora.
+
+    Aquí la lectura nueva está entre `started_at` y `finished_at`, que es
+    exactamente donde la pone la aplicación de verdad.
+    """
+
+    async def scenario() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        ayer = datetime.now(UTC) - timedelta(days=7)
+        empezo = ayer + timedelta(days=7)
+        acabo = empezo + timedelta(minutes=2)
+        async with factory() as session:
+            team = m.Team(
+                ht_team_id=537758,
+                name="Pulgas Arrechas",
+                currency_rate=1.0,
+                currency_name="US$",
+            )
+            session.add(team)
+            await session.flush()
+            player = m.Player(
+                ht_player_id=777, team_id=team.id, first_name="El", last_name="Que Sube"
+            )
+            session.add(player)
+            await session.flush()
+
+            viejo = m.Sync(
+                user_id=1,
+                team_id=team.id,
+                kind="players",
+                status="completed",
+                started_at=ayer,
+                finished_at=ayer + timedelta(minutes=2),
+            )
+            session.add(viejo)
+            await session.flush()
+            session.add(_player_snapshot(viejo.id, player.id, ayer))
+
+            nuevo = m.Sync(
+                user_id=1,
+                team_id=team.id,
+                kind="players",
+                status="completed",
+                started_at=empezo,
+                finished_at=acabo,
+            )
+            session.add(nuevo)
+            await session.flush()
+            session.add(_player_snapshot(nuevo.id, player.id, empezo))
+
+            session.add(
+                _lectura_de_valor(team.id, player.ht_player_id, ayer, 1_000_000)
+            )
+            # LA LECTURA DE ESTE SYNC: entre el principio y el final, que es
+            # donde cae de verdad el paso del mercado.
+            session.add(
+                _lectura_de_valor(
+                    team.id, player.ht_player_id, empezo + timedelta(minutes=1), 1_400_000
+                )
+            )
+            await session.commit()
+
+            report = await build_sync_comparison(session, team.id)
+
+        movimientos = report["valueMoves"]
+        assert len(movimientos) == 1
+        assert movimientos[0]["percent"] == 40.0
+        await engine.dispose()
+
+    asyncio.run(scenario())

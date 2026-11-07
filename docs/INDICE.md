@@ -42,7 +42,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/cookies` | [PrivacidadPage.tsx](../frontend/src/pages/PrivacidadPage.tsx) | 194 | - | - | 0 | 0 |
 | `/apoyar` | [ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) | 154 | 9170 | dashboard | 10 | 36 |
 | `/setup` | [SetupPage.tsx](../frontend/src/pages/SetupPage.tsx) | 428 | 9711 | auth_chpp, dashboard | 10 | 36 |
-| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 876 | 33915 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard | 27 | 103 |
+| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 876 | 33951 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard | 27 | 103 |
 | `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 29112 | alertas, alineacion, league, dashboard | 25 | 97 |
 | `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 591 | 5976 | club | 4 | 7 |
 | `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 254 | 5822 | resumen | 5 | 18 |
@@ -64,7 +64,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3851 | arena | 3 | 8 |
 | `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 20662 | alertas | 19 | 86 |
 | `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 202 | 9259 | dashboard | 10 | 36 |
-| `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 868 | 13339 | player_balance, cambios, partidos, plantilla | 10 | 38 |
+| `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 873 | 13887 | player_balance, cambios, partidos, plantilla | 11 | 39 |
 | `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 1025 | 15544 | entrenamiento, modelos, modelos | 14 | 31 |
 | `/wiki` | [WikiPage.tsx](../frontend/src/pages/WikiPage.tsx) | 171 | - | - | 0 | 0 |
 | `/uso` | [UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) | 1604 | 4667 | uso | 1 | 6 |
@@ -806,7 +806,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/news`
 
-- **Página:** [frontend/src/pages/SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) (868 líneas)
+- **Página:** [frontend/src/pages/SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) (873 líneas)
 - **Componentes y hooks suyos (20):**
   - [frontend/src/components/AvisoDelBarrido.tsx](../frontend/src/components/AvisoDelBarrido.tsx)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -833,8 +833,8 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 - **Rutas HTTP:** `/teams/:x/changes/history`, `/teams/:x/last-match-report`, `/teams/:x/squad`, `/teams/:x/sync/changes`, `/teams/:x/transfer-attempts`, `/teams/:x/transfer-attempts/:x`
 - **Endpoints:** [backend/app/api/v1/endpoints/player_balance.py](../backend/app/api/v1/endpoints/player_balance.py), [backend/app/api/v1/endpoints/teams/cambios.py](../backend/app/api/v1/endpoints/teams/cambios.py), [backend/app/api/v1/endpoints/teams/partidos.py](../backend/app/api/v1/endpoints/teams/partidos.py), [backend/app/api/v1/endpoints/teams/plantilla.py](../backend/app/api/v1/endpoints/teams/plantilla.py)
 - **Aplicación:** `app.application.dto.dashboard` (20 rutas), `app.application.dto.squad` (20 rutas), `app.application.queries.changes_history`, `app.application.queries.parte_del_partido`, `app.application.queries.player_balance` (7 rutas), `app.application.queries.squad` (20 rutas), `app.application.queries.sync_comparison`, `app.application.queries.transfer_attempts`, `app.application.queries.weekly` (25 rutas)
-- **Dominio:** `app.domain.engines` (23 rutas), `app.domain.engines.economy_engine` (21 rutas), `app.domain.engines.player_balance` (7 rutas), `app.domain.engines.position_engine` (21 rutas), `app.domain.engines.salary_model` (7 rutas), `app.domain.engines.sync_diff`, `app.domain.value_objects.formatting` (17 rutas), `app.domain.value_objects.ht_constants` (25 rutas), `app.domain.value_objects.ht_time` (9 rutas), `app.domain.value_objects.skill`
-- **Tests (38):** `tests/test_age.py`, `tests/test_cache_por_sync.py`, `tests/test_cambios_academia_profundo.py`, `tests/test_cambios_del_ultimo_sync.py`, `tests/test_cambios_juveniles.py`, `tests/test_camel_helper.py`, `tests/test_changes_history.py`, `tests/test_economy_engine.py`, `tests/test_formato_numeros.py`, `tests/test_formatting.py`, `tests/test_ht_constants.py`, `tests/test_htms.py`, `tests/test_league_matches_academy_queries.py`, `tests/test_lineup_optimizer.py`, `tests/test_match_type_helpers.py`, `tests/test_middleware_idioma.py`, `tests/test_parte_del_partido.py`, `tests/test_player_balance.py`, `tests/test_plazas_de_entrenamiento.py`, `tests/test_position_engine.py`, `tests/test_post_match_training.py`, `tests/test_previous_club_bonus.py`, `tests/test_salary_model.py`, `tests/test_salida_de_un_juvenil.py`, `tests/test_simulacion_de_venta.py`, `tests/test_squad_last_match_recency.py`, `tests/test_stint_edit.py`, `tests/test_sync_comparison.py`, `tests/test_sync_diff.py`, `tests/test_team_overview.py`, `tests/test_team_rating_engine.py`, `tests/test_transfer_attempts.py`, `tests/test_transparencia.py`, `tests/test_ventanas_de_comparacion.py`, `tests/test_veteranos_y_deficit.py`, `tests/test_weekly.py`, `tests/test_youth_arrival.py`, `tests/test_youth_htms.py`
+- **Dominio:** `app.domain.engines` (23 rutas), `app.domain.engines.economy_engine` (21 rutas), `app.domain.engines.movimiento_de_valor`, `app.domain.engines.player_balance` (7 rutas), `app.domain.engines.position_engine` (21 rutas), `app.domain.engines.salary_model` (7 rutas), `app.domain.engines.sync_diff`, `app.domain.value_objects.formatting` (17 rutas), `app.domain.value_objects.ht_constants` (25 rutas), `app.domain.value_objects.ht_time` (9 rutas), `app.domain.value_objects.skill`
+- **Tests (39):** `tests/test_age.py`, `tests/test_cache_por_sync.py`, `tests/test_cambios_academia_profundo.py`, `tests/test_cambios_del_ultimo_sync.py`, `tests/test_cambios_juveniles.py`, `tests/test_camel_helper.py`, `tests/test_changes_history.py`, `tests/test_economy_engine.py`, `tests/test_formato_numeros.py`, `tests/test_formatting.py`, `tests/test_ht_constants.py`, `tests/test_htms.py`, `tests/test_league_matches_academy_queries.py`, `tests/test_lineup_optimizer.py`, `tests/test_match_type_helpers.py`, `tests/test_middleware_idioma.py`, `tests/test_movimiento_de_valor.py`, `tests/test_parte_del_partido.py`, `tests/test_player_balance.py`, `tests/test_plazas_de_entrenamiento.py`, `tests/test_position_engine.py`, `tests/test_post_match_training.py`, `tests/test_previous_club_bonus.py`, `tests/test_salary_model.py`, `tests/test_salida_de_un_juvenil.py`, `tests/test_simulacion_de_venta.py`, `tests/test_squad_last_match_recency.py`, `tests/test_stint_edit.py`, `tests/test_sync_comparison.py`, `tests/test_sync_diff.py`, `tests/test_team_overview.py`, `tests/test_team_rating_engine.py`, `tests/test_transfer_attempts.py`, `tests/test_transparencia.py`, `tests/test_ventanas_de_comparacion.py`, `tests/test_veteranos_y_deficit.py`, `tests/test_weekly.py`, `tests/test_youth_arrival.py`, `tests/test_youth_htms.py`
 
 ### `/transparency`
 

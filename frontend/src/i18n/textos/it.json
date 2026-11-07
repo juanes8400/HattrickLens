@@ -2229,5 +2229,17 @@
   "{{v0}} veces tu caja de ahora, que son {{v1}}": "{{v0}} volte la tua cassa di adesso, cioè {{v1}}",
   "a {{v0}} de la plantilla no se les ha podido medir todavía": "{{v0}} della rosa non si sono ancora potuti misurare",
   "de {{v0}} ventas": "da {{v0}} vendite",
-  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} di quei prezzi vengono da poche vendite e muovono il totale più di quanto sembri"
+  "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} di quei prezzi vengono da poche vendite e muovono il totale più di quanto sembri",
+  "Movimientos de valor": "Movimenti di valore",
+  "desde la última vez que entraste, a partir del ±5 %": "dall'ultima volta che sei entrato, a partire dal ±5 %",
+  "Se movieron": "Si sono mossi",
+  "mismo jugador, misma gente con la que se le compara": "stesso giocatore, stesse persone con cui lo si confronta",
+  "Estrenaron valor": "Primo valore",
+  "antes no había ventas cerradas bastantes para dar un número": "prima non c'erano abbastanza vendite chiuse per dare una cifra",
+  "Ahora se les compara con otra gente": "Ora li si confronta con altri",
+  "cumplieron años o les subió una habilidad, así que Hattrick los compara con otros: el número cambió, el mercado no": "hanno compiuto gli anni o è salita un'abilità, quindi Hattrick li confronta con altri: la cifra è cambiata, il mercato no",
+  "Se quedaron sin número": "Rimasti senza cifra",
+  "no valen menos; dejamos de saber lo que valen": "non valgono meno; abbiamo smesso di sapere quanto valgono",
+  "tenía {{v0}}": "era {{v0}}",
+  "({{v0}} → {{v1}} ventas)": "({{v0}} → {{v1}} vendite)"
 }
