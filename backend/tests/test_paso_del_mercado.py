@@ -257,10 +257,17 @@ async def test_el_fondo_sirve_a_toda_la_plantilla(base) -> None:
     for ht_id in (ALBERTO, GEMELO):
         precio = await precio_de(session, equipo.id, ht_id, AHORA)
         assert precio is not None
-        # El mismo fondo sirve a los dos, que es lo que esta prueba
-        # defiende. Son anuncios, asi que dan lista y no media: desde el
-        # 2026-10-09 el numero sale solo de ventas cerradas.
-        assert len(precio.comparables) == OBJETIVO
+        # El mismo fondo sirve a los dos, que es lo que esta prueba defiende, y
+        # que el gemelo las tenga sin haber gastado una sola llamada es la
+        # prueba de que el fondo es del EQUIPO y no del jugador.
+        #
+        # Lo que cambio el 2026-11-07 es DONDE se cuentan. Son anuncios con
+        # puja, no ventas, asi que ya no salen en la lista --decision del
+        # usuario: «los jugadores que nunca se vendieron, no deben ir en la
+        # lista»-- y se dicen en el sitio que habla de ellos: las subastas
+        # abiertas. Sin eso, un fondo lleno se leeria como un fondo vacio.
+        assert precio.provisionales == OBJETIVO
+        assert precio.comparables == ()
         assert precio.media is None
 
 
@@ -345,6 +352,20 @@ async def test_la_plantilla_entera_en_una_sentada(base) -> None:
         filas[ALBERTO].mediana,
         filas[ALBERTO].n,
     )
+    # Y LA LISTA ES SOLO DE LAS CINCO QUE SE VENDIERON (2026-11-07, decision
+    # del usuario: «los jugadores que nunca se vendieron, no deben ir en la
+    # lista»). Las tres que siguen en subasta se cuentan aparte y no ocupan
+    # fila: es la diferencia entre una tabla de precios y una lista de
+    # anuncios.
+    assert len(uno.comparables) == 5
+    assert all(c.firme for c in uno.comparables)
+    assert uno.provisionales == 3
+    # La fila del jugador propio NO es una venta y sigue viniendo: encabeza la
+    # tabla de referencia, y es la unica que no es firme.
+    assert uno.jugador is not None and uno.jugador.firme is False
+    # Y la mas vieja se mide sobre las que se enseñan, no sobre el fondo
+    # entero: la pastilla de la pantalla habla de la tabla que hay debajo.
+    assert uno.semanas_del_mas_viejo == 0
 
 
 async def test_a_un_ex_jugador_tampoco_le_sale_FILA_en_la_tabla(base) -> None:
@@ -464,7 +485,19 @@ async def test_los_filtros_de_hattrick_viajan_a_la_pantalla(base) -> None:
     assert precio.tope_de_dias is None
 
 
-async def test_con_pocas_ventas_no_hay_numero_pero_si_lista(base) -> None:
+async def test_con_solo_anuncios_no_hay_numero_NI_lista(base) -> None:
+    """Y en cuanto uno se vende, hay fila y hay numero.
+
+    SE LLAMABA `test_con_pocas_ventas_no_hay_numero_pero_si_lista` y defendia
+    lo contrario: dos anuncios daban lista de dos y cuenta de cero. Dejo de
+    ser verdad el 2026-11-07, por decision del usuario --«los jugadores que
+    nunca se vendieron, no deben ir en la lista»--, asi que la prueba cambia de
+    nombre y de afirmacion en vez de taparse.
+
+    Las dos mitades estan en la misma prueba a proposito: lo que importa no es
+    que una lista este vacia, es que se LLENA con lo que se vende y con nada
+    mas.
+    """
     session, equipo = base
     await correr_el_paso_del_mercado(
         session,
@@ -476,10 +509,26 @@ async def test_con_pocas_ventas_no_hay_numero_pero_si_lista(base) -> None:
     precio = await precio_de(session, equipo.id, ALBERTO, AHORA)
     assert precio is not None
     assert precio.media is None
-    # Dos anuncios: lista de dos, cuenta de cero.
+    # Dos anuncios con puja: ni numero ni lista, y se dicen como subastas
+    # abiertas, que es lo que son.
     assert precio.n == 0
     assert precio.faltan == OBJETIVO
-    assert len(precio.comparables) == 2
+    assert precio.comparables == ()
+    assert precio.provisionales == 2
+
+    # Uno cierra. Se toca a mano porque resolverlo de verdad pide historial, y
+    # lo que esta mitad mira es la lista, no la resolucion.
+    fila = (await session.execute(select(m.MarketSale).limit(1))).scalars().first()
+    assert fila is not None
+    fila.is_final = True
+    fila.price = 3_000_000
+    await session.flush()
+
+    precio = await precio_de(session, equipo.id, ALBERTO, AHORA)
+    assert precio is not None
+    assert [c.precio for c in precio.comparables] == [3_000_000]
+    assert precio.media == 3_000_000
+    assert precio.provisionales == 1
 
 
 async def test_un_jugador_de_otro_equipo_no_tiene_precio(base) -> None:

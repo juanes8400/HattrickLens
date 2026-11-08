@@ -807,7 +807,6 @@ export function serieDePuntosOption(
   opciones: {
     etiqueta: (iso: string) => string;
     detalle: (v: number) => string;
-    soloCerradas: boolean;
     etiquetaMedia: string;
     /** Si se dibuja la línea de medias. `false` cuando el panel dice que
      *  todavía no hay precio: los puntos siguen, que son hechos, pero no la
@@ -876,27 +875,13 @@ export function serieDePuntosOption(
       ].join("<br/>"),
     });
   };
+  // AQUÍ HABÍA UN INTERRUPTOR, `soloCerradas`, y con él una segunda forma de
+  // dibujar la serie: todos los puntos y la media de todos. Se fue el
+  // 2026-11-07 con el mando que lo movía --«quitar el Qué se dibuja, porque de
+  // ahora en adelante solo tendremos ventas cerradas»-- y con él las veinte
+  // líneas que nadie podía volver a alcanzar.
   lecturas.forEach((l, i) => {
-    const firmes = opciones.soloCerradas
-      ? l.precios.filter(([, firme]) => firme)
-      : [];
-    if (!opciones.soloCerradas) {
-      // Con las pujas dentro se enseña todo, cada cosa con su forma, y la
-      // linea es la media de todo lo que se ve.
-      for (const [precio, firme, peso] of l.precios) {
-        reparte(punto(i, precio, firme, peso), firme, peso);
-      }
-      if (l.precios.length) {
-        anotaLaMedia(
-          i,
-          l.precios.reduce((s, [precio]) => s + precio, 0) / l.precios.length,
-          l.precios.length,
-        );
-      } else {
-        medias.push(null);
-      }
-      return;
-    }
+    const firmes = l.precios.filter(([, firme]) => firme);
     if (firmes.length > 0) {
       for (const [precio, , peso] of firmes)
         reparte(punto(i, precio, true, peso), true, peso);

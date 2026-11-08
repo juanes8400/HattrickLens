@@ -151,7 +151,7 @@ describe("las gráficas del comparador", () => {
         { cuando: "2026-10-01", media: 150_000, precios: PRECIOS },
         { cuando: "2026-10-08", media: 160_000, precios: PRECIOS },
       ],
-      { etiqueta: (iso) => iso, soloCerradas: true, ...COMUNES },
+      { etiqueta: (iso) => iso, ...COMUNES },
     ) as unknown as Record<string, unknown>;
 
     it("LA LÍNEA también saca tooltip: lleva símbolo y texto por punto", () => {

@@ -27,6 +27,7 @@ from app.domain.engines.mercado_comparable import (
     Rasgo,
     comparables_de,
     cuenta_para_el_numero,
+    es_una_puja_abierta,
     estimar,
     nunca_tuvo_puja,
     objetivo_de,
@@ -223,6 +224,42 @@ def test_una_forma_que_no_sabemos_se_distingue_de_una_mala(forma: int) -> None:
 
 
 # --------------------------------------------------------------------------
+# Lo que la pantalla cuenta como «puja abierta»
+# --------------------------------------------------------------------------
+
+
+def test_un_anuncio_a_cero_no_se_cuenta_como_puja_abierta() -> None:
+    """La pastilla dice «N pujas abiertas», y desde hoy es lo UNICO que se dice.
+
+    Hasta el 2026-11-07 `provisionales` se contaba con un `not venta.firme`, y
+    entonces decia la verdad: lo unico que no era firme era una subasta con
+    puja. Ese dia empezaron a guardarse los anuncios a cero --hasta ocho por
+    jugador-- y el mismo criterio los metia en el conteo: un jugador sin UNA
+    sola puja a su alrededor veria «8 pujas abiertas, fuera del numero».
+
+    Y el mismo dia esas filas salieron de la tabla, asi que la pastilla es lo
+    unico que habla de ellas y no queda fila que la desmienta.
+    """
+    con_puja = _venta(1, puja=5_000, precio=5_000)
+    a_cero = [_venta(100 + i, puja=0, precio=0) for i in range(5)]
+    vendida = _venta(2, puja=800_000, precio=900_000, firme=True)
+    e = estimar(comparables_de([con_puja, *a_cero, vendida], _objetivo(), AHORA))
+    assert e.provisionales == 1, "la unica que de verdad tiene dinero encima"
+    assert e.n == 1 and e.media == 900_000
+    # Y el predicado, suelto, por si alguien lo reutiliza.
+    assert es_una_puja_abierta(con_puja) is True
+    assert es_una_puja_abierta(a_cero[0]) is False
+    assert es_una_puja_abierta(vendida) is False
+
+
+def test_una_puja_abandonada_sigue_siendo_una_puja_abierta() -> None:
+    """Se le agotaron los intentos de resolucion, pero alguien ofrecio ese
+    dinero: su subasta cerro para Hattrick y no para nosotros, que es justo lo
+    que la pastilla avisa."""
+    assert es_una_puja_abierta(_venta(1, puja=5_000, intentos=99)) is True
+
+
+# --------------------------------------------------------------------------
 # El contrato con la tabla
 # --------------------------------------------------------------------------
 
@@ -252,7 +289,6 @@ def test_los_nombres_nuevos_llegan_a_la_tabla_como_los_lee() -> None:
         peso=100,
         avalado_por_hattrick=True,
         firme=True,
-        cuenta=True,
         viejo=False,
         edad=17,
         dias=24,

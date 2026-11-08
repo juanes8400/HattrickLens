@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 import i18n from "../i18n";
+import { nombreDeHabilidad } from "../i18n/habilidades";
 import { Column, DataTable } from "../components/DataTable";
 import { CountryFlag } from "../components/CountryFlag";
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
@@ -38,24 +39,27 @@ import type {
   VeredictoDeMetodo,
 } from "../services/api";
 
-/** CHPP nombra las habilidades en inglés; la app habla español en todas las
- *  demás pantallas. */
-const SKILL_NAMES: Record<string, string> = {
-  keeper: "Portero",
-  defending: "Defensa",
-  playmaking: "Jugadas",
-  winger: "Lateral",
-  passing: "Pases",
-  scoring: "Anotación",
-  set_pieces: "Balón parado",
-};
+/** Las siete habilidades de un canterano, en el orden en que se enseñan.
+ *
+ *  SÓLO LAS CLAVES: los nombres salen de `nombreDeHabilidad`, que los toma del
+ *  glosario oficial de Hattrick. Aquí había un mapa propio que llamaba
+ *  «Portero» a la habilidad de portería --«Portero» es el PUESTO, la habilidad
+ *  es «Portería»-- y además estaba en español a mano, así que un manager
+ *  alemán leía «Jugadas» en esta pantalla y «Spielaufbau» en el resto
+ *  (2026-11-07). */
+const CLAVES_DE_HABILIDAD = [
+  "keeper",
+  "defending",
+  "playmaking",
+  "winger",
+  "passing",
+  "scoring",
+  "set_pieces",
+] as const;
 
 /** Casi todo el texto de esta pantalla vive en constantes y funciones
  *  sueltas: se traduce en el momento de pintarse, con el idioma puesto. */
 const t = i18n.t.bind(i18n);
-
-const nombreDeHabilidad = (clave: string) =>
-  t(`juveniles.habilidad.${clave}`, SKILL_NAMES[clave] ?? clave);
 
 /** «crack», «promesa»... llegan del servidor en español: son claves. */
 const nombreDeCategoria = (c: string) => t(`juveniles.categoria.${c}`, c);
@@ -2550,7 +2554,7 @@ function columnasDeCanteranos(
 
   // Una columna por habilidad. Son el motivo de esta pantalla, así que salen
   // todas de entrada; lo accesorio es lo que va escondido.
-  for (const clave of Object.keys(SKILL_NAMES)) {
+  for (const clave of CLAVES_DE_HABILIDAD) {
     const nombre = nombreDeHabilidad(clave);
     columnas.push({
       key: `skill-${clave}`,
@@ -3031,7 +3035,7 @@ function SkillDetail({ data }: { data: Academy }) {
             <option value="">
               {t("juveniles.cualquierHabilidad", "Cualquier habilidad")}
             </option>
-            {Object.keys(SKILL_NAMES).map((clave) => (
+            {CLAVES_DE_HABILIDAD.map((clave) => (
               <option key={clave} value={clave}>
                 {t("juveniles.conAlgoEn", "Con algo en {{habilidad}}", {
                   habilidad: nombreDeHabilidad(clave),

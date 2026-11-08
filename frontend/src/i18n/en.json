@@ -1144,15 +1144,6 @@
     "precio": "Price",
     "equipoActual": "Current team",
     "ningunoEncaja": "No youth player matches what you asked for.",
-    "habilidad": {
-      "keeper": "Keeper",
-      "defending": "Defending",
-      "playmaking": "Playmaking",
-      "winger": "Winger",
-      "passing": "Passing",
-      "scoring": "Scoring",
-      "set_pieces": "Set pieces"
-    },
     "categoria": {
       "crack": "star",
       "promesa": "prospect",

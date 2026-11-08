@@ -472,45 +472,6 @@ def test_cup_uses_divisional_prizes_and_official_loss_route(
     assert body["scenarios"]["loss"]["destination"] == "Desafío Rubí VII"
 
 
-def test_cup_uses_divisional_prizes_and_official_loss_route(
-    seeded: tuple[TestClient, int],
-) -> None:
-    """CupLevel=1 no basta: CupLeagueLevel=7 usa la tabla Divisional.
-    Una derrota en la ronda 2 conduce a la Desafío Rubí del mismo nivel."""
-    import asyncio
-
-    client, team_id = seeded
-
-    async def run() -> None:
-        gen = app.dependency_overrides[get_session]()
-        session = await gen.__anext__()
-        team = await session.get(m.Team, team_id)
-        team.current_cup_id = 7001
-        team.current_cup_name = "Copa Divisional VII"
-        team.current_cup_league_level = 7
-        team.current_cup_level = 1
-        team.current_cup_level_index = 1
-        team.current_cup_match_round = 2
-        team.current_cup_match_rounds_left = 4
-        session.add(m.WorldCup(
-            ht_league_id=19, ht_cup_id=7001, cup_name="Copa Divisional VII",
-            cup_league_level=7, cup_level=1, cup_level_index=1,
-            match_round=2, match_rounds_left=4,
-        ))
-        session.add(m.WorldCup(
-            ht_league_id=19, ht_cup_id=7002, cup_name="Desafío Rubí VII",
-            cup_league_level=7, cup_level=2, cup_level_index=2,
-            match_round=0, match_rounds_left=4,
-        ))
-        await session.commit()
-
-    asyncio.run(run())
-    body = client.get(f"/api/v1/teams/{team_id}/cup").json()
-    assert body["status"]["scope"] == "divisional"
-    assert body["prizeTable"][-1]["amount"] == 300_000
-    assert body["scenarios"]["loss"]["destination"] == "Desafío Rubí VII"
-
-
 def test_cup_current_streak_counts_from_the_most_recent_match_backward(
     seeded: tuple[TestClient, int],
 ) -> None:

@@ -5,12 +5,24 @@
  *  forma, experiencia, especialidad ni bonos de club de origen. Esa distinción
  *  la decidió el usuario y gobierna todo lo que se escribe aquí.
  *
+ *  SÓLO VENTAS CERRADAS, Y NADA MÁS (2026-11-07, decisión del usuario: «los
+ *  jugadores que nunca se vendieron, no deben ir en la lista»). La tabla
+ *  llevaba también las subastas vivas y los anuncios que nadie pujó, y por
+ *  ellos existían dos columnas y tres rótulos: «Cierra», «Antigüedad», «sin
+ *  cerrar», «sin confirmar», «NO PUJA DETECTADA». Todo eso contestaba a «por
+ *  qué esta fila no trae precio», que es una pregunta sobre nuestra cocina y
+ *  no sobre el mercado. Desde que el barrido es diario, además, esas filas
+ *  eran la mayoría: una lista de gente que no se vendió delante de la que sí.
+ *
+ *  No se pierden: siguen en el fondo, se siguen vigilando, y la pastilla de
+ *  «pujas abiertas» dice cuántas esperan su precio. Lo que se deja de hacer es
+ *  ponerlas delante.
+ *
  *  Tres cosas que la pantalla está obligada a decir, y por eso ocupan sitio:
  *
- *  · **Cuántas son todavía pujas.** Una venta entra con la puja de precio
- *    hasta que su subasta cierra, y la puja se queda corta: el 2026-10-05
- *    Valerio Cataldi tenía 65.000.000 de puja y cerró en 77.720.000, un 16%
- *    más. Un número hecho de pujas tira a bajo.
+ *  · **Cuántas subastas siguen abiertas**, que son las que todavía no están en
+ *    la lista. Una puja se queda corta: el 2026-10-05 Valerio Cataldi tenía
+ *    65.000.000 de puja y cerró en 77.720.000, un 16% más.
  *  · **Cuánto se parecen**, y desde el 2026-10-27 sólo hay dos maneras:
  *    CLAVADO es el mismo jugador --misma edad y las tres habilidades más altas
  *    en el mismo nivel-- y AVALADO es que el propio Hattrick enseñaría esa
@@ -27,7 +39,7 @@
  *  No pide nada a Hattrick: todo sale del fondo que dejó el paso semanal, así
  *  que abrir y cerrar esto es gratis.
  */
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import { Panel } from "./Panels";
 import { Ayuda } from "./Ayuda";
@@ -43,7 +55,7 @@ import {
 import { date, htAge, money, number } from "../hooks/useFormat";
 import { usePrecioComparable } from "../hooks/useTeam";
 import { tx } from "../i18n/tx";
-import { terminoOficial } from "../i18n/glosario";
+import { nombreDeHabilidad } from "../i18n/habilidades";
 import { skillLevelLabel } from "../utils/skillLevels";
 import type {
   ComparableDeMercado,
@@ -51,18 +63,6 @@ import type {
   PrecioComparable,
   RasgoVisible,
 } from "../services/api";
-
-/** El nombre en español de cada habilidad, que es el respaldo del glosario.
- *  Sólo las seis que cuentan: la resistencia y el balón parado no entran en
- *  el parecido. */
-const EN_ESPANOL: Record<string, string> = {
-  keeper: "Portería",
-  defending: "Defensa",
-  playmaking: "Jugadas",
-  winger: "Lateral",
-  passing: "Pases",
-  scoring: "Anotación",
-};
 
 /** «Anotación 18 · Pases 13 · Jugadas 7».
  *
@@ -72,10 +72,7 @@ const EN_ESPANOL: Record<string, string> = {
  *  cambie al vuelo cuando se cambia de idioma. */
 function perfilLegible(perfil: RasgoVisible[]): string {
   return perfil
-    .map(
-      (r) =>
-        `${terminoOficial("habilidades", r.habilidad, EN_ESPANOL[r.habilidad] ?? r.habilidad)} ${r.nivel}`,
-    )
+    .map((r) => `${nombreDeHabilidad(r.habilidad)} ${r.nivel}`)
     .join(" · ");
 }
 
@@ -242,33 +239,6 @@ function salto(puja: number, precio: number): string {
   return `+${pct}%`;
 }
 
-/** «en 11 h», «cerrando», «cerrada».
- *
- *  La columna enseñaba el sello entero --«08/10/2026 12:37»-- y eso hacia
- *  dos cosas malas: ocupaba el ancho que sacaba la tabla de su contenedor, y
- *  obligaba a restar mentalmente para saber lo unico que importa, que es
- *  cuanto le falta a esa puja para convertirse en precio (2026-10-08).
- *
- *  `firme` MANDA SOBRE EL PLAZO, y es el arreglo del 2026-10-09. El plazo no
- *  se borra al resolver una venta, asi que una ya vendida tenia el plazo
- *  pasado y salia «cerrando» --«todavia no he ido a mirar»-- al lado de su
- *  precio real: la fila se contradecia a si misma. Mituta, 792.000 US$ y
- *  «cerrando» en la misma linea. La rama de «cerrada» no se ejecutaba nunca,
- *  porque esperaba un plazo vacio que no llega jamas.
- */
-function cuantoFalta(iso: string | null, firme: boolean): string {
-  if (firme || !iso) return tx("cerrada");
-  const horas = (new Date(iso).getTime() - Date.now()) / 3_600_000;
-  if (horas <= 0) return tx("cerrando");
-  if (horas < 48) return tx("en {{v0}} h", { v0: String(Math.round(horas)) });
-  return tx("en {{v0}} d", { v0: String(Math.round(horas / 24)) });
-}
-
-/** El nombre oficial de una habilidad, para la cabecera de su columna. */
-function nombreDeHabilidad(clave: string): string {
-  return terminoOficial("habilidades", clave, EN_ESPANOL[clave] ?? clave);
-}
-
 /** Las columnas, armadas contra la terna del jugador que pregunta.
  *
  *  No son fijas porque la terna no lo es: a un delantero se le comparan
@@ -297,8 +267,12 @@ function columnasDe(
       // EN LA FILA PROPIA, NADA. Tu jugador no esta en venta: no tiene puja,
       // ni precio, ni plazo, ni antiguedad. Un cero ahi se leeria como «vale
       // cero», que es justo lo contrario de lo que dice.
+      // RAYA Y NO «0 US$» CUANDO NO VIMOS NINGUNA (2026-11-07). Es el caso del
+      // 472301981: se vendió de verdad y para nosotros estuvo a cero hasta el
+      // final. Un «0 US$» en esta columna se lee como «alguien ofreció cero»,
+      // y lo que pasó es que la subasta se movió entre dos barridos nuestros.
       render: (f) =>
-        f.propio ? (
+        f.propio || f.sinPuja ? (
           <span className="text-[var(--muted)]">—</span>
         ) : (
           <span className="tabular-nums text-[var(--muted)]">
@@ -310,14 +284,18 @@ function columnasDe(
       key: "precio",
       header: tx("Se pagó"),
       align: "right",
-      // Ordena por el precio que cuenta, que para un provisional es su
-      // puja: dejarlo en cero mandaría al fondo justo lo que todavía no
-      // se sabe, como si valiera menos que nada.
       value: (f) => f.precio,
+      // UN SOLO ESTADO DESDE EL 2026-11-07, porque ya no hay más: la lista es
+      // sólo de ventas cerradas. Aquí vivían tres rótulos --«sin cerrar», «sin
+      // confirmar», «NO PUJA DETECTADA»-- y los tres decían por qué esa fila
+      // no traía precio. Sin esas filas, no hay nada que explicar.
+      //
+      // La raya se queda para la fila del jugador propio: no está en venta, y
+      // un cero ahí diría «vale cero».
       render: (f) =>
         f.propio ? (
           <span className="text-[var(--muted)]">—</span>
-        ) : f.firme ? (
+        ) : (
           <span className="tabular-nums">
             {money(f.precio, moneda)}
             {f.puja > 0 && f.precio !== f.puja && (
@@ -327,31 +305,14 @@ function columnasDe(
             )}
             {/* UNA VENTA CERRADA A LA QUE NUNCA LE VIMOS PUJA (2026-11-07).
                 Es el caso que el usuario encontro: el 472301981 se vendio de
-                verdad y para nosotros estuvo a cero hasta el final. Desde hoy
-                esas ventas SI entran, y el sello dice por que no hay salto que
-                enseñar al lado del precio: no es que la puja fuera igual, es
-                que no llegamos a ver ninguna. */}
+                verdad y para nosotros estuvo a cero hasta el final. El sello
+                dice por que no hay salto que enseñar al lado del precio: no es
+                que la puja fuera igual, es que no llegamos a ver ninguna. */}
             {f.sinPuja && (
               <span className="ml-1 text-xs text-[var(--muted)]">
                 {tx("sin puja vista")}
               </span>
             )}
-          </span>
-        ) : (
-          <span className="whitespace-nowrap text-xs text-[var(--warn)]">
-            {/* Tres estados distintos, no dos. Un anuncio que nadie ha
-                pujado tampoco cuenta, pero no es que fallara al
-                confirmarse: es que todavía no hay precio que confirmar
-                (2026-10-07, al ver que a Kurt Schönhueb no le salía ni un
-                comparable con puja y sí ocho sin ella).
-
-                Cortos y de una pieza: partidos en dos lineas estiraban toda
-                la fila, porque el alto lo manda la celda mas alta. */}
-            {f.sinPuja
-              ? tx("NO PUJA DETECTADA")
-              : f.cuenta
-                ? tx("sin cerrar")
-                : tx("sin confirmar")}
           </span>
         ),
     },
@@ -496,25 +457,12 @@ function columnasDe(
           <span className="text-[var(--muted)]">—</span>
         ),
     },
-    {
-      key: "cierra",
-      header: tx("Cierra"),
-      align: "right",
-      // Lo ya cerrado al final cuando se ordena por esta columna: un plazo
-      // que no existe no es «hace mucho», es que ya no aplica.
-      // Lo ya firme va al final tambien aqui: su plazo es historia, no una
-      // espera, y ordenar por el mezclaba lo cerrado entre lo que falta.
-      value: (f) =>
-        f.firme || !f.cierra ? Infinity : new Date(f.cierra).getTime(),
-      render: (f) =>
-        f.propio ? (
-          <span className="text-[var(--muted)]">—</span>
-        ) : (
-          <span className="whitespace-nowrap tabular-nums">
-            {cuantoFalta(f.cierra, f.firme)}
-          </span>
-        ),
-    },
+    // AQUÍ VIVÍA «Cierra», y se fue con las subastas abiertas (2026-11-07).
+    // Decía cuánto le faltaba a una puja para convertirse en precio --«en 11
+    // h», «cerrando»-- y en una venta ya cerrada no le quedaba nada que decir:
+    // ponía «cerrada» en todas las filas, una columna entera con una sola
+    // palabra. La misma marca de tiempo sigue, leída para la pregunta que sí
+    // tiene respuesta: «Fecha».
     {
       key: "fecha",
       header: tx("Fecha"),
@@ -527,29 +475,29 @@ function columnasDe(
       //
       // En una subasta todavia abierta es la fecha en que cerrara, y es
       // honesto: es el dia en que ese precio existira.
+      //
+      // Y EN NARANJA SI YA CUMPLIÓ SU VIDA. Esa marca vivía en «Antigüedad»,
+      // la columna que el usuario quitó el 2026-11-07 por llamarse «Edad» dos
+      // veces en la misma tabla. La columna sobraba --«hace 3 sem» es la misma
+      // cosa que la fecha, contada al revés-- pero el aviso no: dice que esta
+      // venta sigue en la lista sólo porque no ha aparecido nada más fresco.
+      // Así que se muda al color de la fecha y la columna no vuelve.
       value: (f) => (f.cierra ? new Date(f.cierra).getTime() : 0),
       render: (f) =>
         f.propio || !f.cierra ? (
           <span className="text-[var(--muted)]">—</span>
         ) : (
-          <span className="whitespace-nowrap tabular-nums">
-            {date(f.cierra)}
-          </span>
-        ),
-    },
-    {
-      key: "semanas",
-      header: tx("Antigüedad"),
-      align: "right",
-      value: (f) => f.semanas,
-      render: (f) =>
-        f.propio ? (
-          <span className="text-[var(--muted)]">—</span>
-        ) : (
           <span
             className={`whitespace-nowrap tabular-nums ${f.viejo ? "text-[var(--warn)]" : ""}`}
+            title={
+              f.viejo
+                ? tx(
+                    "Ya cumplió sus 24 semanas y sigue contando porque no ha aparecido nada más reciente.",
+                  )
+                : undefined
+            }
           >
-            {tx("{{v0}} sem", { v0: number(f.semanas) })}
+            {date(f.cierra)}
           </span>
         ),
     },
@@ -565,29 +513,17 @@ export function PrecioPorComparables({
   activo?: boolean;
 }) {
   const consulta = usePrecioComparable(htPlayerId, { enabled: activo });
-  // EL MANDO DE LAS GRÁFICAS (2026-10-09, pedido del usuario).
-  //
-  // Arranca por sólo ventas cerradas, que es de lo que sale la cifra de
-  // arriba. Con las pujas se ve más, pero se ve otra cosa: Edu Fuenllana
-  // pujaba 6.000 US$ y se vendió en 1.241.000.
-  //
-  // HUBO UN SEGUNDO MANDO, de escala lineal o logarítmica, y duró una tarde.
-  // La logarítmica resolvía que los tres precios baratos se amontonaran
-  // contra el margen izquierdo... y esos tres eran pujas abiertas. Al dejar
-  // las gráficas en sólo ventas cerradas, el rango se estrechó y el problema
-  // desapareció con él. El usuario lo quitó: era un arreglo para algo que ya
-  // no pasa, y la logarítmica tiene su propio precio --la distancia deja de
-  // ser dinero--.
-  const [soloCerradas, setSoloCerradas] = useState(true);
   const datos = consulta.data;
-  // Lo que pinta la tira. Si se pidieron sólo las cerradas y no hay ninguna,
-  // se enseñan todas: una gráfica vacía dice «aquí no hay nada», que no es
-  // lo mismo que «aquí no ha cerrado nada todavía».
-  const comparables = datos?.comparables ?? [];
-  const paraLaTira =
-    soloCerradas && comparables.some((f) => f.firme)
-      ? comparables.filter((f) => f.firme)
-      : comparables;
+  // AQUÍ VIVÍA EL MANDO «QUÉ SE DIBUJA», de «sólo ventas cerradas» a «también
+  // pujas abiertas», y se fue el 2026-11-07 con las pujas mismas: «quitar el
+  // Qué se dibuja, porque de ahora en adelante solo tendremos ventas
+  // cerradas». Un mando de dos posiciones en el que las dos pintan lo mismo
+  // no es una opción, es una pregunta sin respuesta distinta.
+  //
+  // Y con él se fue el filtro que había debajo: la lista que llega del
+  // servidor ya es sólo de ventas cerradas, así que las dos gráficas y la
+  // tabla pintan exactamente lo mismo que promedia la cifra de arriba. No hay
+  // dos versiones de los mismos datos en la misma pantalla.
 
   if (consulta.isLoading || !datos) {
     return (
@@ -750,11 +686,14 @@ export function PrecioPorComparables({
           </>
         ) : (
           <p className="text-sm text-[var(--text)]">
-            {/* Sin NI UNA venta cerrada no hay nada que promediar, y eso no
-                es una regla sino aritmetica. Las subastas vivas se enseñan en
-                la tabla pero no cuentan: una puja no es un precio. */}
+            {/* Sin NI UNA venta cerrada no hay nada que promediar, y eso no es
+                una regla sino aritmética. La frase decía «las subastas
+                abiertas se enseñan abajo» y dejó de ser verdad el 2026-11-07,
+                el día que las filas sin venta salieron de la tabla: debajo ya
+                no hay nada. Lo que sí se puede decir es qué pasará con ellas.
+            */}
             {tx(
-              "Todavía no hay ninguna venta cerrada de jugadores parecidos. Las subastas abiertas se enseñan abajo, pero una puja no es un precio.",
+              "Todavía no se ha vendido ningún jugador parecido. Las subastas que haya en marcha entran en la lista cuando cierren, con el precio que se pagó de verdad.",
             )}
           </p>
         )}
@@ -763,31 +702,20 @@ export function PrecioPorComparables({
       </div>
 
       {/* EL REPARTO, justo debajo de las cifras. La media y la mediana
-          dicen dónde está el centro; esto dice si hay un centro. Con el
-          fondo de hoy se ve de golpe lo que cuesta leer en la tabla: un
-          grupo pegado al cero --subastas que nadie ha pujado-- y el
-          mercado de verdad mucho más arriba. */}
+          dicen dónde está el centro; esto dice si hay un centro, que es la
+          pregunta que una cifra sola no contesta: ocho ventas apretadas y
+          ocho repartidas de 10.000 a 13.000.000 dan la misma media.
+
+          El comentario de aquí decía que se veía «un grupo pegado al cero,
+          subastas que nadie ha pujado»: eso ya no pasa desde el 2026-11-07,
+          porque esas filas no llegan. Lo que queda son precios pagados. */}
       {datos.comparables.length >= MINIMO_PARA_LA_TIRA && (
         <div className="px-4 pb-1">
-          {/* EL MANDO, encima de las dos gráficas, porque gobierna a las dos.
-              No toca la cifra de arriba: ésa sale sólo de ventas cerradas y
-              es una decisión, no una vista (2026-10-09). */}
-          <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-2">
-            <DosOpciones
-              label={tx("Qué se dibuja")}
-              valor={soloCerradas ? "cerradas" : "todo"}
-              opciones={[
-                ["cerradas", tx("Sólo ventas cerradas")],
-                ["todo", tx("También pujas abiertas")],
-              ]}
-              onCambio={(v) => setSoloCerradas(v === "cerradas")}
-            />
-          </div>
           <Chart
             height={150}
             ariaLabel={tx("Reparto de los precios de las ventas comparables")}
             option={tiraDePuntosOption(
-              paraLaTira.map(
+              datos.comparables.map(
                 (f) => [f.precio, f.firme, f.peso] as [number, boolean, number],
               ),
               {
@@ -833,11 +761,8 @@ export function PrecioPorComparables({
             option={serieDePuntosOption(datos.serie, {
               etiqueta: (iso) => date(iso),
               detalle: (v) => money(v, datos.moneda),
-              soloCerradas,
               conMedia: hayNumero,
-              etiquetaMedia: soloCerradas
-                ? tx("Media de las ventas cerradas")
-                : tx("Media de todo lo de la lista"),
+              etiquetaMedia: tx("Media de las ventas cerradas"),
             })}
           />
           {!hayNumero && (
@@ -877,46 +802,5 @@ export function PrecioPorComparables({
         )}
       </p>
     </Panel>
-  );
-}
-
-/** Un mando de dos posiciones, con la forma de los de Alineación.
- *
- *  No es `SplitSelector`: aquél sólo admite números --es el reparto de una
- *  línea-- y aquí las opciones son palabras. Vive en este fichero mientras
- *  sea el único que lo usa; el día que haga falta en otra pantalla, se muda.
- */
-function DosOpciones({
-  label,
-  valor,
-  opciones,
-  onCambio,
-}: {
-  label: string;
-  valor: string;
-  opciones: [string, string][];
-  onCambio: (v: string) => void;
-}) {
-  return (
-    <label className="flex items-center gap-2 text-xs text-[var(--muted)]">
-      {label}
-      <span className="flex overflow-hidden rounded border border-[var(--border)]">
-        {opciones.map(([clave, texto]) => (
-          <button
-            key={clave}
-            type="button"
-            onClick={() => onCambio(clave)}
-            aria-pressed={clave === valor}
-            className={`px-2.5 py-1 ${
-              clave === valor
-                ? "bg-[var(--accent)] text-white"
-                : "bg-[var(--surface)] text-[var(--text)]"
-            }`}
-          >
-            {texto}
-          </button>
-        ))}
-      </span>
-    </label>
   );
 }

@@ -1064,15 +1064,6 @@
       }
     },
     "desconocidoMin": "sconosciuto",
-    "habilidad": {
-      "keeper": "Parate",
-      "defending": "Difesa",
-      "playmaking": "Regia",
-      "winger": "Cross",
-      "passing": "Passaggi",
-      "scoring": "Attacco",
-      "set_pieces": "Calci piazzati"
-    },
     "metodo": {
       "attack": {
         "nombre": "Contributo all'attacco",

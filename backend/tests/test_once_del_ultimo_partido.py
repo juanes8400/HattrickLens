@@ -395,7 +395,6 @@ def test_el_pronostico_de_un_partido_es_de_un_club_y_no_de_los_dos() -> None:
     async def caso():
         from datetime import UTC, datetime
 
-        from app.application.queries.lo_dicho import guardar_lo_dicho
         from app.infrastructure.db.session import SessionLocal
 
         del SessionLocal  # solo para que quede claro cual se usa: la suya

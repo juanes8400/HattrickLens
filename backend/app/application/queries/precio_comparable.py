@@ -6,14 +6,25 @@ veces como haga falta. Por eso tampoco hay nada que invalidar cuando el jugador
 sube una habilidad o cumple años: sus comparables se vuelven a medir contra el
 jugador de hoy y los que dejan de parecerse se caen solos.
 
+LA LISTA ES SOLO DE VENTAS CERRADAS (2026-11-07, decisión del usuario: «los
+jugadores que nunca se vendieron, no deben ir en la lista»). Hasta hoy viajaban
+también las subastas vivas y los anuncios a cero, marcados; la tabla tenía
+entonces tres columnas que sólo servían para decir por qué una fila no traía
+precio --«sin confirmar», «NO PUJA DETECTADA», «cierra en 11 h»-- y las filas
+sin precio eran la mayoría desde que el barrido se hizo diario.
+
+Lo que no se enseña no se pierde: sigue en el fondo, se sigue vigilando y
+`provisionales` dice cuántas hay esperando su precio. Lo que se deja de hacer es
+ponerlas delante de las ventas de verdad.
+
 Lo que la pantalla está obligada a decir, y por eso viaja aquí:
 
-· **Cuántos son provisionales.** Una venta entra con la puja de precio hasta
-  que su subasta cierra. La puja se queda corta: el 2026-10-05 Valerio Cataldi
-  tenía 65.000.000 de puja y cerró en 77.720.000, un 16% más.
-· **De cuándo es lo más viejo.** Una venta sigue contando pasadas las siete
-  semanas si no apareció nada mejor, y entonces el número habla de un mercado
-  que puede haber cambiado.
+· **Cuántas subastas siguen abiertas.** Esperan su precio y no promedian: una
+  puja se queda corta, y el 2026-10-05 Valerio Cataldi tenía 65.000.000 de puja
+  y cerró en 77.720.000, un 16% más.
+· **De cuándo es lo más viejo.** Una venta sigue contando pasadas sus
+  veinticuatro semanas si no apareció nada mejor, y entonces el número habla de
+  un mercado que puede haber cambiado.
 · **Cuánto se parecen de verdad.** El peso de cada uno, para que se vea si el
   número sale de gemelos o de primos lejanos.
 """
@@ -90,9 +101,12 @@ class FilaDeComparable:
     #: decir «esto lo avalaria el juego». Falso en las ventas guardadas antes
     #: de que se empezaran a anotar las siete habilidades.
     avalado_por_hattrick: bool
+    #: Si ya se vendió de verdad. En la lista de comparables es SIEMPRE cierto
+    #: desde el 2026-11-07 --es lo que define la lista-- y sólo la fila del
+    #: jugador propio lo trae en falso: él no está en venta.
     firme: bool
-    #: Si entra en el numero. Falso solo para un provisional abandonado.
-    cuenta: bool
+    #: AQUÍ VIVÍA `cuenta`, «si entra en el número», y se fue el 2026-11-07 con
+    #: las filas que no se vendieron: valía `venta.firme` y nadie lo leía ya.
     viejo: bool
     edad: int
     #: Los DÍAS de su edad, además de los años (2026-11-07, pedido del
@@ -285,8 +299,16 @@ async def precio_de(
         faltan=max(0, OBJETIVO - estimacion.n),
         peso_minimo=estimacion.peso_minimo,
         provisionales=estimacion.provisionales,
+        # LA MÁS VIEJA DE LAS QUE CUENTAN, que es lo que esta línea decía que
+        # hacía y no hacía (2026-11-07). Se medía sobre `elegidos` entero, así
+        # que un anuncio a cero de hace cinco meses ponía la pastilla en «la
+        # más vieja, de hace 20 sem» mientras la venta más vieja de la tabla
+        # era de hace tres. Desde que esas filas no se enseñan, el desajuste
+        # sería invisible y además indiscutible: no quedaría fila que lo
+        # desmintiera.
         semanas_del_mas_viejo=max(
-            (_semanas(c.venta.visto_el, momento) for c in elegidos), default=0
+            (_semanas(c.venta.visto_el, momento) for c in elegidos if c.venta.firme),
+            default=0,
         ),
         perfil=_perfil(objetivo),
         criterios=tuple(
@@ -315,7 +337,6 @@ async def precio_de(
             peso=100,
             avalado_por_hattrick=False,
             firme=False,
-            cuenta=False,
             viejo=False,
             edad=foto.age_years or 0,
             dias=foto.age_days if foto.age_days is not None else -1,
@@ -341,7 +362,6 @@ async def precio_de(
                 nombre=c.venta.nombre,
                 precio=convertido(c.venta.precio),
                 puja=convertido(c.venta.puja),
-                cuenta=c.cuenta,
                 peso=c.peso,
                 avalado_por_hattrick=c.avalado_por_hattrick,
                 firme=c.venta.firme,
@@ -366,7 +386,21 @@ async def precio_de(
                 pais_codigo=paises.get(c.venta.pais, ("", ""))[0],
                 pais_nombre=paises.get(c.venta.pais, ("", ""))[1],
             )
+            # SÓLO LO QUE SE VENDIÓ (2026-11-07, decisión del usuario: «los
+            # jugadores que nunca se vendieron, no deben ir en la lista»).
+            #
+            # `elegidos` sigue trayéndolas todas, y hace falta que las traiga:
+            # `estimar` cuenta sobre ellas las subastas abiertas, y el motor
+            # necesita saber qué plazas están ocupadas para no salir a buscar
+            # de más. Lo que cambia es qué se PINTA.
+            #
+            # El corte es `venta.firme` y no `c.cuenta` a propósito, aunque hoy
+            # valen lo mismo: lo que el usuario pidió es «que se haya vendido»,
+            # no «que entre en la media». Si algún día una venta cerrada
+            # dejara de promediar, seguiría siendo una venta y seguiría
+            # mereciendo su fila.
             for c in elegidos
+            if c.venta.firme
         ),
     )
 
@@ -499,8 +533,11 @@ async def precios_de_la_plantilla(
                 clavadas=clavadas,
                 avaladas=len(cuentan) - clavadas,
                 provisionales=estimacion.provisionales,
+                # De las que CUENTAN, igual que en la ficha: las dos pantallas
+                # enseñan el mismo número del mismo jugador.
                 semanas_del_mas_viejo=max(
-                    (_semanas(c.venta.visto_el, momento) for c in elegidos), default=0
+                    (_semanas(c.venta.visto_el, momento) for c in elegidos if c.venta.firme),
+                    default=0,
                 ),
                 serie=series.get(jugador.ht_player_id, ()),
             )

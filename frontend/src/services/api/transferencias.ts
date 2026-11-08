@@ -274,13 +274,12 @@ export interface RasgoVisible {
 export interface ComparableDeMercado {
   htPlayerId: number;
   nombre: string;
-  /** El precio que cuenta: el de cierre si ya se resolvió, la puja si no. */
+  /** Lo que se pagó. Desde el 2026-11-07 la lista es sólo de ventas cerradas,
+   *  así que ya no es «el de cierre o la puja»: es el de cierre. */
   precio: number;
-  /** La puja con la que entró, siempre. Junto a `precio` y `firme` deja ver
-   *  cuánto se quedaba corta. */
+  /** La puja con la que entró, siempre. Junto a `precio` deja ver cuánto se
+   *  quedaba corta. */
   puja: number;
-  /** Si entra en el número. Falso sólo para un provisional abandonado. */
-  cuenta: boolean;
   /** Cuánto se parece, del 100% al 75%. Es NUESTRA medida. */
   peso: number;
   /** Si el propio Hattrick enseñaría esta venta al comparar a este jugador,
@@ -288,7 +287,8 @@ export interface ComparableDeMercado {
    *  peso y no lo cambia. Falso en las ventas guardadas antes de esa fecha,
    *  de las que no se anotaron las siete habilidades. */
   avaladoPorHattrick: boolean;
-  /** Falso mientras sea una puja en curso y no una venta cerrada. */
+  /** Si ya se vendió de verdad. En la lista es siempre cierto --es lo que la
+   *  define-- y sólo la fila del jugador propio lo trae en falso. */
   firme: boolean;
   /** Ya cumplió su vida --veinticuatro semanas-- y sigue por no haber nada
    *  mejor. */
