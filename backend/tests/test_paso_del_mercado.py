@@ -24,8 +24,7 @@ from app.application.commands.paso_del_mercado import (
 )
 from app.application.queries.precio_comparable import precio_de, precios_de_la_plantilla
 from app.domain.engines.mercado_comparable import (
-    OBJETIVO,
-    REINTENTOS_DE_RESOLUCION,
+    COMPROBACIONES,
     Ventana,
 )
 from app.infrastructure.db import models as m
@@ -160,16 +159,16 @@ async def test_el_paso_busca_guarda_y_sella(base) -> None:
     """Lo basico: encuentra, guarda con el perfil y deja constancia de que
     corrio, para no repetirlo en la siguiente sincronizacion."""
     session, equipo = base
-    mercado = _MercadoFalso([_fila_de_mercado(900 + i) for i in range(OBJETIVO)])
+    mercado = _MercadoFalso([_fila_de_mercado(900 + i) for i in range(8)])
     paso = await correr_el_paso_del_mercado(
         session, equipo, buscar=mercado, historial_de=_sin_historial, ahora=AHORA
     )
     assert paso.se_busco is True
-    assert paso.ventas_nuevas == OBJETIVO
+    assert paso.ventas_nuevas == 8
     assert equipo.market_run_at == AHORA
 
     filas = (await session.execute(select(m.MarketSale))).scalars().all()
-    assert len(filas) == OBJETIVO
+    assert len(filas) == 8
     assert all(f.primary_skill == "scoring" and f.primary_level == 18 for f in filas)
     assert all(f.is_final is False for f in filas), "entran con la puja, no con el precio"
 
@@ -250,7 +249,7 @@ async def test_el_fondo_sirve_a_toda_la_plantilla(base) -> None:
     await correr_el_paso_del_mercado(
         session,
         equipo,
-        buscar=_MercadoFalso([_fila_de_mercado(900 + i) for i in range(OBJETIVO)]),
+        buscar=_MercadoFalso([_fila_de_mercado(900 + i) for i in range(8)]),
         historial_de=_sin_historial,
         ahora=AHORA,
     )
@@ -266,7 +265,7 @@ async def test_el_fondo_sirve_a_toda_la_plantilla(base) -> None:
         # usuario: «los jugadores que nunca se vendieron, no deben ir en la
         # lista»-- y se dicen en el sitio que habla de ellos: las subastas
         # abiertas. Sin eso, un fondo lleno se leeria como un fondo vacio.
-        assert precio.provisionales == OBJETIVO
+        assert precio.provisionales == 8
         assert precio.comparables == ()
         assert precio.media is None
 
@@ -277,17 +276,17 @@ async def test_la_pantalla_recibe_de_que_fiarse(base) -> None:
     await correr_el_paso_del_mercado(
         session,
         equipo,
-        buscar=_MercadoFalso([_fila_de_mercado(900 + i) for i in range(OBJETIVO)]),
+        buscar=_MercadoFalso([_fila_de_mercado(900 + i) for i in range(8)]),
         historial_de=_sin_historial,
         ahora=AHORA,
     )
     precio = await precio_de(session, equipo.id, ALBERTO, AHORA)
     assert precio is not None
-    assert precio.provisionales == OBJETIVO, "todas son pujas hasta que cierren"
+    assert precio.provisionales == 8, "todas son pujas hasta que cierren"
     # Y por eso mismo no hay extremos ni cuenta: una puja no es un precio
     # (2026-10-09). Faltan las seis ventas cerradas.
     assert precio.minimo is None and precio.maximo is None
-    assert precio.faltan == OBJETIVO
+    assert precio.faltan == 8
     # El perfil viaja SIN formatear: la pantalla lo nombra con el glosario
     # oficial de Hattrick, que es el que sabe como se dice «scoring» en el
     # idioma de quien mira.
@@ -311,7 +310,7 @@ async def test_la_plantilla_entera_en_una_sentada(base) -> None:
     await correr_el_paso_del_mercado(
         session,
         equipo,
-        buscar=_MercadoFalso([_fila_de_mercado(900 + i) for i in range(OBJETIVO)]),
+        buscar=_MercadoFalso([_fila_de_mercado(900 + i) for i in range(8)]),
         historial_de=_sin_historial,
         ahora=AHORA,
     )
@@ -336,7 +335,7 @@ async def test_la_plantilla_entera_en_una_sentada(base) -> None:
         assert fila.provisionales == 3, "las tres pujas se enseñan y no promedian"
         assert fila.media == fila.mediana == 4_000_000
         assert (fila.minimo, fila.maximo) == (4_000_000, 4_000_000)
-        assert fila.faltan == OBJETIVO - 5
+        assert fila.faltan == 3
         assert [(r.habilidad, r.nivel) for r in fila.perfil] == [
             ("scoring", 18),
             ("passing", 13),
@@ -512,7 +511,7 @@ async def test_con_solo_anuncios_no_hay_numero_NI_lista(base) -> None:
     # Dos anuncios con puja: ni numero ni lista, y se dicen como subastas
     # abiertas, que es lo que son.
     assert precio.n == 0
-    assert precio.faltan == OBJETIVO
+    assert precio.faltan == 8
     assert precio.comparables == ()
     assert precio.provisionales == 2
 
@@ -559,10 +558,12 @@ async def test_un_chpp_caido_no_gasta_intentos_de_resolucion(base) -> None:
     async def se_cae(ht_player_id: int) -> dict[str, Any]:
         raise RuntimeError("CHPP no contesta")
 
-    # Cuatro dias: el margen tras el plazo paso de dos horas a TRES DIAS el
-    # 2026-10-09, «cuando se sabe que debio terminar».
+    # Dos dias, que es despues del cierre: desde el 2026-11-08 no hay plazo de
+    # reloj por arriba, asi que da igual cuanto se tarde en volver a mirar. Lo
+    # que se cuenta son COMPROBACIONES, y esta prueba defiende que una llamada
+    # que no llego no gasta ninguna: se insiste de mas a proposito.
     despues = AHORA + timedelta(days=2)
-    for _ in range(REINTENTOS_DE_RESOLUCION + 3):
+    for _ in range(COMPROBACIONES + 3):
         paso = await correr_el_paso_del_mercado(
             session, equipo, buscar=_MercadoFalso(), historial_de=se_cae, ahora=despues
         )
@@ -611,8 +612,8 @@ async def test_la_serie_anota_un_punto_cuando_el_numero_cambia(base) -> None:
     assert puntos[0].n == 0
     assert puntos[0].mean_price is None
     # Y lleva la nube, no solo la media: los seis precios que trajo la
-    # busqueda, los seis sin cerrar. Son menos que OBJETIVO --que desde el
-    # 2026-10-10 son ocho-- y por eso la lectura va sin numero.
+    # busqueda, los seis sin cerrar. Ninguno ha cerrado, y por eso la lectura
+    # va sin numero: una puja no es un precio.
     nube = json.loads(puntos[0].prices_json)
     assert len(nube) == 6
     assert all(p["firme"] is False for p in nube)

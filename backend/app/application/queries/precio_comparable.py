@@ -42,7 +42,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.commands.mercado_comparable import a_guardado
 from app.domain.engines.criterios_hattrick import criterios_de
 from app.domain.engines.mercado_comparable import (
-    OBJETIVO,
     PESO_DEL_CLAVADO,
     VIDA,
     Guardado,
@@ -54,6 +53,20 @@ from app.domain.engines.mercado_comparable import (
 )
 from app.domain.value_objects.ht_constants import SPECIALTIES
 from app.infrastructure.db import models as m
+
+#: POR DEBAJO DE ESTO LA PANTALLA AVISA de que el número es flojo: ocho.
+#:
+#: NO ES EL OBJETIVO. El objetivo son treinta datos --`OBJETIVO_DE_DATOS`, en
+#: el motor-- y los junta el mercado al ritmo que puede. Ocho es otra cosa: la
+#: raya por debajo de la cual un promedio se mueve demasiado con una sola venta
+#: rara, y por tanto hay que decirlo.
+#:
+#: HASTA EL 2026-11-08 ERAN EL MISMO NÚMERO, y eso era el problema: el ocho
+#: decidía a quién se recortaba Y rotulaba «este número sale de 3 ventas, no de
+#: 8». Al separarlos, el usuario quitó el rótulo --«sólo se dice n»-- y dejó el
+#: aviso. Así que este ocho NO SELECCIONA NADA: no entra en ningún filtro, no
+#: expulsa ninguna venta y no aparece en pantalla. Sólo enciende una frase.
+VENTAS_PARA_FIARSE = 8
 
 #: Las ocho habilidades del jugador propio. `terna` descarta resistencia y
 #: balón parado; pedirlas todas evita que este módulo tenga que saber cuáles.
@@ -199,6 +212,14 @@ class PrecioComparable:
     minimo: int | None
     maximo: int | None
     n: int
+    #: Si el número se apoya en POCAS ventas, para que la pantalla lo avise.
+    #: Es `> 0` cuando hay menos de `VENTAS_PARA_FIARSE`.
+    #:
+    #: NO ES «CUÁNTAS FALTAN PARA EL OBJETIVO» desde el 2026-11-08. El objetivo
+    #: son 30 datos y el aviso salta por debajo de 8: son dos cosas distintas y
+    #: antes eran el mismo número. La pantalla ya no enseña esta cifra --dice
+    #: «sale de N ventas» y para, decisión del usuario-- sólo la usa de
+    #: interruptor para saber si pone el aviso.
     faltan: int
     peso_minimo: int
     provisionales: int
@@ -292,11 +313,11 @@ async def precio_de(
         # EL RANGO VA CON EL NUMERO, no con las ocho (2026-10-26). Sale de los
         # mismos precios que la media, así que enseñar la media y esconder el
         # rango sería decir «sé el promedio de estos tres pero no el menor de
-        # los tres». `n` y `faltan` son los que dicen cuánto fiarse.
+        # los tres». `n` es el que dice cuánto fiarse.
         minimo=convertido(min(precios)) if precios else None,
         maximo=convertido(max(precios)) if precios else None,
         n=estimacion.n,
-        faltan=max(0, OBJETIVO - estimacion.n),
+        faltan=max(0, VENTAS_PARA_FIARSE - estimacion.n),
         peso_minimo=estimacion.peso_minimo,
         provisionales=estimacion.provisionales,
         # LA MÁS VIEJA DE LAS QUE CUENTAN, que es lo que esta línea decía que
@@ -529,7 +550,7 @@ async def precios_de_la_plantilla(
                 minimo=convertido(min(precios)) if precios else None,
                 maximo=convertido(max(precios)) if precios else None,
                 n=estimacion.n,
-                faltan=max(0, OBJETIVO - estimacion.n),
+                faltan=max(0, VENTAS_PARA_FIARSE - estimacion.n),
                 clavadas=clavadas,
                 avaladas=len(cuentan) - clavadas,
                 provisionales=estimacion.provisionales,

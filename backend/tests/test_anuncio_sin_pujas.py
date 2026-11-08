@@ -20,8 +20,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.domain.engines.mercado_comparable import (
-    OBJETIVO,
-    SIN_PUJA_QUE_SE_ENSENAN,
+    COMPROBACIONES,
+    OBJETIVO_DE_DATOS,
     Guardado,
     Objetivo,
     Rasgo,
@@ -31,7 +31,6 @@ from app.domain.engines.mercado_comparable import (
     estimar,
     nunca_tuvo_puja,
     objetivo_de,
-    ocupa_plaza,
     se_puede_descartar,
 )
 
@@ -94,18 +93,18 @@ def _venta(
 # --------------------------------------------------------------------------
 
 
-def test_un_anuncio_a_cero_no_ocupa_plaza_ni_cuenta() -> None:
+def test_un_anuncio_a_cero_no_cuenta_ni_sale_en_la_lista() -> None:
     """Es lo que permite guardarlos sin mover un solo número.
 
-    Si ocupara plaza, ocho anuncios muertos darían el fondo por lleno y el
-    barrido dejaría de salir a buscar lo que de verdad falta --el caso de Kurt
-    Schönhueb--. Si contara, su cero arrastraría la media a la mitad.
+    Su cero arrastraría la media a la mitad si contara, y desde el 2026-11-07
+    tampoco es fila: la lista es sólo de ventas con precio.
     """
     cero = _venta(1, puja=0, precio=0)
     assert nunca_tuvo_puja(cero) is True
-    assert ocupa_plaza(cero) is False
     assert cuenta_para_el_numero(cero) is False
-    assert estimar(comparables_de([cero], _objetivo(), AHORA)).media is None
+    salen = comparables_de([cero], _objetivo(), AHORA)
+    assert estimar(salen).media is None
+    assert not any(c.venta.firme for c in salen)
 
 
 def test_la_venta_cerrada_sin_puja_vista_SI_cuenta() -> None:
@@ -118,40 +117,45 @@ def test_la_venta_cerrada_sin_puja_vista_SI_cuenta() -> None:
     vendido = _venta(1, puja=0, precio=1_241_000, firme=True)
     assert nunca_tuvo_puja(vendido) is True
     assert cuenta_para_el_numero(vendido) is True
-    assert ocupa_plaza(vendido) is True
     assert estimar(comparables_de([vendido], _objetivo(), AHORA)).media == 1_241_000
 
 
 # --------------------------------------------------------------------------
-# El tope de la tabla
+# El tope son treinta DATOS, y un anuncio muerto no es un dato
 # --------------------------------------------------------------------------
 
 
-def test_los_anuncios_muertos_tienen_tope_y_los_buenos_no() -> None:
-    """Sin tope la tabla se hunde, y con tope los de verdad siguen enteros.
+def test_cuarenta_anuncios_muertos_no_ensucian_ni_una_fila() -> None:
+    """Ya no hace falta ningún tope para ellos: no son filas (2026-11-07).
 
-    El barrido es diario y cada pasada trae decenas de anuncios parecidos a
-    alguien de la plantilla. Guardados todos, en siete semanas la tabla de un
-    jugador serían cientos de filas muertas por delante de sus comparables.
+    Aquí había un tope de ocho anuncios a cero pintados detrás de los
+    comparables de verdad, para que la tabla no se hundiera. Se fue solo
+    cuando el usuario decidió que la lista es sólo de ventas con precio: si no
+    promedia, no es fila, y entonces no hay nada que limitar.
     """
-    buenas = [_venta(i, precio=800_000 + i, firme=True) for i in range(1, OBJETIVO + 1)]
+    buenas = [_venta(i, precio=800_000 + i, firme=True) for i in range(1, 9)]
     muertos = [_venta(100 + i, puja=0, precio=0) for i in range(40)]
     salen = comparables_de([*buenas, *muertos], _objetivo(), AHORA)
-    # Las ocho de verdad, enteras, y como mucho ocho muertas detrás.
-    assert sum(1 for c in salen if c.cuenta) == OBJETIVO
-    assert sum(1 for c in salen if nunca_tuvo_puja(c.venta)) == SIN_PUJA_QUE_SE_ENSENAN
-    # Y van DETRÁS: lo que cuenta se lee primero.
+    assert sum(1 for c in salen if c.venta.firme) == 8, "las ocho de verdad, enteras"
+    # Las muertas siguen MEDIDAS --hay que contarlas en la pastilla-- pero van
+    # detrás de todo lo que cuenta, y la tabla sólo pinta lo que cuenta.
     posiciones = [i for i, c in enumerate(salen) if nunca_tuvo_puja(c.venta)]
-    assert min(posiciones) >= OBJETIVO
+    assert min(posiciones) >= 8
 
 
-def test_una_puja_abandonada_no_lleva_tope() -> None:
-    """Son pocas y cada una conserva un dato: alguien ofreció ese dinero por
-    alguien así. El tope es sólo para los que nunca tuvieron nada."""
-    abandonadas = [_venta(i, puja=5_000, intentos=99) for i in range(1, 31)]
-    salen = comparables_de(abandonadas, _objetivo(), AHORA)
-    assert len(salen) == 30
-    assert not any(c.ocupa for c in salen)
+def test_el_tope_de_treinta_es_de_ventas_con_precio() -> None:
+    """«Nuestro objetivo sí debe ser obtener hasta 30 datos» (2026-11-08).
+
+    Treinta y cinco ventas cerradas califican; entran las treinta mejores. Y
+    las pujas sin cerrar quedan FUERA del tope, porque no son datos: sólo se
+    cuentan para decir cuántas están esperando su precio.
+    """
+    cerradas = [_venta(i, precio=800_000 + i, firme=True) for i in range(1, 36)]
+    abiertas = [_venta(200 + i, puja=5_000) for i in range(1, 11)]
+    salen = comparables_de([*cerradas, *abiertas], _objetivo(), AHORA)
+    assert sum(1 for c in salen if c.venta.firme) == OBJETIVO_DE_DATOS
+    assert estimar(salen).n == OBJETIVO_DE_DATOS
+    assert estimar(salen).provisionales == 10
 
 
 # --------------------------------------------------------------------------
@@ -159,16 +163,16 @@ def test_una_puja_abandonada_no_lleva_tope() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_se_descarta_el_que_agoto_intentos_sin_venderse() -> None:
-    muerto = _venta(1, puja=0, precio=0, intentos=99)
+def test_se_descarta_a_las_DOS_comprobaciones() -> None:
+    muerto = _venta(1, puja=0, precio=0, intentos=COMPROBACIONES)
     assert se_puede_descartar(muerto) is True
 
 
-def test_no_se_descarta_mientras_le_queden_intentos() -> None:
+def test_no_se_descarta_mientras_le_quede_una_comprobacion() -> None:
     """Ahí está justo la gracia: puede estar a punto de recibir su primera
     puja, que es lo que le pasó al 472301981."""
-    vivo = _venta(1, puja=0, precio=0, intentos=0)
-    assert se_puede_descartar(vivo) is False
+    assert se_puede_descartar(_venta(1, puja=0, precio=0, intentos=0)) is False
+    assert se_puede_descartar(_venta(1, puja=0, precio=0, intentos=1)) is False
 
 
 def test_no_se_descarta_nunca_una_venta_firme() -> None:
@@ -176,11 +180,19 @@ def test_no_se_descarta_nunca_una_venta_firme() -> None:
     assert se_puede_descartar(vendido) is False
 
 
-def test_no_se_descarta_una_puja_abandonada() -> None:
-    """Conserva un dato y se queda marcada como provisional abandonada; el
-    borrado es sólo para el anuncio que nunca tuvo nada."""
-    con_puja = _venta(1, puja=5_000, intentos=99)
-    assert se_puede_descartar(con_puja) is False
+def test_UNA_PUJA_ABANDONADA_TAMBIEN_SE_DESCARTA() -> None:
+    """A CUALQUIERA, con puja o sin ella (2026-11-08, decisión del usuario).
+
+    Hasta ese día esta fila se salvaba, con el argumento de que conservaba un
+    dato: alguien ofreció ese dinero por alguien así. Se le preguntó
+    expresamente a quién se le aplicaban sus dos comprobaciones y respondió
+    «a cualquiera, puja o no», sabiendo lo que costaba: una venta con puja
+    está garantizada por el juego, así que ésta probablemente se vendió y no
+    vamos a saber por cuánto. Lo eligió porque una fila sin precio no vale
+    nada, y la alternativa era el zombi que ocupa sitio para siempre.
+    """
+    con_puja = _venta(1, puja=5_000, intentos=COMPROBACIONES)
+    assert se_puede_descartar(con_puja) is True
 
 
 # --------------------------------------------------------------------------

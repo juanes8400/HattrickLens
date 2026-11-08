@@ -45,7 +45,6 @@ from app.domain.engines.mercado_comparable import (
     comparables_de,
     cosecha,
     estimar,
-    hay_que_buscar,
     plan_de_busqueda,
 )
 
@@ -75,8 +74,6 @@ class Resultado:
     #: Peticiones gastadas. Cero significa que no se pudo buscar: sin las
     #: siete habilidades no hay regla de Hattrick que preguntar.
     busquedas: int
-    #: Si se buscó y el fondo siguió sin llegar a `OBJETIVO`.
-    agotada: bool
     #: FILAS que devolvió el mercado, no comparables. Es lo que mira el
     #: centinela de la cuota, y la diferencia importa: un jugador que llega y
     #: luego se descarta por no parecerse demuestra que el servidor contestó
@@ -160,10 +157,11 @@ async def correr_el_turno(
             nuevas.append(venta)
             nuevos.append(candidato)
 
+    # AQUÍ SE CALCULABA `agotada`, «se buscó y aun así no se llegó a ocho», y
+    # se fue el 2026-11-08 con el ocho. Nadie la leía --ni la API ni la
+    # pantalla-- y ya no tiene umbral con el que compararse: el objetivo son 30
+    # datos y los junta el mercado a su ritmo, no la aplicación.
     medidos = comparables_de(acumulado, objetivo, ahora)
-    # Se calcula al final y no sobre la marcha: con una sola ventana, «agotada»
-    # es simplemente que se buscó y aun así no se llegó a `OBJETIVO`.
-    agotada = busquedas > 0 and hay_que_buscar(medidos)
     return Resultado(
         nuevas=tuple(nuevas),
         estimacion=estimar(medidos),
@@ -171,7 +169,6 @@ async def correr_el_turno(
             PorResolver(ht_player_id=c.ht_player_id, plazo=c.plazo, visto_el=ahora) for c in nuevos
         ),
         busquedas=busquedas,
-        agotada=agotada,
         filas_vistas=vistas,
     )
 

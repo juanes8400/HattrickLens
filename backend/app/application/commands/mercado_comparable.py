@@ -33,11 +33,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.engines.mercado_comparable import (
-    REINTENTOS_DE_RESOLUCION,
+    COMPROBACIONES,
     Estimacion,
     Guardado,
     Rasgo,
     Traspaso,
+    es_una_puja_abierta,
     le_toca_hoy,
     precio_cerrado,
     se_puede_descartar,
@@ -260,8 +261,11 @@ async def descartar_lo_que_no_se_vendio(
             select(m.MarketSale).where(
                 m.MarketSale.team_id == team_id,
                 m.MarketSale.is_final.is_(False),
-                m.MarketSale.bid_price <= 0,
-                m.MarketSale.resolve_attempts > REINTENTOS_DE_RESOLUCION,
+                # SIN FILTRO DE PUJA DESDE EL 2026-11-08: se descarta a
+                # cualquiera que gaste sus dos comprobaciones, «si no fueron
+                # vendidos, simplemente eso se descarta». Antes sólo morían
+                # los anuncios que nunca tuvieron una puja.
+                m.MarketSale.resolve_attempts >= COMPROBACIONES,
             )
         )
     ).scalars()
@@ -305,7 +309,10 @@ def _retrato(estimacion: Estimacion) -> str:
         [
             {"precio": c.venta.precio, "firme": c.venta.firme, "peso": c.peso}
             for c in estimacion.comparables
-            if c.ocupa
+            # LO MISMO QUE SE DIBUJABA AYER, dicho sin `ocupa` (2026-11-08):
+            # las ventas con precio y las subastas que tienen dinero encima.
+            # Los anuncios a cero nunca se dibujaron y siguen fuera.
+            if c.venta.firme or es_una_puja_abierta(c.venta)
         ],
         separators=(",", ":"),
     )
@@ -398,7 +405,7 @@ async def pendientes_de_resolver(
             select(m.MarketSale).where(
                 m.MarketSale.team_id == team_id,
                 m.MarketSale.is_final.is_(False),
-                m.MarketSale.resolve_attempts <= REINTENTOS_DE_RESOLUCION,
+                m.MarketSale.resolve_attempts < COMPROBACIONES,
             )
         )
     ).scalars()
@@ -459,5 +466,5 @@ def aplicar_resolucion(
     return Resolucion(
         ht_player_id=fila.ht_player_id,
         precio=None,
-        abandonada=fila.resolve_attempts > REINTENTOS_DE_RESOLUCION,
+        abandonada=fila.resolve_attempts >= COMPROBACIONES,
     )

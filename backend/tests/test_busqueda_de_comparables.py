@@ -14,7 +14,6 @@ import pytest
 
 from app.application.queries.mercado_comparable import correr_el_turno
 from app.domain.engines.mercado_comparable import (
-    OBJETIVO,
     ORDEN_DE_DESEMPATE,
     Guardado,
     Objetivo,
@@ -22,7 +21,6 @@ from app.domain.engines.mercado_comparable import (
     cuenta_para_el_numero,
     nunca_tuvo_puja,
     objetivo_de,
-    ocupa_plaza,
     se_puede_descartar,
     terna,
 )
@@ -136,7 +134,7 @@ async def test_con_el_fondo_vivo_el_turno_solo_gasta_el_escalon_exacto() -> None
     assert len(mercado.pedidas) == 1
     exacta = mercado.pedidas[0]
     assert exacta.peso == 90, "la ventana es la del sello, y el sello vale 90"
-    assert r.estimacion.suficiente is True
+    assert r.estimacion.n == 8
     assert r.nuevas == ()
     assert r.por_resolver == ()
 
@@ -144,9 +142,9 @@ async def test_con_el_fondo_vivo_el_turno_solo_gasta_el_escalon_exacto() -> None
 async def test_desde_cero_SE_PIDE_UNA_SOLA_VENTANA() -> None:
     """2026-10-26: se acabo la escalera ancha, solo criterios.
 
-    Antes se recorrian los escalones hasta reunir `OBJETIVO` y se paraba al
-    final del que cerraba la cuenta --nunca a mitad--, lo que podia costar
-    hasta cinco peticiones. Ahora hay una ventana y se pide siempre.
+    Antes se recorrian los escalones hasta reunir ocho y se paraba al final del
+    que cerraba la cuenta --nunca a mitad--, lo que podia costar hasta cinco
+    peticiones. Ahora hay una ventana y se pide siempre.
     """
     mercado = _Mercado(
         [_fila(i) for i in range(1, 9)],
@@ -154,8 +152,7 @@ async def test_desde_cero_SE_PIDE_UNA_SOLA_VENTANA() -> None:
     )
     r = await _turno(mercado)
     assert r.busquedas == 1
-    assert len(r.nuevas) == OBJETIVO
-    assert r.agotada is False
+    assert len(r.nuevas) == 8
     assert [v.peso for v in mercado.pedidas] == [90]
 
 
@@ -166,25 +163,29 @@ async def test_el_escalon_que_cierra_la_cuenta_entra_entero() -> None:
     r = await _turno(mercado)
     assert r.busquedas == 1
     assert len(r.nuevas) == 9
-    # Las nueve se quedan y ocupan plaza. Ninguna entra en el numero: son
-    # anuncios, y desde el 2026-10-09 solo promedian las ventas cerradas.
-    assert sum(1 for c in r.estimacion.comparables if c.ocupa) == 9
+    # Las nueve se quedan medidas. Ninguna entra en el numero: son anuncios, y
+    # desde el 2026-10-09 solo promedian las ventas cerradas.
+    assert len(r.estimacion.comparables) == 9
     assert r.estimacion.n == 0
 
 
-async def test_si_la_unica_busqueda_no_basta_queda_constancia() -> None:
-    """Y ahora pasa mucho mas, que es el precio de haber quitado la escalera.
+async def test_si_la_unica_busqueda_no_basta_no_pasa_nada() -> None:
+    """Y pasa mucho, que es el precio de haber quitado la escalera.
 
-    Sin busqueda ampliada hay jugadores que no van a juntar ocho comparables, y
-    `agotada` es como se sabe. Lo que el usuario eligio a cambio es ver el
-    mercado TODOS LOS DIAS: el fondo se llena a base de dias, no de anchura.
+    Lo que el usuario eligio a cambio es ver el mercado TODOS LOS DIAS: el
+    fondo se llena a base de dias, no de anchura. Y el 2026-11-08 lo dijo del
+    objetivo de 30: «los 30 se van juntando solos con el tiempo... ambas
+    opciones no son definidas por nosotros, sino por la realidad».
+
+    AQUI SE COMPROBABA `agotada`, la bandera de «busque y no llegue a ocho».
+    Se fue con el ocho: nadie la leia --ni la API ni la pantalla-- y ya no hay
+    umbral con el que compararse.
     """
     mercado = _Mercado([_fila(1)])
     r = await _turno(mercado)
     assert r.busquedas == 1
-    assert r.agotada is True
-    assert r.estimacion.suficiente is False
-    assert r.estimacion.media is None
+    assert r.estimacion.media is None, "un anuncio no es un precio"
+    assert len(r.nuevas) == 1
 
 
 async def test_lo_fresco_del_fondo_ahorra_escalones() -> None:
@@ -193,31 +194,33 @@ async def test_lo_fresco_del_fondo_ahorra_escalones() -> None:
     mercado = _Mercado([_fila(9)])
     r = await _turno(mercado, fondo=[_venta(i, semanas=1) for i in range(1, 8)])
     assert r.busquedas == 1
-    # Siete ventas cerradas del fondo mas el anuncio recien encontrado llenan
-    # las ocho plazas, y por eso basta un escalon. En el NUMERO entran solo
-    # las siete cerradas, que es otra cuenta (2026-10-09).
-    assert sum(1 for c in r.estimacion.comparables if c.ocupa) == OBJETIVO
+    # Siete ventas cerradas del fondo mas el anuncio recien encontrado: ocho
+    # medidos. En el NUMERO entran solo las siete cerradas (2026-10-09).
+    assert len(r.estimacion.comparables) == 8
     assert r.estimacion.n == 7
     assert len(r.nuevas) == 1
 
 
-async def test_lo_caducado_cuenta_y_YA_NO_manda_a_buscar() -> None:
-    """Las ventas viejas siguen dando numero, porque una venta vieja informa
-    mas que ninguna. Y desde el 2026-10-09 ya no gastan el turno buscando
-    sustituto: «se busca cuando nos quedemos sin datos», y el refresco lo
-    lleva el calendario."""
+async def test_lo_caducado_SIGUE_DANDO_NUMERO() -> None:
+    """Una venta vieja informa mas que ninguna, asi que cuenta igual.
+
+    «Mientras no haya una persona, un jugador que haya entrado dentro de la
+    caracterizacion, esa persona puede seguir asi tenga mas de 24 semanas»
+    --usuario, 2026-11-08--. Con ocho datos y un tope de treinta no hay a quien
+    relevar, asi que las ocho caducadas se quedan y dan numero.
+    """
     mercado = _Mercado([_fila(9)])
-    # Ocho caducadas, y PARECIDAS: al 100% ya no caducarian. Ocho y no siete
-    # porque el numero sale solo de ventas cerradas desde el 2026-10-09, y lo
-    # que esta prueba defiende es que una venta vieja SIGUE dando numero.
-    fondo = [_venta(i, semanas=9, exacta=False) for i in range(1, 9)]
+    # Ocho caducadas de 25 semanas. Desde el 2026-11-08 da igual que sean
+    # clavadas o parecidas: todo caduca, y caducar no saca a nadie.
+    fondo = [_venta(i, semanas=25, exacta=False) for i in range(1, 9)]
     r = await _turno(mercado, fondo=fondo)
-    # Un solo escalon, el exacto, que se recorre siempre: con ocho ocupando
-    # plaza no falta nada, caducadas o no.
     assert r.busquedas == 1
-    assert r.estimacion.n == OBJETIVO
+    assert r.estimacion.n == 8
     assert r.estimacion.media is not None
     assert len(r.nuevas) == 1
+    # Marcadas, todas, para que la pantalla lo pueda decir.
+    viejas = [c for c in r.estimacion.comparables if c.venta.firme]
+    assert all(c.viejo for c in viejas)
 
 
 async def test_un_anuncio_sin_puja_se_anota_pero_no_vale_como_precio() -> None:
@@ -250,7 +253,6 @@ async def test_un_anuncio_sin_puja_se_anota_pero_no_vale_como_precio() -> None:
     ceros = [v for v in r.nuevas if v.ht_player_id in (2, 3)]
     assert [v.precio for v in ceros] == [0, 0]
     assert all(nunca_tuvo_puja(v) for v in ceros)
-    assert not any(ocupa_plaza(v) for v in ceros)
     assert not any(cuenta_para_el_numero(v) for v in ceros)
     # Una peticion, la unica que hay. Antes se recorria la escalera entera
     # buscando lo que si sirve; desde el 2026-10-26 lo que falta se busca
@@ -269,17 +271,14 @@ async def test_un_mercado_entero_sin_pujas_no_da_ningun_numero() -> None:
     Lo correcto sigue siendo quedarse SIN CIFRA, no llenarse de ceros. Lo que
     cambio el 2026-11-07 es que los ocho se guardan para poder cazarlos si
     alguno se vende; lo que no cambia, y es lo que esta prueba defiende, es que
-    ocho anuncios a cero no producen ni una media ni llenan el fondo.
+    ocho anuncios a cero no producen ni una media.
     """
     mercado = _Mercado([_fila(i, puja=0) for i in range(1, 9)])
     r = await _turno(mercado)
     assert len(r.nuevas) == 8
     assert r.estimacion.media is None
     assert r.estimacion.n == 0
-    # NINGUNO OCUPA PLAZA, y por eso la busqueda se declara agotada: el fondo
-    # sigue vacio de material util, que es justo lo que hay que poder decir.
-    assert not any(ocupa_plaza(v) for v in r.nuevas)
-    assert r.agotada is True
+    assert not any(cuenta_para_el_numero(v) for v in r.nuevas)
 
 
 async def test_el_anuncio_que_nunca_se_vendio_se_descarta() -> None:
@@ -288,15 +287,17 @@ async def test_el_anuncio_que_nunca_se_vendio_se_descarta() -> None:
 
     Sin esto, guardar los anuncios a cero haria crecer el fondo todos los dias
     sin devolver nada: el barrido es diario y la mayoria de los anuncios
-    parecidos no tienen puja. Con esto, el que agoto sus intentos sin que
-    Hattrick publicara traspaso alguno se va.
+    parecidos no tienen puja. Con esto, el que gasto sus dos comprobaciones sin
+    que Hattrick publicara traspaso alguno se va.
     """
     muerto = _venta(1, exacta=False)
-    muerto = replace(muerto, puja=0, precio=0, firme=False, intentos=99)
+    muerto = replace(muerto, puja=0, precio=0, firme=False, intentos=2)
     assert se_puede_descartar(muerto) is True
-    # Con puja NO se descarta: conserva un dato --alguien ofrecio ese dinero
-    # por alguien asi-- y se queda marcada como provisional abandonada.
-    assert se_puede_descartar(replace(muerto, puja=5_000, precio=5_000)) is False
+    # CON PUJA TAMBIEN SE DESCARTA desde el 2026-11-08. Aqui se comprobaba lo
+    # contrario --conservaba un dato, «alguien ofrecio ese dinero por alguien
+    # asi»-- y el usuario lo cambio a «a cualquiera, puja o no»: una fila sin
+    # precio no vale nada, y la alternativa era el zombi eterno.
+    assert se_puede_descartar(replace(muerto, puja=5_000, precio=5_000)) is True
     # Y una venta firme no se descarta nunca, aunque nunca le vieramos puja:
     # esa es precisamente la que se vino a buscar.
     assert se_puede_descartar(replace(muerto, firme=True, precio=1_200_000)) is False
@@ -310,7 +311,7 @@ async def test_todo_lo_que_entra_queda_anotado_para_resolver() -> None:
     assert {p.ht_player_id for p in r.por_resolver} == set(range(1, 9))
     assert all(p.plazo == "2026-10-08 20:00:00" for p in r.por_resolver)
     assert all(not v.firme for v in r.nuevas)
-    assert r.estimacion.provisionales == OBJETIVO
+    assert r.estimacion.provisionales == 8
 
 
 async def test_cada_venta_guarda_su_propio_perfil() -> None:
