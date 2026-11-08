@@ -58,6 +58,46 @@ import { tx } from "../i18n/tx";
  * clasificación. Pasa la semana del ascenso --Hattrick publica los ocho
  * equipos nuevos a cero antes de que empiece la temporada-- y también en el
  * club recién creado (2026-11-02, dicho por el usuario). */
+/** Lo que el modelo de la proyección NO sabe, dicho por él mismo.
+ *
+ *  ESTE TEXTO LLEVABA MESES ESCRITO Y NADIE LO LEÍA (2026-11-07). El servidor
+ *  calcula `caveats` en cada respuesta de Liga --hasta cinco avisos, y todos
+ *  traducidos a los cuatro idiomas en `app/i18n`-- y la pantalla no los pintaba
+ *  en ninguna parte. El `caveats` que sí se veía aquí es otro: el del Once de
+ *  la Jornada, que viene de otra consulta y comparte nombre.
+ *
+ *  Así que había cinco explicaciones honestas escritas, probadas y traducidas,
+ *  y el usuario leía los porcentajes sin ninguna de ellas. Entre otras: que el
+ *  calendario sincronizado sólo trae TUS partidos, así que los puntos de los
+ *  demás están congelados salvo cuando juegan contra ti, y su rango de puestos
+ *  posibles sale subestimado.
+ *
+ *  VA DEBAJO Y EN TONO BAJO, no en un cuadro de alerta. No son errores ni
+ *  avisos urgentes: son los límites del modelo, y quien quiera fiarse de un
+ *  número los busca después de verlo, no antes. Los cuadros amarillos de
+ *  arriba siguen donde estaban, que son los que piden atención.
+ */
+function LoQueElModeloNoSabe({ caveats }: { caveats: string[] }) {
+  if (caveats.length === 0) return null;
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3">
+      <div className="text-xs font-semibold text-[var(--muted)]">
+        {tx("Lo que este modelo no sabe")}
+      </div>
+      <ul className="mt-2 space-y-1.5">
+        {caveats.map((c, i) => (
+          <li
+            key={i}
+            className="prosa text-xs leading-relaxed text-[var(--muted)]"
+          >
+            {c}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function sinEmpezar(data: League): boolean {
   return data.roundsPlayed === 0 && data.standings.every((s) => s.played === 0);
 }
@@ -469,6 +509,10 @@ export function LeaguePage() {
             >
               <OutlookTable data={data} />
             </ProjectionPanel>
+
+            {/* AL FINAL Y NO AL PRINCIPIO: los límites del modelo se buscan
+                después de ver el número, no antes. */}
+            <LoQueElModeloNoSabe caveats={data.caveats} />
           </div>
         )}
 

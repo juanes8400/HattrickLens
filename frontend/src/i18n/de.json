@@ -1144,15 +1144,6 @@
     "precio": "Preis",
     "equipoActual": "Aktuelles Team",
     "ningunoEncaja": "Kein Jugendspieler passt zu dem, was du verlangt hast.",
-    "habilidad": {
-      "keeper": "Torwart",
-      "defending": "Verteidigung",
-      "playmaking": "Spielaufbau",
-      "winger": "Flügelspiel",
-      "passing": "Passspiel",
-      "scoring": "Torschuss",
-      "set_pieces": "Standards"
-    },
     "categoria": {
       "crack": "Ausnahmetalent",
       "promesa": "Talent",

@@ -21,6 +21,7 @@ import type {
   TrainingFormula,
 } from "../services/api";
 
+import { nombreDeHabilidad } from "../i18n/habilidades";
 import { tx } from "../i18n/tx";
 /**
  * Transparencia: como se calcula cada numero de la herramienta.
@@ -433,17 +434,6 @@ function PositionsPanel({
   );
 }
 
-/** Cómo se llama cada habilidad en la pantalla. */
-const HABILIDAD: Record<string, string> = {
-  keeper: "Portería",
-  defending: "Defensa",
-  playmaking: "Jugadas",
-  winger: "Lateral",
-  passing: "Pases",
-  scoring: "Anotación",
-  set_pieces: "Balón parado",
-};
-
 /**
  * La matriz de coeficientes, puesto por puesto.
  *
@@ -500,7 +490,7 @@ function MatrizDePosiciones({ filas }: { filas: PositionMatrixRow[] }) {
                           {aporta.skills.map((h) => (
                             <span key={h.skill}>
                               <span className="text-[var(--muted)]">
-                                {HABILIDAD[h.skill] ?? h.skill}
+                                {nombreDeHabilidad(h.skill)}
                               </span>{" "}
                               <span className="tabular-nums">
                                 {h.coef.toFixed(2)}

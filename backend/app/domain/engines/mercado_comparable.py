@@ -952,6 +952,29 @@ def nunca_tuvo_puja(venta: Guardado) -> bool:
     return venta.puja <= 0
 
 
+def es_una_puja_abierta(venta: Guardado) -> bool:
+    """Si es una subasta que no ha cerrado Y alguien ha ofrecido dinero.
+
+    ES LO QUE LA PANTALLA LLAMA «puja abierta», y hacia falta separarlo desde
+    el 2026-11-07, el dia que los anuncios SIN NINGUNA PUJA empezaron a
+    guardarse. Hasta entonces «no firme» y «puja abierta» eran lo mismo, asi
+    que `provisionales` se contaba con un `not venta.firme` y decia la verdad.
+
+    Ya no: el barrido es diario y cada pasada trae decenas de anuncios a cero,
+    de los que se guardan hasta `SIN_PUJA_QUE_SE_ENSENAN` por jugador. Con el
+    criterio viejo, un jugador sin UNA sola puja a su alrededor veria «8 pujas
+    abiertas, fuera del numero», que es exactamente lo contrario de lo que
+    pasa. Y desde hoy esas filas tampoco se enseñan --decision del usuario:
+    «los jugadores que nunca se vendieron, no deben ir en la lista»-- asi que
+    la pastilla es lo UNICO que se dice de ellas y no puede mentir.
+
+    Una puja abandonada --con dinero ofrecido y los intentos agotados-- sigue
+    contando aqui: su subasta cerro para Hattrick pero no para nosotros, que es
+    justo lo que la pastilla avisa.
+    """
+    return not venta.firme and not nunca_tuvo_puja(venta)
+
+
 def se_puede_descartar(venta: Guardado, ahora: datetime | None = None) -> bool:
     """Si este anuncio sin pujas ya se puede borrar del fondo.
 
@@ -1046,11 +1069,11 @@ def estimar(comparables: Sequence[Comparable]) -> Estimacion:
     Sin ni una venta cerrada sigue sin haber número, y eso no es una regla sino
     aritmética: no hay nada que promediar.
 
-    `provisionales` se cuenta sobre TODAS las que se enseñan, no sobre las que
-    cuentan (2026-10-09). Desde que sólo cuentan las ventas cerradas, sobre
-    las que cuentan valdría siempre cero, y un campo que no puede cambiar no
-    informa de nada. Sobre todas dice lo que la pantalla necesita: cuántas de
-    las que hay delante son subastas que todavía no han cerrado.
+    `provisionales` NO se cuenta sobre las que cuentan (2026-10-09): sobre
+    ésas valdría siempre cero, y un campo que no puede cambiar no informa de
+    nada. Se cuenta sobre las subastas con dinero ofrecido que no han cerrado,
+    que es lo que la pantalla dice de ellas; ver `es_una_puja_abierta`, que es
+    donde está escrito por qué un `not venta.firme` ya no sirve.
     """
     # `comparables` lleva TODAS, para que la pantalla pueda enseñarlas; el
     # numero se hace solo con las que cuentan.
@@ -1062,7 +1085,7 @@ def estimar(comparables: Sequence[Comparable]) -> Estimacion:
             mediana=None,
             n=0,
             peso_minimo=0,
-            provisionales=sum(1 for c in todas if not c.venta.firme),
+            provisionales=sum(1 for c in todas if es_una_puja_abierta(c.venta)),
             comparables=todas,
         )
     denominador = sum(c.peso for c in elegidos)
@@ -1073,7 +1096,7 @@ def estimar(comparables: Sequence[Comparable]) -> Estimacion:
         mediana=_mediana_ponderada(elegidos),
         n=len(elegidos),
         peso_minimo=min(c.peso for c in elegidos),
-        provisionales=sum(1 for c in todas if not c.venta.firme),
+        provisionales=sum(1 for c in todas if es_una_puja_abierta(c.venta)),
         comparables=todas,
     )
 
