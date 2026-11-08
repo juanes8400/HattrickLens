@@ -290,7 +290,8 @@ export interface ComparableDeMercado {
   avaladoPorHattrick: boolean;
   /** Falso mientras sea una puja en curso y no una venta cerrada. */
   firme: boolean;
-  /** Ya cumplió sus siete semanas y sigue por no haber nada mejor. */
+  /** Ya cumplió su vida --veinticuatro semanas-- y sigue por no haber nada
+   *  mejor. */
   viejo: boolean;
   edad: number;
   /** Los DÍAS de su edad, además de los años. `-1` es «no los sabemos»: las

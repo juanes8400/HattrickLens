@@ -92,7 +92,19 @@ SIN_PUJA_QUE_SE_ENSENAN = OBJETIVO
 #: Cuánto vive un dato antes de volverse reemplazable. No se borra al
 #: cumplirlo: queda a la espera de que algo mejor lo sustituya, y si no
 #: aparece nada se queda, porque un dato viejo informa más que ninguno.
-VIDA = timedelta(weeks=7)
+#:
+#: VEINTICUATRO SEMANAS (2026-11-07, decisión del usuario; antes eran siete).
+#: Es la regla que él fija, y además cuadra con lo único que se midió del juego:
+#: el comparable más viejo que Hattrick usa para Moisés Llauge es del 15 de
+#: abril, unas VEINTICINCO semanas, y lo sigue metiendo en su promedio. Con
+#: siete semanas estábamos tirando por reemplazable lo que el propio juego
+#: considera vigente.
+#:
+#: Y CUESTA POCO, porque caducar no borra: una venta vieja sólo deja paso
+#: cuando aparece algo mejor. Lo que cambia de verdad es `viejo`, la marca
+#: naranja de la tabla, que dejará de salir en ventas de dos meses que el juego
+#: seguiría usando.
+VIDA = timedelta(weeks=24)
 
 #: NO HAY LIMITE DURO. Del 2026-10-09 al 2026-10-10 lo hubo: se borraba a las
 #: doce semanas, sobre la base de que Hattrick hace lo mismo. Se le sondeo la
@@ -1207,7 +1219,7 @@ def hay_que_buscar(comparables: Sequence[Comparable]) -> bool:
     exacto cada seis días, los anchos cada cinco semanas--.
 
     Lo que eso significa, y es el precio de la decisión: un comparable puede
-    cumplir sus siete semanas de vida y seguir usándose hasta que a su jugador
+    cumplir sus veinticuatro semanas de vida y seguir usándose hasta que a su jugador
     le toquen los anchos otra vez, hasta cinco semanas después. Un dato viejo
     informa más que ninguno, que es la misma razón por la que no se borra al
     caducar.

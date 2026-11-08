@@ -49,6 +49,16 @@ from app.domain.engines.mercado_comparable import (
 )
 from app.infrastructure.chpp.mercado import ID_DE_HABILIDAD
 
+#: Una antiguedad que SEGURO ha pasado la vida de un comparable.
+#:
+#: SE DERIVA DE `VIDA` Y NO SE CLAVA (2026-11-07). Antes estaba a mano --nueve
+#: semanas, cuando la vida eran siete-- y al pasar la vida a veinticuatro
+#: semanas cuatro pruebas se cayeron a la vez: no porque el motor hiciera algo
+#: mal, sino porque decian «nueve» queriendo decir «mas de lo que vive».
+#: Derivandolo, el dia que el usuario cambie la vida otra vez estas pruebas
+#: siguen diciendo lo que querian decir.
+PASADA = VIDA.days // 7 + 2
+
 AHORA = datetime(2026, 10, 6, 12, 0, tzinfo=UTC)
 MI_EQUIPO = 537758
 
@@ -454,12 +464,22 @@ def test_cada_uno_viaja_con_su_peso() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_una_venta_vive_siete_semanas_y_luego_queda_reemplazable() -> None:
+def test_una_venta_vive_veinticuatro_semanas_y_luego_queda_reemplazable() -> None:
     """Cumplir la vida no la borra: una venta vieja informa mas que ninguna,
-    asi que espera a que algo mas fresco ocupe su sitio."""
-    assert timedelta(weeks=7) == VIDA
-    assert reemplazable(_guardado(1, semanas=6), AHORA) is False
-    assert reemplazable(_guardado(1, semanas=7), AHORA) is True
+    asi que espera a que algo mas fresco ocupe su sitio.
+
+    VEINTICUATRO SEMANAS desde el 2026-11-07, decision del usuario; antes eran
+    siete. Cuadra con lo unico que se midio del juego: el comparable mas viejo
+    que Hattrick usa para Moises Llauge es de unas veinticinco semanas y lo
+    sigue metiendo en su promedio. Con siete estabamos dando por reemplazable
+    lo que el propio juego considera vigente.
+
+    El numero se comprueba A PROPOSITO, aunque las otras pruebas lo deriven: si
+    alguien lo cambia sin querer, esta linea lo dice por su nombre.
+    """
+    assert timedelta(weeks=24) == VIDA
+    assert reemplazable(_guardado(1, semanas=23), AHORA) is False
+    assert reemplazable(_guardado(1, semanas=24), AHORA) is True
 
 
 def test_una_venta_se_vuelve_a_medir_contra_quien_pregunte() -> None:
@@ -481,12 +501,12 @@ def test_el_peso_manda_por_encima_de_la_frescura() -> None:
     """El usuario dijo que un comparable nunca se reemplaza por algo de menor
     peso, asi que una venta caducada al 100% va por delante de una recien
     encontrada al 90%."""
-    vieja = _guardado(1, semanas=9)
+    vieja = _guardado(1, semanas=PASADA)
     reciente = _guardado(2, semanas=0, scoring=18, passing=12, playmaking=7)
     elegidos = _medidos(reciente, vieja)
     assert [c.venta.ht_player_id for c in elegidos] == [1, 2]
     assert [c.peso for c in elegidos] == [100, 90]
-    # Y la de veinte semanas NO cuenta como vieja, porque es un 100%: desde
+    # Y la que paso su vida NO cuenta como vieja, porque es un 100%: desde
     # el 2026-10-07 la caducidad solo alcanza a los parecidos.
     assert elegidos[0].viejo is False
 
@@ -543,19 +563,19 @@ def test_se_busca_CUANDO_FALTAN_DATOS_y_solo_entonces() -> None:
     dispara la busqueda ancha es no tener bastantes.
 
     El precio de la decision, y queda escrito aqui: un parecido puede cumplir
-    sus siete semanas y seguir usandose hasta que a su jugador le toquen los
-    anchos otra vez, hasta cinco semanas despues.
+    su vida y seguir usandose hasta que a su jugador le toquen los anchos otra
+    vez, hasta cinco semanas despues.
     """
     # Cinco de seis: falta uno, se busca.
     assert hay_que_buscar(_medidos(*(_guardado(i) for i in range(1, 8)))) is True
 
     # Seis, con uno PARECIDO y caducado: ya no se busca por eso.
-    primo_viejo = _guardado(1, semanas=9, scoring=18, passing=12, playmaking=7)
+    primo_viejo = _guardado(1, semanas=PASADA, scoring=18, passing=12, playmaking=7)
     con_uno_viejo = [primo_viejo, *(_guardado(i, semanas=1) for i in range(2, 9))]
     assert hay_que_buscar(_medidos(*con_uno_viejo)) is False
 
     # Y uno exacto caducado tampoco, que ya era asi: el 100 % no caduca.
-    exacto_viejo = [_guardado(1, semanas=9), *(_guardado(i, semanas=1) for i in range(2, 9))]
+    exacto_viejo = [_guardado(1, semanas=PASADA), *(_guardado(i, semanas=1) for i in range(2, 9))]
     assert hay_que_buscar(_medidos(*exacto_viejo)) is False
 
 
@@ -877,7 +897,7 @@ def test_cuando_ese_anuncio_se_resuelve_ya_cuenta() -> None:
 
 
 def test_un_comparable_exacto_no_envejece() -> None:
-    clavado = _guardado(1, semanas=9)
+    clavado = _guardado(1, semanas=PASADA)
     assert reemplazable(clavado, AHORA) is True, "la venta SI cumplio su vida"
     medido = _medidos(clavado)[0]
     assert medido.peso == 100
@@ -886,7 +906,7 @@ def test_un_comparable_exacto_no_envejece() -> None:
 
 def test_un_parecido_si_envejece() -> None:
     """La misma antiguedad, pero al 85%: ese si queda reemplazable."""
-    primo = _guardado(1, semanas=9, scoring=18, passing=12, playmaking=7)
+    primo = _guardado(1, semanas=PASADA, scoring=18, passing=12, playmaking=7)
     medido = _medidos(primo)[0]
     assert medido.peso < 100
     assert medido.viejo is True
@@ -895,7 +915,7 @@ def test_un_parecido_si_envejece() -> None:
 def test_la_misma_venta_caduca_para_uno_y_no_para_el_otro() -> None:
     """El peso es relativo a quien pregunta, asi que la caducidad tambien.
     Por eso se decide al medir y no al guardar."""
-    venta = _guardado(1, semanas=9)
+    venta = _guardado(1, semanas=PASADA)
     para_el_clavado = _medidos(venta)[0]
     otro = _objetivo(scoring=18, passing=12, playmaking=7)
     para_el_primo = _medidos(venta, objetivo=otro)[0]
@@ -906,7 +926,7 @@ def test_la_misma_venta_caduca_para_uno_y_no_para_el_otro() -> None:
 def test_un_exacto_viejo_no_manda_a_buscar() -> None:
     """Seis exactos de hace nueve semanas siguen siendo seis: su turno no
     deberia gastar ni una peticion."""
-    seis = [_guardado(i, semanas=9) for i in range(1, 9)]
+    seis = [_guardado(i, semanas=PASADA) for i in range(1, 9)]
     assert hay_que_buscar(_medidos(*seis)) is False
 
 
