@@ -276,7 +276,14 @@ function salto(puja: number, precio: number): string {
  *  `Especialidad` no estaba en su lista ninguna de las dos veces. Se queda,
  *  porque la pidió por su nombre el 2026-10-09, y va junto a TSI y Forma: es
  *  del mismo grupo, lo que describe al jugador sin entrar en el parecido. */
-function columnasDe(
+// SE EXPORTA SÓLO PARA PROBARLA (2026-11-08). La marca de las 24 semanas
+// vive dentro de una celda, y sin esta puerta no hay forma de afirmar que
+// sale cuando toca y no sale cuando no: la tabla entera pide datos por su
+// cuenta. El aviso de fast-refresh se calla aquí porque el coste es de
+// desarrollo --recargar un módulo entero en vez de medio-- y la
+// alternativa era mover 250 líneas de columnas a otro fichero.
+// eslint-disable-next-line react-refresh/only-export-components
+export function columnasDe(
   perfil: RasgoVisible[],
   moneda: string,
 ): Column<ComparableDeMercado>[] {
@@ -433,11 +440,49 @@ function columnasDe(
             title={
               f.viejo
                 ? tx(
-                    "Ya cumplió sus 24 semanas y sigue contando porque no ha aparecido nada más reciente.",
+                    "Ya cumplió sus 24 semanas y sigue contando: sólo deja su sitio cuando la lista llega a 30 y aparece algo mejor.",
                   )
                 : undefined
             }
           >
+            {/* EL RELOJ DE ARENA (2026-11-08, elegido por el usuario entre
+                tres propuestas). Hasta hoy el aviso era SÓLO la fecha en
+                ámbar, y el color solo no basta: ni para quien no lo distingue,
+                ni para quien ve una fecha de otro color y no sabe qué le están
+                diciendo. Añadir una forma lo arregla sin robarle ancho a una
+                tabla de trece columnas: cuesta 15 px.
+
+                POR QUÉ UN RELOJ Y NO UN TRIÁNGULO: aquí no hay nada roto. El
+                dato está haciendo su trabajo, sólo que es viejo. Un triángulo
+                rojo diría «error» y mentiría.
+
+                Y POR QUÉ NO UNA CHINCHETA, que fue la palabra que él usó al
+                pedirlo --«un signo ahí como de advertencia, pin»--: una
+                chincheta se lee como «esto lo fijé yo a propósito», que es
+                justo lo contrario. Esta fila sigue ahí porque no hemos
+                encontrado nada mejor, no porque nadie la haya clavado.
+
+                Lleva `role="img"` y su nombre: sin eso, para un lector de
+                pantalla la marca no existiría y el aviso volvería a depender
+                del color. El porqué entero va en el `title` de la fecha. */}
+            {f.viejo && (
+              <svg
+                width="10"
+                height="11"
+                viewBox="0 0 10 11"
+                fill="none"
+                role="img"
+                aria-label={tx("Pasó sus 24 semanas")}
+                className="mr-1 inline-block align-[-1px]"
+              >
+                <path
+                  d="M2 1h6M2 10h6M2.6 1v1.7c0 1 2.4 2.3 2.4 2.8s-2.4 1.8-2.4 2.8V10M7.4 1v1.7c0 1-2.4 2.3-2.4 2.8s2.4 1.8 2.4 2.8V10"
+                  stroke="currentColor"
+                  strokeWidth="1.1"
+                  strokeLinecap="round"
+                />
+              </svg>
+            )}
             {date(f.cierra)}
           </span>
         ),
