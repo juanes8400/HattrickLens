@@ -19,9 +19,8 @@ from app.application.commands.mercado_comparable import (
     aplicar_resolucion,
 )
 from app.domain.engines.mercado_comparable import (
+    COMPROBACIONES,
     MARGEN_TRAS_EL_PLAZO,
-    REINTENTOS_DE_RESOLUCION,
-    VENTANA_DE_RESOLUCION,
     Traspaso,
     precio_cerrado,
     se_puede_resolver,
@@ -120,33 +119,34 @@ def test_sin_plazo_no_se_pregunta() -> None:
     assert se_puede_resolver(None, PLAZO + timedelta(days=9)) is False
 
 
-def test_a_los_TRES_DIAS_se_deja_de_preguntar() -> None:
-    """«Resolverlo a los 3 dias. Lo que fue, fue» (2026-10-26, el usuario).
+def test_EL_PLAZO_DE_RELOJ_YA_NO_CIERRA_LA_PUERTA() -> None:
+    """Se cuentan COMPROBACIONES, no dias (2026-11-08, decision del usuario).
 
-    Hace falta desde que el barrido es diario: antes el tope era de cinco
-    INTENTOS, y los intentos van a uno por dia pero solo se gastan cuando hay
-    sincronizacion, asi que cinco intentos de quien entra una vez por semana
-    eran cinco semanas de fila pendiente.
+    Aqui habia un tope de tres dias desde el cierre --«resolverlo a los 3
+    dias; lo que fue, fue»-- y el usuario lo quito al ver lo que costaba: de
+    22 ventas con puja sin resolver en su fondo, 20 habian pasado el plazo y
+    DIECIOCHO de esas 20 tenian cero intentos. El plazo se les cumplio sin que
+    se les preguntara una sola vez, porque corria estuviera la aplicacion
+    abierta o no.
+
+    Lo que lo sustituye: «vamos a revisar solamente 2 veces en el tiempo en el
+    que se supone que ya se vendieron». Dos sincronizaciones reales. Asi que
+    esta puerta solo mira el borde de abajo y lo deja abierto para siempre;
+    quien cierra es el recuento, en `pendientes_de_resolver`.
     """
-    assert VENTANA_DE_RESOLUCION == timedelta(days=3)
+    assert COMPROBACIONES == 2
     assert se_puede_resolver(PLAZO, PLAZO + timedelta(days=3)) is True
-    assert se_puede_resolver(PLAZO, PLAZO + timedelta(days=3, seconds=1)) is False
-    assert se_puede_resolver(PLAZO, PLAZO + timedelta(days=9)) is False
+    assert se_puede_resolver(PLAZO, PLAZO + timedelta(days=3, seconds=1)) is True
+    assert se_puede_resolver(PLAZO, PLAZO + timedelta(days=9)) is True
+    assert se_puede_resolver(PLAZO, PLAZO + timedelta(weeks=30)) is True
 
 
-def test_rendirse_no_borra_la_venta_ni_su_puja() -> None:
-    """Lo que fue, fue: se queda con lo que tenia y sigue contando.
-
-    Con puja la venta esta GARANTIZADA en Hattrick, asi que no encontrarla no
-    significa que no ocurriera, significa que no la vamos a ver. La puja se
-    queda corta --Valerio Cataldi, 65.000.000 de puja y 77.720.000 de cierre--
-    y por eso el numero sigue marcado como provisional, no como cierto.
-    """
-    fila = _fila()
-    assert se_puede_resolver(fila.deadline, PLAZO + timedelta(days=4)) is False
-    # Nadie la toca: sigue con su puja y sigue sin ser firme.
-    assert fila.price == 65_000_000
-    assert fila.is_final is False
+def test_antes_del_cierre_no_se_pregunta_nunca() -> None:
+    """El unico borde que queda, y es el de abajo: a ciegas se gastaria una
+    comprobacion de las dos por nada."""
+    assert MARGEN_TRAS_EL_PLAZO == timedelta(0)
+    assert se_puede_resolver(PLAZO, PLAZO - timedelta(seconds=1)) is False
+    assert se_puede_resolver(PLAZO, PLAZO) is True
 
 
 # --------------------------------------------------------------------------
@@ -251,13 +251,24 @@ def test_si_no_aparece_se_anota_el_intento_y_se_reintenta() -> None:
     assert resultado.abandonada is False
 
 
-def test_agotados_los_reintentos_se_deja_con_su_puja() -> None:
-    """Insistir mas seria gastar llamadas en balde."""
-    fila = _fila(resolve_attempts=REINTENTOS_DE_RESOLUCION)
-    resultado = aplicar_resolucion(fila, _historial())
+def test_la_SEGUNDA_comprobacion_fallida_la_da_por_no_vendida() -> None:
+    """Dos y no mas (2026-11-08): «si no fueron vendidos, simplemente eso se
+    descarta, eso no sirve para nada».
+
+    `aplicar_resolucion` no borra --eso lo hace el barrido de descartes-- pero
+    si marca el final del camino. La primera fallida deja una bala; la segunda
+    no deja ninguna.
+    """
+    primera = _fila(resolve_attempts=0)
+    assert aplicar_resolucion(primera, _historial()).abandonada is False
+    assert primera.resolve_attempts == 1
+
+    segunda = _fila(resolve_attempts=COMPROBACIONES - 1)
+    resultado = aplicar_resolucion(segunda, _historial())
     assert resultado.abandonada is True
-    assert fila.is_final is False
-    assert fila.price == 65_000_000
+    assert segunda.resolve_attempts == COMPROBACIONES
+    assert segunda.is_final is False
+    assert segunda.price == 65_000_000
 
 
 def test_un_historial_con_fechas_rotas_no_revienta() -> None:

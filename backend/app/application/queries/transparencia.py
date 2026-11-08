@@ -2576,6 +2576,297 @@ def catalogo() -> list[Seccion]:
                 ),
             ],
         ),
+        # EL ALGORITMO DE PRECIO POR COMPARABLES, pedido por el usuario el
+        # 2026-11-08, el dia que lo rehizo entero: «el algoritmo debe tener su
+        # parte en Transparencia». Es el unico motor de la aplicacion cuyas
+        # reglas las fijo el usuario una por una en vez de salir del Manual no
+        # Escrito, asi que lo que hay que explicar aqui no es de donde viene la
+        # formula --no viene de ningun sitio, la decidio el-- sino que decide
+        # cada regla y que se descarto a cambio.
+        Seccion(
+            id="comparables",
+            name="Precio por comparables",
+            calcs=[
+                Calculo(
+                    id="comparables-quien",
+                    name="Quién entra como comparable",
+                    answers="Qué ventas del mercado sirven para ponerle precio a tu jugador",
+                    formula=(
+                        "peso = 100   si misma edad en AÑOS y el mismo top-3 de\n"
+                        "             habilidades, en las mismas y al mismo nivel\n"
+                        "       90    si el Comparador de Transferencias del propio\n"
+                        "             Hattrick enseñaría esa venta al comparar a tu jugador\n"
+                        "       —     en cualquier otro caso: no es comparable, y no entra"
+                    ),
+                    sources=[
+                        Fuente(
+                            "Los anuncios del mercado y su hora de cierre",
+                            "El mercado de transferencias, barrido a diario",
+                        ),
+                        Fuente(
+                            "Los criterios con los que Hattrick compara",
+                            "Sondeo del panel «Editar búsqueda» del propio juego",
+                        ),
+                        Fuente(
+                            "La edad y las siete habilidades de tu jugador",
+                            "Tu última ficha sincronizada",
+                        ),
+                    ],
+                    body=[
+                        "Esta pantalla imita, dentro de lo que el juego publica, el "
+                        "Comparador de Precios de Hattrick. La puerta de entrada no "
+                        "es nuestra: es la regla del propio juego, medida sondeando "
+                        "su panel «Editar búsqueda» para ver qué filtros aplica a un "
+                        "jugador dado. Una venta que Hattrick no enseñaría tampoco "
+                        "entra aquí.",
+                        "El top-3 de habilidades sale de SEIS, no de ocho: "
+                        "resistencia y balón parado quedan fuera, porque no son lo "
+                        "que define a qué juega un jugador. El empate lo rompe "
+                        "siempre el mismo orden, así que el mismo jugador da siempre "
+                        "la misma terna.",
+                        "Sólo hay dos pesos, y es una decisión deliberada. Hubo una "
+                        "escalera nuestra de cuatro peldaños más --95, 90, 80 y 75-- "
+                        "y se retiró entera: puntuar el parecido con una regla propia "
+                        "era inventar precisión que no teníamos. O es el mismo "
+                        "jugador, o es uno que el juego considera comparable.",
+                        "EL PESO NO SE GUARDA: se vuelve a medir cada vez que se "
+                        "pregunta. Tiene que ser así porque tu jugador envejece todas "
+                        "las semanas y entrena: una venta que hoy es idéntica deja de "
+                        "serlo el día que él cumple años, y congelar el peso haría que "
+                        "la tabla siguiera llamando «clavado» a quien ya no lo es.",
+                    ],
+                    constants=[
+                        Constante("Peso del clavado", "100", "Misma edad y mismo top-3"),
+                        Constante(
+                            "Peso del avalado", "90", "Lo enseñaría el comparador de Hattrick"
+                        ),
+                        Constante(
+                            "Habilidades que definen la terna",
+                            "6",
+                            "Jugadas, portería, defensa, anotación, lateral y pases",
+                        ),
+                        Constante(
+                            "Edad mínima", "17 años", "Nadie juega antes en el primer equipo"
+                        ),
+                    ],
+                    limits=[
+                        "Una venta guardada antes de que se empezaran a anotar las "
+                        "siete habilidades no puede comprobarse contra la regla de "
+                        "Hattrick, así que sólo puede entrar como clavada. No se "
+                        "borra ni se le inventa un dato: envejece y se releva sola.",
+                        "La edad se compara en AÑOS y no en días, porque la búsqueda "
+                        "del propio mercado filtra por años cumplidos. Pedir los días "
+                        "estrecharía por un criterio que el juego no sabe aplicar.",
+                    ],
+                ),
+                Calculo(
+                    id="comparables-standby",
+                    name="De anuncio a precio: el stand-by",
+                    answers="Cómo se sabe por cuánto se vendió de verdad, y qué pasa si no",
+                    formula=(
+                        "Se anota TODO lo que pasa la puerta, con puja o sin ella.\n"
+                        "\n"
+                        "Al pasar la hora de cierre, y no antes:\n"
+                        "    comprobación 1  →  ¿está el traspaso en su historial?\n"
+                        "        sí  →  se toma el PRECIO PAGADO y la venta es un dato\n"
+                        "        no  →  queda una comprobación\n"
+                        "    comprobación 2  →  lo mismo\n"
+                        "        no  →  no se vendió: la fila se borra\n"
+                        "\n"
+                        "Una comprobación al día como máximo, y sólo cuenta si la\n"
+                        "llamada llegó: una caída de Hattrick no gasta ninguna."
+                    ),
+                    sources=[
+                        Fuente(
+                            "La hora exacta de cierre de cada subasta",
+                            "El anuncio del mercado, dato de Hattrick",
+                        ),
+                        Fuente(
+                            "El precio que se pagó",
+                            "El historial de traspasos del jugador vendido",
+                        ),
+                    ],
+                    body=[
+                        "Una puja no es un precio, y la diferencia no es pequeña. Un "
+                        "anuncio visto con 3.000 US$ encima cerró en 424.000: ciento "
+                        "cuarenta y una veces más. Otro con 6.000 se vendió en "
+                        "1.241.000. Por eso ninguna subasta sin cerrar entra en el "
+                        "número, por mucha puja que tenga: hasta que el traspaso "
+                        "aparece en el historial de Hattrick, lo único que hay es una "
+                        "cifra que va a subir.",
+                        "Se anotan todos los anuncios, incluidos los que no tienen ni "
+                        "una puja. Parece desperdicio y no lo es: un anuncio puede "
+                        "pasar tres días a cero y recibir su primera puja en la última "
+                        "hora. Si no estuviera anotado, cuando se vendiera no "
+                        "existiría para nosotros, y su precio de cierre --el único "
+                        "dato que de verdad cuenta-- se perdería.",
+                        "SE CUENTAN COMPROBACIONES, NO DÍAS, y esto corrige un fallo "
+                        "real. Antes había un plazo de tres días desde el cierre, "
+                        "pasado el cual se dejaba de preguntar. El plazo corría "
+                        "estuviera la aplicación abierta o no, así que se cumplía solo: "
+                        "de veinte ventas que lo pasaron, dieciocho no habían recibido "
+                        "ni una pregunta. Quedaban sin precio, sin borrarse y ocupando "
+                        "sitio para siempre. Contando comprobaciones eso no puede pasar: "
+                        "una venta conserva sus dos hasta que se usen de verdad.",
+                        "El freno de una al día existe porque la aplicación admite "
+                        "varias sincronizaciones por hora, y sin él las dos "
+                        "comprobaciones se gastarían en la primera hora tras el cierre, "
+                        "antes de que Hattrick haya publicado el traspaso. El margen "
+                        "del juego es corto --se midió un traspaso que apareció con "
+                        "trece segundos de desviación-- pero no es cero.",
+                    ],
+                    constants=[
+                        Constante("Comprobaciones", "2", "Sincronizaciones reales tras el cierre"),
+                        Constante("Margen tras el cierre", "0 h", "Se pregunta en cuanto cierra"),
+                        Constante("Ritmo", "1 al día", "Por venta, para no quemarlas de golpe"),
+                        Constante("Duración de una subasta", "3 días", "Regla de Hattrick"),
+                    ],
+                    limits=[
+                        "Por las reglas del juego, un anuncio con puja se vende "
+                        "siempre. Así que una venta con dinero encima que no aparezca "
+                        "en el historial tras dos comprobaciones probablemente SÍ se "
+                        "vendió, y lo que no vamos a saber es por cuánto. Se borra "
+                        "igual: una fila sin precio no aporta nada, y la alternativa "
+                        "era dejarla ahí indefinidamente.",
+                        "Si una fila llega sin hora de cierre no se puede comprobar "
+                        "nunca, así que se descarta al gastar sus dos.",
+                    ],
+                ),
+                Calculo(
+                    id="comparables-numero",
+                    name="La media y la mediana, ponderadas",
+                    answers="Cómo se convierten varias ventas reales en un solo precio",
+                    formula=(
+                        "media   = Σ(peso × precio) / Σ(peso)\n"
+                        "mediana = el precio que parte la muestra por la mitad\n"
+                        "          CONTANDO PESOS, no filas\n"
+                        "\n"
+                        "Sólo entran ventas con precio confirmado."
+                    ),
+                    sources=[
+                        Fuente(
+                            "Los precios de cierre",
+                            "El historial de traspasos de cada jugador vendido",
+                        ),
+                        Fuente("El peso de cada venta", "Medido contra tu jugador al preguntar"),
+                    ],
+                    body=[
+                        "Las dos cifras van ponderadas por parecido: una venta "
+                        "idéntica influye un 11 % más que una que el juego considera "
+                        "comparable sin serlo. La mediana también, y eso importa: con "
+                        "pesos distintos, el punto que parte la muestra por la mitad "
+                        "no es la fila de en medio.",
+                        "SE DA NÚMERO CON LO QUE HAYA. Hasta el 26 de octubre de 2026, "
+                        "por debajo de ocho ventas no se daba ninguno: sólo la lista y "
+                        "un «faltan tantas». Un número apoyado en tres ventas no es tan "
+                        "bueno como uno de treinta, pero es muchísimo mejor que "
+                        "ninguno, que es lo que informa cero. Lo que se quita es la "
+                        "decisión de no responder.",
+                        "Y el panel dice siempre de cuántas ventas sale, para que se "
+                        "pueda juzgar. No lo compara con ningún objetivo: eso haría "
+                        "leer como flojo un precio apoyado en veintinueve ventas "
+                        "reales.",
+                        "El rango --el menor y el mayor-- sale de los mismos precios "
+                        "que la media. Enseñar la media y esconder el rango sería "
+                        "decir «sé el promedio de estos tres pero no el menor de los "
+                        "tres».",
+                    ],
+                    steps=[
+                        "Ejemplo real: un defensa de 20 años, Defensa 10 · Jugadas 4 · Pases 4.",
+                        "Tres ventas cerradas califican:",
+                        "    clavada (peso 100)  →  176.000 US$",
+                        "    avalada (peso  90)  →  125.000 US$",
+                        "    avalada (peso  90)  →   40.000 US$",
+                        "",
+                        "numerador   = 100×176.000 + 90×125.000 + 90×40.000",
+                        "            = 17.600.000 + 11.250.000 + 3.600.000",
+                        "            = 32.450.000",
+                        "denominador = 100 + 90 + 90 = 280",
+                        "",
+                        "media = 32.450.000 / 280 = 115.893 US$",
+                        "",
+                        "Mediana: el peso total es 280, la mitad 140. Ordenando por",
+                        "precio y acumulando pesos: 90 (los 40.000), luego 180 (los",
+                        "125.000), que ya pasa de 140.",
+                        "mediana = 125.000 US$",
+                        "",
+                        "La clavada aporta el 54,2 % del resultado; las dos avaladas,",
+                        "el 34,7 % y el 11,1 %.",
+                    ],
+                    limits=[
+                        "Sin ni una venta cerrada no hay número, y eso no es una regla "
+                        "sino aritmética: no hay nada que promediar. Las subastas en "
+                        "marcha se cuentan aparte, para que un fondo lleno de pujas no "
+                        "se lea como un fondo vacío.",
+                        "TSI, forma y especialidad viajan en la tabla porque describen "
+                        "al jugador, pero no entran en el parecido ni en el peso. El "
+                        "parecido se mide por edad y habilidades.",
+                        "El precio que pedía el vendedor se guarda y NO se usa nunca "
+                        "como precio: es lo que una persona decidió pedir, no lo que "
+                        "el mercado pagó.",
+                    ],
+                ),
+                Calculo(
+                    id="comparables-relevo",
+                    name="Las 24 semanas y el relevo de treinta",
+                    answers="Cuánto vive un dato y cuándo lo sustituye uno más reciente",
+                    formula=(
+                        "Objetivo: hasta 30 datos por jugador.\n"
+                        "\n"
+                        "    menos de 30  →  todo lo que califique ENTRA. Nadie sale.\n"
+                        "    ya hay 30    →  el recién llegado entra sólo si puede\n"
+                        "                    desplazar a alguien peor que él, y lo\n"
+                        "                    desplaza: menos peso, o el mismo peso y\n"
+                        "                    más viejo.\n"
+                        "\n"
+                        "A las 24 semanas desde la fecha de venta se marca el dato\n"
+                        "como viejo. Marcarlo NO lo saca de ningún sitio."
+                    ),
+                    sources=[
+                        Fuente("La fecha de cada venta", "La hora de cierre que publicó Hattrick"),
+                    ],
+                    body=[
+                        "Treinta es un objetivo y un tope, no un recorte. Por debajo "
+                        "sólo se suma: si veinte ventas califican, el número sale de "
+                        "veinte. Aquí hubo un corte por peso que expulsaba a los "
+                        "avalados en cuanto había ocho clavados, y se retiró porque "
+                        "era un sesgo nuestro: en un caso medido de doce ventas, "
+                        "dejarlos entrar movía la media de 150.000 a 141.923. Esos "
+                        "8.077 no los ponía el mercado, los poníamos nosotros.",
+                        "Las 24 semanas se cuentan desde la fecha de la VENTA, no desde "
+                        "el día que vimos el anuncio. Lo que envejece es el precio "
+                        "pagado.",
+                        "Y caducar no borra. Mientras no haya un dato más reciente que "
+                        "ocupe su sitio, una venta de hace siete meses sigue contando, "
+                        "porque un dato viejo informa más que ninguno. El propio "
+                        "Hattrick hace lo mismo: se le midió usando una venta de unas "
+                        "veinticinco semanas por no tener nada mejor. La marca está "
+                        "para que se pueda ver, no para esconder la fila.",
+                        "Todo caduca, también el dato idéntico. Hubo una regla que lo "
+                        "declaraba inmune, con el argumento de que un comparable exacto "
+                        "es el mejor dato posible y nada más fresco puede mejorarlo. Se "
+                        "retiró porque el relevo ya protege contra quedarse sin datos: "
+                        "sin la lista llena no sale nadie, así que la inmunidad no "
+                        "evitaba ningún daño y sí mantenía precios viejos presentándolos "
+                        "como recientes.",
+                    ],
+                    constants=[
+                        Constante("Objetivo de datos", "30", "Por jugador, nunca por el equipo"),
+                        Constante("Vida de un dato", "24 semanas", "Desde la fecha de la venta"),
+                    ],
+                    limits=[
+                        "Los treinta los junta el mercado, no la aplicación: sólo "
+                        "existen las ventas que de verdad han ocurrido entre jugadores "
+                        "parecidos al tuyo. Para la mayoría de los jugadores la lista "
+                        "estará muy por debajo de treinta durante mucho tiempo, y eso "
+                        "no es un fallo: es lo que hay.",
+                        "El tope es por jugador tuyo. La misma venta puede ser el mejor "
+                        "dato de uno y no entrar en la lista de otro, porque el peso se "
+                        "mide contra cada uno.",
+                    ],
+                ),
+            ],
+        ),
         Seccion(
             id="htms",
             name="HTMS",

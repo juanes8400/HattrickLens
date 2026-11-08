@@ -545,7 +545,16 @@ export function PrecioPorComparables({
             usuario-- un jugador puede tener cifra apoyada en tres ventas, y
             antes eso no podia pasar: por debajo de ocho no habia numero, asi
             que el aviso era innecesario. Ahora el aviso ES la diferencia entre
-            un numero honesto y uno que aparenta mas de lo que sabe. */}
+            un numero honesto y uno que aparenta mas de lo que sabe.
+
+            Y SE DICE SOLO `n`, SIN OBJETIVO AL LADO (2026-11-08, decision del
+            usuario). La frase decia «sale de 3 ventas, NO DE 8», y ese ocho
+            hacia dos trabajos a la vez: era el objetivo de recogida y era el
+            umbral del aviso. Al rehacer el algoritmo el objetivo paso a 30, y
+            ponerlo aqui haria leer como flojo un precio apoyado en veintinueve
+            ventas reales. El umbral sigue en ocho --`VENTAS_PARA_FIARSE`, en
+            el backend-- pero ya no se ensena: no es un objetivo, es la raya por
+            debajo de la cual una venta rara mueve demasiado. */}
         {hayNumero && datos.faltan > 0 && (
           <p className="mb-3 rounded-lg bg-[var(--surface-2)] px-4 py-2 text-sm text-[var(--muted)]">
             {datos.n === 1
@@ -553,8 +562,8 @@ export function PrecioPorComparables({
                   "Ojo: este número sale de UNA sola venta. Con tan pocas, una venta rara lo mueve entero.",
                 )
               : tx(
-                  "Ojo: este número sale de {{v0}} ventas, no de {{v1}}. Con tan pocas, una venta rara lo mueve mucho.",
-                  { v0: number(datos.n), v1: number(datos.n + datos.faltan) },
+                  "Ojo: este número sale de {{v0}} ventas. Con tan pocas, una venta rara lo mueve mucho.",
+                  { v0: number(datos.n) },
                 )}
           </p>
         )}

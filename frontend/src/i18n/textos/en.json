@@ -1015,7 +1015,7 @@
   "Oficiales": "Official",
   "Ojeadores y rentabilidad": "Scouts and profitability",
   "Ojo: este número sale de UNA sola venta. Con tan pocas, una venta rara lo mueve entero.": "Careful: this number comes from ONE single sale. With so few, one odd sale moves all of it.",
-  "Ojo: este número sale de {{v0}} ventas, no de {{v1}}. Con tan pocas, una venta rara lo mueve mucho.": "Careful: this number comes from {{v0}} sales, not {{v1}}. With so few, one odd sale moves it a lot.",
+  "Ojo: este número sale de {{v0}} ventas. Con tan pocas, una venta rara lo mueve mucho.": "Careful: this number comes from {{v0}} sales. With so few, one odd sale moves it a lot.",
   "Once probable y jugadores del rival identificados en sus alineaciones.": "Likely eleven and opponent players identified in their lineups.",
   "Opción": "Option",
   "Orden orientativo de penaltis": "Suggested penalty order",

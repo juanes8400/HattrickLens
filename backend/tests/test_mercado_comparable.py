@@ -22,28 +22,26 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.domain.engines.mercado_comparable import (
-    OBJETIVO,
+    COMPROBACIONES,
+    OBJETIVO_DE_DATOS,
     ORDEN_DE_DESEMPATE,
     PESO_DE_HATTRICK,
     PESO_DEL_CLAVADO,
-    PESO_QUE_NO_CADUCA,
-    REINTENTOS_DE_RESOLUCION,
     VIDA,
     Guardado,
     Objetivo,
+    caduco,
     candidato_de,
     clave_de_criterios,
     comparables_de,
     cosecha,
     cuenta_para_el_numero,
     estimar,
-    hay_que_buscar,
     le_toca_hoy,
     lo_ensenaria_hattrick,
     objetivo_de,
     peso_de,
     plan_de_busqueda,
-    reemplazable,
     terna,
     ventana_de_hattrick,
 )
@@ -219,9 +217,8 @@ def test_SOLO_HAY_DOS_PESOS_y_son_los_que_dicto_el_usuario() -> None:
     """
     assert PESO_DEL_CLAVADO == 100
     assert PESO_DE_HATTRICK == 90
-    # Y el clavado es el unico que no caduca: a un avalado todavia le puede
-    # salir un clavado que lo sustituya.
-    assert PESO_QUE_NO_CADUCA == PESO_DEL_CLAVADO
+    # AQUI SE COMPROBABA QUE EL CLAVADO NO CADUCA, y el usuario lo derogo el
+    # 2026-11-08: «todo lo que entra si debe caducar». Ver `caduco`.
 
     objetivo = _objetivo()
     vistos: set[int] = set()
@@ -464,22 +461,25 @@ def test_cada_uno_viaja_con_su_peso() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_una_venta_vive_veinticuatro_semanas_y_luego_queda_reemplazable() -> None:
-    """Cumplir la vida no la borra: una venta vieja informa mas que ninguna,
-    asi que espera a que algo mas fresco ocupe su sitio.
+def test_una_venta_vive_veinticuatro_semanas_y_luego_queda_MARCADA() -> None:
+    """Cumplir la vida no borra ni saca a nadie: solo pone la marca.
 
-    VEINTICUATRO SEMANAS desde el 2026-11-07, decision del usuario; antes eran
-    siete. Cuadra con lo unico que se midio del juego: el comparable mas viejo
-    que Hattrick usa para Moises Llauge es de unas veinticinco semanas y lo
-    sigue metiendo en su promedio. Con siete estabamos dando por reemplazable
-    lo que el propio juego considera vigente.
+    VEINTICUATRO SEMANAS desde el 2026-11-07, decision del usuario. Cuadra con
+    lo unico que se midio del juego: el comparable mas viejo que Hattrick usa
+    para Moises Llauge es de unas veinticinco semanas y lo sigue metiendo en su
+    promedio.
+
+    Y QUIEN SACA ES EL RELEVO, no esto (2026-11-08): «mientras no haya una
+    persona, un jugador que haya entrado dentro de la caracterizacion, esa
+    persona puede seguir asi tenga mas de 24 semanas». El relevo solo actua con
+    la lista llena, o sea en 30.
 
     El numero se comprueba A PROPOSITO, aunque las otras pruebas lo deriven: si
     alguien lo cambia sin querer, esta linea lo dice por su nombre.
     """
     assert timedelta(weeks=24) == VIDA
-    assert reemplazable(_guardado(1, semanas=23), AHORA) is False
-    assert reemplazable(_guardado(1, semanas=24), AHORA) is True
+    assert caduco(_guardado(1, semanas=23), AHORA) is False
+    assert caduco(_guardado(1, semanas=24), AHORA) is True
 
 
 def test_una_venta_se_vuelve_a_medir_contra_quien_pregunte() -> None:
@@ -506,9 +506,12 @@ def test_el_peso_manda_por_encima_de_la_frescura() -> None:
     elegidos = _medidos(reciente, vieja)
     assert [c.venta.ht_player_id for c in elegidos] == [1, 2]
     assert [c.peso for c in elegidos] == [100, 90]
-    # Y la que paso su vida NO cuenta como vieja, porque es un 100%: desde
-    # el 2026-10-07 la caducidad solo alcanza a los parecidos.
-    assert elegidos[0].viejo is False
+    # Y VA PRIMERA AUNQUE ESTE MARCADA DE VIEJA. Hasta el 2026-11-08 el 100 no
+    # caducaba, asi que aqui se comprobaba que la marca no salia; ahora sale,
+    # y lo que esta prueba defiende sigue en pie: la marca no cambia el orden
+    # ni saca a nadie. Un clavado caducado pesa mas que un avalado de hoy.
+    assert elegidos[0].viejo is True
+    assert elegidos[1].viejo is False
 
 
 def test_a_igual_peso_va_antes_la_mas_reciente() -> None:
@@ -542,41 +545,53 @@ def test_se_devuelven_mas_de_seis_si_empatan_con_el_sexto() -> None:
     assert len(_medidos(*(_guardado(i) for i in range(1, 11)))) == 10
 
 
-def test_los_peores_se_quedan_fuera_cuando_hay_de_sobra() -> None:
+def test_YA_NO_HAY_CORTE_los_flojos_tambien_entran() -> None:
+    """«Ya no quiero cortes, si muchos jugadores pueden entrar como
+    comparables, entran» (2026-11-08, decision del usuario).
+
+    Aqui se comprobaba lo contrario: con ocho clavados, un avalado se quedaba
+    FUERA. El corte miraba el peso del octavo --100-- y expulsaba a todo lo que
+    pesara menos, aunque fuera una venta real que Hattrick ensenaria al
+    comparar a este jugador.
+
+    LO QUE COSTABA, medido sobre un caso de doce el 2026-11-08: la media pasaba
+    de 150.000 a 141.923 al dejar entrar a los tres avalados que el corte
+    tiraba. Esos 8.077 eran un sesgo nuestro, no del mercado.
+    """
     buenos = [_guardado(i) for i in range(1, 9)]
     flojo = _guardado(99, scoring=18, passing=12, playmaking=7)
     elegidos = _medidos(*buenos, flojo)
-    assert 99 not in [c.venta.ht_player_id for c in elegidos]
-    assert len(elegidos) == OBJETIVO
+    assert 99 in [c.venta.ht_player_id for c in elegidos]
+    assert len(elegidos) == 9
+    # Entra DETRAS de los clavados: el orden sigue mandando el peso.
+    assert elegidos[-1].venta.ht_player_id == 99
+    assert elegidos[-1].peso == PESO_DE_HATTRICK
 
 
-def test_con_seis_vivos_su_turno_no_gasta_ni_una_llamada() -> None:
-    assert hay_que_buscar(_medidos(*(_guardado(i, semanas=1) for i in range(1, 9)))) is False
+def test_el_tope_son_TREINTA_y_entran_los_treinta_mejores() -> None:
+    """«Si ya tenemos 30 y llega el 31, podemos reemplazar» (2026-11-08).
 
-
-def test_se_busca_CUANDO_FALTAN_DATOS_y_solo_entonces() -> None:
-    """Decision del usuario, 2026-10-09: «cuando nos quedemos sin datos».
-
-    Antes un comparable caducado tambien mandaba a buscar, y el turno se
-    gastaba entero en sustituirlo. Ya no: el refresco lo lleva el calendario
-    --el exacto cada seis dias, los anchos cada cinco semanas-- y lo que
-    dispara la busqueda ancha es no tener bastantes.
-
-    El precio de la decision, y queda escrito aqui: un parecido puede cumplir
-    su vida y seguir usandose hasta que a su jugador le toquen los anchos otra
-    vez, hasta cinco semanas despues.
+    El relevo de su regla es incremental; esta seleccion no. Son equivalentes:
+    un recien llegado entra, bajo su regla, solo si puede desplazar a alguien
+    PEOR --de menos peso, o del mismo peso y mas viejo-- y desplaza justo a
+    ese. Aplicado una y otra vez, queda el top 30 por (peso, frescura).
     """
-    # Cinco de seis: falta uno, se busca.
-    assert hay_que_buscar(_medidos(*(_guardado(i) for i in range(1, 8)))) is True
+    treinta_y_cinco = [_guardado(i, semanas=i / 10) for i in range(1, 36)]
+    elegidos = _medidos(*treinta_y_cinco)
+    assert len(elegidos) == OBJETIVO_DE_DATOS == 30
+    # Sobreviven los mas frescos, porque todos pesan lo mismo.
+    assert [c.venta.ht_player_id for c in elegidos] == list(range(1, 31))
 
-    # Seis, con uno PARECIDO y caducado: ya no se busca por eso.
-    primo_viejo = _guardado(1, semanas=PASADA, scoring=18, passing=12, playmaking=7)
-    con_uno_viejo = [primo_viejo, *(_guardado(i, semanas=1) for i in range(2, 9))]
-    assert hay_que_buscar(_medidos(*con_uno_viejo)) is False
 
-    # Y uno exacto caducado tampoco, que ya era asi: el 100 % no caduca.
-    exacto_viejo = [_guardado(1, semanas=PASADA), *(_guardado(i, semanas=1) for i in range(2, 9))]
-    assert hay_que_buscar(_medidos(*exacto_viejo)) is False
+def test_un_avalado_nuevo_no_desplaza_a_treinta_clavados_frescos() -> None:
+    """El caso limite, preguntado y respondido el 2026-11-08: con la lista
+    llena de clavados frescos, un avalado nuevo NO entra, porque no hay nadie
+    peor que el a quien desplazar."""
+    clavados = [_guardado(i, semanas=1) for i in range(1, 31)]
+    avalado = _guardado(99, semanas=0, scoring=18, passing=12, playmaking=7)
+    elegidos = _medidos(*clavados, avalado)
+    assert len(elegidos) == OBJETIVO_DE_DATOS
+    assert 99 not in [c.venta.ht_player_id for c in elegidos]
 
 
 # --------------------------------------------------------------------------
@@ -584,7 +599,7 @@ def test_se_busca_CUANDO_FALTAN_DATOS_y_solo_entonces() -> None:
 # --------------------------------------------------------------------------
 
 
-def test_con_menos_de_OBJETIVO_SI_hay_numero_pero_avisando() -> None:
+def test_con_menos_de_OCHO_SI_hay_numero_pero_avisando() -> None:
     """«Precio con los que hayan» (2026-10-26, decision del usuario).
 
     Hasta ese dia, por debajo de ocho ventas cerradas no se daba numero. Lo
@@ -592,13 +607,13 @@ def test_con_menos_de_OBJETIVO_SI_hay_numero_pero_avisando() -> None:
     escalera ancha hay jugadores que no van a juntar ocho, y con la regla vieja
     se quedarian sin precio para siempre.
 
-    Lo que no se pierde es el aviso: `n` dice sobre cuantas se hizo y
-    `suficiente` dice si llegan a ocho.
+    Lo que no se pierde es `n`, que es lo que la pantalla ensena: «este numero
+    sale de 7 ventas». El objetivo --30 desde el 2026-11-08-- ya no sale al
+    lado: ver `OBJETIVO_DE_DATOS`.
     """
-    e = estimar(_medidos(*(_guardado(i) for i in range(1, OBJETIVO))))
+    e = estimar(_medidos(*(_guardado(i) for i in range(1, 8))))
     assert e.media is not None and e.mediana is not None
-    assert e.n == OBJETIVO - 1
-    assert e.suficiente is False, "sigue diciendo que el numero es flojo"
+    assert e.n == 7
 
 
 def test_sin_NI_UNA_venta_cerrada_no_hay_numero() -> None:
@@ -610,8 +625,7 @@ def test_sin_NI_UNA_venta_cerrada_no_hay_numero() -> None:
     e = estimar(_medidos(*(_guardado(i, firme=False) for i in range(1, 4))))
     assert e.media is None and e.mediana is None
     assert e.n == 0
-    assert e.suficiente is False
-    assert len(e.comparables) == 3, "pero se siguen enseñando"
+    assert len(e.comparables) == 3, "pero se siguen contando para la pastilla"
 
 
 def test_con_ocho_al_mismo_peso_la_media_es_la_de_siempre() -> None:
@@ -626,7 +640,6 @@ def test_con_ocho_al_mismo_peso_la_media_es_la_de_siempre() -> None:
         8_000_000,
     ]
     e = estimar(_medidos(*(_guardado(i, precio=p) for i, p in enumerate(precios, start=1))))
-    assert e.suficiente is True
     assert e.media == 4_500_000
     assert e.mediana == 4_500_000
 
@@ -676,15 +689,13 @@ def test_se_dice_cuantas_son_todavia_provisionales() -> None:
     )
     assert e.provisionales == 2
     assert e.n == 4
-    assert e.suficiente is False
 
 
-def test_con_ocho_ventas_cerradas_si_basta() -> None:
+def test_sin_ni_una_abierta_no_hay_provisionales() -> None:
     """La contraparte del de arriba: ocho cerradas y ninguna abierta."""
     e = estimar(_medidos(*(_guardado(i) for i in range(1, 9))))
     assert e.provisionales == 0
     assert e.n == 8
-    assert e.suficiente is True
 
 
 # --------------------------------------------------------------------------
@@ -790,14 +801,13 @@ def test_una_subasta_abierta_no_cuenta_por_muchos_intentos_que_le_queden() -> No
     +20.583 %. Un suelo asi no es un suelo.
     """
     assert cuenta_para_el_numero(_guardado(1, firme=False, intentos=0)) is False
-    assert (
-        cuenta_para_el_numero(_guardado(1, firme=False, intentos=REINTENTOS_DE_RESOLUCION)) is False
-    )
+    assert cuenta_para_el_numero(_guardado(1, firme=False, intentos=COMPROBACIONES)) is False
 
 
-def test_un_provisional_sin_intentos_tampoco_cuenta() -> None:
-    """Agotados los intentos tampoco, igual que antes: se enseña, no promedia."""
-    venta = _guardado(1, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1)
+def test_un_provisional_sin_comprobaciones_tampoco_cuenta() -> None:
+    """Gastadas las dos tampoco. Y desde el 2026-11-08 esa fila se borra en el
+    barrido siguiente: ver `se_puede_descartar`."""
+    venta = _guardado(1, firme=False, intentos=COMPROBACIONES)
     assert cuenta_para_el_numero(venta) is False
 
 
@@ -811,7 +821,7 @@ def test_el_abandonado_se_enseña_pero_no_entra_en_la_media() -> None:
     """Las seis buenas valen 1.000.000; la abandonada, 10. Si entrara en la
     media la hundiria, y la media tiene que seguir siendo 1.000.000."""
     buenas = [_guardado(i, precio=1_000_000) for i in range(1, 9)]
-    tirada = _guardado(99, precio=10, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1)
+    tirada = _guardado(99, precio=10, firme=False, intentos=COMPROBACIONES)
     medidos = _medidos(*buenas, tirada)
 
     estimacion = estimar(medidos)
@@ -825,19 +835,15 @@ def test_el_abandonado_se_enseña_pero_no_entra_en_la_media() -> None:
 def test_el_abandonado_no_le_quita_el_sitio_a_una_buena() -> None:
     """Con seis buenas y una abandonada, las seis que cuentan son las buenas."""
     buenas = [_guardado(i, precio=1_000_000) for i in range(1, 9)]
-    tirada = _guardado(99, precio=9_000_000, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1)
+    tirada = _guardado(99, precio=9_000_000, firme=False, intentos=COMPROBACIONES)
     medidos = _medidos(*buenas, tirada)
     assert sorted(c.venta.ht_player_id for c in medidos if c.cuenta) == [1, 2, 3, 4, 5, 6, 7, 8]
 
 
-def test_con_un_abandonado_se_vuelve_a_salir_a_buscar() -> None:
-    """Cinco buenas y una abandonada no son seis: la abandonada es un hueco
-    con nombre, y dejarla ocupar plaza impediria buscar lo que falta."""
-    cinco = [_guardado(i) for i in range(1, 8)]
-    tirada = _guardado(99, firme=False, intentos=REINTENTOS_DE_RESOLUCION + 1)
-    assert hay_que_buscar(_medidos(*cinco, tirada)) is True
-    # Y con la sexta de verdad, ya no.
-    assert hay_que_buscar(_medidos(*cinco, _guardado(8))) is False
+# AQUI SE COMPROBABA QUE UN ABANDONADO MANDABA A BUSCAR, con `hay_que_buscar`,
+# y las dos cosas se fueron el 2026-11-08. La funcion habia dejado de ser una
+# puerta el 2026-10-26 y el abandonado ya no espera: a las dos comprobaciones
+# se borra.
 
 
 # ---------------------------------------------------------------------------
@@ -888,46 +894,50 @@ def test_cuando_ese_anuncio_se_resuelve_ya_cuenta() -> None:
 
 
 # ---------------------------------------------------------------------------
-# El 100% no caduca
+# TODO CADUCA
 #
-# Regla del usuario, 2026-10-07: «la caducidad solo aplica para el parecido
-# que no es 100%». Un comparable exacto es el mejor dato que puede existir
-# para ese jugador y no hay nada mas fresco que pueda mejorarlo.
+# Decision del usuario, 2026-11-08: «todo lo que entra si debe caducar (24
+# semanas), pero nunca nos debemos quedar con 0 jugadores».
+#
+# DEROGA SU PROPIA REGLA DEL 2026-10-07, «la caducidad solo aplica para el
+# parecido que no es 100%», que vivia aqui con su argumento: un comparable
+# exacto es el mejor dato que puede existir y nada mas fresco puede mejorarlo.
+# Lo que la hace innecesaria es el relevo: sin lista llena no sale nadie, asi
+# que el miedo que el escudo protegia --quedarse sin datos-- ya no existe.
 # ---------------------------------------------------------------------------
 
 
-def test_un_comparable_exacto_no_envejece() -> None:
+def test_un_comparable_exacto_TAMBIEN_envejece() -> None:
+    """Y la marca no lo saca de ningun sitio: sigue siendo el primero."""
     clavado = _guardado(1, semanas=PASADA)
-    assert reemplazable(clavado, AHORA) is True, "la venta SI cumplio su vida"
+    assert caduco(clavado, AHORA) is True
     medido = _medidos(clavado)[0]
     assert medido.peso == 100
-    assert medido.viejo is False, "pero al 100% no cuenta como vieja"
+    assert medido.viejo is True
+    assert estimar([medido]).n == 1, "marcado, pero contando"
 
 
-def test_un_parecido_si_envejece() -> None:
-    """La misma antiguedad, pero al 85%: ese si queda reemplazable."""
+def test_un_parecido_tambien() -> None:
+    """La misma antiguedad y el mismo trato: ya no hay dos reglas."""
     primo = _guardado(1, semanas=PASADA, scoring=18, passing=12, playmaking=7)
     medido = _medidos(primo)[0]
     assert medido.peso < 100
     assert medido.viejo is True
 
 
-def test_la_misma_venta_caduca_para_uno_y_no_para_el_otro() -> None:
-    """El peso es relativo a quien pregunta, asi que la caducidad tambien.
-    Por eso se decide al medir y no al guardar."""
+def test_la_marca_ya_NO_depende_de_quien_pregunte() -> None:
+    """El peso sigue siendo relativo a quien pregunta; la caducidad no.
+
+    Aqui se comprobaba que la misma venta caducaba para uno y no para el otro,
+    porque el escudo del 100 iba con el peso. Sin escudo, la antiguedad es la
+    antiguedad: la misma venta tiene la misma edad para todos.
+    """
     venta = _guardado(1, semanas=PASADA)
     para_el_clavado = _medidos(venta)[0]
     otro = _objetivo(scoring=18, passing=12, playmaking=7)
     para_el_primo = _medidos(venta, objetivo=otro)[0]
-    assert para_el_clavado.peso == 100 and para_el_clavado.viejo is False
+    assert para_el_clavado.peso == 100 and para_el_clavado.viejo is True
     assert para_el_primo.peso < 100 and para_el_primo.viejo is True
-
-
-def test_un_exacto_viejo_no_manda_a_buscar() -> None:
-    """Seis exactos de hace nueve semanas siguen siendo seis: su turno no
-    deberia gastar ni una peticion."""
-    seis = [_guardado(i, semanas=PASADA) for i in range(1, 9)]
-    assert hay_que_buscar(_medidos(*seis)) is False
 
 
 def test_una_venta_muy_vieja_se_queda_si_no_hay_nada_mejor() -> None:
@@ -946,15 +956,16 @@ def test_una_venta_muy_vieja_se_queda_si_no_hay_nada_mejor() -> None:
     """
     de_veinticinco = _guardado(1, semanas=25, scoring=18, passing=12, playmaking=7)
 
-    # Sigue contando, sigue ocupando plaza y sigue dando numero.
+    # Sigue contando y sigue dando numero, porque no hay con que relevarla:
+    # «nunca nos debemos quedar con 0 jugadores» (2026-11-08).
     medidos = _medidos(de_veinticinco)
     assert len(medidos) == 1
-    assert medidos[0].ocupa is True
+    assert estimar(medidos).n == 1
 
     # Pero esta marcada como vieja, para que la pantalla lo pueda decir y para
-    # que cualquier cosa mas fresca la sustituya en cuanto aparezca.
+    # que cualquier cosa mas fresca la releve en cuanto la lista se llene.
     assert medidos[0].viejo is True
-    assert reemplazable(de_veinticinco, AHORA) is True
+    assert caduco(de_veinticinco, AHORA) is True
 
 
 def _llauge() -> Objetivo:

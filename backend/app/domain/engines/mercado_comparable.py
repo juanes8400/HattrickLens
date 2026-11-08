@@ -36,7 +36,7 @@ no es comparable y no entra.
 Antes de eso había una escalera nuestra de cuatro peldaños más --95, 90, 80 y
 75-- que puntuaba lo que hubo que mover, y una ventana para la terciaria. Se
 fue entera: «solo hay esos dos escalones, el resto ya no los quiero». La
-medición de lo que cuesta está junto a los pesos, en `PESO_QUE_NO_CADUCA`.
+medición de lo que cuesta está escrita junto a los pesos.
 
 EL SELLO SE MIDIÓ, no se supuso (2026-10-10). Salió de sondear el Comparador
 del propio juego --unas 460 consultas a su panel «Editar búsqueda», repartidas
@@ -70,26 +70,28 @@ ORDEN_DE_DESEMPATE: tuple[str, ...] = (
 
 _RANGO = {habilidad: puesto for puesto, habilidad in enumerate(ORDEN_DE_DESEMPATE)}
 
-#: Cuántos comparables hacen falta para cerrar la búsqueda y dar un número.
-#: Ocho (2026-10-10, decisión del usuario). Hattrick enseña diez; seis era lo
-#: nuestro de antes. Ocho es el punto que eligió entre parecerse a él y no
-#: disparar la cuota, que es lo que de verdad cuesta cada plaza más.
-OBJETIVO = 8
-
-#: Cuantos anuncios SIN NINGUNA PUJA se enseñan como mucho en la tabla de un
-#: jugador. Hace falta desde el 2026-11-07, el dia que se empezaron a guardar.
+#: CUÁNTOS DATOS SE QUIEREN POR JUGADOR: TREINTA (2026-11-08, decisión del
+#: usuario, el día que rehízo el algoritmo entero). Antes eran ocho.
 #:
-#: No cambia ningun numero: un anuncio a cero no ocupa plaza ni cuenta para la
-#: media, y esto es solo cuantos de ellos se pintan. Pero sin tope la tabla se
-#: hunde: el barrido es diario, cada barrido trae decenas de anuncios parecidos
-#: a alguien de la plantilla, y en siete semanas la tabla de un jugador serian
-#: cientos de filas muertas delante de sus ocho comparables de verdad.
+#: NO ES UNA PUERTA NI UN RECORTE: es un tope y un objetivo. Por debajo de 30
+#: sólo se suma --«si nos faltan, entonces agregar», y si llegan comparables
+#: entran todos--. Al llegar a 30 empieza el relevo, que es lo único que saca a
+#: alguien de la lista. «Ya no quiero cortes, si muchos jugadores pueden entrar
+#: como comparables, entran.»
 #:
-#: Ocho, como `OBJETIVO`: tantos anuncios a cero como comparables de verdad
-#: caben. Se enseñan los que mas se parecen, que es el orden que ya tenian.
-SIN_PUJA_QUE_SE_ENSENAN = OBJETIVO
+#: Y YA NO MIDE LA CONFIANZA. Hasta hoy el mismo ocho hacía dos trabajos:
+#: decidía a quién se recortaba y rotulaba «este número sale de 3 ventas, no de
+#: 8». El segundo se fue con él --«sólo se dice n», decisión suya del mismo
+#: día-- porque un objetivo de recogida no es un umbral de fiabilidad, y
+#: presentarlo como tal haría leer un precio de 29 ventas como flojo.
+#:
+#: AQUÍ VIVÍA TAMBIÉN `SIN_PUJA_QUE_SE_ENSENAN`, el tope de anuncios a cero que
+#: se pintaban en la tabla. Se fue el mismo día con su motivo: la tabla es sólo
+#: de ventas con precio --«si no promedia, no es fila»-- así que ya no hay
+#: ninguna fila muerta que limitar.
+OBJETIVO_DE_DATOS = 30
 
-#: Cuánto vive un dato antes de volverse reemplazable. No se borra al
+#: Cuánto vive un dato antes de quedar marcado como viejo. No se borra al
 #: cumplirlo: queda a la espera de que algo mejor lo sustituya, y si no
 #: aparece nada se queda, porque un dato viejo informa más que ninguno.
 #:
@@ -97,7 +99,7 @@ SIN_PUJA_QUE_SE_ENSENAN = OBJETIVO
 #: Es la regla que él fija, y además cuadra con lo único que se midió del juego:
 #: el comparable más viejo que Hattrick usa para Moisés Llauge es del 15 de
 #: abril, unas VEINTICINCO semanas, y lo sigue metiendo en su promedio. Con
-#: siete semanas estábamos tirando por reemplazable lo que el propio juego
+#: siete semanas estábamos marcando por viejo lo que el propio juego
 #: considera vigente.
 #:
 #: Y CUESTA POCO, porque caducar no borra: una venta vieja sólo deja paso
@@ -135,36 +137,24 @@ EDAD_MINIMA = 17
 #: con el plazo desviado trece segundos--.
 MARGEN_TRAS_EL_PLAZO = timedelta(0)
 
-#: Hasta cuándo se le sigue preguntando a una venta por su precio: TRES DÍAS
-#: desde el cierre de la subasta (2026-10-26, decisión del usuario: «resolverlo
-#: a los 3 días; lo que fue, fue»).
+#: CUÁNTAS VECES SE COMPRUEBA SI UNA VENTA SE CERRÓ: DOS (2026-11-08,
+#: decisión del usuario: «vamos a revisar solamente 2 veces en el tiempo en el
+#: que se supone que ya se vendieron»).
 #:
-#: ES UN PLAZO Y NO UNA CUENTA DE INTENTOS, y la diferencia importa. Los
-#: intentos van a uno por día, pero sólo se gastan cuando hay sincronización:
-#: cinco intentos de alguien que entra una vez por semana son cinco semanas de
-#: fila pendiente. El plazo mide lo que el usuario dijo --días desde el
-#: cierre-- y no depende de cuánto entre nadie.
+#: SON DOS SINCRONIZACIONES REALES, NO DOS DÍAS DE RELOJ, y toda la diferencia
+#: está ahí. Aquí vivía `VENTANA_DE_RESOLUCION = 3 días`, un plazo contado
+#: desde el cierre que se cumplía solo, estuviera la aplicación abierta o no.
 #:
-#: Y NO SE PIERDE NADA AL RENDIRSE. La venta se queda con su puja, que es lo
-#: que ya tenía, y sigue contando como comparable provisional. Con puja la
-#: venta está garantizada en Hattrick, así que no encontrarla a los tres días
-#: no es que no ocurriera: es que no la vamos a ver. La puja se queda corta
-#: --Valerio Cataldi: 65.000.000 de puja, 77.720.000 de cierre-- y por eso la
-#: pantalla sigue diciendo que ese número es provisional.
-VENTANA_DE_RESOLUCION = timedelta(days=3)
-
-#: Cuántas veces se reintenta una resolución que no encontró la venta.
+#: LO QUE ESO COSTÓ, medido el 2026-11-08 sobre la copia local: de 22 ventas
+#: con puja sin resolver, 20 habían pasado el plazo, y DIECIOCHO de esas 20
+#: tenían cero intentos. No es que fallaran: es que nunca se les preguntó. El
+#: plazo se les cumplió mientras nadie miraba, y quedaron en el peor estado
+#: posible --sin precio, sin borrarse y ocupando sitio--.
 #:
-#: Eran dos intentos hasta el 2026-10-07, con el argumento de que insistir
-#: sería gastar llamadas en balde. El argumento estaba del revés: con puja
-#: la venta está GARANTIZADA, así que no encontrarla no significa que no
-#: exista, significa que todavía no la hemos visto. Insistir no gasta en
-#: balde, espera a que Hattrick la registre.
-#:
-#: Comprobado ese día con Guido Bernacki: entró con 4.990.000 de puja y
-#: plazo 11:01:13Z, cerró, y el traspaso apareció con plazo 11:01:00Z
-#: --trece segundos-- y precio 5.090.000.
-REINTENTOS_DE_RESOLUCION = 5
+#: Contando comprobaciones, esas dieciocho conservan sus dos intactas. Una
+#: llamada que no llegó --CHPP caído-- no gasta comprobación: lo que se cuenta
+#: es lo que sabemos de la venta, y una llamada que no salió no sabe nada.
+COMPROBACIONES = 2
 
 
 class Perfilado(Protocol):
@@ -224,13 +214,12 @@ PESO_DEL_CLAVADO = 100
 #: mueve con ella.
 PESO_DE_HATTRICK = 90
 
-#: Por encima de esto un comparable no caduca. Ahora es sólo uno, el clavado:
-#: es el único que no puede mejorarse con nada más fresco. El sello sí caduca
-#: desde que vale 90, y es la consecuencia directa de su propia definición
-#: --«no es exactamente el mismo jugador»--: a un avalado todavía le puede
-#: salir un clavado que lo sustituya, así que no tiene por qué quedarse para
-#: siempre.
-PESO_QUE_NO_CADUCA = 100
+# AQUÍ VIVÍA `PESO_QUE_NO_CADUCA = 100`, y lo derogó el usuario el 2026-11-08:
+# «todo lo que entra sí debe caducar (24 semanas), pero nunca nos debemos
+# quedar con 0 jugadores». Desde el 2026-10-07 el clavado era inmune, con su
+# argumento --«es el mejor dato que puede existir y no hay nada más fresco que
+# pueda mejorarlo»--, y lo que lo hace innecesario es el relevo: sin lista
+# llena no sale nadie, así que el miedo que el escudo protegía ya no existe.
 
 # SÓLO HAY DOS PESOS, y aquí ya no hay escalera. Se fue entera el 2026-10-27
 # --«solo hay esos dos escalones, el resto ya no los quiero»-- con sus cuatro
@@ -401,12 +390,10 @@ class Comparable:
     #: Falso tambien cuando no tenemos las siete habilidades de la venta, que
     #: es el caso de todo lo guardado antes del 2026-10-10.
     avalado_por_hattrick: bool = False
-    #: Si ocupa una de las seis plazas del fondo. NO es lo mismo que contar:
-    #: una subasta abierta con puja ocupa --se está vigilando y va a
-    #: convertirse en venta-- pero no promedia hasta que cierre. Si fueran lo
-    #: mismo, el fondo no se llenaría nunca buscando, porque una búsqueda
-    #: encuentra anuncios y no ventas cerradas.
-    ocupa: bool = True
+    # AQUÍ VIVÍA `ocupa`, y se fue con el recorte el 2026-11-08. Decía si una
+    # venta ocupaba plaza del fondo sin contar para la media, y existía para
+    # dos cosas que ya no existen: el corte por peso y la puerta de la
+    # búsqueda. Sin nada que recortar, no hay plazas que ocupar.
 
 
 @dataclass(frozen=True, slots=True)
@@ -420,16 +407,12 @@ class Estimacion:
     provisionales: int
     comparables: tuple[Comparable, ...]
 
-    @property
-    def suficiente(self) -> bool:
-        """Si el número se apoya en `OBJETIVO` ventas o más.
-
-        DEJÓ DE SIGNIFICAR «HAY NÚMERO» el 2026-10-26, y la distinción es toda
-        la gracia: desde que se da número con lo que haya, esto pasa a ser lo
-        que la pantalla necesita para avisar de que el número es flojo. Antes
-        las dos cosas coincidían porque por debajo de ocho no había número.
-        """
-        return self.n >= OBJETIVO
+    # AQUÍ VIVÍA `suficiente`, «el número se apoya en ocho ventas o más», y se
+    # fue el 2026-11-08 con el ocho entero. La pantalla ya no compara `n` con
+    # ningún objetivo: dice «este número sale de N ventas» y para. Decisión del
+    # usuario, y es coherente: un objetivo de recogida --ahora 30-- no es un
+    # umbral de fiabilidad, y usarlo de umbral haría leer como flojo un precio
+    # apoyado en veintinueve ventas reales.
 
 
 def terna(skills: Mapping[str, int]) -> tuple[Rasgo, Rasgo, Rasgo] | None:
@@ -806,15 +789,33 @@ def cosecha(
     return con_puja, sin_puja
 
 
-def reemplazable(venta: Guardado, ahora: datetime) -> bool:
-    """Si ya cumplió su vida y puede dejar paso a algo más fresco.
+def fecha_de_la_venta(venta: Guardado) -> datetime:
+    """Cuándo se pagó este precio.
 
-    Cumplirla no la borra. Una venta de hace dos meses sigue informando más
-    que ninguna, así que se queda mientras no haya con qué sustituirla. El
-    propio Hattrick hace eso: se le midió usando una venta de veinticinco
-    semanas por no tener nada mejor.
+    EL PLAZO Y NO `visto_el` (2026-11-08). El plazo es la hora de cierre que
+    publica Hattrick, o sea el instante en que ese dinero cambió de manos; el
+    `visto_el` es cuándo pasamos nosotros por delante del anuncio. Lo que
+    envejece es el precio pagado, así que la caducidad y el orden se cuentan
+    desde el plazo. Sin plazo --fila vieja o incompleta-- queda `visto_el`,
+    que es lo único que hay.
     """
-    return _aware(ahora) - _aware(venta.visto_el) >= VIDA
+    return _aware(venta.plazo) if venta.plazo is not None else _aware(venta.visto_el)
+
+
+def caduco(venta: Guardado, ahora: datetime) -> bool:
+    """Si ya pasó sus 24 semanas.
+
+    CUMPLIRLO NO SACA A NADIE. Es una marca, no una expulsión: «mientras no
+    haya una persona, un jugador que haya entrado dentro de la
+    caracterización, esa persona puede seguir así tenga más de 24 semanas»
+    --usuario, 2026-11-08--. Lo único que saca a alguien de la lista es el
+    relevo de `comparables_de`, y ése sólo actúa con la lista llena.
+
+    Antes se llamaba `reemplazable` y contaba desde `visto_el`. El nombre
+    mentía por partida doble: no autorizaba ningún reemplazo, y medía la edad
+    del anuncio en vez de la del precio.
+    """
+    return _aware(ahora) - fecha_de_la_venta(venta) >= VIDA
 
 
 def comparables_de(
@@ -832,9 +833,9 @@ def comparables_de(
     queda antes el más reciente, luego el más caro, y en el último empate el
     que comparte especialidad con tu jugador.
 
-    Se devuelven los `OBJETIVO` mejores Y todos los que empaten en peso con el
-    último, porque cuantos más datos haya mejor se describe el mercado: si un
-    escalón trajo diez comparables igual de buenos, cuentan los diez.
+    Se devuelven los `OBJETIVO_DE_DATOS` mejores de entre las ventas CERRADAS,
+    y detrás las que siguen en stand-by, que no son filas de la tabla pero hay
+    que contarlas para la pastilla.
     """
     medidos: list[Comparable] = []
     for venta in fondo:
@@ -845,94 +846,63 @@ def comparables_de(
             Comparable(
                 venta=venta,
                 peso=peso,
-                # EL 100% NO CADUCA NUNCA (2026-10-07, regla del usuario).
-                # Un comparable exacto --misma edad y las tres habilidades
-                # clavadas-- es el mejor dato que puede existir para este
-                # jugador, y no hay nada «más fresco» que pueda mejorarlo;
-                # dejarlo caducar seria tirar lo bueno esperando lo que no
-                # va a venir. La caducidad existe para los parecidos, que
-                # envejecen porque el mercado de su alrededor cambia.
+                # TODO CADUCA DESDE EL 2026-11-08, regla del usuario. Hasta
+                # ese día el clavado era inmune --«el 100% no caduca nunca»,
+                # 2026-10-07-- y la marca sólo salía en los avalados.
                 #
-                # Se decide AQUI y no en `reemplazable` porque el peso es
-                # relativo a quien pregunta: la misma venta puede ser un
-                # 100% para uno y un 75% para su companero, y entonces
-                # caduca para el segundo y no para el primero.
-                viejo=peso < PESO_QUE_NO_CADUCA and reemplazable(venta, ahora),
+                # Y SIGUE SIENDO SÓLO UNA MARCA: no saca a nadie. Lo que saca
+                # es el relevo, y el relevo necesita la lista llena.
+                viejo=caduco(venta, ahora),
                 avalado_por_hattrick=lo_ensenaria_hattrick(venta, objetivo),
                 cuenta=cuenta_para_el_numero(venta),
-                ocupa=ocupa_plaza(venta),
             )
         )
     medidos.sort(
         key=lambda c: (
             -c.peso,
-            -_aware(c.venta.visto_el).timestamp(),
+            -fecha_de_la_venta(c.venta).timestamp(),
             -c.venta.precio,
             0 if c.venta.especialidad == objetivo.especialidad else 1,
         )
     )
-    # La selección se hace SÓLO entre las que OCUPAN PLAZA, para que una
-    # abandonada no le quite el sitio a una buena ni engañe al recorrido
-    # haciéndole creer que ya tiene bastantes. Las demás se añaden al
-    # final: siguen enseñándose, marcadas.
+    # EL RELEVO, y es todo lo que queda de la selección (2026-11-08).
     #
-    # Ocupar plaza NO es contar para la media (2026-10-09). Una subasta
-    # abierta con puja ocupa --es material del fondo, se vigila, y va a
-    # convertirse en una venta-- pero no promedia hasta que cierre. Antes era
-    # lo mismo, y al separar las dos cosas hubo que separar los criterios: si
-    # la selección mirara sólo lo que cuenta, el fondo no se daría nunca por
-    # lleno --una búsqueda encuentra anuncios, nunca ventas cerradas-- y cada
-    # turno gastaría los cinco escalones de todos los jugadores para siempre.
-    ocupan = [c for c in medidos if c.ocupa]
-    sobran = [c for c in medidos if not c.ocupa]
-    if len(ocupan) > OBJETIVO:
-        corte = ocupan[OBJETIVO - 1].peso
-        ocupan = [c for c in ocupan if c.peso >= corte]
-    # LOS ANUNCIOS A CERO, CON TOPE (2026-11-07). Desde hoy se guardan, y son
-    # muchos: el barrido es diario y cada pasada trae decenas. Sin tope
-    # entrarian todos en `sobran` y la tabla seria una lista de anuncios
-    # muertos por delante de los ocho comparables de verdad.
+    # Su regla, en sus palabras: «Nuestro objetivo sí debe ser obtener hasta 30
+    # datos. Si nos faltan, entonces agregar. Si ya tenemos 30 y llega el 31,
+    # podemos reemplazar por uno que sea 90, si el nuevo es de 100, o
+    # reemplazar el viejo por uno de los nuevos.»
     #
-    # Las pujas abandonadas NO llevan tope, igual que ayer: son pocas --una
-    # puja garantiza la venta, asi que casi todas se resuelven-- y cada una
-    # conserva un dato, que alguien ofrecio ese dinero por alguien asi.
-    muertos: list[Comparable] = []
-    resto: list[Comparable] = []
-    for c in sobran:
-        destino = muertos if (nunca_tuvo_puja(c.venta) and not c.venta.firme) else resto
-        destino.append(c)
-    return (*ocupan, *resto, *muertos[:SIN_PUJA_QUE_SE_ENSENAN])
+    # ESO ES EXACTAMENTE QUEDARSE CON LOS 30 PRIMEROS DE ESTE ORDEN, y conviene
+    # que esté escrito por qué, porque la regla suya es incremental y ésta no.
+    # Un recién llegado entra, bajo su regla, sólo si puede desplazar a alguien
+    # PEOR: de menos peso, o del mismo peso y más viejo. Y desplaza justo a ese
+    # peor. Aplicado una y otra vez, lo que queda es el top 30 por (peso, luego
+    # frescura) --que es este orden-- sin necesidad de recordar en qué momento
+    # llegó cada uno. Se le preguntó el caso límite el 2026-11-08: con 30
+    # clavados frescos y un avalado nuevo llamando a la puerta, el avalado NO
+    # entra, porque no hay nadie peor que él. Que es lo que hace el corte a 30.
+    #
+    # AQUÍ VIVÍA EL CORTE POR PESO, y es lo que él vino a quitar: cuando ocho
+    # comparables pesaban 100, expulsaba a TODOS los de 90 aunque fueran ventas
+    # reales que Hattrick enseñaría. Medido sobre un caso de doce: la media
+    # pasaba de 150.000 a 141.923 al dejarlos entrar.
+    #
+    # Y LA LISTA ES SÓLO DE VENTAS CON PRECIO (su regla del 2026-11-07, «si no
+    # promedia, no es fila»). Las de stand-by van detrás, fuera del tope: no se
+    # pintan, pero `estimar` las cuenta para decir cuántas están esperando su
+    # precio.
+    cerradas = [c for c in medidos if c.venta.firme][:OBJETIVO_DE_DATOS]
+    en_stand_by = [c for c in medidos if not c.venta.firme]
+    return (*cerradas, *en_stand_by)
 
 
-def ocupa_plaza(venta: Guardado) -> bool:
-    """Si esta venta es material util del fondo, cuente o no para la media.
-
-    Separado de `cuenta_para_el_numero` el 2026-10-09, cuando la media paso a
-    ser solo de ventas cerradas. Son dos preguntas distintas:
-
-    · «¿Entra en el numero?»  -> solo si ya se vendio.
-    · «¿Ocupa una de las seis plazas, y por tanto evita salir a buscar mas?»
-      -> tambien una subasta abierta con puja, porque es material que se esta
-      vigilando y que va a convertirse en una venta.
-
-    Si fueran la misma pregunta, el fondo no se daria por lleno NUNCA: una
-    busqueda en el mercado encuentra anuncios, no ventas cerradas, asi que
-    cada turno gastaria los cinco escalones de cada jugador indefinidamente.
-
-    UN ANUNCIO QUE NADIE HA PUJADO NO OCUPA NADA. Su precio llega a cero,
-    porque cero es lo que vale `HighestBid` sin pujas. El 2026-10-07, mirando
-    a Kurt Schonhueb, el mercado no tenia ni un comparable con puja y si ocho
-    anuncios sin ella; dejarles ocupar plaza habria impedido salir a buscar lo
-    que de verdad faltaba.
-
-    Y uno al que se le agotaron los intentos de resolucion tampoco: es un
-    hueco con nombre, y su plaza tiene que quedar libre.
-    """
-    if venta.firme:
-        return True
-    if venta.precio <= 0:
-        return False
-    return venta.intentos <= REINTENTOS_DE_RESOLUCION
+# AQUÍ VIVÍA `ocupa_plaza`, y se fue el 2026-11-08 con el recorte.
+#
+# Respondía a «¿ocupa una de las ocho plazas del fondo, y por tanto evita salir
+# a buscar más?», que era distinta de «¿entra en el número?»: una subasta
+# abierta con puja ocupaba sin promediar. Las dos cosas que la usaban --el
+# corte por peso y la puerta de la búsqueda-- ya no existen, así que no hay
+# plazas, y lo único que se pregunta de una venta es si tiene precio.
 
 
 def nunca_tuvo_puja(venta: Guardado) -> bool:
@@ -961,7 +931,7 @@ def es_una_puja_abierta(venta: Guardado) -> bool:
     que `provisionales` se contaba con un `not venta.firme` y decia la verdad.
 
     Ya no: el barrido es diario y cada pasada trae decenas de anuncios a cero,
-    de los que se guardan hasta `SIN_PUJA_QUE_SE_ENSENAN` por jugador. Con el
+    y todos se guardan. Con el
     criterio viejo, un jugador sin UNA sola puja a su alrededor veria «8 pujas
     abiertas, fuera del numero», que es exactamente lo contrario de lo que
     pasa. Y desde hoy esas filas tampoco se enseñan --decision del usuario:
@@ -976,39 +946,35 @@ def es_una_puja_abierta(venta: Guardado) -> bool:
 
 
 def se_puede_descartar(venta: Guardado, ahora: datetime | None = None) -> bool:
-    """Si este anuncio sin pujas ya se puede borrar del fondo.
+    """Si esta venta ya se puede borrar del fondo. A LAS DOS COMPROBACIONES.
 
-    LA OTRA MITAD DE LA DECISION DEL USUARIO (2026-11-07): «buscar todos los
-    jugadores que esten en el mercado, asi sea en 0, y guardarlos para el
-    futuro; descartarlos si al final no se vendieron».
+    DECISIÓN DEL USUARIO (2026-11-08): «Si fueron vendidos, entonces les
+    tomamos el precio. Si no fueron vendidos, simplemente eso se descarta, eso
+    no sirve para nada.» Y se le preguntó expresamente a quién se le aplica:
+    **a cualquiera, con puja o sin ella.**
 
-    Guardar los anuncios a cero es lo que permite cazar al que recibe su puja
-    en la ultima hora. Pero el que nunca la recibio es basura: no ocupa plaza,
-    no cuenta para la media y no va a convertirse en nada. Se le dan las mismas
-    oportunidades de resolucion que a los demas, y cuando se le agotan sin que
-    Hattrick publique traspaso alguno, se borra.
+    DOS COMPROBACIONES, NO DOS DÍAS. `intentos` sólo sube cuando se preguntó de
+    verdad y Hattrick no trajo el traspaso; una llamada que no llegó no cuenta.
+    Así que llegar a dos significa que se le preguntó dos veces y no estaba, no
+    que hayan pasado dos días mirando a otro lado. Eso es lo que mataba antes:
+    18 de 20 filas caducaron con CERO preguntas hechas.
 
-    POR QUE BORRAR Y NO DEJARLO MARCADO, que es lo que se hace con una puja
-    abandonada. Una puja abandonada conserva un dato: alguien ofrecio ese
-    dinero por alguien asi. Un anuncio sin pujas no conserva ninguno --el
-    precio pedido es lo que una persona decidio pedir-- y en cambio ocupa fila
-    para siempre y sale en la tabla. El fondo crece todos los dias desde que el
-    barrido es diario; sin este borrado, en siete semanas la tabla de cualquier
-    jugador serian anuncios muertos.
+    UNA VENTA FIRME NO SE DESCARTA NUNCA. Esa es la que se vino a buscar.
 
-    UNA VENTA FIRME NO SE DESCARTA NUNCA, aunque nunca le vieramos puja. Esa es
-    precisamente la que se vino a buscar.
+    LO QUE SE PIERDE Y ÉL ACEPTÓ: una venta con puja está garantizada por las
+    reglas del juego --medido el 2026-10-07 con Guido Bernacki, cuyo traspaso
+    apareció con el plazo desviado trece segundos-- así que si Hattrick la
+    publica tarde, a la tercera ya no habrá nadie preguntando. Se le planteó
+    con esa cifra delante y eligió el borrado: una fila sin precio no vale
+    nada, y la alternativa era el zombi que ocupaba sitio para siempre.
 
-    `ahora` NO SE USA hoy: los intentos ya sellan el paso del tiempo --uno al
-    dia, y solo despues del cierre-- asi que pasados los reintentos el anuncio
-    lleva por definicion dias muerto. Se queda en la firma porque el dia que el
-    criterio quiera mirar el reloj de verdad, quien llama no tiene que cambiar.
+    `ahora` NO SE USA. Las comprobaciones ya sellan el paso del tiempo --una al
+    día, y sólo después del cierre--. Se queda en la firma porque el día que el
+    criterio quiera mirar el reloj, quien llama no tiene que cambiar.
     """
     if venta.firme:
         return False
-    if not nunca_tuvo_puja(venta):
-        return False
-    return venta.intentos > REINTENTOS_DE_RESOLUCION
+    return venta.intentos >= COMPROBACIONES
 
 
 def cuenta_para_el_numero(venta: Guardado) -> bool:
@@ -1036,11 +1002,6 @@ def cuenta_para_el_numero(venta: Guardado) -> bool:
     ventas con el plazo pasado esperando resolucion, y cada paso del mercado
     convierte varias en cerradas.
 
-    Y EMPUJA EN LA DIRECCION BUENA. Esto gobierna tambien `hay_que_buscar`:
-    con menos comparables contando, el turno sale a buscar para casi todos en
-    vez de darse por satisfecho, que es justo lo que llena el fondo de ventas
-    cerradas.
-
     Las pujas NO se tiran: siguen en el fondo, se siguen vigilando y se
     siguen enseñando en la tabla marcadas como lo que son. Lo unico que no
     hacen es promediar.
@@ -1052,7 +1013,7 @@ def estimar(comparables: Sequence[Comparable]) -> Estimacion:
     """La media y la mediana, las dos ponderadas por parecido.
 
     CON LO QUE HAYA (2026-10-26, decisión del usuario: «precio con los que
-    hayan»). Hasta ese día, por debajo de `OBJETIVO` ventas no se daba número:
+    hayan»). Hasta ese día, por debajo de ocho ventas no se daba número:
     sólo la lista y un «faltan tantas».
 
     Lo cambió al quitar la búsqueda ampliada, y es la consecuencia directa de
@@ -1061,10 +1022,10 @@ def estimar(comparables: Sequence[Comparable]) -> Estimacion:
     número apoyado en tres ventas no es tan bueno como uno de ocho, pero es
     muchísimo mejor que ninguno, que es lo que informa cero.
 
-    LO QUE NO SE PIERDE: `n` dice sobre cuántas se hizo y `suficiente` dice si
-    llegan a ocho, así que la pantalla puede seguir avisando de que el número
-    es flojo. Lo que se quita es la decisión de NO RESPONDER, que era nuestra y
-    no suya.
+    LO QUE NO SE PIERDE: `n` dice sobre cuántas se hizo, y eso es lo que la
+    pantalla enseña --«este número sale de 3 ventas»--. Lo que se quita es la
+    decisión de NO RESPONDER, que era nuestra y no suya. Y desde el 2026-11-08
+    `n` va solo, sin objetivo al lado: ver `OBJETIVO_DE_DATOS`.
 
     Sin ni una venta cerrada sigue sin haber número, y eso no es una regla sino
     aritmética: no hay nada que promediar.
@@ -1128,23 +1089,27 @@ def _mediana_ponderada(comparables: Sequence[Comparable]) -> int:
 
 
 def se_puede_resolver(plazo: datetime | None, ahora: datetime) -> bool:
-    """Si ya ha cerrado la subasta y todavía estamos a tiempo de preguntar.
+    """Si ya cerró la subasta y por tanto se le puede preguntar su precio.
 
-    Dos bordes, uno por cada lado:
+    UN SOLO BORDE DESDE EL 2026-11-08, y el de abajo: antes del cierre no hay
+    nada que preguntar, y preguntar a ciegas gastaría una llamada por cada
+    comprobación. Sin margen de espera: «busca en cuanto tengas anotado que la
+    subasta termina», y el plazo es dato de Hattrick, no estimación nuestra.
 
-    · ANTES DEL CIERRE no hay nada que preguntar, y preguntar a ciegas gastaría
-      una llamada por cada intento.
-    · PASADOS TRES DÍAS se deja de preguntar, «lo que fue, fue». La venta se
-      queda con su puja y sigue contando como provisional.
+    SE FUE EL BORDE DE ARRIBA, que era `VENTANA_DE_RESOLUCION`: tres días de
+    reloj desde el cierre y «lo que fue, fue». El usuario lo cambió por un
+    recuento de comprobaciones --ver `COMPROBACIONES`-- porque el plazo de
+    reloj se cumplía solo, sin preguntar. Con esto, una venta sigue siendo
+    candidata hasta que gaste sus dos comprobaciones, por mucho que tarde en
+    abrirse la aplicación: «Cualquier 2 sincronizaciones que hayan sucedido
+    después de las 3 de la tarde... solo 2.»
 
-    Sin plazo no se puede saber ninguna de las dos cosas, así que no se
-    pregunta.
+    Sin plazo no se puede saber si cerró, así que no se pregunta. Esa fila no
+    tiene salida y la borra `se_puede_descartar` en cuanto gaste sus dos.
     """
     if plazo is None:
         return False
-    cierre = _aware(plazo)
-    momento = _aware(ahora)
-    return cierre + MARGEN_TRAS_EL_PLAZO <= momento <= cierre + VENTANA_DE_RESOLUCION
+    return _aware(plazo) + MARGEN_TRAS_EL_PLAZO <= _aware(ahora)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1232,26 +1197,11 @@ def le_toca_hoy(sello: datetime | None, ahora: datetime) -> bool:
     return _aware(sello).astimezone(UTC).date() < _aware(ahora).astimezone(UTC).date()
 
 
-def hay_que_buscar(comparables: Sequence[Comparable]) -> bool:
-    """Si en su turno hay algo que hacer: CUANDO NOS QUEDAMOS SIN DATOS.
-
-    Decisión del usuario, 2026-10-09. Antes esto devolvía `True` también
-    cuando alguno de los seis había caducado, y entonces el turno se gastaba
-    entero buscando con qué sustituirlo. Ya no: lo que dispara la búsqueda
-    ancha es no tener bastantes, y el refresco lo lleva el calendario --el
-    exacto cada seis días, los anchos cada cinco semanas--.
-
-    Lo que eso significa, y es el precio de la decisión: un comparable puede
-    cumplir sus veinticuatro semanas de vida y seguir usándose hasta que a su jugador
-    le toquen los anchos otra vez, hasta cinco semanas después. Un dato viejo
-    informa más que ninguno, que es la misma razón por la que no se borra al
-    caducar.
-
-    Se miran sólo las que OCUPAN PLAZA. Una abandonada no es un dato, es un
-    hueco con nombre, y dejar que ocupe plaza impediría salir a buscar lo que
-    de verdad falta.
-    """
-    return sum(1 for c in comparables if c.ocupa) < OBJETIVO
+# AQUÍ VIVÍA `hay_que_buscar`, «¿me faltan comparables?», y se fue el
+# 2026-11-08. Había dejado de ser una puerta el 2026-10-26 --desde entonces el
+# turno busca siempre-- y sólo quedaba de bandera para el informe. Con el ocho
+# derogado no le queda ni umbral con el que comparar: el objetivo son 30, los
+# junta el mercado a su ritmo, y eso no es algo que la aplicación decida.
 
 
 def _franja(rasgo: Rasgo, abajo: int, arriba: int) -> Franja:
