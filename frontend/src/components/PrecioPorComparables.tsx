@@ -244,99 +244,43 @@ function salto(puja: number, precio: number): string {
  *  No son fijas porque la terna no lo es: a un delantero se le comparan
  *  anotación, pases y jugadas, y a un defensa otras tres. Como todos los
  *  comparables comparten la terna del objetivo --esa es la definición de
- *  comparable-- `perfil[i]` es la misma habilidad en todas las filas. */
+ *  comparable-- `perfil[i]` es la misma habilidad en todas las filas.
+ *
+ *  EL ORDEN ES EL QUE DICTÓ EL USUARIO (2026-11-07): «ID, País, Jugador, Se
+ *  parece, Edad, TSI, Forma, Habilidades (1,2,3), Fecha, Precio». Lo dijo dos
+ *  veces, y la segunda --«haz caso a lo último que dije hoy»-- cerró una
+ *  discusión en la que yo defendía otras dos cosas. Quedan escritas porque
+ *  perdieron por decisión suya y no por estar mal, así que si alguna vez se
+ *  vuelve sobre esto, se vuelve sabiendo qué se descartó:
+ *
+ *  · EL PRECIO IBA PRIMERO, desde el 2026-10-07, con el argumento de que es
+ *    la respuesta de la tabla y que empezar por el identificador entierra lo
+ *    que se vino a ver. Él lo puso último las dos veces.
+ *  · TSI Y FORMA IBAN DETRÁS DE LAS HABILIDADES, agrupando «por esto se
+ *    parece» (Se parece, Edad, las tres habilidades) y luego «esto no entra»
+ *    (TSI, Forma, Especialidad), que es lo que el propio pie del panel
+ *    declara. Él las puso delante.
+ *
+ *  Y DOS COLUMNAS DE DINERO SE FUERON con ese orden, porque su lista nombra
+ *  UNA, «Precio»:
+ *
+ *  · «Puja detectada», la puja con la que entró. Existía para enseñar el
+ *    salto hasta el cierre --Cataldi +16%-- y ese salto no se pierde: sigue
+ *    en verde al lado del precio, que es donde de verdad se lee.
+ *  · «Pedía», lo que pedía el vendedor. El DATO NO SE PIERDE --se sigue
+ *    guardando en `market_sales.asking_price` desde la migración 0112, que es
+ *    lo que él pidió: «guardar el precio inicial, para analizar la relación
+ *    entre precio inicial, final y horario»-- pero deja de ocupar columna.
+ *    Ese análisis no era esta tabla.
+ *
+ *  `Especialidad` no estaba en su lista ninguna de las dos veces. Se queda,
+ *  porque la pidió por su nombre el 2026-10-09, y va junto a TSI y Forma: es
+ *  del mismo grupo, lo que describe al jugador sin entrar en el parecido. */
 function columnasDe(
   perfil: RasgoVisible[],
   moneda: string,
 ): Column<ComparableDeMercado>[] {
   return [
-    // El precio va primero aunque no estuviera en el orden que pidió el
-    // usuario (2026-10-07): es la respuesta de la tabla, y una tabla de
-    // precios que empieza por el identificador entierra lo que se vino a
-    // ver. El resto va exactamente como lo pidió.
-    // DOS COLUMNAS Y NO UNA (2026-10-07, pedido del usuario). Antes había
-    // un solo número que cambiaba de significado al resolverse --puja hasta
-    // que cerraba, precio de verdad después-- y el salto entre los dos se
-    // perdía. Ese salto es el dato que dice cuánto se queda corta una puja:
-    // Cataldi +16%, Bernacki +2%, siempre hacia arriba.
-    {
-      key: "puja",
-      header: tx("Puja detectada"),
-      align: "right",
-      value: (f) => f.puja,
-      // EN LA FILA PROPIA, NADA. Tu jugador no esta en venta: no tiene puja,
-      // ni precio, ni plazo, ni antiguedad. Un cero ahi se leeria como «vale
-      // cero», que es justo lo contrario de lo que dice.
-      // RAYA Y NO «0 US$» CUANDO NO VIMOS NINGUNA (2026-11-07). Es el caso del
-      // 472301981: se vendió de verdad y para nosotros estuvo a cero hasta el
-      // final. Un «0 US$» en esta columna se lee como «alguien ofreció cero»,
-      // y lo que pasó es que la subasta se movió entre dos barridos nuestros.
-      render: (f) =>
-        f.propio || f.sinPuja ? (
-          <span className="text-[var(--muted)]">—</span>
-        ) : (
-          <span className="tabular-nums text-[var(--muted)]">
-            {money(f.puja, moneda)}
-          </span>
-        ),
-    },
-    {
-      key: "precio",
-      header: tx("Se pagó"),
-      align: "right",
-      value: (f) => f.precio,
-      // UN SOLO ESTADO DESDE EL 2026-11-07, porque ya no hay más: la lista es
-      // sólo de ventas cerradas. Aquí vivían tres rótulos --«sin cerrar», «sin
-      // confirmar», «NO PUJA DETECTADA»-- y los tres decían por qué esa fila
-      // no traía precio. Sin esas filas, no hay nada que explicar.
-      //
-      // La raya se queda para la fila del jugador propio: no está en venta, y
-      // un cero ahí diría «vale cero».
-      render: (f) =>
-        f.propio ? (
-          <span className="text-[var(--muted)]">—</span>
-        ) : (
-          <span className="tabular-nums">
-            {money(f.precio, moneda)}
-            {f.puja > 0 && f.precio !== f.puja && (
-              <span className="ml-1 text-xs text-[var(--positive)]">
-                {salto(f.puja, f.precio)}
-              </span>
-            )}
-            {/* UNA VENTA CERRADA A LA QUE NUNCA LE VIMOS PUJA (2026-11-07).
-                Es el caso que el usuario encontro: el 472301981 se vendio de
-                verdad y para nosotros estuvo a cero hasta el final. El sello
-                dice por que no hay salto que enseñar al lado del precio: no es
-                que la puja fuera igual, es que no llegamos a ver ninguna. */}
-            {f.sinPuja && (
-              <span className="ml-1 text-xs text-[var(--muted)]">
-                {tx("sin puja vista")}
-              </span>
-            )}
-          </span>
-        ),
-    },
-    {
-      key: "precioPedido",
-      header: tx("Pedía"),
-      align: "right",
-      value: (f) => f.precioPedido,
-      // LO QUE PEDIA, AL LADO DE LO QUE SE PAGO (2026-11-07, pedido del
-      // usuario: «guardar el precio inicial, para analizar la relacion entre
-      // precio inicial, final y horario»). No es un precio y no promedia; es
-      // la referencia contra la que se lee el cierre.
-      //
-      // Cero NO es gratis, es «no lo sabemos»: toda venta anotada antes de que
-      // hubiera columna. Un 0 US$ ahi diria que el vendedor regalaba.
-      render: (f) =>
-        f.propio || f.precioPedido <= 0 ? (
-          <span className="text-[var(--muted)]">—</span>
-        ) : (
-          <span className="tabular-nums text-[var(--muted)]">
-            {money(f.precioPedido, moneda)}
-          </span>
-        ),
-    },
     {
       key: "htPlayerId",
       header: "ID",
@@ -406,28 +350,6 @@ function columnasDe(
         </span>
       ),
     },
-    ...perfil.map((rasgo, i) => ({
-      key: `habilidad${i}`,
-      header: nombreDeHabilidad(rasgo.habilidad),
-      align: "right" as const,
-      value: (f: ComparableDeMercado) => f.perfil[i]?.nivel ?? 0,
-    })),
-    {
-      key: "especialidad",
-      header: tx("Especialidad"),
-      align: "left",
-      value: (f) => f.especialidad,
-      // EL NOMBRE Y EL ICONO (2026-10-09, pedido del usuario). Antes iba solo
-      // el icono, por sitio: con el nombre al lado, «Sin especialidad» se
-      // partia en dos lineas y estiraba TODA la fila, porque el alto lo manda
-      // la celda mas alta. `whitespace-nowrap` lo evita sin quitar la palabra,
-      // que es lo que el usuario queria leer sin pasar el raton por encima.
-      render: (f) => (
-        <span className="whitespace-nowrap">
-          <Specialty specialty={f.especialidad} />
-        </span>
-      ),
-    },
     {
       key: "tsi",
       header: "TSI",
@@ -457,6 +379,28 @@ function columnasDe(
           <span className="text-[var(--muted)]">—</span>
         ),
     },
+    {
+      key: "especialidad",
+      header: tx("Especialidad"),
+      align: "left",
+      value: (f) => f.especialidad,
+      // EL NOMBRE Y EL ICONO (2026-10-09, pedido del usuario). Antes iba solo
+      // el icono, por sitio: con el nombre al lado, «Sin especialidad» se
+      // partia en dos lineas y estiraba TODA la fila, porque el alto lo manda
+      // la celda mas alta. `whitespace-nowrap` lo evita sin quitar la palabra,
+      // que es lo que el usuario queria leer sin pasar el raton por encima.
+      render: (f) => (
+        <span className="whitespace-nowrap">
+          <Specialty specialty={f.especialidad} />
+        </span>
+      ),
+    },
+    ...perfil.map((rasgo, i) => ({
+      key: `habilidad${i}`,
+      header: nombreDeHabilidad(rasgo.habilidad),
+      align: "right" as const,
+      value: (f: ComparableDeMercado) => f.perfil[i]?.nivel ?? 0,
+    })),
     // AQUÍ VIVÍA «Cierra», y se fue con las subastas abiertas (2026-11-07).
     // Decía cuánto le faltaba a una puja para convertirse en precio --«en 11
     // h», «cerrando»-- y en una venta ya cerrada no le quedaba nada que decir:
@@ -468,13 +412,10 @@ function columnasDe(
       header: tx("Fecha"),
       align: "right",
       // LA FECHA DE LA VENTA, que es columna del Comparador de Transferencias
-      // (2026-11-07, pedido del usuario). «Cierra» dice cuanto FALTA y «Fecha»
-      // dice CUANDO fue: son la misma marca de tiempo leida para dos preguntas
-      // distintas, y la segunda es la que sirve para poner una venta en su
-      // contexto --«esto se pago en septiembre»-- sin restar mentalmente.
-      //
-      // En una subasta todavia abierta es la fecha en que cerrara, y es
-      // honesto: es el dia en que ese precio existira.
+      // (2026-11-07, pedido del usuario). «Cierra» decia cuanto FALTA y
+      // «Fecha» dice CUANDO fue: son la misma marca de tiempo leida para dos
+      // preguntas distintas, y la segunda es la que sirve para poner una venta
+      // en su contexto --«esto se pago en septiembre»-- sin restar mentalmente.
       //
       // Y EN NARANJA SI YA CUMPLIÓ SU VIDA. Esa marca vivía en «Antigüedad»,
       // la columna que el usuario quitó el 2026-11-07 por llamarse «Edad» dos
@@ -498,6 +439,50 @@ function columnasDe(
             }
           >
             {date(f.cierra)}
+          </span>
+        ),
+    },
+    {
+      key: "precio",
+      // «Precio» Y NO «Se pagó» (2026-11-07). El rótulo decía «Se pagó» para
+      // distinguirlo de la puja de al lado, y sin esa columna la distinción no
+      // existe: lo que hay en la tabla son precios pagados y nada más. Él la
+      // llamó «Precio» las dos veces.
+      header: tx("Precio"),
+      align: "right",
+      value: (f) => f.precio,
+      // UN SOLO ESTADO DESDE EL 2026-11-07, porque ya no hay más: la lista es
+      // sólo de ventas cerradas. Aquí vivían tres rótulos --«sin cerrar», «sin
+      // confirmar», «NO PUJA DETECTADA»-- y los tres decían por qué esa fila
+      // no traía precio. Sin esas filas, no hay nada que explicar.
+      //
+      // La raya se queda para la fila del jugador propio: no está en venta, y
+      // un cero ahí diría «vale cero».
+      render: (f) =>
+        f.propio ? (
+          <span className="text-[var(--muted)]">—</span>
+        ) : (
+          <span className="tabular-nums">
+            {money(f.precio, moneda)}
+            {/* EL SALTO DESDE LA PUJA, que es lo único que sobrevive de la
+                columna «Puja detectada»: cuánto subió del momento en que la
+                vimos al cierre. Cataldi +16%, Bernacki +2%, siempre hacia
+                arriba, porque el precio de cierre ES la puja ganadora. */}
+            {f.puja > 0 && f.precio !== f.puja && (
+              <span className="ml-1 text-xs text-[var(--positive)]">
+                {salto(f.puja, f.precio)}
+              </span>
+            )}
+            {/* UNA VENTA CERRADA A LA QUE NUNCA LE VIMOS PUJA (2026-11-07).
+                Es el caso que el usuario encontro: el 472301981 se vendio de
+                verdad y para nosotros estuvo a cero hasta el final. El sello
+                dice por que no hay salto que enseñar al lado del precio: no es
+                que la puja fuera igual, es que no llegamos a ver ninguna. */}
+            {f.sinPuja && (
+              <span className="ml-1 text-xs text-[var(--muted)]">
+                {tx("sin puja vista")}
+              </span>
+            )}
           </span>
         ),
     },
