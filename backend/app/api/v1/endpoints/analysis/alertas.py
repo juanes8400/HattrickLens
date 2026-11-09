@@ -41,6 +41,7 @@ from app.domain.engines.training_engine import (
 )
 from app.domain.value_objects.ht_constants import (
     FRIENDLY_MATCH_TYPES,
+    MATCH_TYPE_CUP,
     NON_OFFICIAL_MATCH_TYPES,
     training_target,
 )
@@ -500,8 +501,58 @@ async def _lo_del_amistoso(
     while ranura is not None and ranura <= ahora:
         ranura += timedelta(days=7)
     return ins.amistoso_sin_programar(
-        ultimo, ranura, ya_programado=programado is not None, ahora=ahora
+        ultimo,
+        ranura,
+        ya_programado=programado is not None,
+        ahora=ahora,
+        en_copa=await _sigue_en_copa(session, team, ahora),
     )
+
+
+async def _sigue_en_copa(session: AsyncSession, team: m.Team, ahora: datetime) -> bool:
+    """Si el hueco de entre semana está ocupado por la copa.
+
+    CUALQUIERA DE LAS DOS BASTA: la bandera `still_in_cup` de `teamdetails`, o
+    un partido de copa ya programado. No es «la bandera y si acaso lo otro»:
+    es un O, y el orden importa poco porque las dos dicen que sí.
+
+    POR QUÉ UN O Y NO LA BANDERA SOLA (2026-11-08). Lo dijo el usuario en el
+    peor momento posible para la versión anterior, que ponía la bandera por
+    delante: «pero ya estoy en la Copa de esta temporada», el día en que su
+    temporada cambia. Entre quedar eliminado en agosto y que Hattrick sortee
+    la copa de la temporada siguiente hay una ventana en la que la bandera
+    todavía dice que NO --es cierta, para la copa que terminó-- y el equipo ya
+    tiene su primer cruce de la nueva en el calendario. En esa ventana la
+    bandera sola dejaba salir el aviso justo cuando el hueco estaba ocupado,
+    que es el caso que vino a arreglar.
+
+    Y UN PARTIDO PROGRAMADO ES MEJOR PRUEBA QUE LA BANDERA para esta pregunta
+    concreta. La bandera contesta «¿sigues vivo en la competición?»; lo que
+    aquí importa es «¿tienes el miércoles ocupado?», y un cruce con fecha lo
+    contesta directamente. Por eso esto se separa del orden de preferencia de
+    la pantalla de Copa, que responde la otra pregunta y hace bien en fiarse
+    primero de la bandera.
+
+    Sin bandera y sin partido pendiente se devuelve `False`, o sea que el
+    aviso sí sale: es el caso de quien acaba de conectar el club y todavía no
+    tiene copas sincronizadas, y ahí es mejor recordar de más que de menos.
+    """
+    if team.still_in_cup:
+        return True
+    pendiente = await session.scalar(
+        select(m.Match.ht_match_id)
+        .where(
+            or_(
+                m.Match.home_team_ht_id == team.ht_team_id,
+                m.Match.away_team_ht_id == team.ht_team_id,
+            ),
+            m.Match.match_type == MATCH_TYPE_CUP,
+            m.Match.played_at >= ahora,
+            m.Match.home_goals < 0,
+        )
+        .limit(1)
+    )
+    return pendiente is not None
 
 
 async def _insights_del_reloj(session: AsyncSession, team_id: int) -> list[ins.Insight]:
