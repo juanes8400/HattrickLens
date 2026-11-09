@@ -136,3 +136,32 @@ describe("la tabla de stand-by", () => {
     expect(abajo.slice(0, hasta)).toEqual(arriba.slice(0, hasta));
   });
 });
+
+describe("el precio de una venta cerrada", () => {
+  function celdaPrecio(fila: ComparableDeMercado): string {
+    const c = columnasDe(fila.perfil, "US$").find((x) => x.key === "precio");
+    if (!c?.render) throw new Error("la columna Precio dejó de tener render");
+    return renderToStaticMarkup(<>{c.render(fila)}</>);
+  }
+
+  it("no lleva el porcentaje verde contra la puja", () => {
+    // Lo quitó el usuario el 2026-11-08. Era lo último que quedaba de la
+    // columna «Puja detectada», retirada el día antes: un porcentaje contra
+    // un número que ya no está en ninguna parte no se puede comprobar, y lo
+    // que medía era cuándo miramos nosotros, no cuánto valía el jugador.
+    const html = celdaPrecio(venta({ puja: 100000, precio: 176000 }));
+
+    expect(html).toContain("176");
+    expect(html).not.toMatch(/\+[\d,.]+%/);
+    expect(html).not.toContain("--positive");
+  });
+
+  it("sigue diciendo cuando no le vimos ninguna puja", () => {
+    // Nació para explicar la falta del verde y se queda sin él: dice que la
+    // subasta entera se movió entre dos barridos nuestros.
+    expect(celdaPrecio(venta({ sinPuja: true }))).toContain("sin puja vista");
+    expect(celdaPrecio(venta({ sinPuja: false }))).not.toContain(
+      "sin puja vista",
+    );
+  });
+});
