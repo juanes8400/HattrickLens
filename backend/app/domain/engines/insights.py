@@ -938,6 +938,7 @@ def amistoso_sin_programar(
     *,
     ya_programado: bool,
     ahora: datetime,
+    en_copa: bool,
 ) -> list[Insight]:
     """Recuerda programar el amistoso de esta semana, mientras dé tiempo.
 
@@ -946,10 +947,19 @@ def amistoso_sin_programar(
     la misma hora en que tenga el país del equipo programados los amistosos»,
     y «siempre y cuando aún no esté programado».
 
-    LAS TRES RAZONES PARA CALLARSE son las tres que se piden: si ya hay uno
-    concertado no hay nada que recordar; antes de las 24 horas el aviso llega
-    pisando el partido que se acaba de jugar; y pasada la hora de los
-    amistosos del país ya no da tiempo, así que avisar sólo sería reprochar.
+    LAS CUATRO RAZONES PARA CALLARSE. Tres son las que se pidieron entonces:
+    si ya hay uno concertado no hay nada que recordar; antes de las 24 horas
+    el aviso llega pisando el partido que se acaba de jugar; y pasada la hora
+    de los amistosos del país ya no da tiempo, así que avisar sólo sería
+    reprochar.
+
+    LA CUARTA ES SEGUIR EN COPA (2026-11-08, usuario: «el aviso de "no tienes
+    amistoso" sólo aplica cuando no estás en Copa»). Y no es una preferencia
+    suya, es cómo funciona el juego: el hueco de entre semana es UNO, y
+    mientras sigas en la copa lo ocupa el partido de copa. Recordarle a quien
+    está en la copa que no tiene amistoso es pedirle que programe algo donde
+    no cabe nada, y encima sugiere que le falta un partido cuando tiene el
+    más importante de la semana.
 
     `ranura` es esa hora. Sale de la fecha del último amistoso jugado más
     semanas enteras: el hueco de amistosos es semanal y cae siempre el mismo
@@ -961,7 +971,7 @@ def amistoso_sin_programar(
     Sin ningún amistoso jugado no hay ranura que deducir y no se avisa. Es el
     caso de un club recién conectado, y es mejor callarse que inventar la hora.
     """
-    if ya_programado or ultimo is None or ranura is None:
+    if en_copa or ya_programado or ultimo is None or ranura is None:
         return []
     desde = ultimo + timedelta(hours=HORAS_TRAS_EL_AMISTOSO)
     if ahora < desde or ahora >= ranura:

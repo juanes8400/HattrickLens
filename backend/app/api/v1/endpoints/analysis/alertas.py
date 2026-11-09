@@ -41,6 +41,7 @@ from app.domain.engines.training_engine import (
 )
 from app.domain.value_objects.ht_constants import (
     FRIENDLY_MATCH_TYPES,
+    MATCH_TYPE_CUP,
     NON_OFFICIAL_MATCH_TYPES,
     training_target,
 )
@@ -500,8 +501,43 @@ async def _lo_del_amistoso(
     while ranura is not None and ranura <= ahora:
         ranura += timedelta(days=7)
     return ins.amistoso_sin_programar(
-        ultimo, ranura, ya_programado=programado is not None, ahora=ahora
+        ultimo,
+        ranura,
+        ya_programado=programado is not None,
+        ahora=ahora,
+        en_copa=await _sigue_en_copa(session, team, ahora),
     )
+
+
+async def _sigue_en_copa(session: AsyncSession, team: m.Team, ahora: datetime) -> bool:
+    """Si el equipo sigue vivo en la copa, y por tanto su hueco está ocupado.
+
+    EL MISMO ORDEN DE PREFERENCIA QUE LA PANTALLA DE COPA, a propósito: manda
+    la bandera de Hattrick, y si no la tenemos, que haya un partido de copa
+    pendiente. Si las dos pantallas no usaran el mismo criterio podrían
+    contradecirse --«sigues en la copa» arriba y «no tienes amistoso» abajo--
+    que es justo lo que este aviso viene a evitar.
+
+    Sin bandera y sin partido pendiente se devuelve `False`, o sea que el
+    aviso sí sale: es el caso de quien acaba de conectar el club y todavía no
+    tiene copas sincronizadas, y ahí es mejor recordar de más que de menos.
+    """
+    if team.still_in_cup is not None:
+        return bool(team.still_in_cup)
+    pendiente = await session.scalar(
+        select(m.Match.ht_match_id)
+        .where(
+            or_(
+                m.Match.home_team_ht_id == team.ht_team_id,
+                m.Match.away_team_ht_id == team.ht_team_id,
+            ),
+            m.Match.match_type == MATCH_TYPE_CUP,
+            m.Match.played_at >= ahora,
+            m.Match.home_goals < 0,
+        )
+        .limit(1)
+    )
+    return pendiente is not None
 
 
 async def _insights_del_reloj(session: AsyncSession, team_id: int) -> list[ins.Insight]:
