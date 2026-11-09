@@ -419,6 +419,11 @@ export interface PrecioComparable {
    *  equipo, divididas por la tasa del país. */
   moneda: string;
   comparables: ComparableDeMercado[];
+  /** Lo que todavía no ha cerrado: anuncios y subastas vivas. Va aparte de
+   *  `comparables` porque no promedia nada, y la pantalla lo pinta en su
+   *  propia tabla, debajo (2026-11-08). Lleva todo lo pendiente, con puja o
+   *  sin ella: un anuncio a cero es un comparable futuro. */
+  enEspera: ComparableDeMercado[];
   /** De la más vieja a la más nueva. Vacía mientras no haya historia. */
   serie: PuntoDeLaSerie[];
   /** Tu propio jugador, con la misma forma que una venta, para encabezar la

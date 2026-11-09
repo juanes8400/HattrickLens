@@ -52,7 +52,14 @@ import {
   serieDePuntosOption,
   tiraDePuntosOption,
 } from "../charts/chartOptions";
-import { date, htAge, money, number } from "../hooks/useFormat";
+import {
+  date,
+  dateTime,
+  htAge,
+  money,
+  number,
+  parseUtc,
+} from "../hooks/useFormat";
 import { usePrecioComparable } from "../hooks/useTeam";
 import { tx } from "../i18n/tx";
 import { nombreDeHabilidad } from "../i18n/habilidades";
@@ -430,7 +437,13 @@ export function columnasDe(
       // cosa que la fecha, contada al revés-- pero el aviso no: dice que esta
       // venta sigue en la lista sólo porque no ha aparecido nada más fresco.
       // Así que se muda al color de la fecha y la columna no vuelve.
-      value: (f) => (f.cierra ? new Date(f.cierra).getTime() : 0),
+      // `parseUtc` Y NO `new Date` (2026-11-08). El servidor manda la
+      // fecha SIN desfase --«2026-11-03T20:56:09»-- y JavaScript lee esa
+      // forma como hora LOCAL, mientras que lo que se PINTA pasa por
+      // `parseUtc`, que la lee como UTC. Dos lecturas de la misma cadena
+      // en la misma celda: el orden salía bien de milagro, porque el
+      // desfase es el mismo para todas las filas.
+      value: (f) => (f.cierra ? parseUtc(f.cierra).getTime() : 0),
       render: (f) =>
         f.propio || !f.cierra ? (
           <span className="text-[var(--muted)]">—</span>
@@ -528,6 +541,166 @@ export function columnasDe(
                 {tx("sin puja vista")}
               </span>
             )}
+          </span>
+        ),
+    },
+  ];
+}
+
+/** Las columnas de la tabla de STAND-BY (2026-11-08, pedido del usuario:
+ *  «¿será que ponemos la tabla de stand-by más abajo que la tabla de
+ *  transferencias?»).
+ *
+ *  LAS MISMAS DE ARRIBA HASTA LA ESPECIALIDAD, y a propósito: es la misma
+ *  gente mirada en otro momento, así que leerla no puede pedir aprender otra
+ *  tabla. Lo que cambia es la cola, y cambia porque aquí NO HAY PRECIO:
+ *  nadie ha pagado nada todavía.
+ *
+ *  · «Cierra» en vez de «Fecha». Arriba la marca de tiempo contesta «cuándo
+ *    fue»; aquí contesta «cuándo se sabrá», que es lo único que importa de
+ *    una subasta viva. Va con la hora, no sólo el día: un plazo son las
+ *    21:14, no «el martes».
+ *  · «Precio inicial», que es lo que pide el dueño. El nombre lo puso él, y
+ *    es el mismo que usó al pedir que se guardara el 2026-11-07: «guardar el
+ *    precio inicial, para analizar la relación entre precio inicial, final y
+ *    horario». Se guarda desde la migración 0112; lo anterior vale cero y
+ *    aquí sale como raya.
+ *  · «Puja», lo ofrecido ahora mismo. Cero no es «vale cero», es «nadie ha
+ *    pujado todavía», y se escribe así: la mitad de lo que hay en stand-by
+ *    está a cero y confundir las dos cosas sería leer un mercado vacío donde
+ *    hay anuncios vivos.
+ *
+ *  NINGUNA DE LAS TRES ENTRA EN NINGÚN NÚMERO. Esta tabla no promedia nada
+ *  --ver `en_espera` en el backend-- y está aquí para explicar por qué el
+ *  precio de arriba va a moverse en los próximos días. */
+// eslint-disable-next-line react-refresh/only-export-components
+export function columnasEnEspera(
+  perfil: RasgoVisible[],
+  moneda: string,
+): Column<ComparableDeMercado>[] {
+  return [
+    {
+      key: "htPlayerId",
+      header: "ID",
+      raw: true,
+      align: "right",
+      value: (f) => f.htPlayerId,
+    },
+    {
+      key: "pais",
+      header: tx("País"),
+      align: "left",
+      value: (f) => f.paisNombre || f.paisCodigo,
+      render: (f) => (
+        <CountryCell code={f.paisCodigo} country={f.paisNombre} compact />
+      ),
+    },
+    {
+      key: "nombre",
+      header: tx("Jugador"),
+      align: "left",
+      value: (f) => f.nombre,
+      render: (f) => <span className="whitespace-nowrap">{f.nombre}</span>,
+    },
+    {
+      key: "peso",
+      header: tx("Se parece"),
+      align: "left",
+      value: (f) => f.peso,
+      render: (f) => (
+        <span className={`whitespace-nowrap ${colorDelPeso(f.peso)}`}>
+          {comoSeParece(f.peso)}
+        </span>
+      ),
+    },
+    {
+      key: "edad",
+      header: tx("Edad"),
+      align: "right",
+      value: (f) => f.edad * 112 + Math.max(0, f.dias),
+      render: (f) => (
+        <span className="whitespace-nowrap tabular-nums">
+          {f.dias >= 0 ? htAge(f.edad, f.dias) : number(f.edad)}
+        </span>
+      ),
+    },
+    { key: "tsi", header: "TSI", align: "right", value: (f) => f.tsi },
+    {
+      key: "forma",
+      header: tx("Forma"),
+      align: "right",
+      value: (f) => f.forma,
+      render: (f) =>
+        f.forma >= 1 ? (
+          <span className="whitespace-nowrap">
+            {skillLevelLabel(f.forma, true)}
+          </span>
+        ) : (
+          <span className="text-[var(--muted)]">—</span>
+        ),
+    },
+    {
+      key: "especialidad",
+      header: tx("Especialidad"),
+      align: "left",
+      value: (f) => f.especialidad,
+      render: (f) => (
+        <span className="whitespace-nowrap">
+          <Specialty specialty={f.especialidad} />
+        </span>
+      ),
+    },
+    ...perfil.map((rasgo, i) => ({
+      key: `habilidad${i}`,
+      header: nombreDeHabilidad(rasgo.habilidad),
+      align: "right" as const,
+      value: (f: ComparableDeMercado) => f.perfil[i]?.nivel ?? 0,
+    })),
+    {
+      key: "cierra",
+      header: tx("Cierra"),
+      align: "right",
+      // `parseUtc` Y NO `new Date` (2026-11-08). El servidor manda la
+      // fecha SIN desfase --«2026-11-03T20:56:09»-- y JavaScript lee esa
+      // forma como hora LOCAL, mientras que lo que se PINTA pasa por
+      // `parseUtc`, que la lee como UTC. Dos lecturas de la misma cadena
+      // en la misma celda: el orden salía bien de milagro, porque el
+      // desfase es el mismo para todas las filas.
+      value: (f) => (f.cierra ? parseUtc(f.cierra).getTime() : 0),
+      render: (f) =>
+        f.cierra ? (
+          <span className="whitespace-nowrap tabular-nums">
+            {dateTime(f.cierra)}
+          </span>
+        ) : (
+          <span className="text-[var(--muted)]">—</span>
+        ),
+    },
+    {
+      key: "precioPedido",
+      header: tx("Precio inicial"),
+      align: "right",
+      value: (f) => f.precioPedido,
+      // CERO ES «NO LO SABEMOS», no «lo regala»: las ventas anotadas antes de
+      // la migración 0112 no lo traen. Una raya lo dice; un 0 US$ mentiría.
+      render: (f) =>
+        f.precioPedido > 0 ? (
+          <span className="tabular-nums">{money(f.precioPedido, moneda)}</span>
+        ) : (
+          <span className="text-[var(--muted)]">—</span>
+        ),
+    },
+    {
+      key: "puja",
+      header: tx("Puja"),
+      align: "right",
+      value: (f) => f.puja,
+      render: (f) =>
+        f.puja > 0 ? (
+          <span className="tabular-nums">{money(f.puja, moneda)}</span>
+        ) : (
+          <span className="whitespace-nowrap text-xs text-[var(--muted)]">
+            {tx("sin pujas todavía")}
           </span>
         ),
     },
@@ -830,7 +1003,46 @@ export function PrecioPorComparables({
             csvName="comparables"
             emptyMessage={tx("Sin ventas de jugadores parecidos todavía.")}
             sinFiltro
+            sinHerramientas
             filaFijada={datos.jugador}
+          />
+        </div>
+      )}
+
+      {/* LO QUE TODAVÍA NO HA CERRADO, en su propia tabla y DEBAJO
+          (2026-11-08, pedido del usuario).
+
+          No contradice su regla del 2026-11-07 --«los jugadores que nunca se
+          vendieron, no deben ir en la lista»--: aquélla era para que la lista
+          de comparables no mezclara lo que promedia con lo que no. Esto es
+          una segunda tabla, con su propio título, que dice que todavía no
+          cuenta. Y va debajo porque se lee después: primero el precio y de
+          qué está hecho, luego lo que puede cambiarlo.
+
+          VA FUERA DEL `hayNumero` a propósito. Un jugador puede no tener
+          precio y sí tener cosas esperando --es el caso de Kurt Schönhueb el
+          2026-11-08: cero ventas cerradas y dos anuncios vivos-- y
+          esconderle justo esa tabla sería esconderle la única explicación de
+          por qué su panel está vacío. */}
+      {datos.enEspera.length > 0 && (
+        <div className="px-4 pb-3">
+          <h3 className="mb-2 text-[10px] uppercase tracking-wide text-[var(--muted)]">
+            {tx("Esperando su precio")}
+          </h3>
+          <p className="prosa mb-3 max-w-[70ch] text-xs leading-relaxed text-[var(--muted)]">
+            {tx(
+              "Anuncios y subastas que todavía no han cerrado. No entran en el número: una puja no es un precio. Cuando cierren, las que se vendan pasan a la tabla de arriba con lo que de verdad se pagó, y las que no se vendan se descartan.",
+            )}
+          </p>
+          <DataTable
+            rows={datos.enEspera}
+            columns={columnasEnEspera(datos.perfil, datos.moneda)}
+            rowKey={(f) => f.htPlayerId}
+            initialSort="cierra"
+            initialDescending={false}
+            emptyMessage={tx("Nada esperando su precio ahora mismo.")}
+            sinFiltro
+            sinHerramientas
           />
         </div>
       )}

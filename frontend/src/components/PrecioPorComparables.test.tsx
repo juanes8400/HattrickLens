@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { columnasDe } from "./PrecioPorComparables";
+import { columnasDe, columnasEnEspera } from "./PrecioPorComparables";
 import type { ComparableDeMercado } from "../services/api/transferencias";
 
 /** Una venta cualquiera del fondo, con lo justo para pintar una fila. */
@@ -75,5 +75,64 @@ describe("la marca de las 24 semanas", () => {
 
     expect(html).not.toContain("<svg");
     expect(html).toContain("—");
+  });
+});
+
+describe("la tabla de stand-by", () => {
+  function celda(clave: string, fila: ComparableDeMercado): string {
+    const c = columnasEnEspera(fila.perfil, "US$").find((x) => x.key === clave);
+    if (!c) throw new Error(`no existe la columna ${clave}`);
+    return renderToStaticMarkup(
+      <>{c.render ? c.render(fila) : c.value(fila)}</>,
+    );
+  }
+
+  const esperando = (extra: Partial<ComparableDeMercado> = {}) =>
+    venta({ firme: false, precio: 0, puja: 0, precioPedido: 0, ...extra });
+
+  it("lleva «Precio inicial», que es el nombre que puso el usuario", () => {
+    const claves = columnasEnEspera(venta().perfil, "US$").map((c) => c.key);
+    expect(claves).toContain("precioPedido");
+    const cabeceras = columnasEnEspera(venta().perfil, "US$").map(
+      (c) => c.header,
+    );
+    expect(cabeceras).toContain("Precio inicial");
+    // Y NO lleva «Precio»: ahí nadie ha pagado nada todavía.
+    expect(claves).not.toContain("precio");
+  });
+
+  it("un precio inicial de cero es una raya, no «0 US$»", () => {
+    // Cero es «no lo sabemos»: las ventas anotadas antes de la migración
+    // 0112 no lo traen, y un 0 US$ diría que lo regalan.
+    expect(celda("precioPedido", esperando({ precioPedido: 0 }))).toContain(
+      "—",
+    );
+    expect(celda("precioPedido", esperando({ precioPedido: 250000 }))).toMatch(
+      /250/,
+    );
+  });
+
+  it("una puja de cero dice que nadie ha pujado, no que valga cero", () => {
+    // La mitad de lo que hay en stand-by está a cero: confundir las dos
+    // cosas sería leer un mercado vacío donde hay anuncios vivos.
+    expect(celda("puja", esperando({ puja: 0 }))).toContain(
+      "sin pujas todavía",
+    );
+    expect(celda("puja", esperando({ puja: 95000 }))).toMatch(/95/);
+  });
+
+  it("«Cierra» lleva la hora, porque un plazo son las 21:14 y no «el martes»", () => {
+    const html = celda("cierra", esperando({ cierra: "2026-11-10T21:14:00Z" }));
+    expect(html).toMatch(/\d{2}:\d{2}/);
+  });
+
+  it("hasta la especialidad, las mismas columnas que la tabla de arriba", () => {
+    // Es la misma gente mirada en otro momento: leerla no puede pedir
+    // aprender otra tabla.
+    const fila = venta();
+    const arriba = columnasDe(fila.perfil, "US$").map((c) => c.key);
+    const abajo = columnasEnEspera(fila.perfil, "US$").map((c) => c.key);
+    const hasta = arriba.indexOf("habilidad2") + 1;
+    expect(abajo.slice(0, hasta)).toEqual(arriba.slice(0, hasta));
   });
 });
