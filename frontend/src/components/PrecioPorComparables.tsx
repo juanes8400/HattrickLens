@@ -237,14 +237,21 @@ function Filtro({
   );
 }
 
-/** «+2,0%»: cuánto subió del momento en que la vimos al cierre.
- *
- *  Siempre sube, porque una puja no puede bajar y el precio de cierre ES la
- *  puja ganadora. Por eso va en verde sin mirar el signo. */
-function salto(puja: number, precio: number): string {
-  const pct = ((precio / puja - 1) * 100).toFixed(1).replace(".", ",");
-  return `+${pct}%`;
-}
+// AQUÍ VIVÍA `salto`, el «+2,0%» verde que iba pegado al precio: cuánto
+// subió desde la puja con la que vimos el anuncio hasta el cierre. Lo quitó
+// el usuario el 2026-11-08.
+//
+// Era lo último que quedaba de la columna «Puja detectada», que él mismo
+// había retirado el 2026-11-07 al dictar las trece columnas de la tabla. El
+// porcentaje la sobrevivió un día: enseñaba una proporción contra un número
+// que ya no estaba en ninguna parte, así que no se podía comprobar ni leer
+// --«+16%» sobre qué--. Y lo que mide no es del mercado sino NUESTRO: cuánto
+// se movió la subasta entre dos barridos, que dice más de cuándo miramos que
+// de lo que valía el jugador.
+//
+// EL DATO NO SE PIERDE: la puja sigue guardada en `market_sales.bid_price` y
+// sigue viajando en `puja`. La tabla de stand-by la enseña en su columna,
+// que es donde una puja significa algo: ahí todavía no hay precio.
 
 /** Las columnas, armadas contra la terna del jugador que pregunta.
  *
@@ -522,20 +529,16 @@ export function columnasDe(
         ) : (
           <span className="tabular-nums">
             {money(f.precio, moneda)}
-            {/* EL SALTO DESDE LA PUJA, que es lo único que sobrevive de la
-                columna «Puja detectada»: cuánto subió del momento en que la
-                vimos al cierre. Cataldi +16%, Bernacki +2%, siempre hacia
-                arriba, porque el precio de cierre ES la puja ganadora. */}
-            {f.puja > 0 && f.precio !== f.puja && (
-              <span className="ml-1 text-xs text-[var(--positive)]">
-                {salto(f.puja, f.precio)}
-              </span>
-            )}
             {/* UNA VENTA CERRADA A LA QUE NUNCA LE VIMOS PUJA (2026-11-07).
-                Es el caso que el usuario encontro: el 472301981 se vendio de
-                verdad y para nosotros estuvo a cero hasta el final. El sello
-                dice por que no hay salto que enseñar al lado del precio: no es
-                que la puja fuera igual, es que no llegamos a ver ninguna. */}
+                Es el caso que el usuario encontró: el 472301981 se vendió de
+                verdad y para nosotros estuvo a cero hasta el final.
+
+                SE QUEDA AUNQUE EL SALTO SE HAYA IDO (2026-11-08). Nació para
+                explicar por qué esa fila no llevaba porcentaje verde al lado,
+                y sin el verde sigue diciendo algo suyo: que de esta venta no
+                vimos la puja, o sea que la subasta entera se movió entre dos
+                barridos nuestros. Es una nota sobre lo que sabemos del dato,
+                no sobre el dato. */}
             {f.sinPuja && (
               <span className="ml-1 text-xs text-[var(--muted)]">
                 {tx("sin puja vista")}
