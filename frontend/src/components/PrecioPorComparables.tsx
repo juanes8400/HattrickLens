@@ -52,7 +52,14 @@ import {
   serieDePuntosOption,
   tiraDePuntosOption,
 } from "../charts/chartOptions";
-import { date, dateTime, htAge, money, number } from "../hooks/useFormat";
+import {
+  date,
+  dateTime,
+  htAge,
+  money,
+  number,
+  parseUtc,
+} from "../hooks/useFormat";
 import { usePrecioComparable } from "../hooks/useTeam";
 import { tx } from "../i18n/tx";
 import { nombreDeHabilidad } from "../i18n/habilidades";
@@ -430,7 +437,13 @@ export function columnasDe(
       // cosa que la fecha, contada al revés-- pero el aviso no: dice que esta
       // venta sigue en la lista sólo porque no ha aparecido nada más fresco.
       // Así que se muda al color de la fecha y la columna no vuelve.
-      value: (f) => (f.cierra ? new Date(f.cierra).getTime() : 0),
+      // `parseUtc` Y NO `new Date` (2026-11-08). El servidor manda la
+      // fecha SIN desfase --«2026-11-03T20:56:09»-- y JavaScript lee esa
+      // forma como hora LOCAL, mientras que lo que se PINTA pasa por
+      // `parseUtc`, que la lee como UTC. Dos lecturas de la misma cadena
+      // en la misma celda: el orden salía bien de milagro, porque el
+      // desfase es el mismo para todas las filas.
+      value: (f) => (f.cierra ? parseUtc(f.cierra).getTime() : 0),
       render: (f) =>
         f.propio || !f.cierra ? (
           <span className="text-[var(--muted)]">—</span>
@@ -647,7 +660,13 @@ export function columnasEnEspera(
       key: "cierra",
       header: tx("Cierra"),
       align: "right",
-      value: (f) => (f.cierra ? new Date(f.cierra).getTime() : 0),
+      // `parseUtc` Y NO `new Date` (2026-11-08). El servidor manda la
+      // fecha SIN desfase --«2026-11-03T20:56:09»-- y JavaScript lee esa
+      // forma como hora LOCAL, mientras que lo que se PINTA pasa por
+      // `parseUtc`, que la lee como UTC. Dos lecturas de la misma cadena
+      // en la misma celda: el orden salía bien de milagro, porque el
+      // desfase es el mismo para todas las filas.
+      value: (f) => (f.cierra ? parseUtc(f.cierra).getTime() : 0),
       render: (f) =>
         f.cierra ? (
           <span className="whitespace-nowrap tabular-nums">
