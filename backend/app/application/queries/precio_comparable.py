@@ -44,6 +44,7 @@ from app.domain.engines.criterios_hattrick import criterios_de
 from app.domain.engines.mercado_comparable import (
     PESO_DEL_CLAVADO,
     VIDA,
+    Comparable,
     Guardado,
     Objetivo,
     comparables_de,
@@ -256,6 +257,23 @@ class PrecioComparable:
     #: aquí ya vienen divididas por la tasa del país.
     moneda: str
     comparables: tuple[FilaDeComparable, ...]
+    #: LO QUE TODAVÍA NO HA CERRADO, en su propia lista (2026-11-08, pedido
+    #: del usuario: «¿será que ponemos la tabla de stand-by más abajo que la
+    #: tabla de transferencias?»).
+    #:
+    #: VA APARTE Y NO MEZCLADO, y eso es lo que lo hace compatible con su
+    #: regla del 2026-11-07, «los jugadores que nunca se vendieron no deben ir
+    #: en la lista». Aquélla era sobre la lista de comparables, para que no se
+    #: confundiera lo que promedia con lo que no. Esto es una segunda tabla
+    #: que dice por su título que todavía no cuenta.
+    #:
+    #: VA TODO LO PENDIENTE, con puja o sin ella (decidido el mismo día). La
+    #: pastilla cuenta sólo las subastas con dinero encima --ver
+    #: `provisionales`-- y con ese criterio no habría salido ninguno de los
+    #: que el usuario quería ver: los cuatro que se le encontraron a Kurt y a
+    #: Alberto estaban a cero. Un anuncio a cero es un comparable futuro, y
+    #: enseñarlo es lo que explica por qué su precio va a moverse.
+    en_espera: tuple[FilaDeComparable, ...]
     #: De la más vieja a la más nueva. Vacía mientras no haya historia.
     serie: tuple[PuntoDeLaSerie, ...]
     #: El jugador que pregunta, con la misma forma que una venta, para
@@ -377,52 +395,67 @@ async def precio_de(
             pais_nombre=paises.get(foto.country_id or 0, ("", ""))[1],
             propio=True,
         ),
-        comparables=tuple(
-            FilaDeComparable(
-                ht_player_id=c.venta.ht_player_id,
-                nombre=c.venta.nombre,
-                precio=convertido(c.venta.precio),
-                puja=convertido(c.venta.puja),
-                peso=c.peso,
-                avalado_por_hattrick=c.avalado_por_hattrick,
-                firme=c.venta.firme,
-                viejo=c.viejo,
-                edad=c.venta.edad,
-                dias=c.venta.dias,
-                perfil=_perfil(c.venta),
-                semanas=_semanas(c.venta.visto_el, momento),
-                # EL PLAZO SALE DE LA VENTA, no de un diccionario por jugador
-                # (2026-11-07). Desde la migración 0105 un mismo jugador puede
-                # tener DOS subastas --el 490357848 sale dos veces en su propio
-                # Comparador, a 215.220 y a 125.000-- y una clave `{jugador:
-                # plazo}` se quedaba con el plazo de una de las dos y lo pegaba
-                # a las dos filas. Importa más desde hoy, porque ese plazo es
-                # también la columna «Fecha».
-                cierra=c.venta.plazo,
-                especialidad=SPECIALTIES.get(c.venta.especialidad, ""),
-                tsi=c.venta.tsi,
-                forma=c.venta.forma,
-                precio_pedido=convertido(c.venta.precio_pedido),
-                sin_puja=nunca_tuvo_puja(c.venta),
-                pais_codigo=paises.get(c.venta.pais, ("", ""))[0],
-                pais_nombre=paises.get(c.venta.pais, ("", ""))[1],
-            )
-            # SÓLO LO QUE SE VENDIÓ (2026-11-07, decisión del usuario: «los
-            # jugadores que nunca se vendieron, no deben ir en la lista»).
-            #
-            # `elegidos` sigue trayéndolas todas, y hace falta que las traiga:
-            # `estimar` cuenta sobre ellas las subastas abiertas, y el motor
-            # necesita saber qué plazas están ocupadas para no salir a buscar
-            # de más. Lo que cambia es qué se PINTA.
-            #
-            # El corte es `venta.firme` y no `c.cuenta` a propósito, aunque hoy
-            # valen lo mismo: lo que el usuario pidió es «que se haya vendido»,
-            # no «que entre en la media». Si algún día una venta cerrada
-            # dejara de promediar, seguiría siendo una venta y seguiría
-            # mereciendo su fila.
-            for c in elegidos
-            if c.venta.firme
+        # SÓLO LO QUE SE VENDIÓ (2026-11-07, decisión del usuario: «los
+        # jugadores que nunca se vendieron, no deben ir en la lista»).
+        #
+        # `elegidos` sigue trayéndolas todas, y hace falta que las traiga:
+        # `estimar` cuenta sobre ellas las subastas abiertas. Lo que cambia es
+        # en qué TABLA cae cada una.
+        #
+        # El corte es `venta.firme` y no `c.cuenta` a propósito, aunque hoy
+        # valen lo mismo: lo que el usuario pidió es «que se haya vendido», no
+        # «que entre en la media». Si algún día una venta cerrada dejara de
+        # promediar, seguiría siendo una venta y seguiría mereciendo su fila.
+        comparables=tuple(_fila(c, momento, paises, convertido) for c in elegidos if c.venta.firme),
+        # Y LO QUE SIGUE ESPERANDO SU PRECIO, en su propia tabla (2026-11-08).
+        # Las mismas columnas de origen, otra lectura: ahí `precio` no
+        # significa nada --nadie ha pagado-- y lo que habla es la puja, lo que
+        # pide el dueño y cuándo cierra.
+        en_espera=tuple(
+            _fila(c, momento, paises, convertido) for c in elegidos if not c.venta.firme
         ),
+    )
+
+
+def _fila(
+    c: Comparable,
+    momento: datetime,
+    paises: dict[int, tuple[str, str]],
+    convertido: Callable[[int], int],
+) -> FilaDeComparable:
+    """Una venta del fondo, vestida para la pantalla.
+
+    LA MISMA PARA LAS DOS TABLAS (2026-11-08). La de comparables y la de
+    stand-by pintan lo mismo leído distinto, así que una sola fábrica evita
+    que se separen sin que nadie lo decida: si mañana se añade una columna,
+    la tienen las dos o ninguna.
+    """
+    return FilaDeComparable(
+        ht_player_id=c.venta.ht_player_id,
+        nombre=c.venta.nombre,
+        precio=convertido(c.venta.precio),
+        puja=convertido(c.venta.puja),
+        peso=c.peso,
+        avalado_por_hattrick=c.avalado_por_hattrick,
+        firme=c.venta.firme,
+        viejo=c.viejo,
+        edad=c.venta.edad,
+        dias=c.venta.dias,
+        perfil=_perfil(c.venta),
+        semanas=_semanas(c.venta.visto_el, momento),
+        # EL PLAZO SALE DE LA VENTA, no de un diccionario por jugador
+        # (2026-11-07). Desde la migración 0105 un mismo jugador puede tener
+        # DOS subastas --el 490357848 sale dos veces en su propio Comparador,
+        # a 215.220 y a 125.000-- y una clave `{jugador: plazo}` se quedaba
+        # con el plazo de una de las dos y lo pegaba a las dos filas.
+        cierra=c.venta.plazo,
+        especialidad=SPECIALTIES.get(c.venta.especialidad, ""),
+        tsi=c.venta.tsi,
+        forma=c.venta.forma,
+        precio_pedido=convertido(c.venta.precio_pedido),
+        sin_puja=nunca_tuvo_puja(c.venta),
+        pais_codigo=paises.get(c.venta.pais, ("", ""))[0],
+        pais_nombre=paises.get(c.venta.pais, ("", ""))[1],
     )
 
 

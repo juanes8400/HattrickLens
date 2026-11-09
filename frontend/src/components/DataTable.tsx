@@ -64,6 +64,20 @@ interface Props<T> {
    *  transferencias pone ahí tu propio jugador, para no tener que buscarlo
    *  entre las ventas para compararlo (2026-10-09). */
   filaFijada?: T | null;
+  /** Sin los botones «Columnas» y «CSV» (2026-11-08, pedido del usuario para
+   *  el comparador y su tabla de stand-by).
+   *
+   *  Son útiles en una tabla de exploración --Jugadores, Partidos-- donde uno
+   *  esconde columnas y se lleva los datos. En el comparador no: las columnas
+   *  las eligió él una por una y en el orden que dictó, así que un selector
+   *  que las apague invita a deshacer esa decisión, y la descarga exportaba
+   *  los valores de ORDENACIÓN en vez de lo que se lee --el peso como 100 en
+   *  vez de «clavado», la edad como 2289 en vez de «20;49»-- que es un
+   *  fichero que miente.
+   *
+   *  Se apaga por tabla y no para todas: el resto de la aplicación las sigue
+   *  teniendo, que es lo que él pidió. */
+  sinHerramientas?: boolean;
   csvName?: string;
   /** Qué poner cuando no hay ni una fila. OBLIGATORIO a propósito.
    *
@@ -91,6 +105,7 @@ export function DataTable<T>({
   filterPlaceholder: placeholderPedido,
   sinFiltro = false,
   filaFijada = null,
+  sinHerramientas = false,
   csvName = "export",
   emptyMessage,
   selectedRowKey,
@@ -256,20 +271,24 @@ export function DataTable<T>({
             total: rows.length,
           })}
         </span>
-        <button
-          data-picker=""
-          onClick={() => setShowPicker((s) => !s)}
-          className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
-          aria-expanded={showPicker}
-        >
-          {t("tabla.columnas", "Columnas")}
-        </button>
-        <button
-          onClick={exportCsv}
-          className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
-        >
-          CSV
-        </button>
+        {!sinHerramientas && (
+          <>
+            <button
+              data-picker=""
+              onClick={() => setShowPicker((s) => !s)}
+              className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
+              aria-expanded={showPicker}
+            >
+              {t("tabla.columnas", "Columnas")}
+            </button>
+            <button
+              onClick={exportCsv}
+              className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm"
+            >
+              CSV
+            </button>
+          </>
+        )}
       </div>
 
       {showPicker && (

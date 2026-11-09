@@ -268,6 +268,46 @@ async def test_el_fondo_sirve_a_toda_la_plantilla(base) -> None:
         assert precio.provisionales == 8
         assert precio.comparables == ()
         assert precio.media is None
+        # Y DESDE EL 2026-11-08 VAN EN SU PROPIA LISTA, que es la que pinta
+        # la tabla de stand-by: «¿será que ponemos la tabla de stand-by más
+        # abajo que la tabla de transferencias?». Antes sólo viajaba el
+        # contador, y un fondo lleno de pujas se leía como un fondo vacío.
+        assert len(precio.en_espera) == 8
+        assert all(not f.firme for f in precio.en_espera)
+
+
+async def test_las_dos_listas_no_se_pisan(base) -> None:
+    """Cada venta cae en UNA de las dos tablas, nunca en las dos ni en
+    ninguna (2026-11-08).
+
+    Es lo que hace compatible la tabla nueva con su regla del 2026-11-07,
+    «los jugadores que nunca se vendieron no deben ir en la lista»: no se
+    mezclan, se reparten.
+    """
+    session, equipo = base
+    await correr_el_paso_del_mercado(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(900 + i) for i in range(8)]),
+        historial_de=_sin_historial,
+        ahora=AHORA,
+    )
+    # Tres de las ocho cierran; las otras cinco siguen en el mercado.
+    guardadas = list((await session.execute(select(m.MarketSale))).scalars())
+    for fila in guardadas[:3]:
+        fila.is_final = True
+        fila.price = 4_000_000
+    await session.flush()
+
+    precio = await precio_de(session, equipo.id, ALBERTO, AHORA)
+    assert precio is not None
+    assert len(precio.comparables) == 3, "las cerradas, arriba"
+    assert len(precio.en_espera) == 5, "las vivas, abajo"
+    arriba = {f.ht_player_id for f in precio.comparables}
+    abajo = {f.ht_player_id for f in precio.en_espera}
+    assert not (arriba & abajo), "ninguna en las dos"
+    assert all(f.firme for f in precio.comparables)
+    assert all(not f.firme for f in precio.en_espera)
 
 
 async def test_la_pantalla_recibe_de_que_fiarse(base) -> None:
@@ -789,8 +829,6 @@ async def test_un_intento_al_dia_por_venta(base) -> None:
         ahora=cerrada + timedelta(days=1),
     )
     assert len(preguntas) == 2
-
-
 
 
 # --------------------------------------------------------------------------
