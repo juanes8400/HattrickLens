@@ -210,15 +210,17 @@ def test_la_bandera_de_copa_de_hattrick_calla_el_aviso() -> None:
     _con_bandera(factory, team_id, True)
     assert _avisos(factory, team_id, ULTIMO + timedelta(days=2)) == []
 
-    # Eliminado: el hueco queda libre y el aviso vuelve.
+    # Eliminado y SIN copa programada: el hueco queda libre y el aviso vuelve.
+    # Las dos condiciones hacen falta; con un cruce en el calendario seguiría
+    # callado, aunque la bandera diga que no (ver la prueba del cambio de
+    # temporada, más abajo).
     _con_bandera(factory, team_id, False)
     assert len(_avisos(factory, team_id, ULTIMO + timedelta(days=2))) == 1
 
 
 def test_sin_bandera_manda_que_haya_copa_pendiente() -> None:
     """`still_in_cup=None` es «no lo sabemos»: el club se conectó antes de que
-    se leyera. Entonces se mira si hay copa por jugar, que es el mismo orden
-    de preferencia que usa la pantalla de Copa."""
+    se leyera. Entonces se mira si hay copa por jugar."""
     factory, team_id = asyncio.run(
         _con_amistosos(
             (MATCH_TYPE_FRIENDLY, ULTIMO, True),
@@ -226,6 +228,26 @@ def test_sin_bandera_manda_que_haya_copa_pendiente() -> None:
         )
     )
     _con_bandera(factory, team_id, None)
+    assert _avisos(factory, team_id, ULTIMO + timedelta(days=2)) == []
+
+
+def test_UNA_COPA_PROGRAMADA_GANA_A_LA_BANDERA_EN_FALSO() -> None:
+    """El caso del cambio de temporada, dicho por el usuario el 2026-11-08:
+    «pero ya estoy en la Copa de esta temporada».
+
+    Entre quedar eliminado y que Hattrick sortee la copa siguiente hay una
+    ventana en la que la bandera dice NO --y es cierta, para la copa que
+    terminó-- mientras el primer cruce de la nueva ya está en el calendario.
+    Si mandara la bandera, el aviso saldría justo cuando el hueco está
+    ocupado. Un partido con fecha es mejor prueba que una bandera.
+    """
+    factory, team_id = asyncio.run(
+        _con_amistosos(
+            (MATCH_TYPE_FRIENDLY, ULTIMO, True),
+            (MATCH_TYPE_CUP, ULTIMO + timedelta(days=4), False),
+        )
+    )
+    _con_bandera(factory, team_id, False)
     assert _avisos(factory, team_id, ULTIMO + timedelta(days=2)) == []
 
 

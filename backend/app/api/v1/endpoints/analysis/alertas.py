@@ -510,20 +510,35 @@ async def _lo_del_amistoso(
 
 
 async def _sigue_en_copa(session: AsyncSession, team: m.Team, ahora: datetime) -> bool:
-    """Si el equipo sigue vivo en la copa, y por tanto su hueco está ocupado.
+    """Si el hueco de entre semana está ocupado por la copa.
 
-    EL MISMO ORDEN DE PREFERENCIA QUE LA PANTALLA DE COPA, a propósito: manda
-    la bandera de Hattrick, y si no la tenemos, que haya un partido de copa
-    pendiente. Si las dos pantallas no usaran el mismo criterio podrían
-    contradecirse --«sigues en la copa» arriba y «no tienes amistoso» abajo--
-    que es justo lo que este aviso viene a evitar.
+    CUALQUIERA DE LAS DOS BASTA: la bandera `still_in_cup` de `teamdetails`, o
+    un partido de copa ya programado. No es «la bandera y si acaso lo otro»:
+    es un O, y el orden importa poco porque las dos dicen que sí.
+
+    POR QUÉ UN O Y NO LA BANDERA SOLA (2026-11-08). Lo dijo el usuario en el
+    peor momento posible para la versión anterior, que ponía la bandera por
+    delante: «pero ya estoy en la Copa de esta temporada», el día en que su
+    temporada cambia. Entre quedar eliminado en agosto y que Hattrick sortee
+    la copa de la temporada siguiente hay una ventana en la que la bandera
+    todavía dice que NO --es cierta, para la copa que terminó-- y el equipo ya
+    tiene su primer cruce de la nueva en el calendario. En esa ventana la
+    bandera sola dejaba salir el aviso justo cuando el hueco estaba ocupado,
+    que es el caso que vino a arreglar.
+
+    Y UN PARTIDO PROGRAMADO ES MEJOR PRUEBA QUE LA BANDERA para esta pregunta
+    concreta. La bandera contesta «¿sigues vivo en la competición?»; lo que
+    aquí importa es «¿tienes el miércoles ocupado?», y un cruce con fecha lo
+    contesta directamente. Por eso esto se separa del orden de preferencia de
+    la pantalla de Copa, que responde la otra pregunta y hace bien en fiarse
+    primero de la bandera.
 
     Sin bandera y sin partido pendiente se devuelve `False`, o sea que el
     aviso sí sale: es el caso de quien acaba de conectar el club y todavía no
     tiene copas sincronizadas, y ahí es mejor recordar de más que de menos.
     """
-    if team.still_in_cup is not None:
-        return bool(team.still_in_cup)
+    if team.still_in_cup:
+        return True
     pendiente = await session.scalar(
         select(m.Match.ht_match_id)
         .where(
