@@ -527,24 +527,12 @@ export function columnasDe(
         f.propio ? (
           <span className="text-[var(--muted)]">—</span>
         ) : (
-          <span className="tabular-nums">
-            {money(f.precio, moneda)}
-            {/* UNA VENTA CERRADA A LA QUE NUNCA LE VIMOS PUJA (2026-11-07).
-                Es el caso que el usuario encontró: el 472301981 se vendió de
-                verdad y para nosotros estuvo a cero hasta el final.
-
-                SE QUEDA AUNQUE EL SALTO SE HAYA IDO (2026-11-08). Nació para
-                explicar por qué esa fila no llevaba porcentaje verde al lado,
-                y sin el verde sigue diciendo algo suyo: que de esta venta no
-                vimos la puja, o sea que la subasta entera se movió entre dos
-                barridos nuestros. Es una nota sobre lo que sabemos del dato,
-                no sobre el dato. */}
-            {f.sinPuja && (
-              <span className="ml-1 text-xs text-[var(--muted)]">
-                {tx("sin puja vista")}
-              </span>
-            )}
-          </span>
+          // SÓLO EL PRECIO (2026-11-10, pedido del usuario). Aquí vivía la nota
+          // «sin puja vista», la última comparación con la puja que quedaba en
+          // esta columna: nació para explicar por qué una fila no llevaba el
+          // porcentaje verde, y el verde se fue el 2026-11-08 por la misma
+          // regla. Lo que vimos o no vimos de la subasta no es el precio.
+          <span className="tabular-nums">{money(f.precio, moneda)}</span>
         ),
     },
   ];
