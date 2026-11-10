@@ -156,12 +156,15 @@ describe("el precio de una venta cerrada", () => {
     expect(html).not.toContain("--positive");
   });
 
-  it("sigue diciendo cuando no le vimos ninguna puja", () => {
-    // Nació para explicar la falta del verde y se queda sin él: dice que la
-    // subasta entera se movió entre dos barridos nuestros.
-    expect(celdaPrecio(venta({ sinPuja: true }))).toContain("sin puja vista");
-    expect(celdaPrecio(venta({ sinPuja: false }))).not.toContain(
-      "sin puja vista",
-    );
+  it("lleva SÓLO el precio, también cuando no le vimos puja", () => {
+    // 2026-11-10, pedido del usuario: «solo el precio». La nota «sin puja
+    // vista» era la última comparación con la puja en esta columna.
+    for (const sinPuja of [true, false]) {
+      const html = celdaPrecio(venta({ sinPuja, precio: 176000 }));
+      expect(html).toContain("176");
+      expect(html).not.toContain("puja");
+      // Un solo elemento: el número, sin nada al lado.
+      expect(html.match(/<span/g)).toHaveLength(1);
+    }
   });
 });
