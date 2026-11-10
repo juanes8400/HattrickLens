@@ -63,3 +63,12 @@ def test_minutes_of_last_match_default_to_zero_without_one() -> None:
     assert players[0]["minutes_last_match"] == 90
     # El segundo juvenil no tiene <LastMatch>, nunca jugó.
     assert players[1]["minutes_last_match"] == 0
+
+
+def test_lee_la_fecha_del_ultimo_partido_y_vacia_si_no_jugo() -> None:
+    """2026-11-09: la fecha del último partido es el ancla de «Último
+    entrenamiento», porque Hattrick sólo la pone cuando el partido se jugó."""
+    alirio, alvaro = _parse()
+    assert alirio["last_match_date"] == "2026-08-13 23:10:00"
+    # Sin <LastMatch>: vacía, no una fecha inventada.
+    assert alvaro["last_match_date"] == ""

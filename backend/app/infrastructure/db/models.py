@@ -157,6 +157,12 @@ class Team(Base):
     # despues de cada partido suyo, y Hattrick publica esa cita. Retrocediendo
     # de siete en siete se sabe cuando fue el ultimo, sin estimar nada.
     youth_next_training_match_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    # El ULTIMO partido de la cantera que de verdad se jugo (2026-11-09). La
+    # fecha mas reciente de `<LastMatch>` en la plantilla juvenil: Hattrick
+    # solo la pone cuando el partido ya paso, asi que dice hasta donde nos ha
+    # llegado el entrenamiento. Es el ancla de «Ultimo entrenamiento»; ver la
+    # migracion 0114.
+    youth_last_match_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
     # LeagueLevel de esta serie (1 = división más alta del país) y MaxLevel
     # (divisiones totales), de leaguedetails.xml. Hacen falta para saber si
     # el 1º puede ascender (no si ya es primera) y si el 7º-8º puede

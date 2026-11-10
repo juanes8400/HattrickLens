@@ -108,6 +108,25 @@ class JuvenilesMixin(BaseDeSync):
             )
             result.snapshots_written += 1
 
+        # EL ÚLTIMO PARTIDO QUE DE VERDAD SE JUGÓ (2026-11-09). La fecha más
+        # reciente de `<LastMatch>` en la plantilla: es el ancla de «Último
+        # entrenamiento». Sólo avanza: un canterano recién llegado, que todavía
+        # no ha jugado, no puede devolverla a una fecha anterior.
+        jugados = [
+            fecha
+            for row in roster
+            if (fecha := _parse_dt(row.get("last_match_date") or None)) is not None
+        ]
+        if jugados:
+            equipo = await uow.session.get(m.Team, team_id)
+            if equipo is not None:
+                guardada = equipo.youth_last_match_at
+                ultimo = max(jugados)
+                if guardada is None or ultimo > (
+                    guardada if guardada.tzinfo else guardada.replace(tzinfo=ultimo.tzinfo)
+                ):
+                    equipo.youth_last_match_at = ultimo
+
         # Quien ya no viene en el fichero salió de la academia (promocionado,
         # vendido o descartado). Mismo criterio que la plantilla principal: un
         # roster vacío NO marca a todos como salidos, sería un fetch roto.
