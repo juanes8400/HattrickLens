@@ -40,6 +40,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.commands.mercado_comparable import a_guardado
+from app.application.queries.weekly import season_week_for_datetime
 from app.domain.engines.criterios_hattrick import criterios_de
 from app.domain.engines.mercado_comparable import (
     PESO_DEL_CLAVADO,
@@ -192,6 +193,14 @@ class PuntoDeLaSerie:
     """
 
     cuando: datetime
+    #: La semana de Hattrick a la que pertenece, «TT-ss» (2026-11-08). Es lo
+    #: que ordena la serie y lo que rotula el eje; `cuando` pasó a ser sólo
+    #: cuándo se tocó por última vez.
+    semana: str
+    #: Si es la semana EN CURSO, la única que todavía puede cambiar. La
+    #: pantalla la dibuja distinta --punto hueco-- porque es la única cuyo
+    #: valor de mañana puede no ser el de hoy.
+    en_curso: bool
     media: int | None
     mediana: int | None
     n: int
@@ -363,7 +372,7 @@ async def precio_de(
         edad_maxima=criterios.edad_maxima,
         tope_de_dias=criterios.tope_de_dias,
         moneda=moneda,
-        serie=await _serie(session, team_id, ht_player_id, convertido),
+        serie=await _serie(session, team_id, ht_player_id, convertido, momento),
         # La fila de referencia: el propio jugador, con la misma forma que una
         # venta para que la tabla no tenga que saber que es distinto. Se parece
         # a si mismo un 100 %, y no tiene precio ni plazo porque no esta en
@@ -661,16 +670,20 @@ async def _series_de_la_plantilla(
 ) -> dict[int, tuple[int, ...]]:
     """Las medias pasadas de cada jugador, en una sola consulta.
 
-    Mismo corte por tramo vigente que `_serie` --cuando a un jugador le
-    cambian los criterios su historia vuelve a empezar-- pero para todos a la
-    vez: la tabla sólo necesita la línea, no cada nube.
+    Mismas dos reglas que `_serie` --una fila por semana de Hattrick, y el
+    corte por tramo vigente-- pero para todos a la vez: la tabla sólo necesita
+    la línea, no cada nube. Si las dos pantallas no leyeran igual, dibujarían
+    el mismo precio con distinta cadencia.
     """
     filas = (
         (
             await session.execute(
                 select(m.MarketEstimate)
-                .where(m.MarketEstimate.team_id == team_id)
-                .order_by(m.MarketEstimate.ht_player_id, m.MarketEstimate.captured_at)
+                .where(
+                    m.MarketEstimate.team_id == team_id,
+                    m.MarketEstimate.season_week != "",
+                )
+                .order_by(m.MarketEstimate.ht_player_id, m.MarketEstimate.season_week)
             )
         )
         .scalars()
@@ -742,12 +755,24 @@ async def _serie(
     team_id: int,
     ht_player_id: int,
     convertido: Callable[[int], int],
+    momento: datetime,
 ) -> tuple[PuntoDeLaSerie, ...]:
     """Las lecturas pasadas de este jugador, de la más vieja a la más nueva.
 
-    Sale de `market_estimates`, que guarda una fila por cada vez que su
-    número cambió. No se puede reconstruir del fondo: al resolver una venta,
-    su puja se pisa con el precio de cierre y el valor anterior desaparece.
+    Sale de `market_estimates`. No se reconstruye del fondo al leer: una
+    semana sellada tiene que seguir diciendo lo que se pagó entonces, aunque
+    después el fondo releve o caduque las ventas de las que salió.
+
+    UNA FILA POR SEMANA DE HATTRICK, y cada una vale lo que se pagó ESA
+    semana: «sólo cada semana, no acumulado, porque quiero ver la fluctuación
+    semanal de precios» (2026-11-08, decisión del usuario). El acumulado no
+    está aquí: es la cifra grande del panel, y la pantalla la repite al lado
+    de la gráfica como referencia.
+
+    LA SERIE EMPIEZA LIMPIA (decisión suya del mismo día). Las filas sin
+    semana son las de la regla vieja --una por cada cambio, fechadas por
+    cuándo lo leímos-- y se quedan fuera. No se borran: son lo único de esta
+    base que no se podría reconstruir, porque el fondo no sabe cómo estuvo.
 
     SÓLO EL TRAMO VIGENTE (2026-10-26, decisión del usuario: cuando le cambian
     los criterios, «la gráfica de precios volverá a empezar»). Los criterios
@@ -755,10 +780,6 @@ async def _serie(
     una habilidad-- y desde ese momento el barrido pregunta por otra gente. Dos
     medidas distintas unidas por una línea dibujarían una subida o una bajada
     que no ocurrió.
-
-    El corte se hace aquí y no borrando: los puntos de los tramos anteriores
-    siguen en la tabla. Es la única pérdida de esta base que no se podría
-    deshacer, porque el fondo no sabe cómo estuvo.
     """
     filas = (
         (
@@ -767,8 +788,9 @@ async def _serie(
                 .where(
                     m.MarketEstimate.team_id == team_id,
                     m.MarketEstimate.ht_player_id == ht_player_id,
+                    m.MarketEstimate.season_week != "",
                 )
-                .order_by(m.MarketEstimate.captured_at)
+                .order_by(m.MarketEstimate.season_week)
             )
         )
         .scalars()
@@ -784,6 +806,17 @@ async def _serie(
             corte -= 1
         filas = filas[corte:]
 
+    # CUÁL ES LA DE AHORA, para que la pantalla la dibuje viva. Se compara
+    # con la etiqueta de hoy y no con «la última fila»: si no se sincroniza en
+    # dos semanas, la última fila es de una semana ya cerrada y pintarla como
+    # en curso diría que todavía puede moverse.
+    world = await session.scalar(
+        select(m.WorldContext)
+        .join(m.Team, m.Team.ht_league_id == m.WorldContext.ht_league_id)
+        .where(m.Team.id == team_id)
+    )
+    esta_semana = season_week_for_datetime(world, momento) if world else None
+
     puntos = []
     for fila in filas:
         try:
@@ -793,6 +826,8 @@ async def _serie(
         puntos.append(
             PuntoDeLaSerie(
                 cuando=fila.captured_at,
+                semana=fila.season_week,
+                en_curso=fila.season_week == esta_semana,
                 media=convertido(fila.mean_price) if fila.mean_price is not None else None,
                 mediana=convertido(fila.median_price) if fila.median_price is not None else None,
                 n=fila.n,

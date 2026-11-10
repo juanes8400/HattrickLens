@@ -798,20 +798,63 @@ function corto(v: number): string {
  * TODAVÍA NO HAY RESPUESTA. Enseñar la línea ahí convierte el gráfico en la
  * contradicción de su propio titular. Ver `conMedia`.
  */
+/** Las semanas de Hattrick entre dos etiquetas «TT-ss», las dos incluidas.
+ *
+ *  Hace falta porque el eje tiene que enseñar TAMBIÉN las semanas en las que
+ *  no se vendió nadie: son la mitad de lo que cuenta una gráfica de
+ *  fluctuación. Sin ellas, dos ventas separadas por un mes se dibujarían
+ *  pegadas y la línea mentiría sobre el ritmo.
+ *
+ *  Dieciséis semanas por temporada, que es el calendario del juego. */
+export function semanasEntre(primera: string, ultima: string): string[] {
+  const indice = (s: string) => {
+    const [t, w] = s.split("-").map(Number);
+    return (t ?? 0) * 16 + ((w ?? 1) - 1);
+  };
+  const etiqueta = (i: number) => {
+    const temporada = Math.floor(i / 16);
+    const semana = (i % 16) + 1;
+    return `${String(temporada).padStart(2, "0")}-${String(semana).padStart(2, "0")}`;
+  };
+  const desde = indice(primera);
+  const hasta = indice(ultima);
+  if (!Number.isFinite(desde) || !Number.isFinite(hasta) || hasta < desde)
+    return [primera];
+  // Una temporada y media de tope. Con más, el eje es ilegible y la gráfica
+  // deja de ser de fluctuación para ser de historia.
+  const total = Math.min(hasta - desde, 24);
+  return Array.from({ length: total + 1 }, (_, k) =>
+    etiqueta(hasta - total + k),
+  );
+}
+
 export function serieDePuntosOption(
   lecturas: {
     cuando: string;
+    /** «TT-ss», la semana de Hattrick a la que pertenece el punto. */
+    semana: string;
+    /** Si es la semana en curso: se dibuja hueca, porque es la única que
+     *  todavía puede cambiar. */
+    enCurso: boolean;
     media: number | null;
     precios: [number, boolean, number][];
   }[],
   opciones: {
-    etiqueta: (iso: string) => string;
+    // AQUÍ VIVÍA `etiqueta`, la que convertía la fecha de cada lectura en el
+    // rótulo del eje. Desde que el eje son semanas de Hattrick (2026-11-08)
+    // el rótulo es la propia semana y no hay fecha que formatear.
     detalle: (v: number) => string;
     etiquetaMedia: string;
     /** Si se dibuja la línea de medias. `false` cuando el panel dice que
      *  todavía no hay precio: los puntos siguen, que son hechos, pero no la
      *  línea, que se lee como la respuesta que el texto acaba de negar. */
     conMedia?: boolean;
+    /** La media ACUMULADA del panel --24 semanas, hasta 30 ventas--, dibujada
+     *  como raya horizontal de referencia. Con ella la fluctuación se lee
+     *  sola: se ve de un vistazo qué semanas estuvieron por encima de lo
+     *  normal y cuáles por debajo (2026-11-08, pedido del usuario). */
+    acumulado?: number | null;
+    etiquetaAcumulado?: string;
   },
 ): EChartsOption {
   const conMedia = opciones.conMedia !== false;
@@ -839,14 +882,15 @@ export function serieDePuntosOption(
     firme: boolean,
     peso: number,
   ): Punto => {
+    const x = dondeVa.get(lecturas[i]?.semana ?? "") ?? i;
     const clavado = (peso ?? PESO_DEL_CLAVADO) >= PESO_DEL_CLAVADO;
     const { symbolSize, opacity } = segunElPeso(peso ?? PESO_DEL_CLAVADO, 8);
     return {
-      value: [i, precio],
+      value: [x, precio],
       symbolSize,
       itemStyle: { opacity },
       tip: [
-        opciones.etiqueta(lecturas[i]?.cuando ?? ""),
+        lecturas[i]?.semana ?? "",
         `<b>${opciones.detalle(precio)}</b>`,
         clavado ? tx("idéntico") : tx("equivalente"),
         firme ? tx("venta cerrada") : tx("puja abierta, no promedia"),
@@ -858,22 +902,55 @@ export function serieDePuntosOption(
     else if ((peso ?? PESO_DEL_CLAVADO) >= PESO_DEL_CLAVADO) clavadas.push(p);
     else avaladas.push(p);
   };
+  // EL EJE SON TODAS LAS SEMANAS, también las vacías (2026-11-08). Una
+  // gráfica de fluctuación tiene que enseñar los silencios: dos ventas
+  // separadas por un mes dibujadas pegadas mentirían sobre el ritmo.
+  const eje = lecturas.length
+    ? semanasEntre(lecturas[0]!.semana, lecturas[lecturas.length - 1]!.semana)
+    : [];
+  const dondeVa = new Map(eje.map((s, i) => [s, i]));
+
   const nube: Punto[] = [];
   const clavadas: Punto[] = [];
   const avaladas: Punto[] = [];
   // LA LÍNEA TAMBIÉN LLEVA TOOLTIP, y por eso sus puntos son objetos y no
   // números sueltos: cada uno dice de qué lectura es, cuánto vale la media y
   // sobre cuántas ventas se hizo.
-  const medias: ({ value: number; tip: string } | null)[] = [];
+  type Media = {
+    value: number;
+    tip: string;
+    symbolSize?: number;
+    itemStyle?: Record<string, unknown>;
+  };
+  const medias: (Media | null)[] = eje.map(() => null);
   const anotaLaMedia = (i: number, valor: number, cuantas: number) => {
-    medias.push({
+    const lectura = lecturas[i];
+    const x = dondeVa.get(lectura?.semana ?? "");
+    if (x === undefined) return;
+    // LA SEMANA EN CURSO, HUECA. Es la única cuyo valor de mañana puede no
+    // ser el de hoy --todavía le pueden cerrar ventas-- y mezclarla con las
+    // selladas haría leer como cerrado algo que no lo está.
+    const viva = lectura?.enCurso === true;
+    medias[x] = {
       value: valor,
+      symbolSize: viva ? 9 : 6,
+      itemStyle: viva
+        ? {
+            color: "transparent",
+            borderColor: LINEA_DE_LA_MEDIA,
+            borderWidth: 2.5,
+          }
+        : { color: LINEA_DE_LA_MEDIA },
       tip: [
-        opciones.etiqueta(lecturas[i]?.cuando ?? ""),
+        `${lectura?.semana ?? ""}${viva ? ` · ${tx("en curso")}` : ""}`,
         `${opciones.etiquetaMedia}: <b>${opciones.detalle(Math.round(valor))}</b>`,
-        tx("sobre {{v0}} ventas", { v0: cuantas }),
+        // Con un punto por semana, «una sola venta» es lo corriente y no la
+        // excepción: «sobre 1 ventas» se iba a leer casi siempre.
+        cuantas === 1
+          ? tx("sobre 1 venta")
+          : tx("sobre {{v0}} ventas", { v0: cuantas }),
       ].join("<br/>"),
-    });
+    };
   };
   // AQUÍ HABÍA UN INTERRUPTOR, `soloCerradas`, y con él una segunda forma de
   // dibujar la serie: todos los puntos y la media de todos. Se fue el
@@ -899,20 +976,24 @@ export function serieDePuntosOption(
       );
       return;
     }
+    // UNA SEMANA GUARDADA SIEMPRE TIENE VENTAS desde el 2026-11-08: el
+    // barrido no escribe la semana que no cerró ninguna. Si llegara una sin
+    // ellas, sus pujas se enseñan y la media se queda en blanco, que es lo
+    // que ya hacía antes.
     for (const [precio, , peso] of l.precios)
       nube.push(punto(i, precio, false, peso));
-    // Sin ventas cerradas no hay media que dibujar: la linea se corta ahi en
-    // vez de inventar un punto con pujas, que es justo lo que se quiso quitar.
-    // `connectNulls: false` hace el hueco de verdad.
-    medias.push(null);
   });
 
   return {
     grid: { left: 8, right: 14, top: 18, bottom: 46, containLabel: true },
     xAxis: {
       type: "category",
-      data: lecturas.map((l) => opciones.etiqueta(l.cuando)),
-      axisLabel: { fontSize: 10, hideOverlap: true },
+      data: eje,
+      // LA ÚLTIMA SEMANA SE ROTULA SIEMPRE. En un móvil no caben todas y
+      // `hideOverlap` se lleva una de cada dos; sin esto la que desaparecía
+      // era justo la de la derecha, que es la semana en curso y la que más
+      // se mira.
+      axisLabel: { fontSize: 10, hideOverlap: true, showMaxLabel: true },
       axisTick: { show: false },
       boundaryGap: true,
     },
@@ -941,6 +1022,53 @@ export function serieDePuntosOption(
               itemStyle: { color: LINEA_DE_LA_MEDIA },
               connectNulls: false,
               z: 1,
+              ...(opciones.acumulado != null
+                ? {
+                    markLine: {
+                      silent: true,
+                      symbol: "none" as const,
+                      label: {
+                        formatter: opciones.etiquetaAcumulado ?? "",
+                        fontSize: 10,
+                        position: "insideStartTop" as const,
+                      },
+                      lineStyle: {
+                        type: "dashed" as const,
+                        width: 1,
+                        opacity: 0.5,
+                      },
+                      data: [{ yAxis: opciones.acumulado }],
+                    },
+                  }
+                : {}),
+            },
+          ]
+        : []),
+      // EL PUENTE PUNTEADO, por debajo (z 0) y DESPUÉS en el array: la sólida
+      // tiene que ir primera para que sea la que se encuentra por nombre, que
+      // es la que lleva los símbolos y los tooltips.
+      //
+      // Mismos valores con `connectNulls`, así que cruza las semanas sin
+      // ventas con una línea de puntos: dice «de aquí a aquí no medimos» sin
+      // cortar el dibujo ni inventar un precio. Lo eligió el usuario el
+      // 2026-11-08 sobre las dos opciones que se le dieron, hueco o línea
+      // partida, y es mejor que las dos.
+      ...(conMedia
+        ? [
+            {
+              type: "line" as const,
+              name: opciones.etiquetaMedia,
+              data: medias.map((p) => (p ? p.value : null)),
+              symbol: "none" as const,
+              lineStyle: {
+                width: 1.5,
+                color: LINEA_DE_LA_MEDIA,
+                type: "dotted" as const,
+                opacity: 0.55,
+              },
+              connectNulls: true,
+              silent: true,
+              z: 0,
             },
           ]
         : []),

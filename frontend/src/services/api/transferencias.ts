@@ -325,6 +325,13 @@ export interface ComparableDeMercado {
 /** Una lectura pasada del precio, para dibujar cómo fue cambiando. */
 export interface PuntoDeLaSerie {
   cuando: string;
+  /** «TT-ss», la semana de Hattrick de este punto. Desde el 2026-11-08 la
+   *  serie es semanal y cada punto vale lo que se pagó ESA semana, no el
+   *  acumulado: el usuario quiere ver la fluctuación. */
+  semana: string;
+  /** Si es la semana en curso, la única que todavía puede cambiar. Se dibuja
+   *  hueca. */
+  enCurso: boolean;
   media: number | null;
   mediana: number | null;
   n: number;

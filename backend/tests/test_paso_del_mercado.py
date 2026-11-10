@@ -37,6 +37,9 @@ DISPARADOR = ECONOMICA - timedelta(hours=24)
 AHORA = DISPARADOR + timedelta(hours=1)
 
 PLAZO_HT = "2026-10-08 23:00:00"
+#: Ocho dias despues del anterior: otra semana de Hattrick, que es lo que
+#: hace falta para ver dos puntos y dos tramos en la serie.
+PLAZO_SEMANA_2 = "2026-10-16 23:00:00"
 
 #: Un delantero: anotacion 18, pases 13, creacion 7. Su id cae en el grupo 0,
 #: que es justo al que le toca en la semana de `AHORA`.
@@ -126,7 +129,18 @@ async def base():
     async with factory() as s:
         equipo = m.Team(ht_team_id=HT_TEAM, name="Pulgas Arrechas", ht_league_id=LIGA)
         s.add(equipo)
-        s.add(m.WorldContext(ht_league_id=LIGA, economy_date=ECONOMICA))
+        # CON SU ANCLA DE SEMANA (2026-11-08). La serie pasó a ser un punto
+        # por semana de Hattrick, y sin `season`/`match_round`/`refreshed_at`
+        # no se puede fechar ninguna: el paso no escribiría nada.
+        s.add(
+            m.WorldContext(
+                ht_league_id=LIGA,
+                economy_date=ECONOMICA,
+                season=83,
+                match_round=5,
+                refreshed_at=AHORA,
+            )
+        )
         await s.flush()
         sync = m.Sync(user_id=1, team_id=equipo.id, kind="players", started_at=AHORA)
         s.add(sync)
@@ -623,10 +637,15 @@ async def test_un_chpp_caido_no_gasta_intentos_de_resolucion(base) -> None:
     assert [r.precio for r in paso.resueltas] == [77_720_000]
 
 
-async def test_la_serie_anota_un_punto_cuando_el_numero_cambia(base) -> None:
-    """`market_sales` sabe como esta el fondo AHORA, no como estuvo: al
-    resolver una venta su puja se pisa con el precio de cierre. Sin anotar
-    la lectura no hay forma de dibujar como fue cambiando."""
+async def test_la_serie_anota_un_punto_por_SEMANA_y_solo_con_ventas(base) -> None:
+    """Un punto por semana de Hattrick, y hecho de lo que CERRÓ esa semana.
+
+    2026-11-08, decisión del usuario: «sólo cada semana, no acumulado, porque
+    quiero ver la fluctuación semanal de precios».
+
+    Y por eso unas pujas abiertas no dejan punto: todavía no se ha pagado
+    nada. El punto aparece cuando alguna cierra.
+    """
     session, equipo = base
     paso = await correr_el_paso_del_mercado(
         session,
@@ -634,6 +653,19 @@ async def test_la_serie_anota_un_punto_cuando_el_numero_cambia(base) -> None:
         buscar=_MercadoFalso([_fila_de_mercado(900 + i, puja=1_000_000) for i in range(6)]),
         historial_de=_sin_historial,
         ahora=AHORA,
+    )
+    assert paso.puntos_anotados == 0, "seis pujas abiertas no son una venta"
+
+    # Tres cierran. Se tocan a mano porque resolverlas de verdad pide
+    # historial por cada una, y lo que esta prueba mira es la serie.
+    guardadas = list((await session.execute(select(m.MarketSale))).scalars())
+    for fila in guardadas[:3]:
+        fila.is_final = True
+        fila.price = 4_000_000
+    await session.flush()
+
+    paso = await correr_el_paso_del_mercado(
+        session, equipo, buscar=_MercadoFalso(), historial_de=_sin_historial, ahora=AHORA
     )
     assert paso.puntos_anotados >= 1
 
@@ -647,23 +679,153 @@ async def test_la_serie_anota_un_punto_cuando_el_numero_cambia(base) -> None:
         .all()
     )
     assert len(puntos) == 1
-    # La lectura se anota aunque todavia no haya numero: lo que cambia es la
-    # nube, y es justo lo que luego dibuja la grafica.
-    assert puntos[0].n == 0
-    assert puntos[0].mean_price is None
-    # Y lleva la nube, no solo la media: los seis precios que trajo la
-    # busqueda, los seis sin cerrar. Ninguno ha cerrado, y por eso la lectura
-    # va sin numero: una puja no es un precio.
+    assert puntos[0].n == 3, "las tres que cerraron"
+    assert puntos[0].mean_price == 4_000_000, "la media de lo que cerró esa semana"
+    # Y lleva la nube, no sólo la media: los tres precios de cierre. Las otras
+    # tres siguen abiertas y no están: una puja no es un precio.
     nube = json.loads(puntos[0].prices_json)
-    assert len(nube) == 6
-    assert all(p["firme"] is False for p in nube)
-    assert {p["precio"] for p in nube} == {1_000_000}
+    assert len(nube) == 3
+    assert all(p["firme"] is True for p in nube), "la nube de una semana es de ventas"
+    assert {p["precio"] for p in nube} == {4_000_000}, "el precio de cierre, no la puja"
+
+
+#: Domingo de la MISMA semana de Hattrick que `AHORA` (jueves 8 de octubre).
+#: A mediodía y no a las 23:00 para que el huso no la saque de su semana.
+PLAZO_DEL_DOMINGO = "2026-10-11 12:00:00"
+LUNES = datetime(2026, 10, 12, 12, 0, tzinfo=UTC)
+
+
+async def _semana_de(session, cuando: datetime) -> str:
+    from app.application.queries.weekly import season_week_for_datetime
+
+    world = (await session.execute(select(m.WorldContext))).scalar_one()
+    etiqueta = season_week_for_datetime(world, cuando)
+    assert etiqueta is not None
+    return etiqueta
+
+
+async def _historial_del_domingo(ht_player_id: int) -> dict[str, Any]:
+    return {
+        "transfers": [{"ht_transfer_id": 77, "deadline": PLAZO_DEL_DOMINGO, "price": 7_000_000}]
+    }
+
+
+async def test_la_del_DOMINGO_resuelta_el_LUNES_cuenta_en_la_semana_del_domingo(base) -> None:
+    """La regla que gobierna la serie, dicha por el usuario el 2026-11-08:
+    «todo lo que haya sido finalizado en la semana TT-ss pasa a ser parte del
+    Promedio de la semana».
+
+    El caso difícil es el de siempre: la subasta cierra el domingo y nosotros
+    nos enteramos el lunes, ya en la semana siguiente. El precio tiene que
+    aparecer en la semana en la que CERRÓ.
+
+    ESTA PRUEBA NO EXISTÍA y el fallo sí (2026-11-09): la serie se escribía
+    después de resolver, cuando la venta ya figuraba como cerrada y su semana
+    ya no contaba como abierta. El precio del domingo no llegaba a ningún
+    punto.
+    """
+    session, equipo = base
+    await correr_el_paso_del_mercado(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(900, puja=5_000_000, deadline=PLAZO_DEL_DOMINGO)]),
+        historial_de=_sin_historial,
+        ahora=AHORA,
+    )
+    del_domingo = await _semana_de(session, AHORA)
+    del_lunes = await _semana_de(session, LUNES)
+    assert del_domingo != del_lunes, "el lunes ya es otra semana"
+
+    paso = await correr_el_paso_del_mercado(
+        session, equipo, buscar=_MercadoFalso(), historial_de=_historial_del_domingo, ahora=LUNES
+    )
+    assert [r.precio for r in paso.resueltas] == [7_000_000]
+
+    puntos = (
+        (
+            await session.execute(
+                select(m.MarketEstimate).where(m.MarketEstimate.ht_player_id == ALBERTO)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [(p.season_week, p.mean_price, p.n) for p in puntos] == [(del_domingo, 7_000_000, 1)], (
+        "un solo punto, en la semana en que cerró y con lo que de verdad se pagó"
+    )
+
+
+async def test_una_semana_sin_pendientes_queda_SELLADA(base) -> None:
+    """«Luego la semana se cierra y ya no se movería» (2026-11-08).
+
+    Una semana pasada se escribe por última vez en el paso que resuelve su
+    última venta pendiente. Después nadie la toca, pase lo que pase en el
+    fondo: lo que se pagó aquella semana ya es historia.
+    """
+    session, equipo = base
+    await correr_el_paso_del_mercado(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(900, puja=5_000_000, deadline=PLAZO_DEL_DOMINGO)]),
+        historial_de=_sin_historial,
+        ahora=AHORA,
+    )
+    await correr_el_paso_del_mercado(
+        session, equipo, buscar=_MercadoFalso(), historial_de=_historial_del_domingo, ahora=LUNES
+    )
+
+    # El fondo cambia por debajo, como cambiaría si algo lo reescribiera.
+    venta = (await session.execute(select(m.MarketSale))).scalar_one()
+    venta.price = 9_999_999
+    await session.flush()
+
+    paso = await correr_el_paso_del_mercado(
+        session,
+        equipo,
+        buscar=_MercadoFalso(),
+        historial_de=_sin_historial,
+        ahora=LUNES + timedelta(days=1),
+    )
+    assert paso.puntos_anotados == 0, "no queda ninguna semana abierta con ventas"
+    punto = (
+        await session.execute(
+            select(m.MarketEstimate).where(m.MarketEstimate.ht_player_id == ALBERTO)
+        )
+    ).scalar_one()
+    assert punto.mean_price == 7_000_000, "la semana sellada conserva lo que se pagó"
+
+
+async def test_solo_la_semana_de_HOY_sale_como_en_curso(base) -> None:
+    """La pantalla dibuja hueco el punto que todavía puede moverse, y ese es
+    el de la semana de hoy, no «el último que haya». Si no se sincroniza en
+    dos semanas, el último punto es de una semana ya cerrada."""
+    from app.application.queries.precio_comparable import _serie
+
+    session, equipo = base
+    await correr_el_paso_del_mercado(
+        session,
+        equipo,
+        buscar=_MercadoFalso([_fila_de_mercado(900, puja=5_000_000, deadline=PLAZO_DEL_DOMINGO)]),
+        historial_de=_sin_historial,
+        ahora=AHORA,
+    )
+    await correr_el_paso_del_mercado(
+        session, equipo, buscar=_MercadoFalso(), historial_de=_historial_del_domingo, ahora=LUNES
+    )
+
+    # Leída el mismo domingo, la semana seguía viva.
+    domingo = datetime(2026, 10, 11, 18, 0, tzinfo=UTC)
+    viva = await _serie(session, equipo.id, ALBERTO, lambda x: x, domingo)
+    assert [p.en_curso for p in viva] == [True]
+    # Leída el lunes, esa misma fila ya es de una semana pasada.
+    pasada = await _serie(session, equipo.id, ALBERTO, lambda x: x, LUNES)
+    assert [p.en_curso for p in pasada] == [False]
 
 
 async def test_la_serie_no_repite_un_punto_que_no_dice_nada_nuevo(base) -> None:
-    """Un punto por CAMBIO y no por fecha. Anotando en cada sincronizacion,
-    la serie seria una linea plana con cientos de puntos iguales y el tiempo
-    entre dos puntos dejaria de significar algo."""
+    """Volver a pasar sin que nada cambie no escribe nada: la fila de la
+    semana se pisa sólo cuando dice algo distinto, y así el paso puede seguir
+    contando cuántos puntos se movieron de verdad."""
     session, equipo = base
     await correr_el_paso_del_mercado(
         session,
@@ -943,6 +1105,15 @@ async def test_al_cambiarle_los_criterios_la_SERIE_EMPIEZA_DE_NUEVO(base) -> Non
         historial_de=_sin_historial,
         ahora=AHORA,
     )
+    # Que cierre: desde el 2026-11-08 sólo una venta con precio deja punto.
+    vendida = (await session.execute(select(m.MarketSale))).scalars().first()
+    assert vendida is not None
+    vendida.is_final = True
+    vendida.price = 5_000_000
+    await session.flush()
+    await correr_el_paso_del_mercado(
+        session, equipo, buscar=_MercadoFalso(), historial_de=_sin_historial, ahora=AHORA
+    )
     de_antes = (
         (
             await session.execute(
@@ -964,7 +1135,12 @@ async def test_al_cambiarle_los_criterios_la_SERIE_EMPIEZA_DE_NUEVO(base) -> Non
     jugador.market_swept_at = None  # para que le vuelva a tocar
     sync = (await session.execute(select(m.Sync))).scalars().first()
     assert sync is not None
-    manana = AHORA + timedelta(days=1)
+    # OCHO DÍAS Y NO UNO (2026-11-08). La serie guarda una fila por SEMANA, y
+    # si el cumpleaños cayera en la misma semana que el barrido anterior la
+    # fila se pisaría con los criterios nuevos en vez de abrir otra. El corte
+    # por tramo sigue existiendo, pero ahora se ve entre semanas, que es donde
+    # la gráfica lo dibuja.
+    manana = AHORA + timedelta(days=8)
     session.add(
         m.PlayerSnapshot(
             sync_id=sync.id,
@@ -986,9 +1162,21 @@ async def test_al_cambiarle_los_criterios_la_SERIE_EMPIEZA_DE_NUEVO(base) -> Non
     await correr_el_paso_del_mercado(
         session,
         equipo,
-        buscar=_MercadoFalso([_fila_de_mercado(901, puja=5_000_000)]),
+        buscar=_MercadoFalso([_fila_de_mercado(901, puja=5_000_000, deadline=PLAZO_SEMANA_2)]),
         historial_de=_sin_historial,
         ahora=manana,
+    )
+    # Y QUE CIERRE EN LA SEMANA NUEVA. Sin una venta suya, esa semana no tiene
+    # punto --que es la regla: sólo se dibuja lo que de verdad se pagó-- y no
+    # habría segundo tramo que ver.
+    nueva = (
+        await session.execute(select(m.MarketSale).where(m.MarketSale.ht_player_id == 901))
+    ).scalar_one()
+    nueva.is_final = True
+    nueva.price = 9_000_000
+    await session.flush()
+    await correr_el_paso_del_mercado(
+        session, equipo, buscar=_MercadoFalso(), historial_de=_sin_historial, ahora=manana
     )
 
     todas = (
@@ -1007,7 +1195,7 @@ async def test_al_cambiarle_los_criterios_la_SERIE_EMPIEZA_DE_NUEVO(base) -> Non
     assert claves[-1] != clave_vieja
 
     # Y la pantalla enseña SOLO el tramo nuevo, aunque los viejos sigan ahi.
-    serie = await _serie(session, equipo.id, ALBERTO, lambda x: x)
+    serie = await _serie(session, equipo.id, ALBERTO, lambda x: x, manana)
     cuantos_del_tramo = sum(1 for k in claves if k == claves[-1])
     assert len(serie) == cuantos_del_tramo
     assert len(serie) < len(todas), "lo de antes no se borra, solo no se pinta"
@@ -1030,6 +1218,19 @@ async def test_sin_cambio_de_criterios_la_serie_NO_se_corta(base) -> None:
             historial_de=_sin_historial,
             ahora=AHORA + timedelta(days=dia),
         )
+        # Que cada una cierre el mismo dia en que se encontro.
+        for fila in (await session.execute(select(m.MarketSale))).scalars():
+            if not fila.is_final:
+                fila.is_final = True
+                fila.price = 1_000_000 * (dia + 1)
+        await session.flush()
+        await correr_el_paso_del_mercado(
+            session,
+            equipo,
+            buscar=_MercadoFalso(),
+            historial_de=_sin_historial,
+            ahora=AHORA + timedelta(days=dia),
+        )
     todas = (
         (
             await session.execute(
@@ -1040,6 +1241,12 @@ async def test_sin_cambio_de_criterios_la_serie_NO_se_corta(base) -> None:
         .all()
     )
     assert len({f.criteria_key for f in todas}) == 1, "un solo tramo"
-    serie = await _serie(session, equipo.id, ALBERTO, lambda x: x)
+    # UNA FILA POR SEMANA Y NO POR BARRIDO (2026-11-08). Tres dias seguidos
+    # con tres ventas distintas no son tres puntos: son uno por cada semana
+    # de Hattrick que tocaron, y el de la semana se va pisando.
+    semanas = [f.season_week for f in todas]
+    assert all(semanas), "cada fila lleva su semana"
+    assert len(semanas) == len(set(semanas)), "y ninguna semana se repite"
+    serie = await _serie(session, equipo.id, ALBERTO, lambda x: x, AHORA + timedelta(days=2))
     assert len(serie) == len(todas)
-    assert len(serie) >= 2, "y la serie de verdad tiene varios puntos"
+    assert serie[-1].semana == max(semanas)
