@@ -1826,6 +1826,21 @@ class MarketEstimate(Base):
     #: Vacia en las filas anteriores a la columna, y la vacia no coincide con
     #: ninguna ventana: el primer punto nuevo abre tramo. Ver la migracion 0107.
     criteria_key: Mapped[str] = mapped_column(String(120), default="", server_default="")
+    #: LA SEMANA DE HATTRICK a la que pertenece este punto, «TT-ss»
+    #: (2026-11-08, decisión del usuario). Una fila por semana y jugador, no
+    #: una por cambio.
+    #:
+    #: La semana la decide la FECHA DE CIERRE de las ventas, no cuándo nos
+    #: enteramos: «todo lo que haya sido finalizado en la semana TT-ss pasa a
+    #: ser parte del Promedio de la semana». Una subasta que cierra el domingo
+    #: a las 23:00 y se resuelve el lunes cuenta en la semana del domingo, y
+    #: por eso una semana pasada puede volver a escribirse mientras le quede
+    #: alguna venta sin resolver.
+    #:
+    #: VACÍA en las filas anteriores a la migración 0113, que son las de la
+    #: regla vieja --una por cambio--. La gráfica no las dibuja: la serie
+    #: empieza limpia, decisión suya del mismo día.
+    season_week: Mapped[str] = mapped_column(String(8), default="", server_default="")
 
 
 class MarketSale(Base):

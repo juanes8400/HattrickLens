@@ -318,67 +318,85 @@ def _retrato(estimacion: Estimacion) -> str:
     )
 
 
-async def anotar_si_cambio(
+async def anotar_la_semana(
     session: AsyncSession,
     team_id: int,
     ht_player_id: int,
     estimacion: Estimacion,
     ahora: datetime,
+    semana: str,
     criterios: str = "",
 ) -> bool:
-    """Guarda una lectura, y solo si dice algo distinto de la anterior.
+    """Guarda el punto de UNA semana de Hattrick, creándolo o pisándolo.
 
-    UN PUNTO POR CAMBIO Y NO POR FECHA. Si se anotara en cada sincronizacion
-    la serie seria una linea plana con cientos de puntos iguales, y el
-    tiempo entre dos puntos dejaria de significar nada. Anotando solo los
-    cambios, los tramos planos de la grafica cuentan que no paso nada, que
-    es informacion.
+    UN PUNTO POR SEMANA (2026-11-08, decisión del usuario), y la semana la
+    decide la fecha de cierre de las ventas: «todo lo que haya sido
+    finalizado en la semana TT-ss pasa a ser parte del Promedio de la
+    semana».
+
+    LA SEMANA EN CURSO ESTÁ VIVA y se pisa en cada barrido: «a medida que
+    pasa la semana, se pueden ir agregando los datos que van a participar del
+    promedio semanal». Una semana pasada también puede pisarse, pero sólo
+    mientras le quede alguna venta sin resolver --la del domingo que se
+    resuelve el lunes--; quien decide qué semanas se tocan es
+    `semanas_abiertas`. Cuando ya no queda ninguna, nadie vuelve a escribirla
+    y queda sellada: «luego la semana se cierra y ya no se movería».
+
+    AQUÍ VIVÍA `anotar_si_cambio`, una fila por cada vez que el número
+    cambiaba. Con el barrido diario eran varios puntos por semana, y el punto
+    caía donde nos enterábamos en vez de donde ocurrió la venta: la subasta
+    del domingo aparecía una semana tarde y la gráfica dibujaba plana una
+    semana en la que sí había pasado algo.
+
+    Devuelve si la fila cambió de verdad. Volver a escribir lo mismo no
+    cuenta: así el paso del mercado sigue pudiendo decir cuántos puntos se
+    movieron.
 
     Y UN CAMBIO DE CRITERIOS TAMBIEN ES UN CAMBIO (2026-10-26), aunque el
     numero salga identico. Es el punto que ABRE el tramo nuevo: sin el, un
     jugador que cumple años sin que le cambie la cifra no dejaria rastro de
     que desde ese dia se le esta comparando con otra gente, y el tramo viejo
     se estiraria sobre el nuevo.
-
-    Devuelve si se anoto.
     """
-    ultima = (
+    fila = (
         await session.execute(
-            select(m.MarketEstimate)
-            .where(
+            select(m.MarketEstimate).where(
                 m.MarketEstimate.team_id == team_id,
                 m.MarketEstimate.ht_player_id == ht_player_id,
+                m.MarketEstimate.season_week == semana,
             )
-            .order_by(m.MarketEstimate.captured_at.desc())
-            .limit(1)
         )
     ).scalar_one_or_none()
 
     retrato = _retrato(estimacion)
     if (
-        ultima is not None
-        and ultima.criteria_key == criterios
-        and ultima.mean_price == estimacion.media
-        and ultima.median_price == estimacion.mediana
-        and ultima.n == estimacion.n
-        and ultima.prices_json == retrato
+        fila is not None
+        and fila.criteria_key == criterios
+        and fila.mean_price == estimacion.media
+        and fila.median_price == estimacion.mediana
+        and fila.n == estimacion.n
+        and fila.prices_json == retrato
     ):
         return False
 
-    session.add(
-        m.MarketEstimate(
+    if fila is None:
+        fila = m.MarketEstimate(
             team_id=team_id,
             ht_player_id=ht_player_id,
-            captured_at=ahora,
-            mean_price=estimacion.media,
-            median_price=estimacion.mediana,
-            n=estimacion.n,
-            min_weight=estimacion.peso_minimo,
-            provisional=estimacion.provisionales,
-            prices_json=retrato,
-            criteria_key=criterios,
+            season_week=semana,
         )
-    )
+        session.add(fila)
+    # `captured_at` deja de ser «cuándo se leyó» y pasa a ser «la última vez
+    # que esta semana se tocó». Lo que ordena la serie es la semana, no esto;
+    # se conserva porque dice cuándo se selló de hecho cada punto.
+    fila.captured_at = ahora
+    fila.mean_price = estimacion.media
+    fila.median_price = estimacion.mediana
+    fila.n = estimacion.n
+    fila.min_weight = estimacion.peso_minimo
+    fila.provisional = estimacion.provisionales
+    fila.prices_json = retrato
+    fila.criteria_key = criterios
     return True
 
 

@@ -966,20 +966,58 @@ export function PrecioPorComparables({
           fondo. Lo que se va es la respuesta que todavía no toca. */}
       {datos.serie.length >= MINIMO_PARA_LA_SERIE && (
         <div className="px-4 pb-2">
-          <Chart
-            height={200}
-            ariaLabel={
-              hayNumero
-                ? tx("Cómo ha ido cambiando el precio de sus comparables")
-                : tx("Las ventas encontradas hasta ahora, sin media todavía")
-            }
-            option={serieDePuntosOption(datos.serie, {
-              etiqueta: (iso) => date(iso),
-              detalle: (v) => money(v, datos.moneda),
-              conMedia: hayNumero,
-              etiquetaMedia: tx("Media de las ventas cerradas"),
-            })}
-          />
+          {/* LA GRÁFICA Y EL ACUMULADO, UNO AL LADO DEL OTRO (2026-11-08,
+              pedido del usuario: «haz que un recuadro al lado de la gráfica
+              tenga el promedio con el método A+B+C»).
+
+              La gráfica enseña la FLUCTUACIÓN --lo que se pagó cada semana,
+              decisión suya: «quiero ver la fluctuación semanal de precios»--
+              y el recuadro, al lado, el acumulado contra el que se compara.
+              Son dos lecturas de lo mismo y por eso van juntas: un pico
+              semanal no dice nada hasta que se sabe de qué se despega. */}
+          <div className="flex flex-wrap items-stretch gap-3">
+            <div className="min-w-0 flex-[3_1_320px]">
+              <Chart
+                height={200}
+                ariaLabel={
+                  hayNumero
+                    ? tx("Lo que se pagó cada semana por jugadores parecidos")
+                    : tx(
+                        "Las ventas encontradas hasta ahora, sin media todavía",
+                      )
+                }
+                option={serieDePuntosOption(datos.serie, {
+                  detalle: (v) => money(v, datos.moneda),
+                  conMedia: hayNumero,
+                  etiquetaMedia: tx("Media de la semana"),
+                  // LA MISMA CIFRA DE ARRIBA, no otra. Se unificaron a 24
+                  // semanas el 2026-11-08 --«unifiquemos a 24 semanas, no hay
+                  // inconveniente»-- justo para que la pantalla no enseñe dos
+                  // medias distintas del mismo jugador.
+                  acumulado: datos.media,
+                  etiquetaAcumulado: tx("acumulado"),
+                })}
+              />
+            </div>
+            {hayNumero && (
+              <div className="flex min-w-0 flex-[1_1_150px] flex-col justify-center rounded-lg bg-[var(--surface-2)] px-4 py-3">
+                <span className="text-xs uppercase tracking-wide text-[var(--muted)]">
+                  {tx("Acumulado")}
+                </span>
+                <span className="mt-1 text-lg font-medium tabular-nums">
+                  {money(datos.media ?? 0, datos.moneda)}
+                </span>
+                <span className="mt-2 text-xs text-[var(--muted)]">
+                  {tx("24 semanas")}
+                </span>
+                <span className="text-xs text-[var(--muted)]">
+                  {datos.n === 1
+                    ? tx("1 venta")
+                    : tx("{{v0}} ventas", { v0: number(datos.n) })}
+                </span>
+              </div>
+            )}
+          </div>
           {!hayNumero && (
             <p className="prosa text-xs text-[var(--muted)]">
               {tx(

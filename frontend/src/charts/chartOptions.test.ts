@@ -3,6 +3,7 @@ import {
   anchoDeKernel,
   bandBetween,
   histogramaDeErrorOption,
+  semanasEntre,
   serieDePuntosOption,
   tiraDePuntosOption,
 } from "./chartOptions";
@@ -148,10 +149,22 @@ describe("las gráficas del comparador", () => {
   describe("la serie en el tiempo", () => {
     const opcion = serieDePuntosOption(
       [
-        { cuando: "2026-10-01", media: 150_000, precios: PRECIOS },
-        { cuando: "2026-10-08", media: 160_000, precios: PRECIOS },
+        {
+          cuando: "2026-10-01",
+          semana: "83-05",
+          enCurso: false,
+          media: 150_000,
+          precios: PRECIOS,
+        },
+        {
+          cuando: "2026-10-08",
+          semana: "83-06",
+          enCurso: true,
+          media: 160_000,
+          precios: PRECIOS,
+        },
       ],
-      { etiqueta: (iso) => iso, ...COMUNES },
+      COMUNES,
     ) as unknown as Record<string, unknown>;
 
     it("LA LÍNEA también saca tooltip: lleva símbolo y texto por punto", () => {
@@ -164,10 +177,11 @@ describe("las gráficas del comparador", () => {
       expect(primero.tip).toContain("sobre");
     });
 
-    it("el tooltip de un punto dice de qué lectura es", () => {
-      expect(puntos(porNombre(opcion, "Idéntico"))[0]!.tip).toContain(
-        "2026-10-01",
-      );
+    it("el tooltip de un punto dice de qué SEMANA es", () => {
+      // Era la fecha de la lectura; desde el 2026-11-08 la serie es semanal
+      // y lo que sitúa un punto es su semana de Hattrick, no el día en que
+      // lo leímos.
+      expect(puntos(porNombre(opcion, "Idéntico"))[0]!.tip).toContain("83-05");
     });
 
     it("aquí también el clavado es más grande", () => {
@@ -182,6 +196,124 @@ describe("las gráficas del comparador", () => {
       expect(aro?.borderColor).toBe(
         porNombre(opcion, "Idéntico")?.itemStyle?.color,
       );
+    });
+  });
+
+  /** 2026-11-08, decisión del usuario: un punto por semana de Hattrick, hecho
+   *  de lo que cerró ESA semana. Lo que se fija aquí es el dibujo: el eje
+   *  enseña también las semanas sin ventas, el tramo que las cruza va
+   *  punteado, y la semana en curso se distingue de las selladas. */
+  describe("la serie semanal", () => {
+    const lectura = (semana: string, media: number, enCurso = false) => ({
+      cuando: "2026-11-09",
+      semana,
+      enCurso,
+      media,
+      precios: [[media, true, 100]] as [number, boolean, number][],
+    });
+    // Tres semanas con ventas y dos huecos: 83-15 y 83-16 se quedan vacías, y
+    // el salto de 83-16 a 84-01 es un cambio de temporada.
+    const opcion = serieDePuntosOption(
+      [
+        lectura("83-13", 100_000),
+        lectura("83-14", 120_000),
+        lectura("84-01", 90_000, true),
+      ],
+      { ...COMUNES, acumulado: 105_000, etiquetaAcumulado: "acumulado" },
+    ) as unknown as Record<string, unknown>;
+
+    type Linea = Serie & {
+      connectNulls?: boolean;
+      lineStyle?: { type?: string };
+      markLine?: { data?: { yAxis: number }[] };
+    };
+    const lineas = () =>
+      series(opcion).filter((s) => s.name === "Media") as Linea[];
+    type PuntoDeMedia = {
+      value: number;
+      tip: string;
+      itemStyle: { color: string };
+    } | null;
+
+    it("el eje lleva TODAS las semanas, también las vacías", () => {
+      const eje = (opcion.xAxis as { data: string[] }).data;
+      expect(eje).toEqual(["83-13", "83-14", "83-15", "83-16", "84-01"]);
+    });
+
+    it("la última semana se rotula siempre, aunque no quepan todas", () => {
+      const rotulo = (opcion.xAxis as { axisLabel: { showMaxLabel: boolean } })
+        .axisLabel;
+      expect(rotulo.showMaxLabel).toBe(true);
+    });
+
+    it("cada media va en SU semana y las vacías se quedan sin punto", () => {
+      const medias = lineas()[0]!.data as PuntoDeMedia[];
+      expect(medias.map((p) => p?.value ?? null)).toEqual([
+        100_000,
+        120_000,
+        null,
+        null,
+        90_000,
+      ]);
+    });
+
+    it("la sólida se corta en el hueco y la punteada lo cruza", () => {
+      const [solida, puente] = lineas();
+      // La sólida va PRIMERA: es la que se encuentra por nombre, y la que
+      // lleva los símbolos y los tooltips.
+      expect(solida!.connectNulls).toBe(false);
+      expect(solida!.symbol).not.toBe("none");
+      expect(puente!.connectNulls).toBe(true);
+      expect(puente!.lineStyle?.type).toBe("dotted");
+      expect(puente!.symbol).toBe("none");
+      // Los mismos valores: el puente no inventa ningún precio.
+      expect(puente!.data).toEqual([100_000, 120_000, null, null, 90_000]);
+    });
+
+    it("la semana en curso va HUECA y lo dice", () => {
+      const medias = lineas()[0]!.data as PuntoDeMedia[];
+      expect(medias[0]!.itemStyle.color).not.toBe("transparent");
+      expect(medias[4]!.itemStyle.color).toBe("transparent");
+      expect(medias[4]!.tip).toContain("en curso");
+      expect(medias[0]!.tip).not.toContain("en curso");
+    });
+
+    it("una sola venta se dice en singular", () => {
+      const medias = lineas()[0]!.data as PuntoDeMedia[];
+      expect(medias[0]!.tip).toContain("sobre 1 venta");
+      expect(medias[0]!.tip).not.toContain("ventas");
+    });
+
+    it("la raya del acumulado sólo sale cuando hay acumulado", () => {
+      expect(lineas()[0]!.markLine?.data).toEqual([{ yAxis: 105_000 }]);
+      const sin = serieDePuntosOption(
+        [lectura("83-13", 100_000)],
+        COMUNES,
+      ) as unknown as Record<string, unknown>;
+      const linea = series(sin).find((s) => s.name === "Media") as Linea;
+      expect(linea.markLine).toBeUndefined();
+    });
+  });
+
+  describe("semanasEntre", () => {
+    it("cuenta dieciséis semanas por temporada al cruzar de una a otra", () => {
+      expect(semanasEntre("83-15", "84-02")).toEqual([
+        "83-15",
+        "83-16",
+        "84-01",
+        "84-02",
+      ]);
+    });
+
+    it("una sola semana es un eje de un rótulo", () => {
+      expect(semanasEntre("84-01", "84-01")).toEqual(["84-01"]);
+    });
+
+    it("no pasa de 25 rótulos, y se queda con los más recientes", () => {
+      const eje = semanasEntre("80-01", "84-01");
+      expect(eje).toHaveLength(25);
+      expect(eje[eje.length - 1]).toBe("84-01");
+      expect(eje[0]).toBe("82-09");
     });
   });
 });

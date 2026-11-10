@@ -37,7 +37,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Awaitable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Protocol
 
 from sqlalchemy import select
@@ -46,7 +46,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.commands.mercado_comparable import (
     Resolucion,
     a_quien_le_toca_hoy,
-    anotar_si_cambio,
+    anotar_la_semana,
     aplicar_resolucion,
     descartar_lo_que_no_se_vendio,
     fondo_del_equipo,
@@ -54,6 +54,7 @@ from app.application.commands.mercado_comparable import (
     pendientes_de_resolver,
 )
 from app.application.queries.mercado_comparable import correr_el_turno
+from app.application.queries.weekly import season_week_for_datetime
 from app.domain.engines.centinela_de_la_cuota import Centinela, canario
 from app.domain.engines.mercado_comparable import (
     Objetivo,
@@ -129,6 +130,14 @@ async def correr_el_paso_del_mercado(
     ahora: datetime,
 ) -> PasoDelMercado:
     """Resuelve lo pendiente y barre el mercado de quien no se haya mirado hoy."""
+    # LAS SEMANAS QUE ESPERAN SE MIRAN ANTES DE RESOLVER (2026-11-09). Una
+    # semana pasada sigue abierta mientras le quede una venta sin resolver, y
+    # la resolución es justo lo que la deja sin ninguna: mirándolas después,
+    # la subasta del domingo que se resuelve el lunes ya figuraba como cerrada
+    # y su semana no se volvía a escribir --el precio no llegaba nunca a la
+    # semana en la que cerró--. Mirándolas antes, esa semana recibe aquí su
+    # última escritura, con el precio real dentro, y queda sellada.
+    por_cerrar = await _semanas_por_cerrar(session, equipo, ahora)
     resueltas = await _resolver(session, equipo, historial_de, ahora)
     # SE BORRA DESPUÉS DE RESOLVER, Y EN ESTE ORDEN. La resolución es la que
     # convierte un anuncio en venta o le gasta el último intento, así que
@@ -142,10 +151,19 @@ async def correr_el_paso_del_mercado(
     plantilla = await _plantilla(session, equipo.id)
     toca = set(a_quien_le_toca_hoy(plantilla, ahora))
     if not toca:
-        # Ya se barrió hoy entero. Aun así una resolución pudo cambiar el
-        # número de varios jugadores a la vez: la venta que pasó de puja a
-        # precio real es comparable de todo el que se le parezca.
-        puntos = await _anotar_la_serie(session, equipo, ahora) if resueltas else 0
+        # Ya se barrió hoy entero, pero la serie se escribe igual.
+        #
+        # AQUÍ HABÍA UN `if resueltas`, y con la regla semanal se quedó corto
+        # (2026-11-08). Suponía que nada puede cambiar si no se resolvió una
+        # venta, y eso dejó de ser cierto el día que el punto pasó a ser de
+        # una SEMANA: al pasar la medianoche del domingo empieza una semana
+        # nueva, y la vieja puede seguir abierta esperando a una venta que se
+        # resuelva más tarde. Con el guardia, esa semana no se volvía a tocar
+        # hasta que hubiera una resolución el mismo día.
+        #
+        # No cuesta una petición: es aritmética sobre lo ya guardado, la misma
+        # que ya corre en el camino de abajo sin condición ninguna.
+        puntos = await _anotar_la_serie(session, equipo, ahora, por_cerrar)
         return PasoDelMercado(
             resueltas=resueltas,
             jugadores_barridos=(),
@@ -204,7 +222,7 @@ async def correr_el_paso_del_mercado(
         barridos.append(jugador.ht_player_id)
         await session.flush()
 
-    puntos = await _anotar_la_serie(session, equipo, ahora)
+    puntos = await _anotar_la_serie(session, equipo, ahora, por_cerrar)
     equipo.market_run_at = ahora
     return PasoDelMercado(
         resueltas=resueltas,
@@ -266,16 +284,76 @@ async def _resolver(
     return tuple(hechas)
 
 
-async def _anotar_la_serie(session: AsyncSession, equipo: m.Team, ahora: datetime) -> int:
-    """Recorre la plantilla y anota un punto por cada estimacion que cambio.
+async def _semanas_por_cerrar(
+    session: AsyncSession, equipo: m.Team, ahora: datetime
+) -> frozenset[str]:
+    """Las semanas abiertas tal como están ANTES de resolver nada.
 
-    Se hace para TODOS, no solo para los del turno: el fondo es del equipo,
-    asi que una venta nueva o una resolucion puede mover el numero de
-    cualquiera que se le parezca. Es aritmetica sobre lo ya guardado y no
-    gasta ni una peticion a Hattrick.
+    Son las que este paso puede sellar: si la resolución les quita su última
+    venta pendiente, `_anotar_la_serie` ya no las vería abiertas, y tienen
+    que escribirse una vez más con lo que se acaba de saber.
     """
+    world = await session.scalar(
+        select(m.WorldContext).where(m.WorldContext.ht_league_id == equipo.ht_league_id)
+    )
+    if world is None:
+        return frozenset()
+    fondo = await fondo_del_equipo(session, equipo.id)
+    return frozenset(_semanas_abiertas(world, fondo, ahora))
+
+
+async def _anotar_la_serie(
+    session: AsyncSession,
+    equipo: m.Team,
+    ahora: datetime,
+    por_cerrar: frozenset[str] = frozenset(),
+) -> int:
+    """Escribe el punto de cada semana ABIERTA, para toda la plantilla.
+
+    UN PUNTO POR SEMANA DE HATTRICK, y cada punto es la media ponderada de lo
+    que cerró EN ESA SEMANA (2026-11-08, decisión del usuario: «sólo cada
+    semana, no acumulado, porque quiero ver la fluctuación semanal de
+    precios»). La media acumulada no se guarda: se calcula al leer, y es la
+    cifra grande del panel.
+
+    LA SEMANA LA DA LA VENTA, no la lectura: «todo lo que haya sido
+    finalizado en la semana TT-ss pasa a ser parte del Promedio de la
+    semana». Una subasta que cierra el domingo a las 23:00 cuenta en la
+    semana del domingo aunque la resolvamos el lunes.
+
+    Se hace para TODOS y no sólo para los del turno: el fondo es del equipo,
+    así que una resolución puede mover el número de cualquiera que se le
+    parezca. Es aritmética sobre lo ya guardado y no gasta ni una petición.
+
+    SIN MUNDO NO HAY SERIE. Sin `worlddetails` no se puede fechar una semana,
+    y escribir puntos sin saber a qué semana van sería peor que no
+    escribirlos: quedarían pegados a la etiqueta vacía, que es la de las
+    filas viejas.
+    """
+    world = await session.scalar(
+        select(m.WorldContext).where(m.WorldContext.ht_league_id == equipo.ht_league_id)
+    )
+    if world is None:
+        return 0
+
     plantilla = await _plantilla(session, equipo.id)
     fondo = await fondo_del_equipo(session, equipo.id)
+    # Las abiertas de ahora MÁS las que lo estaban antes de resolver: una
+    # semana que acaba de quedarse sin pendientes se escribe esta última vez.
+    semanas = sorted(set(_semanas_abiertas(world, fondo, ahora)) | por_cerrar)
+    if not semanas:
+        return 0
+
+    # Cada venta cerrada, en el cubo de la semana en que cerró. Se calcula una
+    # vez para toda la plantilla: el fondo es del equipo.
+    por_semana: dict[str, list[Any]] = {s: [] for s in semanas}
+    for venta in fondo:
+        if not venta.firme or venta.plazo is None:
+            continue
+        etiqueta = season_week_for_datetime(world, venta.plazo)
+        if etiqueta in por_semana:
+            por_semana[etiqueta].append(venta)
+
     puntos = 0
     for jugador in plantilla:
         objetivo = objetivo_de(
@@ -286,19 +364,64 @@ async def _anotar_la_serie(session: AsyncSession, equipo: m.Team, ahora: datetim
         )
         if objetivo is None:
             continue
-        estimacion = estimar(comparables_de(fondo, objetivo, ahora))
-        if await anotar_si_cambio(
-            session,
-            equipo.id,
-            jugador.ht_player_id,
-            estimacion,
-            ahora,
-            clave_de_criterios(objetivo),
-        ):
-            puntos += 1
+        criterios = clave_de_criterios(objetivo)
+        for semana, ventas in por_semana.items():
+            estimacion = estimar(comparables_de(ventas, objetivo, ahora))
+            # UNA SEMANA SIN VENTAS DE ESTE JUGADOR NO TIENE PUNTO, y eso es
+            # lo que dibuja el tramo punteado: la gráfica une los dos puntos
+            # que sí existen sin afirmar nada de lo que hay en medio. Guardar
+            # un cero diría que esa semana se vendió alguien en nada.
+            if estimacion.n == 0:
+                continue
+            if await anotar_la_semana(
+                session,
+                equipo.id,
+                jugador.ht_player_id,
+                estimacion,
+                ahora,
+                semana,
+                criterios,
+            ):
+                puntos += 1
     if puntos:
         await session.flush()
     return puntos
+
+
+def _semanas_abiertas(world: m.WorldContext, fondo: Sequence[Any], ahora: datetime) -> list[str]:
+    """Las semanas que todavía pueden cambiar, de la más vieja a la actual.
+
+    LA DE AHORA SIEMPRE, porque es la que se está llenando: «a medida que
+    pasa la semana, se pueden ir agregando los datos que van a participar del
+    promedio semanal».
+
+    Y LAS QUE AÚN ESPERAN A ALGUIEN. Una semana pasada no se sella al
+    terminar: se sella cuando ya no le queda ninguna venta sin resolver. La
+    que cierra el domingo a las 23:00 se resuelve el lunes, y su precio tiene
+    que entrar en la semana del domingo. Mientras quede una pendiente con
+    plazo dentro de esa semana, la semana sigue abierta.
+
+    Normalmente son una o dos. Si alguien no sincroniza en quince días, son
+    las que haga falta: cada venta lleva su plazo encima y sabemos a qué
+    semana iba, así que no se pierde ninguna.
+    """
+    de_ahora = season_week_for_datetime(world, ahora)
+    abiertas = {de_ahora} if de_ahora else set()
+    for venta in fondo:
+        if venta.firme or venta.plazo is None:
+            continue
+        # Una subasta que todavía no ha cerrado pertenece al futuro: su semana
+        # se abrirá cuando llegue, no ahora.
+        if _aware(venta.plazo) > _aware(ahora):
+            continue
+        etiqueta = season_week_for_datetime(world, venta.plazo)
+        if etiqueta:
+            abiertas.add(etiqueta)
+    return sorted(abiertas)
+
+
+def _aware(momento: datetime) -> datetime:
+    return momento if momento.tzinfo else momento.replace(tzinfo=UTC)
 
 
 def _otros_objetivos(plantilla: Sequence[_Jugador], menos_este: int) -> tuple[Objetivo, ...]:

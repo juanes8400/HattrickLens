@@ -2865,6 +2865,77 @@ def catalogo() -> list[Seccion]:
                         "mide contra cada uno.",
                     ],
                 ),
+                Calculo(
+                    id="comparables-semanal",
+                    name="La gráfica semanal",
+                    answers="Qué es cada punto de la gráfica y por qué hay tramos punteados",
+                    formula=(
+                        "punto de una semana = media ponderada por peso de las ventas\n"
+                        "                      que CERRARON en esa semana\n"
+                        "\n"
+                        "    semana sin ventas            →  sin punto; la línea la cruza\n"
+                        "                                    punteada\n"
+                        "    semana en curso              →  punto hueco: todavía se mueve\n"
+                        "    sin ventas esperando precio  →  sellada: ya no cambia"
+                    ),
+                    sources=[
+                        Fuente(
+                            "La hora de cierre de cada venta",
+                            "La que publicó Hattrick en el anuncio",
+                        ),
+                        Fuente(
+                            "La semana de Hattrick",
+                            "La temporada y la jornada de tu liga",
+                        ),
+                    ],
+                    body=[
+                        "Cada punto es lo que se pagó ESA semana por jugadores "
+                        "parecidos al tuyo, no un acumulado. La gráfica está para ver "
+                        "la fluctuación: si una semana se pagó más o menos que la "
+                        "anterior. El acumulado es otra pregunta y tiene su sitio "
+                        "al lado: el recuadro y la raya gris horizontal repiten la "
+                        "cifra grande del panel, la de 24 semanas y hasta 30 ventas.",
+                        "Una venta cuenta en la semana en la que cerró su subasta, no "
+                        "en la que nos enteramos. Una subasta que cierra el domingo "
+                        "por la noche se confirma el lunes, ya en la semana siguiente, "
+                        "y aun así su precio va a la semana del domingo.",
+                        "Por eso una semana no se sella al terminar, sino cuando ya no "
+                        "le queda ninguna venta esperando su precio. Con dos "
+                        "comprobaciones por venta eso es cuestión de un par de días. "
+                        "Desde ahí ese punto no vuelve a cambiar, aunque más adelante "
+                        "la lista de treinta releve o deje caducar las ventas de las "
+                        "que salió.",
+                        "La semana en curso se dibuja hueca porque es la única cuyo "
+                        "valor de mañana puede no ser el de hoy: cada venta que "
+                        "cierra la mueve.",
+                        "Una semana en la que no se vendió nadie parecido no tiene "
+                        "punto. La línea sólida une semanas seguidas con ventas; el "
+                        "tramo punteado cruza las vacías para no cortar el dibujo, y "
+                        "no afirma nada sobre lo que valía el jugador en medio.",
+                    ],
+                    constants=[
+                        Constante(
+                            "Un punto",
+                            "1 semana de Hattrick",
+                            "La misma temporada-semana del resto de la aplicación",
+                        ),
+                        Constante("Ancho del eje", "25 semanas", "Las más recientes"),
+                    ],
+                    limits=[
+                        "La serie empezó de cero el día que cambió la regla: las "
+                        "lecturas anteriores, anotadas una por cada cambio del número, "
+                        "no se dibujan. La gráfica crece como mucho un punto por "
+                        "semana, y sólo en las semanas en que cierra alguna venta "
+                        "parecida.",
+                        "Un punto puede salir de una sola venta. Al pasar por encima "
+                        "se ve sobre cuántas se hizo; con una, es el precio de esa "
+                        "venta y nada más.",
+                        "Cuando al jugador le cambian los criterios de comparación "
+                        "--al cumplir años o al subir una habilidad-- la gráfica "
+                        "vuelve a empezar: unir con una línea dos medidas distintas "
+                        "dibujaría una subida o una bajada que no ocurrió.",
+                    ],
+                ),
             ],
         ),
         Seccion(
