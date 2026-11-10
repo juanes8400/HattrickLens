@@ -802,6 +802,10 @@
         "nombre": "Wpisz ręcznie",
         "pista": "wpisujesz sam, umiejętność po umiejętności"
       },
+      "none": {
+        "nombre": "Bez bonusu",
+        "pista": "nic się nie dodaje: wynik wynika tylko z tego, co ma młodzieżówka"
+      },
       "midfield": {
         "nombre": "Wkład w pomoc",
         "pista": "ile ta umiejętność dodaje do pomocy"

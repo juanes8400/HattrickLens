@@ -205,6 +205,39 @@ def test_trainable_defaults_to_zero_and_never_to_a_guess() -> None:
     )
 
 
+def test_SIN_BONUS_el_puntaje_sale_solo_de_la_cantera() -> None:
+    """2026-11-09, pedido del usuario: «agregar la opción SIN Bonus».
+
+    Con esa opción ninguna habilidad cuenta entrenables, así que el sumando
+    vale cero y el peso del bonus deja de importar: se ponga donde se ponga,
+    el puntaje es el mismo, y es el de los peldaños a secas.
+    """
+    import asyncio
+
+    from app.application.queries.academy import AcademyQueryService
+
+    assert ys.TrainableMethod.NONE == "none"
+    # No toca la base: contesta antes de necesitarla.
+    sin_bonus = asyncio.run(
+        AcademyQueryService(None).trainable_by_method(  # type: ignore[arg-type]
+            1, ys.TrainableMethod.NONE, {"passing": 16.0}
+        )
+    )
+    assert sin_bonus == {}, "ni siquiera lo escrito a mano cuenta"
+
+    c = [
+        _candidate("uno", 10, passing=ys.YouthSkillReading(current=7, maximum=7)),
+        _candidate("dos", 90, scoring=ys.YouthSkillReading(current=5, maximum=6)),
+    ]
+    a_secas = {s.skill: s.score for s in ys.score_skills(c)}
+    for peso in (0.0, 0.111, 1.0):
+        con_el_mando = {
+            s.skill: s.score for s in ys.score_skills(c, sin_bonus, trainable_weight=peso)
+        }
+        assert con_el_mando == pytest.approx(a_secas), peso
+    assert all(s.trainable_count == 0 for s in ys.score_skills(c, sin_bonus))
+
+
 # ── Los mandos: método del usuario, números de cualquiera ────────────────────
 
 def test_base_three_is_exactly_the_spreadsheet_ladder() -> None:

@@ -1594,6 +1594,9 @@ def parse_youthplayerlist(xml: bytes) -> dict[str, Any]:
             "minutes_last_match": (
                 _int(last_match, "PlayedMinutes") if last_match is not None else 0
             ),
+            # Cuándo fue ese partido, en hora de Hattrick. Es lo que dice hasta
+            # dónde ha entrenado la cantera: ver `Team.youth_last_match_at`.
+            "last_match_date": (_txt(last_match, "Date", "") if last_match is not None else ""),
             # La especialidad. Viene desde el primer día, aunque el ojeador no
             # haya revelado ni una habilidad, y no cambia nunca: es lo único
             # de un canterano sin ojear que ya dice algo (2026-09-01).

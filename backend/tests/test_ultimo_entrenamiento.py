@@ -272,3 +272,95 @@ def test_una_bajada_no_es_una_subida() -> None:
     assert [u.skill_label for u in parte.ups if u.delta < 0] == ["Resistencia"]
     # Las subidas van primero.
     assert parte.ups[0].delta > 0
+
+
+def test_la_cantera_se_ancla_en_el_ULTIMO_PARTIDO_QUE_NOS_LLEGO() -> None:
+    """2026-11-09, pedido del usuario: «debe conservar la información del
+    entrenamiento hasta el siguiente entrenamiento, no perderse en el tiempo
+    intermedio».
+
+    La cita del próximo menos siete días ya cae en el pasado --el partido de
+    esta semana ya empezó-- pero de él todavía no ha llegado nada. Con la
+    cuenta de calendario la pestaña saltaba a ese entrenamiento y decía
+    «Nadie se movió». Con la fecha del último partido jugado, se queda en el
+    anterior hasta que se sincronice el nuevo.
+    """
+
+    async def go():
+        sesion = await _base()
+        equipo = m.Team(
+            ht_team_id=1,
+            name="Test FC",
+            currency_rate=1.0,
+            # Cita: el 24. Menos siete, el 17, que ya pasó respecto a HOY (19).
+            youth_next_training_match_at=datetime(2026, 9, 24, 21, 42, tzinfo=UTC),
+            # Pero lo último que nos ha llegado es el partido del 10.
+            youth_last_match_at=datetime(2026, 9, 10, 21, 42, tzinfo=UTC),
+        )
+        sesion.add(equipo)
+        await sesion.commit()
+        return await AcademyQueryService(sesion)._ultimo_entrenamiento_juvenil(equipo.id, now=HOY)
+
+    assert run(go()) == datetime(2026, 9, 10, 21, 42, tzinfo=UTC)
+
+
+def _juvenil(ht_id: int, fecha: str) -> dict:
+    return {
+        "ht_youth_player_id": ht_id,
+        "first_name": "J",
+        "last_name": str(ht_id),
+        "age_years": 16,
+        "age_days": 10,
+        "arrival_date": "",
+        "can_be_promoted_in": 0,
+        "minutes_last_match": 90 if fecha else 0,
+        "last_match_date": fecha,
+        "specialty": 0,
+    }
+
+
+def test_la_sincronizacion_guarda_el_ultimo_partido_y_SOLO_AVANZA() -> None:
+    """La más reciente de la plantilla, y un recién llegado sin partidos o una
+    lista vieja no la devuelven atrás."""
+    from app.application.commands.sync_team import SyncResult, SyncTeamHandler
+    from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
+
+    async def go():
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as s:
+            equipo = m.Team(ht_team_id=1, name="Test FC", currency_rate=1.0)
+            s.add(equipo)
+            await s.commit()
+            team_id = equipo.id
+        uow = SqlAlchemyUnitOfWork(factory)
+        vistas = []
+        for roster in (
+            [_juvenil(1, "2026-09-03 23:10:00"), _juvenil(2, "2026-09-10 23:10:00")],
+            # Una lista posterior en la que el del 10 ya no está y llega uno
+            # sin jugar: la fecha no retrocede.
+            [_juvenil(1, "2026-09-03 23:10:00"), _juvenil(3, "")],
+        ):
+            async with uow:
+                await SyncTeamHandler(uow, object())._persist_youth(
+                    uow,
+                    1,
+                    team_id,
+                    {"youth_players": roster},
+                    datetime.now(UTC),
+                    SyncResult(sync_id=1, status="running"),
+                )
+                await uow.commit()
+                fila = await uow.session.get(m.Team, team_id)
+                vistas.append(fila.youth_last_match_at)
+        return vistas
+
+    primera, segunda = run(go())
+    assert primera is not None and primera.replace(tzinfo=UTC).date().isoformat() == "2026-09-10"
+    assert segunda == primera, "una lista vieja no la devuelve atrás"

@@ -953,6 +953,10 @@
       "edit": {
         "nombre": "Von Hand eintragen",
         "pista": "du schreibst es, Fähigkeit für Fähigkeit"
+      },
+      "none": {
+        "nombre": "Ohne Bonus",
+        "pista": "nichts wird addiert: die Wertung ergibt sich nur aus dem, was die Jugend hat"
       }
     },
     "salenDeMenos": "Sie gehen mit unter 17 Jahren und",

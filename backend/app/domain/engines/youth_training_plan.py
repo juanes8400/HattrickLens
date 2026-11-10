@@ -600,6 +600,15 @@ def _orden_de_cola(jugadores: list[PlayerNote]) -> list[PlayerNote]:
     return list(jugadores)
 
 
+def _orden_de_peldano(p: PlayerNote) -> tuple[int, int, int, int, str]:
+    """La misma clave con la que `score_skills` ordena cada cola.
+
+    Hace falta fuera de allí para poder mezclar DOS colas sin inventar un
+    orden nuevo: peldaño, techo, edad de hoy, nivel actual y nombre.
+    """
+    return (p.priority, -(p.note or 0), p.age_days_total, -(p.current or 0), p.name)
+
+
 #: Cuánto pesa cada punto de descubrimiento frente a la edad. Separar los dos
 #: criterios en órdenes de magnitud es lo que los hace jerárquicos de verdad:
 #: ninguna diferencia de edad puede volcar un punto de descubrimiento.
@@ -764,9 +773,13 @@ def youth_training_plan(
         vienen sin los que tocaron techo, pero al tirar de `todos` para no
         dejar una plaza vacia se podia colar alguien tapado justo en la
         habilidad que esa plaza entrena.
+
+        En la doble, sólo quien tocó techo EN LAS DOS (2026-11-09). Era la
+        unión: con tocar techo en una ya quedaba fuera, y una plaza doble le
+        sigue dando la otra. Ver `_cola_doble`.
         """
         if region == REGION_AMBOS:
-            return tope_a | tope_b
+            return tope_a & tope_b
         if region == REGION_SOLO_PRINCIPAL:
             return tope_a
         if region == REGION_SOLO_SECUNDARIA:
@@ -782,6 +795,51 @@ def youth_training_plan(
                 return p
         return None
 
+    # De qué cola salió cada uno en la doble: la plaza se le dio por esa
+    # habilidad, y es la que se enseña al lado de su nombre.
+    origen_doble: dict[str, str] = {}
+
+    def _cola_doble() -> list[PlayerNote]:
+        """Quién entra en las plazas que reciben LOS DOS entrenamientos.
+
+        CADA CHICO VALE POR SU MEJOR PELDAÑO DE LOS DOS (2026-11-09, decisión
+        del usuario: «cuentan los dos por igual»). Hasta hoy esta región se
+        llenaba con la cola del principal y nada más: con Pases + Lateral,
+        Ireneo Rodríguez --Lateral 7/7 todavía sin la marca de terminado-- y
+        Adolfo Velásquez empataban en Pases, desempataba la edad y la plaza
+        que también entrena Lateral se la llevaba quien no lo necesitaba. La
+        regla que lo motivó, dicha por él: un jugador «le debe ser programado
+        su entrenamiento siempre y cuando no diga terminado».
+
+        Dentro de un mismo peldaño, el orden de siempre: techo, edad de hoy,
+        nivel actual y nombre. Ver `score_skills`.
+
+        MENOS CON «INDIVIDUAL», que se queda como estaba. Su cola no va por
+        peldaños sino por cuántos topes ocultos tiene cada chico (ver
+        `cola_de_descubrimiento`), y el peldaño que traen sus notas es el de
+        una habilidad cualquiera: mezclarla por peldaño la desordenaría.
+        """
+        if CODIGO_INDIVIDUAL in (principal, secundaria):
+            return list(cola_principal)
+        mejor: dict[str, PlayerNote] = {}
+        for cola, clave in ((cola_principal, principal), (cola_secundaria, secundaria)):
+            for p in cola:
+                actual = mejor.get(p.name)
+                # Estricto: a igualdad, se queda la nota del principal.
+                if actual is None or _orden_de_peldano(p) < _orden_de_peldano(actual):
+                    mejor[p.name] = p
+                    origen_doble[p.name] = clave
+
+        # A IGUALDAD COMPLETA, EL PRINCIPAL PRIMERO. Es lo que había antes y
+        # no hay razón para cambiarlo: la plaza doble entrena el principal
+        # entero y el secundario a dos tercios.
+        def clave_doble(p: PlayerNote) -> tuple[int, int, int, int, bool, str]:
+            pel, techo, edad, nivel, nombre = _orden_de_peldano(p)
+            del_secundario = origen_doble[p.name] != principal
+            return (pel, techo, edad, nivel, del_secundario, nombre)
+
+        return sorted(mejor.values(), key=clave_doble)
+
     def coloca(cupos: list[Cupo], cola: list[PlayerNote], region: str) -> None:
         for cupo in cupos:
             if len(plan.asignaciones) >= plazas:
@@ -790,6 +848,12 @@ def youth_training_plan(
             if elegido is None:
                 return
             ya_puestos.add(elegido.name)
+            if region == REGION_AMBOS:
+                elegido_por = origen_doble.get(elegido.name, principal)
+            elif region == REGION_SOLO_SECUNDARIA:
+                elegido_por = secundaria
+            else:
+                elegido_por = principal
             if region == REGION_AMBOS:
                 r_principal: float
                 r_secundaria: float
@@ -806,7 +870,7 @@ def youth_training_plan(
                     racion_principal=r_principal,
                     racion_secundaria=r_secundaria,
                     peldano=elegido.priority,
-                    elegido_por=(secundaria if region == REGION_SOLO_SECUNDARIA else principal),
+                    elegido_por=elegido_por,
                     age_days_total=elegido.age_days_total,
                     htms28_min=elegido.htms28_min,
                     htms28_max=elegido.htms28_max,
@@ -816,7 +880,7 @@ def youth_training_plan(
                 )
             )
 
-    coloca(ambos, _orden_de_cola(cola_principal), REGION_AMBOS)
+    coloca(ambos, _cola_doble(), REGION_AMBOS)
     coloca(solo_a, _orden_de_cola(cola_principal), REGION_SOLO_PRINCIPAL)
     coloca(solo_b, _orden_de_cola(cola_secundaria), REGION_SOLO_SECUNDARIA)
 

@@ -1077,6 +1077,10 @@
         "nombre": "Modifica a mano",
         "pista": "lo scrivi tu, abilità per abilità"
       },
+      "none": {
+        "nombre": "Senza bonus",
+        "pista": "non si somma nulla: il punteggio viene solo da ciò che ha il settore giovanile"
+      },
       "midfield": {
         "nombre": "Contributo al centrocampo",
         "pista": "quanto quell'abilità aggiunge al centrocampo"

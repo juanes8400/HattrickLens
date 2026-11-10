@@ -233,6 +233,11 @@ class AcademyQueryService:
         self, team_id: int, method: str, manual: dict[str, float] | None = None
     ) -> dict[str, float]:
         """El conteo de "entrenables" según el método elegido."""
+        if method == yss.TrainableMethod.NONE:
+            # Sin bonus: ninguna habilidad cuenta entrenables, así que el
+            # sumando vale cero pese lo que pese. Vacío y no un cero por
+            # habilidad: quien lo lee usa `.get(habilidad, 0)`.
+            return {}
         if method == yss.TrainableMethod.EDIT:
             return dict(manual or {})
         if method == yss.TrainableMethod.SLOTS:
@@ -562,8 +567,22 @@ class AcademyQueryService:
 
         `None` si esa fecha no está sincronizada todavía: sin ella habría que
         estimarla, y una fecha inventada es peor que no dar ninguna.
+
+        PERO PRIMERO, EL ÚLTIMO PARTIDO QUE NOS HA LLEGADO (2026-11-09, pedido
+        del usuario: «debe conservar la información del entrenamiento hasta el
+        siguiente entrenamiento, no perderse en el tiempo intermedio»). La
+        cuenta de arriba sólo sabe de calendario: en cuanto pasaba la hora del
+        partido siguiente, saltaba a un entrenamiento del que aún no se había
+        sincronizado nada y la pestaña decía «Nadie se movió». La fecha del
+        último partido de la plantilla la pone Hattrick cuando el partido ya
+        se jugó, y se guarda en el mismo momento que las fotos que lo reflejan:
+        las dos avanzan juntas. La cuenta de calendario queda de respaldo para
+        quien todavía no ha sincronizado desde la migración 0114.
         """
         team = await self._s.get(m.Team, team_id)
+        if team is not None and team.youth_last_match_at is not None:
+            jugado = team.youth_last_match_at
+            return jugado if jugado.tzinfo else jugado.replace(tzinfo=UTC)
         cita = team.youth_next_training_match_at if team is not None else None
         if cita is None:
             return None
