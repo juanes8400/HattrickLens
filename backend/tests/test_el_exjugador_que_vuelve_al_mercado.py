@@ -19,6 +19,14 @@ Lo que fijan estas pruebas:
 4. Antes del plazo no se adelanta: la reventa todavía no ha pasado.
 5. La pista se borra al mirarla, se venda o no se venda; si no, se quedaría
    para siempre a la cabeza de la cola robándole el turno a los demás.
+6. Entra aunque la cola de la semana lo hubiera dejado fuera, y aunque el
+   lote sea de uno solo.
+
+POR EL CAMINO REAL (2026-11-09, el caso Ben Goupy). Estas pruebas llamaban a
+`_backfill_previous_club_bonus`, una función que el producto dejó de llamar en
+agosto: la pista se guardaba, nadie la leía, y aquí todo salía en verde. Ahora
+entran por `execute_backfill_batch`, que es lo que corre al final de cada
+sincronización. Si alguien vuelve a desconectar la pista, se entera aquí.
 """
 
 import asyncio
@@ -29,7 +37,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.application.commands.sync_team import SyncResult, SyncTeamHandler
+from app.application.commands.sync_team import (
+    SyncBackfillBatchCommand,
+    SyncResult,
+    SyncTeamHandler,
+)
 from app.infrastructure.db import models as m
 from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
 
@@ -149,42 +161,81 @@ def test_al_exjugador_en_el_mercado_se_le_anota_el_plazo() -> None:
     asyncio.run(corre())
 
 
+async def _un_lote(
+    uow: SqlAlchemyUnitOfWork, team_id: int, *, limite: int = 10
+) -> tuple[SyncResult, list[str]]:
+    """El lote de comisiones tal como lo lanza cada sincronización."""
+    dichos: list[str] = []
+
+    async def apunta(mensaje: str) -> None:
+        dichos.append(mensaje)
+
+    result = await SyncTeamHandler(uow, CHPPMudo()).execute_backfill_batch(
+        SyncBackfillBatchCommand(
+            user_id=1,
+            team_id=team_id,
+            limite=limite,
+            # Quien se revisó en la última semana queda fuera de la cola: es
+            # justo el filtro que una pista tiene que poder saltarse.
+            revisar_desde=AHORA - timedelta(days=7),
+            reutilizar_fila=False,
+        ),
+        on_progress=apunta,
+    )
+    return result, dichos
+
+
+async def _anota_la_puja(uow: SqlAlchemyUnitOfWork, team_id: int, plazo: datetime) -> None:
+    async with uow:
+        await SyncTeamHandler(uow, CHPPMudo())._persist_currentbids(
+            uow,
+            team_id,
+            _pujas((483595362, plazo)),
+            AHORA,
+            SyncResult(sync_id=1, status="running"),
+        )
+        await uow.commit()
+
+
+async def _plazo_guardado(uow: SqlAlchemyUnitOfWork) -> datetime | None:
+    async with uow:
+        return await uow.session.scalar(
+            select(m.Player.resale_deadline).where(m.Player.ht_player_id == 483595362)
+        )
+
+
 def test_la_pista_madura_se_mira_primero_y_se_consume() -> None:
     async def corre() -> None:
         uow, team_id = await _monta()
-        dichos: list[str] = []
+        await _anota_la_puja(uow, team_id, CERRADA)
 
-        async def apunta(mensaje: str) -> None:
-            dichos.append(mensaje)
+        result, dichos = await _un_lote(uow, team_id)
 
-        async with uow:
-            await SyncTeamHandler(uow, CHPPMudo())._persist_currentbids(
-                uow,
-                team_id,
-                _pujas((483595362, CERRADA)),
-                AHORA,
-                SyncResult(sync_id=1, status="running"),
-            )
-            await uow.commit()
-            await SyncTeamHandler(uow, CHPPMudo())._backfill_previous_club_bonus(
-                uow,
-                team_id,
-                SyncResult(sync_id=1, status="running"),
-                apunta,
-            )
-            await uow.commit()
-            quedaba = await uow.session.scalar(
-                select(m.Player.resale_deadline).where(m.Player.ht_player_id == 483595362)
-            )
-
-        # Primero el de la pista, aunque la venta más reciente sea la del otro.
-        assert dichos, "tenía que mirar a alguien"
-        assert "Castaño" in dichos[0], dichos
+        # Primero el de la pista, aunque la venta más reciente sea la del otro
+        # y aunque a él se le hubiera revisado hoy mismo.
+        assert result.players_named, "tenía que mirar a alguien"
+        assert result.players_named[0] == "Juan Pablo Castaño", result.players_named
         # Y se dice por qué, para que una pista y un tiro al azar no se lean
         # igual en pantalla.
-        assert "visto en el mercado" in dichos[0]
+        de_la_pista = [x for x in dichos if "visto en el mercado" in x]
+        assert len(de_la_pista) == 1 and "Castaño" in de_la_pista[0], dichos
         # Consumida: haya salido comisión o no.
-        assert quedaba is None
+        assert await _plazo_guardado(uow) is None
+
+    asyncio.run(corre())
+
+
+def test_la_pista_entra_aunque_el_lote_sea_de_UNO() -> None:
+    """El tope es para la cola. Una reventa con fecha no se queda fuera por él,
+    ni por haberse revisado esta misma semana."""
+
+    async def corre() -> None:
+        uow, team_id = await _monta()
+        await _anota_la_puja(uow, team_id, CERRADA)
+
+        result, _ = await _un_lote(uow, team_id, limite=1)
+
+        assert result.players_named == ["Juan Pablo Castaño"], result.players_named
 
     asyncio.run(corre())
 
@@ -192,37 +243,16 @@ def test_la_pista_madura_se_mira_primero_y_se_consume() -> None:
 def test_antes_del_plazo_la_pista_no_adelanta_a_nadie() -> None:
     async def corre() -> None:
         uow, team_id = await _monta()
-        dichos: list[str] = []
+        await _anota_la_puja(uow, team_id, ABIERTA)
 
-        async def apunta(mensaje: str) -> None:
-            dichos.append(mensaje)
+        result, dichos = await _un_lote(uow, team_id)
 
-        async with uow:
-            await SyncTeamHandler(uow, CHPPMudo())._persist_currentbids(
-                uow,
-                team_id,
-                _pujas((483595362, ABIERTA)),
-                AHORA,
-                SyncResult(sync_id=1, status="running"),
-            )
-            await uow.commit()
-            await SyncTeamHandler(uow, CHPPMudo())._backfill_previous_club_bonus(
-                uow,
-                team_id,
-                SyncResult(sync_id=1, status="running"),
-                apunta,
-            )
-            await uow.commit()
-            sigue = await uow.session.scalar(
-                select(m.Player.resale_deadline).where(m.Player.ht_player_id == 483595362)
-            )
-
-        assert dichos, "tenía que mirar a alguien"
+        assert result.players_named, "tenía que mirar a alguien"
         # La subasta sigue abierta: la reventa no ha pasado todavía, así que
         # manda el orden de siempre y nadie se adelanta.
-        assert "Reciente" in dichos[0], dichos
+        assert result.players_named[0] == "Ex Reciente", result.players_named
         assert not any("visto en el mercado" in x for x in dichos), dichos
         # Y la pista se guarda para cuando cierre.
-        assert sigue is not None
+        assert await _plazo_guardado(uow) is not None
 
     asyncio.run(corre())
