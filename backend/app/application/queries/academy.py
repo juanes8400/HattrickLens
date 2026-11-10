@@ -233,6 +233,11 @@ class AcademyQueryService:
         self, team_id: int, method: str, manual: dict[str, float] | None = None
     ) -> dict[str, float]:
         """El conteo de "entrenables" según el método elegido."""
+        if method == yss.TrainableMethod.NONE:
+            # Sin bonus: ninguna habilidad cuenta entrenables, así que el
+            # sumando vale cero pese lo que pese. Vacío y no un cero por
+            # habilidad: quien lo lee usa `.get(habilidad, 0)`.
+            return {}
         if method == yss.TrainableMethod.EDIT:
             return dict(manual or {})
         if method == yss.TrainableMethod.SLOTS:

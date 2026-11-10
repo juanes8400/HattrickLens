@@ -497,6 +497,12 @@ class TrainableMethod(StrEnum):
     DEFENCE = "defence"  # 5: a la defensa
     SENIOR = "senior"  # 6: lo que entrena el primer equipo
     EDIT = "edit"  # 7: a mano
+    # SIN BONUS (2026-11-09, pedido del usuario: «agregar la opción SIN Bonus»).
+    # No es «una opción que siempre da 0» de las que arriba se dejan fuera
+    # por tramposas: aquí el cero es lo que se pide. El puntaje se queda en
+    # lo que la cantera tiene --los peldaños-- sin empujar hacia ninguna
+    # habilidad por ningún criterio de fuera.
+    NONE = "none"
 
 
 # Cuántos jugadores de una alineación reciben de verdad cada entrenamiento.

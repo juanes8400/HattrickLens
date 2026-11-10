@@ -440,6 +440,13 @@ const TRAINABLE_METHODS: [string, string, string][] = [
     "16 a lo que entrena hoy el primer equipo, 0 al resto",
   ],
   ["edit", "Editar a mano", "lo escribes tú, habilidad por habilidad"],
+  // SIN BONUS (2026-11-09, pedido del usuario). El puntaje se queda en lo que
+  // la cantera tiene; no se empuja hacia ninguna habilidad.
+  [
+    "none",
+    "Sin bonus",
+    "no se suma nada: el puntaje sale sólo de lo que tiene la cantera",
+  ],
 ];
 
 /** `set_pieces` → `setPieces`.
@@ -711,6 +718,7 @@ function WhatToTrain({
   // servidor solo confirma (2026-09-19, reproducido).
   const pesoDelBonus = bonusWeight ?? trainableWeight ?? suggestedWeight ?? 0;
   const isManual = trainableMethod === "edit";
+  const sinBonus = trainableMethod === "none";
 
   // Mientras llega la primera respuesta se pinta lo que ya trajo /academy con
   // los valores por defecto: la tabla nunca aparece vacía.
@@ -1093,7 +1101,13 @@ function WhatToTrain({
               className="mt-1 w-full accent-[var(--youth-known)]"
             />
           </label>
-          <label className="block">
+          {/* SIN BONUS, EL PESO NO PESA NADA: el mando se apaga en vez de
+              dejar mover un número que no cambia ningún resultado. No se
+              esconde, para que la rejilla no salte al cambiar de opción. */}
+          <label
+            className={`block ${sinBonus ? "pointer-events-none opacity-40" : ""}`}
+            aria-disabled={sinBonus}
+          >
             <div className="flex items-baseline justify-between gap-2 text-xs">
               <span className="truncate">
                 {t("juveniles.pesoBonus", "Peso del bonus personalizado")}
@@ -1108,6 +1122,7 @@ function WhatToTrain({
               max={1}
               step={0.001}
               value={pesoDelBonus}
+              disabled={sinBonus}
               onChange={(e) => setBonusWeight(Number(e.target.value))}
               className="mt-1 w-full accent-[var(--youth-known)]"
             />

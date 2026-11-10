@@ -953,6 +953,10 @@
       "edit": {
         "nombre": "Edit manually",
         "pista": "you type it, skill by skill"
+      },
+      "none": {
+        "nombre": "No bonus",
+        "pista": "nothing is added: the score comes only from what the youth academy has"
       }
     },
     "salenDeMenos": "They leave under 17 years and",
