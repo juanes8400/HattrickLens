@@ -161,12 +161,77 @@ def test_lateral_y_pases_se_cruzan_en_los_extremos() -> None:
     ]
 
 
-def test_los_mejores_del_principal_van_a_la_interseccion() -> None:
+def test_a_igualdad_los_del_principal_van_a_la_interseccion() -> None:
+    """Desde el 2026-11-09 la doble mira las dos colas (ver la prueba de
+    Ireneo, más abajo), pero a igualdad completa sigue mandando el principal."""
     principal = _cola("A", "B", "C", "D")
     plan = youth_training_plan("winger", "passing", principal, _cola("Z"))
     dobles = [a.player for a in plan.asignaciones if a.recibe_doble]
     assert dobles == ["A", "B"], "la doble racion no fue para los dos primeros"
     assert plan.con_doble == 2
+
+
+def _nota_de(
+    nombre: str, *, techo: int | None, nivel: int | None, dias: int, prioridad: int
+) -> PlayerNote:
+    return PlayerNote(
+        name=nombre,
+        note=techo,
+        bucket="",
+        leaves_soon=False,
+        max_reached=False,
+        priority=prioridad,
+        age_days_total=dias,
+        current=nivel,
+        maximum=techo,
+    )
+
+
+def test_en_la_doble_cuenta_TAMBIEN_lo_que_necesita_del_secundario() -> None:
+    """El caso del usuario, 2026-11-09, con Pases + Lateral (extremos y
+    delanteros): «me puso a Adolfo Velásquez en vez de Ireneo Rodríguez como
+    Lateral, a pesar de que el Lateral de Ireneo le falta por completarse».
+
+    Las plazas que reciben los dos entrenamientos se llenaban con la cola de
+    Pases y nada más. Los dos tenían tope 5 en Pases, empataban, y desempataba
+    la edad: Adolfo es más joven. El Lateral de Ireneo --7/7 sin la marca de
+    terminado-- no pesaba nada. Decisión del usuario: «cuentan los dos por
+    igual», cada chico vale por su mejor peldaño entre los dos.
+    """
+    # Pases: los dos con tope 5, peldaño «insuficiente». Adolfo, más joven.
+    pases = [
+        _nota_de("Adolfo Velásquez", techo=5, nivel=None, dias=15 * 112 + 105, prioridad=8),
+        _nota_de("Ireneo Rodríguez", techo=5, nivel=None, dias=16 * 112 + 111, prioridad=8),
+    ]
+    # Lateral: Ireneo 7/7 sin terminar, peldaño «bueno»; Adolfo 5/?, sin nota.
+    lateral = [
+        _nota_de("Ireneo Rodríguez", techo=7, nivel=7, dias=16 * 112 + 111, prioridad=3),
+        _nota_de("Adolfo Velásquez", techo=None, nivel=5, dias=15 * 112 + 105, prioridad=7),
+    ]
+    plan = youth_training_plan("passing", "winger_forwards", pases, lateral, plazas=1)
+
+    (unica,) = plan.asignaciones
+    assert unica.region == REGION_AMBOS
+    assert unica.player == "Ireneo Rodríguez"
+    # Y se dice por qué entró: por su Lateral, no por su Pases.
+    assert unica.elegido_por == "winger_forwards"
+    assert (unica.current, unica.maximum, unica.max_reached) == (7, 7, False)
+
+
+def test_en_la_doble_tocar_techo_en_UNA_no_basta_para_quedarse_fuera() -> None:
+    """La plaza doble le sigue dando la otra. Antes bastaba con tocar techo en
+    cualquiera de las dos para no poder entrar."""
+    lateral = [_nota_de("Ireneo Rodríguez", techo=7, nivel=7, dias=1900, prioridad=3)]
+    plan = youth_training_plan(
+        "passing",
+        "winger_forwards",
+        [],
+        lateral,
+        tope_principal={"Ireneo Rodríguez"},
+        plazas=1,
+    )
+    assert [a.player for a in plan.asignaciones] == ["Ireneo Rodríguez"]
+    assert plan.asignaciones[0].region == REGION_AMBOS
 
 
 def test_solo_principal_sigue_bajando_por_la_misma_cola() -> None:
@@ -585,9 +650,7 @@ def test_el_once_llega_a_once_tirando_de_la_cantera() -> None:
     assert len(set(nombres)) == len(nombres)
 
 
-TODAS_TAPADAS = frozenset(
-    {"keeper", "defending", "playmaking", "winger", "passing", "scoring"}
-)
+TODAS_TAPADAS = frozenset({"keeper", "defending", "playmaking", "winger", "passing", "scoring"})
 
 
 def _quien_entra(candidatos, sin_revelar, *, plazas=("forward",)):
@@ -610,18 +673,14 @@ def test_la_plaza_sin_entrenamiento_va_a_quien_puede_destaparle_algo() -> None:
     descubrimiento ganaria el, y no debe.
     """
     candidatos = [_nota("Leido", dias=200), _nota("Tapado", dias=1800)]
-    quien = _quien_entra(
-        candidatos, {"Tapado": TODAS_TAPADAS, "Leido": frozenset()}
-    )
+    quien = _quien_entra(candidatos, {"Tapado": TODAS_TAPADAS, "Leido": frozenset()})
     assert quien == "Tapado"
 
 
 def test_entre_dos_que_destapan_lo_mismo_manda_la_edad() -> None:
     """La segunda mitad de la regla, con el descubrimiento empatado a proposito."""
     candidatos = [_nota("Viejo", dias=1800), _nota("Joven", dias=300)]
-    quien = _quien_entra(
-        candidatos, {"Viejo": TODAS_TAPADAS, "Joven": TODAS_TAPADAS}
-    )
+    quien = _quien_entra(candidatos, {"Viejo": TODAS_TAPADAS, "Joven": TODAS_TAPADAS})
     assert quien == "Joven"
 
 
