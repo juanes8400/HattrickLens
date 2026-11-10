@@ -291,21 +291,15 @@ export function CupPage() {
                           {tx("Comparando zona por zona")}{" "}
                           {data.prediction.indirectasPrestadas
                             ? tx("tu alineación enviada")
-                            : data.prediction.ownSource === "liga"
-                              ? tx("tus {{v0}} partido(s) de Liga", {
-                                  v0: data.prediction.ownMatches,
-                                })
-                              : tx(
-                                  "tus {{v0}} partido(s) de Copa de esta temporada",
-                                  { v0: data.prediction.ownMatches },
-                                )}{" "}
-                          {data.prediction.rivalSource === "liga"
-                            ? tx("contra sus {{v0}} partido(s) de Liga", {
-                                v0: data.prediction.rivalMatches,
-                              })
-                            : tx("contra sus {{v0}} partido(s) de Copa", {
-                                v0: data.prediction.rivalMatches,
-                              })}
+                            : tx("tus {{v0}} partido(s) oficiales", {
+                                v0: data.prediction.ownMatches,
+                              })}{" "}
+                          {tx("contra sus {{v0}} partido(s) oficiales", {
+                            v0: data.prediction.rivalMatches,
+                          })}
+                          {tx(
+                            ". Es la misma predicción que su ficha en Rivales",
+                          )}
                           {tx(
                             ". El empate se reparte entre los dos porque en Copa alguien tiene que pasar. Tiene en cuenta la táctica, estimada; no sabe de bajas.",
                           )}{" "}
@@ -314,27 +308,20 @@ export function CupPage() {
                             calculo="pronostico-resumen"
                           />
                         </p>
-                        {/* CUANDO LA FUENTE ES LA LIGA, se dice. En Copa se juega
-                        con otro equipo que en Liga --medido en este club: su
-                        mediocampo de Copa dobla al de Liga-- así que leer la
-                        liga describe peor. Sigue siendo el mismo motor, que es
-                        lo que se pidió; lo que baja es la calidad de la
-                        muestra, y eso no se esconde. */}
-                        {(data.prediction.ownSource === "liga" ||
-                          data.prediction.rivalSource === "liga") && (
-                          <p className="prosa text-xs leading-relaxed text-[var(--warning)]">
-                            {tx(
-                              "Alguno de los dos no tiene partidos de Copa todavía, así que de ese lado se han leído los de Liga. En Copa se juega con otro equipo, así que esta predicción describe peor de lo normal.",
-                            )}
-                          </p>
-                        )}
+                        {/* AQUÍ VIVÍA EL AVISO DE «SE HAN LEÍDO LOS DE LIGA».
+                        Copa resumía sólo partidos de Copa y caía a la Liga
+                        cuando no había. Desde el 2026-11-09 pinta la
+                        predicción de la ficha de rival --«debe ser la misma de
+                        si me voy a Rivales»--, que resume los oficiales de
+                        cada lado sin separar competiciones: ya no hay una
+                        fuente peor que avisar. */}
                         {/* El único aviso, y sólo cuando toca: Hattrick prevé
                         siete ratings para unas órdenes enviadas y no prevé las
                         acciones indirectas a balón parado. */}
                         {data.prediction.indirectasPrestadas && (
                           <p className="prosa text-xs leading-relaxed text-[var(--warning)]">
                             {tx(
-                              "Hattrick no prevé las acciones indirectas a balón parado de una alineación enviada, así que esas dos van con tu promedio de Copa. Siete de los nueve duelos son la alineación que mandaste; dos son tu costumbre.",
+                              "Hattrick no prevé las acciones indirectas a balón parado de una alineación enviada, así que esas dos van con tu promedio de lo ya jugado. Siete de los nueve duelos son la alineación que mandaste; dos son tu costumbre.",
                             )}
                           </p>
                         )}

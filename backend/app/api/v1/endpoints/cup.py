@@ -8,7 +8,7 @@ Nacional/Divisional y CupLevel distingue Principal/Desafío/Consuelo.
 
 import json
 from collections.abc import Callable, Iterable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -17,40 +17,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_team_owner
 from app.api.v1.endpoints.arena import _camel
-from app.application.commands.sync_team import FILE_VERSIONS
-from app.application.queries.alineacion_enviada import (
-    partido_pendiente_contra,
-    prediccion_en_vivo,
-    prediccion_guardada,
-)
-from app.application.queries.prediccion_liga import (
-    lecturas_de_un_equipo,
-    reparto_de_tacticas,
-)
-from app.application.queries.weekly import season_for_datetime, start_of_iso_week
-from app.domain.engines.economy_engine import SEASON_WEEKS
+from app.application.queries.weekly import season_for_datetime
 from app.domain.engines.match_analysis import hatstats
-from app.domain.engines.prediccion import (
-    TIPOS_DE_COPA,
-    TIPOS_DE_LIGA,
-    factor_de_tactica,
-    goles_esperados,
-    marcador_mas_probable,
-    probabilidades_de_copa,
-    resumen_de_lecturas,
-)
 from app.domain.engines.rival_scouting import PitchZoneMethod
 from app.domain.engines.taquilla import taquilla_de_varios
 from app.domain.value_objects.ht_constants import MATCH_TYPE_LEAGUE
-from app.infrastructure.chpp.client import (
-    CHPPAuthError,
-    CHPPClient,
-    CHPPDeniedError,
-    CHPPUnavailableError,
-)
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
-from app.infrastructure.security.tokens import decrypt_token
 
 router = APIRouter()
 
@@ -595,28 +568,9 @@ async def _cup_economy(
     }
 
 
-#: Los cuatro resúmenes que se calculan sobre partidos ya jugados. La
-#: alineación enviada no está aquí porque no es un resumen de nada: es un
-#: vector que da Hattrick, y se pega encima después.
-METODOS_SOBRE_LO_JUGADO: frozenset[str] = frozenset(
-    {
-        PitchZoneMethod.AVERAGE,
-        PitchZoneMethod.MAX,
-        PitchZoneMethod.MAX_PARALLEL,
-        PitchZoneMethod.LAST,
-    }
-)
-
-
-def _metodo_de_copa(pedido: str) -> str:
-    """Lo pedido si resume partidos jugados; el promedio si no.
-
-    «Alineación enviada» cae aquí en el promedio a propósito: es el resumen que
-    sostiene los dos ratings que Hattrick no prevé, y también el que se usa
-    entero si al final no hay órdenes mandadas. Y absorbe la mediana retirada
-    el 2026-09-13: una URL vieja con "median" sale en promedio.
-    """
-    return pedido if pedido in METODOS_SOBRE_LO_JUGADO else PitchZoneMethod.AVERAGE
+def _en_utc(momento: datetime) -> datetime:
+    """Las fechas de la base viajan en UTC sin zona; aquí se les pone."""
+    return momento if momento.tzinfo else momento.replace(tzinfo=UTC)
 
 
 def solo_de_la_temporada(
@@ -646,166 +600,83 @@ def solo_de_la_temporada(
     return [p for p in partidos if temporada_de(p) == temporada]
 
 
-async def _prediccion_del_cruce(
+async def _prediccion_de_rivales(
     session: AsyncSession,
     team: m.Team,
     rival_ht_id: int,
-    world: m.WorldContext | None,
-    metodo_propio: str = PitchZoneMethod.AVERAGE,
+    metodo_propio: str = PitchZoneMethod.SUBMITTED,
     metodo_rival: str = PitchZoneMethod.AVERAGE,
-    en_casa: bool | None = None,
 ) -> dict[str, Any] | None:
-    """La predicción del próximo cruce de Copa, con el motor de zonas.
+    """La predicción del próximo cruce: LA MISMA que enseña la ficha de rival.
 
-    POR QUÉ ES DISTINTO DE LIGA. En Liga los ocho equipos son de mi serie y sus
-    partidos están en `matches`. En Copa el rival es de OTRA serie: sus
-    partidos no están en la base, así que hay que descubrirlos primero con el
-    archivo de Hattrick antes de poder pedir sus ratings.
+    2026-11-09, pedido del usuario: la de Copa «debe ser la misma de si me voy
+    a Rivales». No se recalcula aquí con otra muestra: se le pide a la ficha
+    de ese rival, con los mismos dos selectores, y se pinta lo que diga. Dos
+    pantallas contestando la misma pregunta con dos números distintos era
+    justo lo que no podía pasar.
 
-    SÓLO PARTIDOS DE COPA. El resumen de un equipo sale de UNA competición
-    (`TIPOS_POR_COMPETICION`), y en copa se juega con otro equipo que en liga
-    --medido en el equipo del usuario, su mediocampo de copa dobla al de
-    liga--. Mezclarlas describiría mal a los dos.
+    AQUÍ VIVÍA `_prediccion_del_cruce`, que resumía sólo partidos de Copa (con
+    la Liga de respaldo), aplicaba la sede y miraba hacia atrás las semanas ya
+    jugadas de la temporada. Eso último la dejaba muda en la semana 1: una
+    sola semana de ventana, sin un oficial dentro. La ficha mira siempre
+    dieciséis.
 
-    LA SEDE DEL CRUCE (2026-09-13). `en_casa` es None en campo neutral:
-    ahí no hay ventaja que devolverle a nadie. Si no, el medio campo de
-    cada resumen se lleva a su sede con `corregir_sede`. La razón se midió
-    en liga; aplicarla en copa es suponer que la ventaja de campo es la
-    misma, que es lo que dice el juego fuera de las rondas neutrales.
+    LO QUE SE HEREDA DE LA FICHA, dicho para que no sorprenda: resume los
+    últimos oficiales de cada lado --Liga y Copa juntas-- y no aplica la sede
+    en un cruce de copa, porque desde allí no se sabe qué rondas son neutrales.
 
-    DEVUELVE `None` Y NO REVIENTA cuando no hay con qué: sin sesión de
-    Hattrick, sin historia de copa del rival (su primera ronda), o si CHPP no
-    contesta. La pantalla entonces se queda con lo que ya enseñaba.
+    EN OTRA SESIÓN DE BASE, a propósito. La ficha guarda los partidos del
+    rival que descarga y, si ese guardado falla, deshace su transacción; hecho
+    sobre la sesión de esta pantalla, dejaría caducados el equipo y los
+    partidos que el resto de la respuesta todavía tiene que leer.
+
+    DEVUELVE `None` Y NO REVIENTA cuando no hay con qué: sin dueño, sin sesión
+    de Hattrick, si Hattrick no contesta, o si la ficha no llega a tener
+    ratings de los dos lados. La pantalla dice entonces «sin datos».
     """
     if team.owner_user_id is None or not rival_ht_id:
         return None
-    token = await session.scalar(
-        select(m.CHPPToken).where(
-            m.CHPPToken.user_id == team.owner_user_id, m.CHPPToken.status == "active"
-        )
-    )
-    if token is None:
-        return None
-    # La temporada entera hacia atrás. `match_round` de worlddetails es la
-    # semana de temporada (1-16), así que arrancó `match_round - 1` semanas
-    # atrás; sin mundo sincronizado se piden las 16, que es el techo.
-    ahora = datetime.now(UTC)
-    semanas = (world.match_round - 1) if world and world.match_round else SEASON_WEEKS
-    # Anclado al LUNES de la semana en curso y no a «ahora menos N semanas»:
-    # a mitad de semana lo segundo cae a mitad de la semana 1 y se come media
-    # jornada. Es la misma frontera que usa el resto del código.
-    desde = start_of_iso_week(ahora) - timedelta(weeks=max(semanas, 1))
-    client = CHPPClient(decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc))
-    quiere_enviada = metodo_propio == PitchZoneMethod.SUBMITTED
-    enviada: dict[str, int] | None = None
-    tactica_propia: int | None = None
+    # Importado aquí: la ficha de rival es un módulo de 1.800 líneas con sus
+    # propias dependencias, y Copa sólo la necesita en este punto.
+    from app.api.v1.endpoints.rivals import rival_scouting
+
     try:
-
-        async def _lecturas(ht_id: int, tipos: tuple[int, ...]) -> list[Any]:
-            return await lecturas_de_un_equipo(
-                session,
-                client,
-                FILE_VERSIONS["matchdetails"],
-                FILE_VERSIONS["matchesarchive"],
-                ht_id,
-                desde,
-                ahora,
-                tipos,
+        async with AsyncSession(session.bind, expire_on_commit=False) as aparte:
+            usuario = await aparte.get(m.User, team.owner_user_id)
+            if usuario is None:
+                return None
+            ficha = await rival_scouting(
+                team.id,
+                rival_ht_id,
+                log_tsi=False,
+                top11=False,
+                include_competitive=True,
+                include_friendlies=False,
+                pitch_zone_method_own=metodo_propio,
+                pitch_zone_method_rival=metodo_rival,
+                session=aparte,
+                user=usuario,
             )
-
-        # LA COPA PRIMERO, LA LIGA COMO RESPALDO (2026-11-05, pedido del
-        # usuario: «no debe ser predicho el resultado como se hacía antes con
-        # TSI sino con el método actual de las Poisson»).
-        #
-        # Hasta hoy, sin partidos de copa de alguno de los dos --su primera
-        # ronda-- esto devolvía `None` y la pantalla caía al modelo viejo por
-        # TSI, que no está calibrado y no entiende de zonas. Ahora se leen sus
-        # partidos de LIGA y se aplica el mismo motor y el mismo método: una
-        # fuente peor, pero el mismo modelo, y dicho en pantalla.
-        #
-        # POR QUÉ RESPALDO Y NO MEZCLA. El resumen de un equipo sale de UNA
-        # competición porque en copa se juega con otro equipo que en liga
-        # --medido en el equipo del usuario, su mediocampo de copa dobla al de
-        # liga--. Mezclarlas describiría mal a los dos. Así que se prefiere la
-        # copa, y sólo cuando NO HAY copa se mira la liga, por separado para
-        # cada lado: puede que yo tenga historia de copa y el rival no.
-        mias = await _lecturas(team.ht_team_id, TIPOS_DE_COPA)
-        fuente_mia = "copa"
-        if not mias:
-            mias = await _lecturas(team.ht_team_id, TIPOS_DE_LIGA)
-            fuente_mia = "liga"
-        suyas = await _lecturas(rival_ht_id, TIPOS_DE_COPA)
-        fuente_suya = "copa"
-        if not suyas:
-            suyas = await _lecturas(rival_ht_id, TIPOS_DE_LIGA)
-            fuente_suya = "liga"
-        if quiere_enviada:
-            cruce = await partido_pendiente_contra(session, team.ht_team_id, rival_ht_id)
-            if cruce is not None:
-                enviada = prediccion_guardada(cruce) or await prediccion_en_vivo(
-                    client, cruce, team.ht_team_id
-                )
-                # Tu táctica NO hay que adivinarla si ya mandaste órdenes.
-                tactica_propia = cruce.submitted_tactic_type
-    except (CHPPAuthError, CHPPDeniedError, CHPPUnavailableError):
+    except HTTPException:
+        # Sin token, acceso revocado o Hattrick caído: la ficha lo dice con un
+        # error porque es su pantalla; aquí es un panel más y se queda vacío.
         return None
-    finally:
-        await client.aclose()
-    if not mias or not suyas:
+    dicho = ficha.get("prediction")
+    if not dicho:
         return None
-
-    # EL RESUMEN DE CADA LADO, POR SEPARADO. No se puede usar
-    # `probabilidades_de_partido`, que aplica UN método a los dos: aquí son dos
-    # preguntas distintas, y del lado propio hay una respuesta --la alineación
-    # enviada-- que del rival no existe.
-    mio = resumen_de_lecturas(mias, _metodo_de_copa(metodo_propio), en_casa=en_casa)
-    suyo = resumen_de_lecturas(
-        suyas,
-        _metodo_de_copa(metodo_rival),
-        en_casa=None if en_casa is None else not en_casa,
-    )
-    if mio is None or suyo is None:
-        return None
-
-    # Con la alineación enviada, los siete sectores que Hattrick sí prevé
-    # sustituyen a los históricos. Los otros dos --las acciones indirectas a
-    # balón parado-- Hattrick no los prevé, así que se quedan con el resumen de
-    # lo ya jugado y la pantalla lo dice.
-    indirectas_prestadas = False
-    if quiere_enviada and enviada is not None:
-        mio = {**mio, **{k: float(v) for k, v in enviada.items()}}
-        indirectas_prestadas = True
-
-    # LA TÁCTICA. La tuya se sabe si mandaste órdenes; la suya se pondera con
-    # lo que viene jugando en copa. Ver `factor_de_tactica`.
-    factor_mio = (
-        factor_de_tactica(exacta=tactica_propia)
-        if tactica_propia is not None
-        else factor_de_tactica(reparto_de_tacticas(mias))
-    )
-    factor_suyo = factor_de_tactica(reparto_de_tacticas(suyas))
-
-    terna = probabilidades_de_copa(mio, suyo, factor_mio, factor_suyo)
     return {
-        "own_probability": round(terna.victoria, 4),
-        "rival_probability": round(terna.derrota, 4),
-        "expected_own_goals": round(goles_esperados(mio, suyo, factor_mio), 2),
-        "expected_rival_goals": round(goles_esperados(suyo, mio, factor_suyo), 2),
-        "most_likely_score": "{}-{}".format(
-            *marcador_mas_probable(mio, suyo, factor_mio, factor_suyo)
-        ),
-        "own_matches": 1 if indirectas_prestadas else len(mias),
-        "rival_matches": len(suyas),
-        "metodo_propio": (
-            PitchZoneMethod.SUBMITTED if indirectas_prestadas else _metodo_de_copa(metodo_propio)
-        ),
-        "metodo_rival": _metodo_de_copa(metodo_rival),
-        "indirectas_prestadas": indirectas_prestadas,
-        # DE DÓNDE SALE CADA LADO. Una predicción hecha con partidos de liga
-        # vale menos que una hecha con partidos de copa, y quien la lee tiene
-        # derecho a saber cuál está mirando. Sin esto, las dos se verían igual.
-        "own_source": fuente_mia,
-        "rival_source": fuente_suya,
+        "own_probability": dicho["ownProbability"],
+        "rival_probability": dicho["rivalProbability"],
+        "expected_own_goals": dicho["expectedOwnGoals"],
+        "expected_rival_goals": dicho["expectedRivalGoals"],
+        "most_likely_score": dicho["mostLikelyScore"],
+        "own_matches": dicho["ownMatches"],
+        "rival_matches": dicho["rivalMatches"],
+        # El método que de verdad se usó, no el pedido: si se pidió «alineación
+        # enviada» y todavía no hay ninguna, la ficha cae al historial y lo dice.
+        "metodo_propio": ficha.get("pitchZoneMethodOwn") or dicho["metodoPropio"],
+        "metodo_rival": ficha.get("pitchZoneMethodRival") or dicho["metodoRival"],
+        "indirectas_prestadas": dicho["indirectasPrestadas"],
     }
 
 
@@ -929,8 +800,23 @@ async def _cup_sin_cache(
     active_world_cup = cup_by_id.get(team.current_cup_id or 0)
     fallback_world_cup = cup_row_of(latest_match) if latest_match else None
     current_world_cup = active_world_cup or fallback_world_cup
-    still_in_cup = team.still_in_cup if team.still_in_cup is not None else bool(upcoming)
-    status_source = "teamdetails" if team.still_in_cup is not None else "calendario"
+    # LA BANDERA O UN CRUCE PROGRAMADO (2026-11-09). `still_in_cup` de Hattrick
+    # sigue diciendo «no» desde la eliminación de la temporada pasada hasta que
+    # se juega el primer partido de la copa nueva, y durante esos días el
+    # cruce ya está en el calendario. Fiándose sólo de la bandera, esta
+    # pantalla enseñaba la tarjeta de eliminado y no predecía nada con un
+    # partido de copa a la vista. Es la misma regla que la 6.1.3 puso en el
+    # aviso del amistoso.
+    #
+    # PROGRAMADO ES CON FECHA POR DELANTE: un partido viejo de esta temporada
+    # que se quedó sin cerrar no resucita a un eliminado.
+    ahora = datetime.now(UTC)
+    hay_cruce_programado = any(_en_utc(mt.played_at) > ahora for mt in upcoming)
+    bandera_vale = team.still_in_cup is not None and not (
+        team.still_in_cup is False and hay_cruce_programado
+    )
+    still_in_cup = bool(team.still_in_cup) if bandera_vale else bool(upcoming)
+    status_source = "teamdetails" if bandera_vale else "calendario"
 
     cup_league_level = (
         team.current_cup_league_level
@@ -1201,18 +1087,16 @@ async def _cup_sin_cache(
         len(played_this_season),
     )
     # La predicción del cruce: sólo si queda uno por jugar. Cuesta llamadas a
-    # Hattrick (el archivo del rival y sus partidos), así que no se paga
-    # cuando ya no hay nada que predecir.
+    # Hattrick (la ficha del rival), así que no se paga cuando ya no hay nada
+    # que predecir.
     prediccion = None
     if next_match is not None and still_in_cup:
-        prediccion = await _prediccion_del_cruce(
+        prediccion = await _prediccion_de_rivales(
             session,
             team,
             side(next_match)[2],
-            world,
             metodo_propio=pitch_zone_method_own,
             metodo_rival=pitch_zone_method_rival,
-            en_casa=None if is_neutral else side(next_match)[0],
         )
 
     economy = await _cup_economy(session, team, next_match, rounds_left, world)

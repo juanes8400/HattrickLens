@@ -684,7 +684,6 @@
   "HatStats rival": "HatStats przeciwnika",
   "Hattrick enseña muchos números pero pocas conclusiones. HT Lens hace el paso que falta: cruza la plantilla, los partidos, la economía, la liga y la academia para contestar preguntas de gestión. Cada pantalla tiene una pregunta concreta escrita bajo su título, y todo lo que hay en ella existe para responderla.": "Hattrick pokazuje wiele liczb, ale niewiele wniosków. HT Lens robi brakujący krok: krzyżuje kadrę, mecze, finanse, ligę i młodzieżówkę, żeby odpowiedzieć na pytania z zarządzania klubem. Każdy ekran ma pod tytułem zapisane konkretne pytanie, a wszystko, co na nim jest, istnieje po to, by na nie odpowiedzieć.",
   "Hattrick no devolvió ningún equipo con el identificador": "Hattrick nie zwrócił żadnej drużyny z identyfikatorem",
-  "Hattrick no prevé las acciones indirectas a balón parado de una alineación enviada, así que esas dos van con tu promedio de Copa. Siete de los nueve duelos son la alineación que mandaste; dos son tu costumbre.": "Hattrick nie przewiduje akcji ze stałych fragmentów pośrednich dla wysłanego składu, więc te dwa idą z twoją średnią pucharową. Siedem z dziewięciu dueli pochodzi ze składu, który wysłałeś; dwa to twój zwyczaj.",
   "Hattrick solo lo dice al cerrarse la puja": "Hattrick mówi to dopiero po zamknięciu licytacji",
   "Hattrick sólo sirve algunas cosas durante un tiempo corto: la economía detallada de las dos últimas semanas, el calendario de un mes o el estado de la plantilla de hoy. Lo que no se guarda a tiempo no se puede reconstruir después. Sincronizar una vez por semana, después del partido y del entrenamiento, deja la historia completa.": "Hattrick wydaje niektóre rzeczy tylko przez krótki czas: szczegółowe finanse dwóch ostatnich tygodni, terminarz na miesiąc albo dzisiejszy stan kadry. Czego nie zapiszemy na czas, tego nie da się potem odtworzyć. Synchronizacja raz w tygodniu, po meczu i po treningu, zostawia pełną historię.",
   "Hattrick tiene": "Hattrick ma",
@@ -1947,7 +1946,6 @@
   "tu liga": "twoja liga",
   "tu parte de la taquilla": "twoja część wpływów z biletów",
   "tu último partido contra el suyo": "twój ostatni mecz wobec jego",
-  "tus {{v0}} partido(s) de Copa de esta temporada": "twoje {{v0}} meczów Pucharu w tym sezonie",
   "tú: {{v0}} partido(s)": "ty: {{v0}} meczów",
   "una venta que todavía no existe, al precio que tú pongas": "sprzedaż, której jeszcze nie ma, po cenie, którą sam ustawisz",
   "valor configurado": "ustawiona wartość",
@@ -2227,10 +2225,6 @@
   "de {{v0}} ventas": "z {{v0}} transakcji",
   "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} z tych cen pochodzi z niewielu transakcji i rusza sumę bardziej, niż się wydaje",
   "Valor de Plantilla": "Wartość kadry",
-  "tus {{v0}} partido(s) de Liga": "twoje {{v0}} mecz(e) ligowe",
-  "contra sus {{v0}} partido(s) de Copa": "przeciw jego {{v0}} mecz(om) pucharowym",
-  "contra sus {{v0}} partido(s) de Liga": "przeciw jego {{v0}} mecz(om) ligowym",
-  "Alguno de los dos no tiene partidos de Copa todavía, así que de ese lado se han leído los de Liga. En Copa se juega con otro equipo, así que esta predicción describe peor de lo normal.": "Jeden z dwóch nie ma jeszcze meczów pucharowych, więc tę stronę odczytano z jego meczów ligowych. W pucharze gra się innym składem, więc ta prognoza opisuje gorzej niż zwykle.",
   "Sin predicción": "Brak prognozy",
   "sin datos con los que predecir": "brak danych do prognozy",
   "Hace falta una sesión de Hattrick activa y al menos un partido de alguno de los dos equipos con el que medir sus zonas. La fecha y el rival de arriba sí son datos sincronizados; aquí no se pone un número inventado para rellenar el hueco.": "Potrzebna jest aktywna sesja Hattricka i co najmniej jeden mecz którejś z drużyn, by zmierzyć ich strefy. Data i rywal powyżej to dane zsynchronizowane; nie wstawia się tu wymyślonej liczby, by zapełnić lukę.",
@@ -2253,5 +2247,9 @@
   "Hasta entonces no hay nada que sincronizar: esto no se arregla volviendo a sincronizar, porque lo que falta no está de nuestro lado. En cuanto Hattrick lo publique, entra en la siguiente sincronización y esta pantalla se llena sola.": "Do tego czasu nie ma czego synchronizować: ponowna synchronizacja tego nie naprawi, bo brakującej rzeczy nie ma u nas. Gdy tylko Hattrick to opublikuje, wejdzie przy następnej synchronizacji i ten ekran sam się wypełni.",
   "Mientras tanto, lo de la temporada pasada sigue en Partidos y en el histórico de Cambios: no se borra nada al cambiar de temporada.": "W tym czasie dane z poprzedniego sezonu zostają w Mecze i w historii Zmian: przy zmianie sezonu nic nie jest usuwane.",
   "cumplieron años o les subió una habilidad, así que Hattrick los compara con otros: la cifra cambió de verdad, pero el mercado no la movió": "mieli urodziny albo wzrosła im umiejętność, więc Hattrick porównuje ich z innymi: liczba naprawdę się zmieniła, ale nie rynek ją poruszył",
-  "Lo que este modelo no sabe": "Czego ten model nie wie"
+  "Lo que este modelo no sabe": "Czego ten model nie wie",
+  "tus {{v0}} partido(s) oficiales": "twoje {{v0}} mecz(e) oficjalne",
+  "contra sus {{v0}} partido(s) oficiales": "przeciw jego {{v0}} mecz(om) oficjalnym",
+  ". Es la misma predicción que su ficha en Rivales": ". To ta sama prognoza co na jego karcie w Przeciwnikach",
+  "Hattrick no prevé las acciones indirectas a balón parado de una alineación enviada, así que esas dos van con tu promedio de lo ya jugado. Siete de los nueve duelos son la alineación que mandaste; dos son tu costumbre.": "Hattrick nie przewiduje akcji ze stałych fragmentów pośrednich dla wysłanego składu, więc te dwa idą z twoją średnią z rozegranych meczów. Siedem z dziewięciu dueli pochodzi ze składu, który wysłałeś; dwa to twój zwyczaj."
 }

@@ -684,7 +684,6 @@
   "HatStats rival": "Opponent HatStats",
   "Hattrick enseña muchos números pero pocas conclusiones. HT Lens hace el paso que falta: cruza la plantilla, los partidos, la economía, la liga y la academia para contestar preguntas de gestión. Cada pantalla tiene una pregunta concreta escrita bajo su título, y todo lo que hay en ella existe para responderla.": "Hattrick shows lots of numbers but few conclusions. HT Lens takes the missing step: it combines the squad, matches, finances, league and academy to answer management questions. Each screen has a specific question written under its title, and everything on it exists to answer that.",
   "Hattrick no devolvió ningún equipo con el identificador": "Hattrick didn't return any team with the ID",
-  "Hattrick no prevé las acciones indirectas a balón parado de una alineación enviada, así que esas dos van con tu promedio de Copa. Siete de los nueve duelos son la alineación que mandaste; dos son tu costumbre.": "Hattrick doesn't predict indirect set pieces for a submitted lineup, so those two use your Cup average. Seven of the nine duels are the lineup you submitted; two are your usual.",
   "Hattrick solo lo dice al cerrarse la puja": "Hattrick only says it when the bid closes",
   "Hattrick sólo sirve algunas cosas durante un tiempo corto: la economía detallada de las dos últimas semanas, el calendario de un mes o el estado de la plantilla de hoy. Lo que no se guarda a tiempo no se puede reconstruir después. Sincronizar una vez por semana, después del partido y del entrenamiento, deja la historia completa.": "Hattrick only serves some things for a short time: detailed finances for the last two weeks, a month's schedule or today's squad status. What isn't stored in time can't be rebuilt later. Syncing once a week, after the match and training, keeps the full history.",
   "Hattrick tiene": "Hattrick has",
@@ -1947,7 +1946,6 @@
   "tu liga": "your league",
   "tu parte de la taquilla": "your share of the gate",
   "tu último partido contra el suyo": "your last match against theirs",
-  "tus {{v0}} partido(s) de Copa de esta temporada": "your {{v0}} Cup match(es) this season",
   "tú: {{v0}} partido(s)": "you: {{v0}} match(es)",
   "una venta que todavía no existe, al precio que tú pongas": "a sale that doesn't exist yet, at the price you set",
   "valor configurado": "configured value",
@@ -2227,10 +2225,6 @@
   "de {{v0}} ventas": "from {{v0}} sales",
   "{{v0}} de esos precios salen de pocas ventas y mueven el total más de lo que parece": "{{v0}} of those prices come from few sales and move the total more than it looks",
   "Valor de Plantilla": "Squad value",
-  "tus {{v0}} partido(s) de Liga": "your {{v0}} League match(es)",
-  "contra sus {{v0}} partido(s) de Copa": "against their {{v0}} Cup match(es)",
-  "contra sus {{v0}} partido(s) de Liga": "against their {{v0}} League match(es)",
-  "Alguno de los dos no tiene partidos de Copa todavía, así que de ese lado se han leído los de Liga. En Copa se juega con otro equipo, así que esta predicción describe peor de lo normal.": "One of the two has no Cup matches yet, so that side was read from its League matches. Cup is played with a different side, so this prediction describes worse than usual.",
   "Sin predicción": "No prediction",
   "sin datos con los que predecir": "no data to predict with",
   "Hace falta una sesión de Hattrick activa y al menos un partido de alguno de los dos equipos con el que medir sus zonas. La fecha y el rival de arriba sí son datos sincronizados; aquí no se pone un número inventado para rellenar el hueco.": "It needs an active Hattrick session and at least one match from either team to measure their zones. The date and the opponent above are synced data; no made-up number is put here to fill the gap.",
@@ -2253,5 +2247,9 @@
   "Hasta entonces no hay nada que sincronizar: esto no se arregla volviendo a sincronizar, porque lo que falta no está de nuestro lado. En cuanto Hattrick lo publique, entra en la siguiente sincronización y esta pantalla se llena sola.": "Until then there is nothing to sync: syncing again does not fix this, because what is missing is not on our side. As soon as Hattrick publishes it, it comes in on the next sync and this screen fills itself.",
   "Mientras tanto, lo de la temporada pasada sigue en Partidos y en el histórico de Cambios: no se borra nada al cambiar de temporada.": "Meanwhile, last season's data is still in Matches and in the Changes history: nothing is deleted when the season turns over.",
   "cumplieron años o les subió una habilidad, así que Hattrick los compara con otros: la cifra cambió de verdad, pero el mercado no la movió": "they had a birthday or a skill went up, so Hattrick compares them with others: the figure really did change, but the market did not move it",
-  "Lo que este modelo no sabe": "What this model does not know"
+  "Lo que este modelo no sabe": "What this model does not know",
+  "tus {{v0}} partido(s) oficiales": "your {{v0}} official match(es)",
+  "contra sus {{v0}} partido(s) oficiales": "against their {{v0}} official match(es)",
+  ". Es la misma predicción que su ficha en Rivales": ". It is the same prediction as their page in Opponents",
+  "Hattrick no prevé las acciones indirectas a balón parado de una alineación enviada, así que esas dos van con tu promedio de lo ya jugado. Siete de los nueve duelos son la alineación que mandaste; dos son tu costumbre.": "Hattrick doesn't predict indirect set pieces for a submitted lineup, so those two use your average of what has been played. Seven of the nine duels are the lineup you submitted; two are your usual."
 }
