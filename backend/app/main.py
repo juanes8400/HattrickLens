@@ -7,6 +7,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.responses import Response
+from starlette.types import Scope
 
 from app.api.v1.router import api_router
 from app.core.config import settings
@@ -91,7 +93,53 @@ async def health() -> dict[str, str]:
 # Si la carpeta no existe (desarrollo, donde manda Vite), no se monta nada y la
 # API funciona igual.
 _FRONTEND = Path(__file__).resolve().parents[1] / "static"
-if (_FRONTEND / "index.html").exists():
+
+# Lo que se guarda y lo que no (2026-11-10).
+#
+# MEDIDO en producción: `/assets/index-Da-mziAK.js` salía sin `Cache-Control`,
+# el CDN contestaba `cf-cache-status: DYNAMIC` y pedirlo con `If-None-Match`
+# igual a su etag devolvía un 200 con el fichero entero. O sea, cada visita
+# volvía a bajarse la aplicación completa.
+#
+# Los nombres de `/assets/` llevan la huella que les pone Vite: si cambia un
+# byte cambia el nombre, así que lo que hay detrás de un nombre no cambia
+# nunca y se puede guardar un año sin preguntar (`immutable`).
+#
+# El `index.html` es justo lo contrario: se llama siempre igual y es quien dice
+# qué bundles tocan. Con `no-cache` el navegador lo guarda pero pregunta antes
+# de usarlo, y un despliegue nuevo se ve en la visita siguiente.
+CACHE_CON_HUELLA = "public, max-age=31536000, immutable"
+CACHE_DEL_INDEX = "no-cache"
+
+
+class _AssetsConHuella(StaticFiles):
+    """`StaticFiles` que marca como inmutable lo que sirve.
+
+    Sólo lo que sirve: un nombre que no existe sale como 404 por excepción y no
+    pasa por aquí, así que un fallo nunca se queda guardado un año.
+    """
+
+    async def get_response(self, path: str, scope: Scope) -> Response:
+        respuesta = await super().get_response(path, scope)
+        respuesta.headers["Cache-Control"] = CACHE_CON_HUELLA
+        return respuesta
+
+
+def montar_frontend(app: FastAPI, carpeta: Path) -> None:
+    """Sirve la pantalla ya compilada que hay en `carpeta`.
+
+    Va lo último, detrás de la API y de `/health`: la ruta comodín se queda con
+    todo lo que nadie haya reclamado antes.
+    """
+    carpeta = carpeta.resolve()
+
+    # EL ORDEN IMPORTA. `/assets` se monta ANTES que la comodín: las rutas se
+    # prueban por orden de registro y `/{ruta:path}` casa con todo, así que
+    # cuando iba primero los bundles los servía ella con un `FileResponse`
+    # pelado, que no sabe contestar 304, y este montaje no llegaba a usarse.
+    app.mount("/assets", _AssetsConHuella(directory=carpeta / "assets"), name="assets")
+
+    index = carpeta / "index.html"
 
     @app.get("/{ruta:path}", include_in_schema=False)
     async def spa(ruta: str) -> FileResponse:
@@ -100,9 +148,15 @@ if (_FRONTEND / "index.html").exists():
         La navegación es del lado del cliente: recargar en /rivals/277186 tiene
         que servir la misma página, no un 404.
         """
-        candidato = (_FRONTEND / ruta).resolve()
-        if ruta and candidato.is_file() and _FRONTEND in candidato.parents:
+        candidato = (carpeta / ruta).resolve()
+        # `candidato != index`: pedir `/index.html` por su nombre es pedir el
+        # index, y tiene que salir con su cabecera como por cualquier otra ruta.
+        if ruta and candidato != index and candidato.is_file() and carpeta in candidato.parents:
+            # Lo suelto de la raíz (favicon, escudo): son veinte kilobytes
+            # entre todos y se quedan como estaban, sin cabecera.
             return FileResponse(candidato)
-        return FileResponse(_FRONTEND / "index.html")
+        return FileResponse(index, headers={"Cache-Control": CACHE_DEL_INDEX})
 
-    app.mount("/assets", StaticFiles(directory=_FRONTEND / "assets"), name="assets")
+
+if (_FRONTEND / "index.html").exists():
+    montar_frontend(app, _FRONTEND)
