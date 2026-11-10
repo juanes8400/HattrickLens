@@ -813,7 +813,14 @@ def youth_training_plan(
 
         Dentro de un mismo peldaño, el orden de siempre: techo, edad de hoy,
         nivel actual y nombre. Ver `score_skills`.
+
+        MENOS CON «INDIVIDUAL», que se queda como estaba. Su cola no va por
+        peldaños sino por cuántos topes ocultos tiene cada chico (ver
+        `cola_de_descubrimiento`), y el peldaño que traen sus notas es el de
+        una habilidad cualquiera: mezclarla por peldaño la desordenaría.
         """
+        if CODIGO_INDIVIDUAL in (principal, secundaria):
+            return list(cola_principal)
         mejor: dict[str, PlayerNote] = {}
         for cola, clave in ((cola_principal, principal), (cola_secundaria, secundaria)):
             for p in cola:

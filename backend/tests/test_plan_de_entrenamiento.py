@@ -218,6 +218,39 @@ def test_en_la_doble_cuenta_TAMBIEN_lo_que_necesita_del_secundario() -> None:
     assert (unica.current, unica.maximum, unica.max_reached) == (7, 7, False)
 
 
+@pytest.mark.parametrize(
+    ("principal", "secundaria"),
+    [
+        ("playmaking", "winger"),
+        ("defending", "passing_defenders"),
+        ("scoring", "passing"),
+        ("winger", "passing"),
+    ],
+)
+def test_la_doble_mira_las_dos_colas_en_CUALQUIER_par(principal: str, secundaria: str) -> None:
+    """No es una regla de Pases + Lateral: vale para todo par que tenga
+    plazas dobles. Quien sólo destaca en el secundario entra antes que quien
+    sólo es flojo en el primario."""
+    flojo = [_nota_de("Flojo", techo=5, nivel=None, dias=1000, prioridad=8)]
+    necesita = [_nota_de("Necesita", techo=7, nivel=7, dias=1800, prioridad=3)]
+    plan = youth_training_plan(principal, secundaria, flojo, necesita, plazas=1)
+    (unica,) = plan.asignaciones
+    assert unica.region == REGION_AMBOS
+    assert unica.player == "Necesita"
+
+
+def test_con_INDIVIDUAL_la_doble_sigue_la_cola_de_descubrimiento() -> None:
+    """La cola de «Individual» va por topes ocultos, no por peldaños, y el
+    peldaño de sus notas no significa nada: no se mezcla."""
+    descubrimiento = [
+        _nota_de("Tapado", techo=None, nivel=None, dias=1800, prioridad=9),
+        _nota_de("Leido", techo=8, nivel=6, dias=1000, prioridad=1),
+    ]
+    otra = [_nota_de("Leido", techo=8, nivel=6, dias=1000, prioridad=1)]
+    plan = youth_training_plan("individual", "winger", descubrimiento, otra, plazas=1)
+    assert [a.player for a in plan.asignaciones] == ["Tapado"]
+
+
 def test_en_la_doble_tocar_techo_en_UNA_no_basta_para_quedarse_fuera() -> None:
     """La plaza doble le sigue dando la otra. Antes bastaba con tocar techo en
     cualquiera de las dos para no poder entrar."""
