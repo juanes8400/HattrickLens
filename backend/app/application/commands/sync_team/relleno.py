@@ -11,7 +11,6 @@ from datetime import UTC, datetime
 from app.application.commands.sync_team.base import BaseDeSync
 from app.application.commands.sync_team.comun import (
     FILE_VERSIONS,
-    GOTEO_DE_VIGILANCIA,
     ProgressReporter,
     SyncBackfillBatchCommand,
     SyncPreviousClubBonusCommand,
@@ -71,8 +70,8 @@ class RellenoMixin(BaseDeSync):
         """Núcleo de `execute_previous_club_bonus`, recibe el `uow` ya
         abierto, igual que `_apply_transfers_player_purchase`/
         `_apply_player_enrichment`, para poder llamarse también desde
-        `_backfill_previous_club_bonus` (monitoreo automático dentro de
-        `execute()`).
+        `_vigilar_reventa`, que es quien lo dispara en el lote de
+        comisiones de cada sincronización.
 
         "Club anterior" de una reventa = quien nos compró el jugador A
         NOSOTROS justo antes de esa reventa, nunca una venta más abajo en
@@ -251,164 +250,6 @@ class RellenoMixin(BaseDeSync):
             )
         )
         return True
-
-    async def _backfill_previous_club_bonus(
-        self,
-        uow: UnitOfWork,
-        team_id: int,
-        result: SyncResult,
-        on_progress: ProgressReporter | None = None,
-    ) -> None:
-        """Monitoreo automático, sin botón (HL-161, 2026-08-14, pedido
-        explícitamente): en cada sync que incluya transfersteam, revisa
-        hasta 25 ex-jugadores, los nunca revisados primero, luego los más
-        desactualizados (orden por `previous_club_bonus_checked_at`
-        ascendente, NULL primero), por si alguno fue revendido por el
-        club al que le vendimos. Acotado a propósito: a diferencia del
-        backfill masivo (sin límite, bajo demanda), esto corre solo en
-        cada sync, así que no puede convertir un sync normal en cientos de
-        llamadas a CHPP. El conteo de partidos (caro: matchesarchive +
-        matchlineup por partido) solo se dispara cuando de verdad hay una
-        reventa nueva que pagar, la inmensa mayoría de estos 25 no la
-        tendrán."""
-        from sqlalchemy import select
-        from sqlalchemy import update as sa_update
-
-        from app.infrastructure.db import models as m
-
-        equipo = await uow.session.get(m.Team, team_id)
-        cazando = bool(equipo is not None and equipo.commission_hunting)
-
-        # LAS PISTAS VAN PRIMERO (2026-11-03, pedido por el usuario). Un
-        # ex-jugador al que vimos en el mercado --porque estábamos pujando por
-        # recomprarlo, ver `_anotar_reventas_en_el_mercado`-- y cuya subasta ya
-        # cerró es una reventa con fecha y hora, no una conjetura entre 501
-        # nombres. Antes del plazo no se mira: la reventa aún no ha pasado.
-        ahora_pistas = datetime.now(UTC).replace(tzinfo=None)
-        pistas = list(
-            (
-                await uow.session.execute(
-                    select(m.Player.ht_player_id)
-                    .where(
-                        m.Player.team_id == team_id,
-                        m.Player.sold_at.is_not(None),
-                        m.Player.resale_deadline.is_not(None),
-                        m.Player.resale_deadline <= ahora_pistas,
-                    )
-                    .order_by(m.Player.resale_deadline)
-                )
-            )
-            .scalars()
-            .all()
-        )
-
-        if cazando:
-            # Hay dinero por atribuir: se persigue. Uno reciente, uno al azar
-            # --2026-08-24, disenado por el usuario--: lo reciente rinde mas,
-            # y el azar impide que la cola larga muera de hambre.
-            por_recencia = list(
-                (
-                    await uow.session.execute(
-                        select(m.Player.ht_player_id)
-                        .where(
-                            m.Player.team_id == team_id,
-                            m.Player.sold_at.is_not(None),
-                            ~m.Player.resale_closed,
-                        )
-                        .order_by(m.Player.sold_at.desc())
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            try:
-                probados = set(json.loads(equipo.commission_tried_json or "[]"))
-            except ValueError:
-                probados = set()
-            candidates = caza.orden_de_busqueda(por_recencia, probados, 25)
-            if not candidates:
-                # Se probaron todos y no aparecio: se cierra la caceria en vez
-                # de repetirla eternamente. Si el dinero vuelve a subir, se
-                # abre otra con la lista limpia.
-                equipo.commission_hunting = False
-                equipo.commission_tried_json = "[]"
-        else:
-            # Sin dinero nuevo no hay nada que encontrar. El goteo sigue, pero
-            # solo como red: que nadie quede sin mirar nunca.
-            candidates = list(
-                (
-                    await uow.session.execute(
-                        select(m.Player.ht_player_id)
-                        .where(m.Player.team_id == team_id, m.Player.sold_at.is_not(None))
-                        .order_by(
-                            m.Player.previous_club_bonus_checked_at.is_not(None),
-                            m.Player.previous_club_bonus_checked_at,
-                        )
-                        .limit(GOTEO_DE_VIGILANCIA)
-                    )
-                )
-                .scalars()
-                .all()
-            )
-
-        # Se prepondera DESPUÉS de decidir si la cacería sigue abierta: una
-        # pista no debe mantener viva una cacería a la que ya no le queda
-        # nadie por probar, son dos preguntas distintas.
-        if pistas:
-            ya = set(pistas)
-            candidates = pistas + [x for x in candidates if x not in ya]
-
-        encontrado = False
-        for ht_player_id in candidates:
-            identidad = (
-                await uow.session.execute(
-                    select(m.Player.first_name, m.Player.last_name).where(
-                        m.Player.ht_player_id == ht_player_id
-                    )
-                )
-            ).one()
-            nombre = _full_player_name(identidad.first_name, identidad.last_name)
-            # Por qué se dice en voz alta que venía del mercado: si no, una
-            # pista certera y un tiro al azar se leen igual en pantalla, y el
-            # usuario no puede saber si esto funciona.
-            motivo = " (visto en el mercado)" if ht_player_id in pistas else ""
-            await _report(
-                on_progress,
-                f"Revisando comisión de club anterior de {nombre}{motivo}...",
-            )
-            try:
-                wrote = await self._check_previous_club_bonus(uow, team_id, ht_player_id)
-                if wrote:
-                    result.snapshots_written += 1
-                    encontrado = True
-                else:
-                    result.unchanged += 1
-            except Exception as exc:  # noqa: BLE001, best effort, ver _backfill_sold_player_details
-                result.errors.append(
-                    f"{_nombre_legible('previous_club_bonus')} ({ht_player_id}): {exc}"
-                )
-            if cazando:
-                probados.add(ht_player_id)
-            if ht_player_id in pistas:
-                # Consumida, aparezca comisión o no: lo que la pista prometía
-                # era un MOMENTO en que valía la pena mirar, y ese momento ya
-                # se gastó. Si no se borrara, se quedaría para siempre a la
-                # cabeza de la cola robándole el turno a los otros 500.
-                await uow.session.execute(
-                    sa_update(m.Player)
-                    .where(
-                        m.Player.team_id == team_id,
-                        m.Player.ht_player_id == ht_player_id,
-                    )
-                    .values(resale_deadline=None)
-                )
-
-        if cazando and equipo is not None:
-            equipo.commission_tried_json = json.dumps(sorted(probados))
-            if encontrado:
-                # Apareció: se cierra hasta que vuelva a entrar dinero.
-                equipo.commission_hunting = False
-                equipo.commission_tried_json = "[]"
 
     async def execute_backfill_batch(
         self,
@@ -593,6 +434,7 @@ class RellenoMixin(BaseDeSync):
         """
         from sqlalchemy import func as sa_func
         from sqlalchemy import select
+        from sqlalchemy import update as sa_update
 
         from app.infrastructure.db import models as m
 
@@ -743,8 +585,50 @@ class RellenoMixin(BaseDeSync):
             resto = [x for x in todos if x not in set(perseguidos)]
             todos = perseguidos + resto
 
+        # LAS PISTAS VAN PRIMERO, POR DELANTE DE TODO (2026-11-03, pedido del
+        # usuario). Un ex-jugador al que vimos en el mercado --porque
+        # andábamos pujando por él, ver `_anotar_reventas_en_el_mercado`-- y
+        # cuya subasta ya cerró es una reventa con fecha y hora, no una
+        # conjetura entre quinientos nombres. Antes del plazo no se mira: la
+        # reventa todavía no ha pasado.
+        #
+        # ESTO VIVÍA EN `_backfill_previous_club_bonus`, Y NO CORRÍA
+        # (2026-11-09, el caso Ben Goupy). Esa función dejó de llamarse en
+        # agosto, cuando la vigilancia salió de la sincronización principal;
+        # en noviembre se le cableó la pista y sólo la llamaban sus propias
+        # pruebas, que por eso pasaban en verde. La pista se guardaba y
+        # nadie la leía. Aquí sí: este es el lote que corre al final de
+        # cada sincronización.
+        #
+        # ENTRA AUNQUE LA COLA LO HAYA DEJADO FUERA. Quien se revisó hace
+        # menos de una semana no está en `reventa`, y el día que cierra su
+        # subasta es justo cuando hay que mirarlo; lo mismo un expediente
+        # cerrado, que si ha vuelto al mercado no estaba tan cerrado.
+        ahora_pistas = datetime.now(UTC).replace(tzinfo=None)
+        pistas = list(
+            (
+                await uow.session.execute(
+                    select(m.Player.ht_player_id)
+                    .where(
+                        m.Player.team_id == team_id,
+                        m.Player.sold_at.is_not(None),
+                        m.Player.resale_deadline.is_not(None),
+                        m.Player.resale_deadline <= ahora_pistas,
+                    )
+                    .order_by(m.Player.resale_deadline)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        maduras = set(pistas)
+        if pistas:
+            reventa |= maduras
+            todos = pistas + [x for x in todos if x not in maduras]
+
         if limite is not None:
-            todos = todos[:limite]
+            # El tope es para la cola; una pista no se queda fuera por él.
+            todos = todos[: max(limite, len(pistas))]
 
         # Cuantas comisiones habia antes, y desde cuando: lo primero dice si
         # esta tanda atribuyo alguna NUEVA --`_check_previous_club_bonus`
@@ -818,10 +702,34 @@ class RellenoMixin(BaseDeSync):
                     await _tras_fallo(uow, exc)
                     result.status = "partial"
             if ht_player_id in reventa:
-                await _report(on_progress, f"Revisando reventas de {nombre}...")
+                # Se dice en voz alta que venía del mercado: si no, una pista
+                # certera y un tiro al azar se leen igual en pantalla, y no
+                # hay forma de saber desde fuera si esto funciona.
+                await _report(
+                    on_progress,
+                    f"Revisando la reventa de {nombre}, visto en el mercado..."
+                    if ht_player_id in maduras
+                    else f"Revisando reventas de {nombre}...",
+                )
                 try:
                     wrote = await self._vigilar_reventa(uow, team_id, ht_player_id)
                     result.snapshots_written += 1 if wrote else 0
+                    if ht_player_id in maduras:
+                        # CONSUMIDA, aparezca comisión o no: lo que la pista
+                        # prometía era un MOMENTO en que valía la pena mirar,
+                        # y ese momento ya se gastó. Si no se borrara, se
+                        # quedaría para siempre a la cabeza de la cola.
+                        #
+                        # Sólo si se llegó a mirar: con Hattrick caído la
+                        # pista sigue ahí para la siguiente sincronización.
+                        await uow.session.execute(
+                            sa_update(m.Player)
+                            .where(
+                                m.Player.team_id == team_id,
+                                m.Player.ht_player_id == ht_player_id,
+                            )
+                            .values(resale_deadline=None)
+                        )
                 except Exception as exc:  # noqa: BLE001, sync parcial, no abortamos el resto
                     result.errors.append(f"{_nombre_legible('reventa')} ({ht_player_id}): {exc}")
                     await _tras_fallo(uow, exc)

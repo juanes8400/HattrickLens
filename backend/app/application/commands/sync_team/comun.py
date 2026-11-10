@@ -58,11 +58,6 @@ async def _tras_fallo(uow: UnitOfWork, exc: BaseException) -> None:
         await uow.rollback()
 
 
-#: Cuantos ex-jugadores se miran por sincronizacion cuando NO hay dinero que
-#: perseguir. Es la red de seguridad --que nadie quede sin mirar nunca-- por
-#: si la senal del dinero se perdio: `economy.xml` recuerda la semana en curso
-#: y la anterior, nada mas, asi que dos semanas sin sincronizar la borran.
-GOTEO_DE_VIGILANCIA = 5
 # `matchesarchive.xml` no pagina: cuando un intervalo contiene más partidos,
 # CHPP entrega únicamente los primeros 50. Se parte el rango hasta que cada
 # respuesta sea completa y luego se deduplica por MatchID.
@@ -567,9 +562,8 @@ class SyncPreviousClubBonusCommand:
     transfersplayer.xml buscando una reventa nueva del club al que le
     vendimos, si la hay, calcula la comisión exacta de "club anterior"
     (partidos reales jugados con nosotros × tabla oficial) y la guarda.
-    Dispara tanto el backfill masivo bajo demanda como, acotado, el
-    monitoreo automático dentro de `execute()` (ver
-    `_backfill_previous_club_bonus`)."""
+    Lo dispara el backfill bajo demanda; en cada sincronización, la
+    vigilancia de reventas del lote de comisiones (`_vigilar_reventa`)."""
 
     user_id: int
     team_id: int
