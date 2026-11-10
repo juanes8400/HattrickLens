@@ -1468,6 +1468,14 @@ def catalogo() -> list[Seccion]:
                         "porque se sale a ganarlo con el once titular, que es justo lo "
                         "que el resumen intenta describir. La copa va sola, por lo "
                         "mismo al revés.",
+                        "LA PANTALLA DE COPA ES LA EXCEPCIÓN, y a sabiendas. No resume "
+                        "nada por su cuenta: pinta la predicción de la ficha de ese "
+                        "rival, que toma los últimos oficiales de cada lado --liga y "
+                        "copa juntas-- y no corrige la sede en un cruce de copa. Se "
+                        "eligió así para que las dos pantallas no den dos números "
+                        "distintos del mismo partido, conociendo la medición de "
+                        "arriba: es una muestra que describe peor un cruce de copa que "
+                        "la de copa sola.",
                         "Los AMISTOSOS son una tercera muestra, y en la ficha de un "
                         "rival se piden con un selector aparte, en la esquina: "
                         "oficiales O amistosos, uno u otro, nunca los dos ni ninguno. "
@@ -1511,7 +1519,7 @@ def catalogo() -> list[Seccion]:
                         "\n"
                         "qué partidos entran, según la pantalla:\n"
                         "    Liga            → liga, promoción y Hattrick Masters\n"
-                        "    Copa            → sólo copa\n"
+                        "    Copa            → los de la ficha de ese rival\n"
                         "    Ficha de rival  → oficiales O amistosos, según el\n"
                         "                      selector de la esquina"
                     ),
@@ -1550,8 +1558,9 @@ def catalogo() -> list[Seccion]:
                     ],
                     steps=[
                         "Se decide QUÉ partidos entran. En Liga, los de liga de esta "
-                        "temporada; en Copa, los de copa; en la ficha de un rival, los "
-                        "oficiales o los amistosos, según el selector de la esquina.",
+                        "temporada; en la ficha de un rival, los oficiales o los "
+                        "amistosos, según el selector de la esquina; en Copa, los "
+                        "mismos que en la ficha de ese rival.",
                         "Se leen sus nueve ratings: medio campo, tres defensas, tres "
                         "ataques y los dos de balón parado. Una lectura a la que le "
                         "falte alguno se descarta entera: media lectura no es una "

@@ -20,7 +20,6 @@ import asyncio
 
 import pytest
 
-from app.api.v1.endpoints.cup import _metodo_de_copa
 from app.api.v1.endpoints.league import _metodo_de_la_pantalla
 from app.application.queries.league import LeagueQueryService
 from tests.conftest import HT_TEAM_ID
@@ -46,22 +45,10 @@ def test_liga_cae_en_el_promedio_ante_cualquier_otra_cosa(pedido: str) -> None:
     assert _metodo_de_la_pantalla(pedido) == "average"
 
 
-@pytest.mark.parametrize("metodo", LOS_CUATRO)
-def test_copa_acepta_los_mismos_cuatro(metodo: str) -> None:
-    assert _metodo_de_copa(metodo) == metodo
-
-
-def test_copa_resuelve_la_alineacion_enviada_como_promedio_de_lo_jugado() -> None:
-    """En Copa «Alineación enviada» SÍ es una opción, pero no un resumen.
-
-    Es un vector que da Hattrick y que se pega encima de los siete sectores que
-    prevé. Los otros dos --las acciones indirectas a balón parado, que Hattrick
-    no prevé-- y el caso de que no haya órdenes mandadas se sostienen con el
-    promedio de lo ya jugado. Por eso `_metodo_de_copa` la traduce a promedio
-    en vez de rechazarla. Y la mediana retirada, igual.
-    """
-    assert _metodo_de_copa("submitted") == "average"
-    assert _metodo_de_copa("median") == "average"
+# AQUÍ VIVÍAN DOS PRUEBAS DE `_metodo_de_copa`, la función que normalizaba el
+# resumen pedido en Copa. Se fue el 2026-11-09 con la predicción propia de
+# Copa: desde ese día Copa pinta la predicción de la ficha de rival, que ya
+# normaliza sus dos selectores. Ver `test_copa_predice_lo_de_rivales.py`.
 
 
 def _lecturas_que_suben() -> dict[int, list[dict[str, float]]]:
