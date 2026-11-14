@@ -1130,7 +1130,13 @@ def test_un_jugador_es_comparable_de_si_mismo() -> None:
 
     r = random.Random(11)
     habilidades = [
-        "keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces",
+        "keeper",
+        "defending",
+        "playmaking",
+        "winger",
+        "passing",
+        "scoring",
+        "set_pieces",
     ]
     for _ in range(2000):
         edad = r.randint(17, 33)
@@ -1167,7 +1173,13 @@ def test_el_puente_entero_entre_la_regla_y_el_mercado() -> None:
             self.especialidad = 0
 
     siete = [
-        "keeper", "defending", "playmaking", "winger", "passing", "scoring", "set_pieces",
+        "keeper",
+        "defending",
+        "playmaking",
+        "winger",
+        "passing",
+        "scoring",
+        "set_pieces",
     ]
     r = random.Random(29)
     for _ in range(2000):
@@ -1367,3 +1379,23 @@ def test_la_clave_cabe_en_la_columna() -> None:
     """`criteria_key` es `String(120)`. Si creciera, se truncaria en silencio y
     dos ventanas distintas pasarian por la misma."""
     assert len(clave_de_criterios(_objetivo())) <= 120
+
+
+def test_el_propio_jugador_no_es_su_comparable() -> None:
+    """Su propia venta (cuando lo compraste) no le pone precio: regla del
+    usuario del 2026-11-14. Las demás clavadas siguen entrando."""
+    objetivo = _objetivo(ht_player_id=777)
+    elegidos = _medidos(_guardado(777), _guardado(1), objetivo=objetivo)
+    assert [c.venta.ht_player_id for c in elegidos] == [1]
+
+
+def test_un_mayor_o_igual_no_tiene_techo() -> None:
+    """2026-11-14: Hattrick dice «>= 13»; una venta de nivel 22 entra."""
+    from app.domain.engines.criterios_hattrick import MAXIMO_DE_LA_ESCALA, Criterio
+
+    abierto = Criterio("playmaking", ">=", 13, MAXIMO_DE_LA_ESCALA)
+    assert abierto.admite(13)
+    assert abierto.admite(22)
+    assert not abierto.admite(12)
+    banda = Criterio("playmaking", "banda", 13, 15)
+    assert not banda.admite(16)

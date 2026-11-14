@@ -396,7 +396,8 @@ export interface PreciosDeLaPlantilla {
  *  llega con su clave interna y la nombra el glosario oficial. */
 export interface CriterioDeHattrick {
   habilidad: string;
-  operador: "=" | "banda" | "<=";
+  /** `>=` es un suelo sin techo, como lo dice Hattrick (2026-11-14). */
+  operador: "=" | "banda" | "<=" | ">=";
   minimo: number;
   maximo: number;
 }

@@ -863,6 +863,7 @@ function PenaltyOrder({
                 BP {player.setPieces} {tx("· Anotación")} {player.scoring}{" "}
                 {tx("· Experiencia")} {player.experience}
                 {player.technical && tx(" · Técnico")}
+                {player.starter && tx(" · En el once")}
               </div>
             </div>
             <span className="tabular-nums text-sm font-semibold">

@@ -302,7 +302,17 @@ export function Loading() {
   );
 }
 
-export function ErrorState({ error }: { error: unknown }) {
+export function ErrorState({
+  error,
+  alReintentar,
+}: {
+  error: unknown;
+  /** Qué repetir. Sin él se vuelven a pedir los datos de la pantalla, que es
+   *  lo que falla casi siempre; pero si lo que falló fue una ACCIÓN --lanzar
+   *  la sincronización--, volver a pedir datos no la repite ni quita el
+   *  error, y el botón parecía no hacer nada (2026-11-14). */
+  alReintentar?: () => unknown;
+}) {
   const { t } = useTranslation();
   if (error instanceof ApiError && error.status === 401) {
     return (
@@ -325,7 +335,7 @@ export function ErrorState({ error }: { error: unknown }) {
       </div>
     );
   }
-  return <ErrorConReintento error={error} />;
+  return <ErrorConReintento error={error} alReintentar={alReintentar} />;
 }
 
 /** El fallo genérico, con la salida a mano.
@@ -338,7 +348,13 @@ export function ErrorState({ error }: { error: unknown }) {
  *  El botón vuelve a pedir lo que esta pantalla tenga pendiente, sin tocar el
  *  resto del estado.
  */
-function ErrorConReintento({ error }: { error: unknown }) {
+function ErrorConReintento({
+  error,
+  alReintentar,
+}: {
+  error: unknown;
+  alReintentar?: () => unknown;
+}) {
   const { t } = useTranslation();
   const cliente = useQueryClient();
   const [reintentando, setReintentando] = useState(false);
@@ -359,6 +375,10 @@ function ErrorConReintento({ error }: { error: unknown }) {
         type="button"
         disabled={reintentando}
         onClick={() => {
+          if (alReintentar) {
+            alReintentar();
+            return;
+          }
           setReintentando(true);
           void cliente
             .refetchQueries({ type: "active" })

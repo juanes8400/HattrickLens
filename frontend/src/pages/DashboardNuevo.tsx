@@ -213,7 +213,9 @@ function ProximoPartido() {
   )?.date;
   const tuNombre = nm.isHome ? nm.home : nm.away;
   const suNombre = nm.isHome ? nm.away : nm.home;
-  const ordenesEnviadas = nm.sources?.own.kind === "submitted";
+  // Hecho del servidor, no deducción del pronóstico (2026-11-14): sin ratings
+  // el pronóstico sale de los goles y eso no dice nada de tus órdenes.
+  const ordenesEnviadas = nm.ordersSent ?? nm.sources?.own.kind === "submitted";
 
   return (
     <Panel

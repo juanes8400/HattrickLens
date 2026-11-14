@@ -161,9 +161,11 @@ async def liga_calculada(
         (),
         lambda: _lecturas_de_la_serie(session, team_id),
     )
-    # Sin lecturas el próximo partido cae a la Poisson de la temporada y unas
-    # órdenes no servirían de nada: ni se pregunta a Hattrick por ellas.
-    enviada = await _alineacion_enviada_propia(session, team_id) if lecturas else None
+    # Se pregunta SIEMPRE (2026-11-14). Antes, sin lecturas, ni se preguntaba
+    # porque unas órdenes no cambiaban el pronóstico; pero la pantalla dice si
+    # están mandadas, y en la jornada 1 de una serie nueva decía que no
+    # estándolo. La memoria de un minuto evita repetir la llamada.
+    enviada = await _alineacion_enviada_propia(session, team_id)
     return await por_sync(
         session,
         team_id,

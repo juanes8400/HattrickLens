@@ -147,12 +147,25 @@ export function Tabs<T extends string>({
     // píldoras suelta, en un móvil las siete secciones de Transparencia
     // sobresalían 327 px y arrastraban el documento entero: la cabecera y el
     // contenido se movían de lado al deslizar (2026-08-31).
-    <div className="-mx-1 overflow-x-auto px-1">
+    //
+    // UN FILTRO SE PARTE EN RENGLONES, NO SE DESPLAZA (2026-11-14, visto por
+    // el usuario en Transferencias desde el móvil). Tres botones cortados por
+    // el borde, con el tercero escondido, parecían rotos; partidos en dos
+    // renglones se leen todos. Las secciones siguen desplazándose: son siete y
+    // partirlas empujaría el contenido hacia abajo.
+    <div
+      className={esFiltro ? "min-w-0 max-w-full" : "-mx-1 overflow-x-auto px-1"}
+    >
       <div
         ref={zona}
         role={esFiltro ? "group" : "tablist"}
         aria-label={label}
-        className="inline-flex w-max gap-1 rounded-full border border-[var(--border)] bg-[var(--surface-2)] p-1"
+        className={clsx(
+          "gap-1 border border-[var(--border)] bg-[var(--surface-2)] p-1",
+          esFiltro
+            ? "inline-flex max-w-full flex-wrap rounded-2xl"
+            : "inline-flex w-max rounded-full",
+        )}
       >
         {tabs.map((t, i) => (
           <button

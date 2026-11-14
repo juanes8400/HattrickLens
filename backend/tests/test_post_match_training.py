@@ -186,8 +186,18 @@ def test_el_caso_del_usuario_de_punta_a_punta() -> None:
 
     once = json.dumps([{"ht_player_id": 513909842, "role_id": 105, "behaviour": 0}])
     eventos = json.dumps(
-        {"cambios": [{"minuto": 87, "sale": 513909842, "entra": 513909842,
-                      "nuevo_puesto": 110, "order_type": 3}], "cobrador": 0}
+        {
+            "cambios": [
+                {
+                    "minuto": 87,
+                    "sale": 513909842,
+                    "entra": 513909842,
+                    "nuevo_puesto": 110,
+                    "order_type": 3,
+                }
+            ],
+            "cobrador": 0,
+        }
     )
     tramos = _repartidos_por_puesto(una_fila, {771779994: (once, eventos)})
 
@@ -225,3 +235,55 @@ def test_el_cobrador_de_tiros_libres_entrena_al_125() -> None:
     assert round(service._exposicion(2, no_cobra), 4) == 1.0
     # Y sólo en Balón parado: en cualquier otro entrenamiento es uno más.
     assert round(service._exposicion(4, cobra), 4) == 1.0
+
+
+@pytest.mark.asyncio
+async def test_el_partido_de_su_club_anterior_NO_entrena_aqui() -> None:
+    """2026-11-14, pedido del usuario: a un recién llegado sólo se le cuentan
+    los partidos jugados con ESTE equipo. Su último partido con el club
+    anterior está en la base (de un rival estudiado, por ejemplo) y entraba en
+    sus minutos de entrenamiento."""
+    factory, team_id = await seeded_session()
+    now = datetime.now(UTC)
+
+    async with factory() as s:
+        player = (
+            await s.execute(
+                select(m.Player)
+                .where(m.Player.team_id == team_id, m.Player.left_team_at.is_(None))
+                .limit(1)
+            )
+        ).scalar_one()
+        world = (await s.execute(select(m.WorldContext).limit(1))).scalar_one()
+        world.training_date = now + timedelta(days=1)
+        world.refreshed_at = now
+        s.add(
+            m.Match(
+                ht_match_id=900002,
+                played_at=now,
+                match_type=1,
+                status="Finished",
+                home_team_ht_id=555,
+                away_team_ht_id=666,
+                home_team_name="Su club anterior",
+                away_team_name="Otro",
+                home_goals=1,
+                away_goals=1,
+            )
+        )
+        s.add(
+            m.PlayerMatchRating(
+                player_id=player.id,
+                ht_match_id=900002,
+                position_code=13,
+                played_minutes=90,
+                rating=7.0,
+                captured_at=now,
+            )
+        )
+        await s.commit()
+
+    segmentos, _ = await PostMatchTrainingService(s)._played_segments(
+        team_id, now - timedelta(days=7), now + timedelta(days=1)
+    )
+    assert all(seg.ht_match_id != 900002 for seg in segmentos)

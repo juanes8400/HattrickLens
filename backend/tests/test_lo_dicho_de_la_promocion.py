@@ -4,6 +4,7 @@ La ficha habla de «lo mío» y «lo suyo»; el parte del partido lee local y
 visitante. Si la vuelta se da mal, lo que se enseña después del partido es el
 pronóstico del rival presentado como el tuyo, y nadie lo notaría.
 """
+
 from app.api.v1.endpoints.rivals import _en_casa_y_fuera
 
 DE_LA_FICHA = {
@@ -40,3 +41,23 @@ def test_el_empate_viaja_siempre_con_un_numero() -> None:
     rompería la escritura en vez de guardar algo raro."""
     sin_empate = {**DE_LA_FICHA, "draw_probability": None}
     assert _en_casa_y_fuera(sin_empate, propio_en_casa=True)["draw"] == 0.0
+
+
+def test_todos_los_oficiales_que_no_son_liga_guardan_lo_dicho() -> None:
+    """2026-11-14, pedido del usuario: «todos los partidos oficiales deben
+    tener predicción». Liga la guarda desde su pantalla; la ficha de rival,
+    Promoción, Copa y Masters. Los amistosos no son oficiales."""
+    from app.api.v1.endpoints.rivals import OFICIALES_QUE_PRONOSTICA_LA_FICHA
+    from app.domain.value_objects.ht_constants import (
+        MATCH_TYPE_CUP,
+        MATCH_TYPE_FRIENDLY,
+        MATCH_TYPE_LEAGUE,
+        MATCH_TYPE_MASTERS,
+        MATCH_TYPE_QUALIFICATION,
+    )
+
+    assert {MATCH_TYPE_QUALIFICATION, MATCH_TYPE_CUP, MATCH_TYPE_MASTERS} <= (
+        OFICIALES_QUE_PRONOSTICA_LA_FICHA
+    )
+    assert MATCH_TYPE_LEAGUE not in OFICIALES_QUE_PRONOSTICA_LA_FICHA
+    assert MATCH_TYPE_FRIENDLY not in OFICIALES_QUE_PRONOSTICA_LA_FICHA

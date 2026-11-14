@@ -488,7 +488,7 @@ function TablaDeLaPlantilla({
               {money(f.simulacion.neto, moneda)}
             </span>
             <span className="block text-[10px] text-[var(--warn)]">
-              {tx("casa")} {decimal((f.agentPct ?? 0) * 100, 2)}%
+              {tx("comisión")} {decimal((f.agentPct ?? 0) * 100, 2)}%
             </span>
           </span>
         ),
@@ -568,11 +568,26 @@ function TablaDeLaPlantilla({
   return (
     <Panel
       title={tx("Lo que valdría vender hoy")}
-      meta={tx(
-        "el precio es lo que ha costado gente parecida, no una tasación",
-      )}
+      meta={
+        <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <span>
+            {tx(
+              "el precio es lo que ha costado gente parecida, no una tasación",
+            )}
+          </span>
+          {/* LA VUELTA A ECONOMÍA (2026-11-14). Las dos pantallas enseñan el
+              mismo precio comparable: aquí jugador a jugador, allí la suma.
+              Sin este enlace sólo se podía ir de allí a aquí. */}
+          <Link
+            to="/economy?seccion=valoracion"
+            className="text-[var(--accent)] hover:underline"
+          >
+            {tx("el total, en Economía")}
+          </Link>
+        </span>
+      }
       ayuda={tx(
-        "Por cada jugador de tu plantilla: lo que ha costado gente parecida a él, lo que llevas gastado en él, y lo que dejaría venderlo a ese precio con la comisión de la casa ya quitada. El precio sale del fondo del mercado y no cuesta ninguna consulta a Hattrick.",
+        "Por cada jugador de tu plantilla: lo que ha costado gente parecida a él, lo que llevas gastado en él, y lo que dejaría venderlo a ese precio con la comisión ya quitada. El precio sale del fondo del mercado y no cuesta ninguna consulta a Hattrick.",
       )}
     >
       {cargando ? (
@@ -679,7 +694,7 @@ function SimulacionDePlantilla({
         title={tx("Plantilla actual")}
         meta={tx("una venta que todavía no existe, al precio que tú pongas")}
         ayuda={tx(
-          "Coge a alguien que sigue en tu plantilla, ponle un precio y mira qué dejaría: lo que se lleva la casa, lo que entra en caja y el ROI sobre lo que ya llevas gastado en él. Es la misma cuenta que hace el libro de transferencias con una venta de verdad; lo único inventado es el precio, que lo pones tú.",
+          "Coge a alguien que sigue en tu plantilla, ponle un precio y mira qué dejaría: la comisión, lo que entra en caja y el ROI sobre lo que ya llevas gastado en él. Es la misma cuenta que hace el libro de transferencias con una venta de verdad; lo único inventado es el precio, que lo pones tú.",
         )}
       >
         <div className="flex flex-wrap items-end gap-4 px-4 py-3">
@@ -772,14 +787,14 @@ function SimulacionDePlantilla({
             {!hayPrecio && (
               <div className="rounded-lg border border-dashed border-[var(--border)] p-4 text-xs text-[var(--muted)] sm:col-span-2 lg:col-span-4">
                 {tx(
-                  "Escribe arriba un precio de venta y aquí saldrá lo que se lleva la casa, lo que entra en caja, el saldo y el ROI.",
+                  "Escribe arriba un precio de venta y aquí saldrá la comisión, lo que entra en caja, el saldo y el ROI.",
                 )}
               </div>
             )}
             {hayPrecio && (
               <>
                 <Kpi
-                  label={tx("Se lleva la casa")}
+                  label={tx("Comisión")}
                   value={`${decimal(agentPct * 100, 2)}%`}
                   hint={
                     fila.isAcademyGraduate
@@ -811,7 +826,7 @@ function SimulacionDePlantilla({
                       : "danger"
                   }
                   ayuda={tx(
-                    "venta_neta = precio · (1 − %agente)\ncoste      = compra + salario + listados\n\nROI = (venta_neta − coste + reventa) ÷ coste · 100",
+                    "Lo que entra en caja es el precio menos la comisión del agente. El costo es la compra, más los sueldos, más los intentos de venta. El ROI es lo que entra en caja, menos el costo, más la reventa, dividido entre el costo y multiplicado por 100.",
                   )}
                 />
               </>
@@ -1347,8 +1362,12 @@ export function PlayerBalancePage() {
   // el usuario (dos puertas, una sola pantalla).
   const [searchParams] = useSearchParams();
   const simularParam = searchParams.get("simular");
+  // `?seccion=plantilla` es la puerta desde Economía / Valor de Plantilla
+  // (2026-11-14): aterrizar en «Resumen» obligaba a buscar la pestaña.
   const [section, setSection] = useState<SectionKey>(
-    simularParam ? "plantilla" : "resumen",
+    simularParam || searchParams.get("seccion") === "plantilla"
+      ? "plantilla"
+      : "resumen",
   );
   const [jugadorSimulado, setJugadorSimulado] = useState<number | null>(
     simularParam ? Number(simularParam) : null,
@@ -1904,7 +1923,7 @@ export function PlayerBalancePage() {
               <option value="unknown">{tx("Sin origen conocido")}</option>
             </select>
           </label>
-          <span className="flex items-center gap-1.5 text-xs text-[var(--muted)]">
+          <span className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5 text-xs text-[var(--muted)]">
             {tx("Datos")}
             <Ayuda
               texto={tx(

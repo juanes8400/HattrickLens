@@ -430,6 +430,11 @@ export function DataTable<T>({
             {processed.map((row, i) => (
               <tr
                 key={rowKey(row)}
+                // EL CURSOR VA A LA FILA PULSADA (2026-11-14, visto por el
+                // usuario en el comparador). Pulsar una fila da el foco al
+                // cuerpo de la tabla, y eso pintaba el cursor donde estuviera
+                // --la fila 0--: se iluminaba siempre la primera.
+                onMouseDown={() => setFocused(i)}
                 onClick={() => onRowClick?.(row)}
                 className={clsx(
                   "border-t border-[var(--border)]",

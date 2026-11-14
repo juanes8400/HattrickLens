@@ -155,6 +155,10 @@ function Pastilla({
 function criterioLegible(c: CriterioDeHattrick): string {
   if (c.operador === "=") return skillLevelLabel(c.minimo);
   if (c.operador === "<=") return `≤ ${skillLevelLabel(c.maximo)}`;
+  // Como lo dice Hattrick: «≥ clase mundial», sin techo. Pintarlo «clase
+  // mundial – divino» sugería que por encima de divino no entra nadie
+  // (2026-11-14).
+  if (c.operador === ">=") return `≥ ${skillLevelLabel(c.minimo)}`;
   return `${skillLevelLabel(c.minimo)} – ${skillLevelLabel(c.maximo)}`;
 }
 
