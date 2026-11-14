@@ -6,7 +6,7 @@ import type { Articulo } from "./wiki/contenido";
 import { ARTICULOS, GRUPOS } from "./wiki/contenido";
 
 /**
- * Wiki (2026-09-14, pedido del usuario): la documentación de todo HT Lens,
+ * Wiki (2026-09-14, pedido del usuario): la documentación de todo Hattrick Lens,
  * escrita desde la pantalla.
  *
  * Aquí sólo está la pantalla: el índice, el buscador y cómo se pinta cada
@@ -50,7 +50,7 @@ export function WikiPage() {
         <h1 className="text-xl font-semibold">{tx("Wiki")}</h1>
         <p className="text-sm text-[var(--muted)]">
           {tx(
-            "Todo HT Lens explicado: qué responde cada pantalla, cómo se calcula, cómo se lee y hasta dónde vale",
+            "Todo Hattrick Lens explicado: qué responde cada pantalla, cómo se calcula, cómo se lee y hasta dónde vale",
           )}
         </p>
       </header>

@@ -3,7 +3,7 @@
  *  2026-09-28. La pantalla de Uso enseña de dónde es la gente sobre un mapa, y
  *  un mapa necesita geometría de verdad. Ésta viene de Natural Earth (dominio
  *  público) por medio de `world-atlas`, y de `world-countries` sale el código
- *  ISO de dos letras, que es con lo que HT Lens guarda los países.
+ *  ISO de dos letras, que es con lo que Hattrick Lens guarda los países.
  *
  *  Se genera A MANO y el resultado se versiona: el despliegue no puede depender
  *  de que un CDN conteste, y la geometría de los países no cambia entre

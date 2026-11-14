@@ -3,7 +3,7 @@
 2026-09-15, para traducir la app. Hattrick publica en este fichero las palabras
 que usa el propio juego --habilidades, niveles, especialidades, carácter,
 tácticas, puestos, espíritu, confianza, afición, países-- y es lo que se espera
-que use una aplicación CHPP: que quien juega en inglés vea en HT Lens las
+que use una aplicación CHPP: que quien juega en inglés vea en Hattrick Lens las
 mismas palabras que en Hattrick.
 
 Sólo lee. Quien lo descarga y lo guarda es `scripts/generar_glosario.py`.

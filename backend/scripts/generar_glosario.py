@@ -1,6 +1,6 @@
 """Genera el glosario oficial de Hattrick para cada idioma de la app.
 
-2026-09-15, traducción de HT Lens. Descarga `translations.xml` 1.2 de cada
+2026-09-15, traducción de Hattrick Lens. Descarga `translations.xml` 1.2 de cada
 idioma con el token de la base local, lo lee con `leer_translations` y lo deja
 como JSON en dos sitios, para que frontend y backend digan lo mismo:
 

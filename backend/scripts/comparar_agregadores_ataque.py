@@ -1,4 +1,4 @@
-"""Producto de ataques frente a noisy-OR, dentro de la Poisson de HT Lens.
+"""Producto de ataques frente a noisy-OR, dentro de la Poisson de Hattrick Lens.
 
 Compara dos hipótesis con exactamente siete parámetros y el mismo tratamiento
 del mediocampo, la curvatura y el Balón Parado:

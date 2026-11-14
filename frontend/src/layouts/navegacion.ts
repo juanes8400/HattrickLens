@@ -93,18 +93,18 @@ const RUTAS_CON_DETALLE: { prefijo: string; label: string; clave: string }[] = [
 
 /** Las pantallas de entrada, que no están en el menú.
  *
- *  Caían al valor de reserva y su pestaña decía «HT Lens» a secas: eran las
+ *  Caían al valor de reserva y su pestaña decía «Hattrick Lens» a secas: eran las
  *  dos únicas indistinguibles en el historial y entre pestañas abiertas, y
  *  justo son por las que se pasa al empezar (2026-08-31). */
 const FUERA_DEL_MENU: Record<string, { label: string; clave: string }> = {
   "/welcome": { label: "Conectar tu club", clave: "conectar" },
   "/setup": { label: "Configuración de tu club", clave: "configuracion" },
   "/connected": { label: "Club conectado", clave: "conectado" },
-  // LAS PUBLICAS. Sin su titulo salian todas como «HT Lens» a secas, y el
+  // LAS PUBLICAS. Sin su titulo salian todas como «Hattrick Lens» a secas, y el
   // titulo es lo primero que lee un buscador --y el rastreador de anuncios--
   // de una pagina. Son las unicas que alguien puede encontrar sin tener
   // cuenta, asi que es justo donde mas importaba (2026-10-23).
-  "/guia": { label: "Cómo funciona HT Lens", clave: "guia" },
+  "/guia": { label: "Cómo funciona Hattrick Lens", clave: "guia" },
   "/privacidad": { label: "Privacidad y cookies", clave: "privacidad" },
   "/cookies": { label: "Privacidad y cookies", clave: "privacidad" },
   "/apoyar": { label: "Apoyar el proyecto", clave: "apoyar" },
@@ -112,10 +112,12 @@ const FUERA_DEL_MENU: Record<string, { label: string; clave: string }> = {
 
 export function tituloDeRuta(pathname: string): string {
   const detalle = RUTAS_CON_DETALLE.find((r) => pathname.startsWith(r.prefijo));
-  if (detalle) return `${nombreNav(detalle.label, detalle.clave)} · HT Lens`;
+  if (detalle)
+    return `${nombreNav(detalle.label, detalle.clave)} · Hattrick Lens`;
 
   const entrada = FUERA_DEL_MENU[pathname];
-  if (entrada) return `${nombreNav(entrada.label, entrada.clave)} · HT Lens`;
+  if (entrada)
+    return `${nombreNav(entrada.label, entrada.clave)} · Hattrick Lens`;
 
   // La coincidencia más larga gana: `/transfers/balance` antes que nada que
   // empiece por `/transfers`.
@@ -129,7 +131,9 @@ export function tituloDeRuta(pathname: string): string {
       if (!mejor || item.to.length > mejor.to.length) mejor = item;
     }
   }
-  return mejor ? `${nombreNav(mejor.label, mejor.clave)} · HT Lens` : "HT Lens";
+  return mejor
+    ? `${nombreNav(mejor.label, mejor.clave)} · Hattrick Lens`
+    : "Hattrick Lens";
 }
 
 type Enlace = { to: string; label: string; clave?: string };

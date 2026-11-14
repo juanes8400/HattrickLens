@@ -1,7 +1,7 @@
 """HTMS y HTMS28 contra los ejemplos publicados.
 
 Los tres primeros tests reproducen los ejemplos del documento de referencia
-(docs/reference/htms_formulas_hattrick.html). Si alguno cambia, HT Lens deja
+(docs/reference/htms_formulas_hattrick.html). Si alguno cambia, Hattrick Lens deja
 de dar el mismo número que Foxtrick y la métrica pierde su gracia, que es
 justamente poder compararla con la que ya usa la comunidad.
 """

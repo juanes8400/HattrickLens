@@ -55,10 +55,10 @@ export function PrivacidadPage() {
         </p>
       </header>
 
-      <Seccion titulo={tx("Qué es HT Lens")}>
+      <Seccion titulo={tx("Qué es Hattrick Lens")}>
         <p>
           {tx(
-            "HT Lens es una herramienta independiente para managers de Hattrick. Lee los datos de tu propio club a través de CHPP, la interfaz oficial de Hattrick, y los presenta en forma de cuadro de mando: entrenamiento, plantilla, alineación, finanzas y precios de mercado.",
+            "Hattrick Lens es una herramienta independiente para managers de Hattrick. Lee los datos de tu propio club a través de CHPP, la interfaz oficial de Hattrick, y los presenta en forma de cuadro de mando: entrenamiento, plantilla, alineación, finanzas y precios de mercado.",
           )}
         </p>
         <p>
@@ -71,7 +71,7 @@ export function PrivacidadPage() {
       <Seccion titulo={tx("Qué datos se piden, y por qué")}>
         <p>
           {tx(
-            "Nada hasta que tú lo autorizas. La conexión se hace con el flujo oficial de Hattrick (OAuth): eres tú quien da el permiso dentro de Hattrick, y HT Lens nunca ve ni guarda tu contraseña.",
+            "Nada hasta que tú lo autorizas. La conexión se hace con el flujo oficial de Hattrick (OAuth): eres tú quien da el permiso dentro de Hattrick, y Hattrick Lens nunca ve ni guarda tu contraseña.",
           )}
         </p>
         <p>
@@ -113,7 +113,7 @@ export function PrivacidadPage() {
                     "Tu elección la gestiona el panel de consentimiento de Google, que es el que te preguntó. Desde él puedes cambiarla cuando quieras. Hasta que respondes, Google tiene prohibido usar cookies de publicidad y personalizar lo que ves.",
                   )
                 : tx(
-                    "No se cargan hasta que dices que sí. Mientras no decidas, o si dices que no, no se trae ni un solo script de Google y HT Lens funciona exactamente igual.",
+                    "No se cargan hasta que dices que sí. Mientras no decidas, o si dices que no, no se trae ni un solo script de Google y Hattrick Lens funciona exactamente igual.",
                   )}
             </p>
             {/* LOS MANDOS SON NUESTROS Y SÓLO VALEN SI PREGUNTAMOS NOSOTROS.
@@ -185,7 +185,7 @@ export function PrivacidadPage() {
       <Seccion titulo={tx("Borrar tus datos")}>
         <p>
           {tx(
-            "Puedes pedir que se borre todo lo guardado sobre tu club. También puedes cortar el acceso en cualquier momento revocando el permiso de HT Lens desde Hattrick, y entonces dejan de leerse datos nuevos.",
+            "Puedes pedir que se borre todo lo guardado sobre tu club. También puedes cortar el acceso en cualquier momento revocando el permiso de Hattrick Lens desde Hattrick, y entonces dejan de leerse datos nuevos.",
           )}
         </p>
       </Seccion>

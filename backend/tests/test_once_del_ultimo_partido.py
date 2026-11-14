@@ -384,7 +384,7 @@ def test_el_que_entra_hereda_la_orden_individual_de_la_plaza() -> None:
 def test_el_pronostico_de_un_partido_es_de_un_club_y_no_de_los_dos() -> None:
     """2026-09-28, senalado en la revision de la PR #4.
 
-    Un partido tiene dos lados y los dos pueden estar conectados a HT Lens: la
+    Un partido tiene dos lados y los dos pueden estar conectados a Hattrick Lens: la
     misma cuenta con sus dos clubes, o dos managers distintos. El pronostico NO
     es el mismo para los dos, porque el motor de zonas usa la alineacion que
     ESE manager envio. Si la fila fuera solo del partido, el segundo en abrir

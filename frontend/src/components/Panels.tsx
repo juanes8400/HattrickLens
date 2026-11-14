@@ -352,7 +352,7 @@ function ErrorConReintento({ error }: { error: unknown }) {
       <p className="prosa mt-3 text-sm text-[var(--muted)]">
         {t(
           "comun.errorTexto",
-          "Puede ser un tropiezo momentáneo. Si vuelve a fallar, revisa que la conexión local de HT Lens siga en pie.",
+          "Puede ser un tropiezo momentáneo. Si vuelve a fallar, revisa que la conexión local de Hattrick Lens siga en pie.",
         )}
       </p>
       <button
@@ -401,7 +401,7 @@ export function SinDatos() {
       <p className="prosa mt-1 text-sm text-[var(--muted)]">
         {t(
           "comun.sinDatos",
-          "La pantalla pidió sus datos y se quedó sin respuesta. Suele ser que la conexión local de HT Lens no está en pie.",
+          "La pantalla pidió sus datos y se quedó sin respuesta. Suele ser que la conexión local de Hattrick Lens no está en pie.",
         )}
       </p>
       <button

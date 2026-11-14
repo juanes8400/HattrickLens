@@ -45,19 +45,23 @@ describe("los grupos del menú", () => {
 
 describe("el título de la pestaña", () => {
   it("las pantallas del menú se titulan solas", () => {
-    expect(tituloDeRuta("/economy")).toBe("Economía · HT Lens");
-    expect(tituloDeRuta("/transfers/balance")).toBe("Transferencias · HT Lens");
+    expect(tituloDeRuta("/economy")).toBe("Economía · Hattrick Lens");
+    expect(tituloDeRuta("/transfers/balance")).toBe(
+      "Transferencias · Hattrick Lens",
+    );
   });
 
   it("las de entrada también, que eran las únicas sin nombre", () => {
-    // Con «HT Lens» a secas, /welcome y /setup no se distinguían en el
+    // Con «Hattrick Lens» a secas, /welcome y /setup no se distinguían en el
     // historial ni entre pestañas, y son por las que se pasa al empezar.
-    expect(tituloDeRuta("/welcome")).toBe("Conectar tu club · HT Lens");
-    expect(tituloDeRuta("/setup")).toBe("Configuración de tu club · HT Lens");
+    expect(tituloDeRuta("/welcome")).toBe("Conectar tu club · Hattrick Lens");
+    expect(tituloDeRuta("/setup")).toBe(
+      "Configuración de tu club · Hattrick Lens",
+    );
   });
 
   it("una ruta desconocida no inventa nombre", () => {
-    expect(tituloDeRuta("/inexistente")).toBe("HT Lens");
+    expect(tituloDeRuta("/inexistente")).toBe("Hattrick Lens");
   });
 });
 
@@ -71,9 +75,9 @@ describe("el menú en otro idioma", () => {
   it("en inglés, pestañas y menú se nombran en inglés", async () => {
     await cargarIdioma("en");
     await i18n.changeLanguage("en");
-    expect(tituloDeRuta("/economy")).toBe("Finances · HT Lens");
-    expect(tituloDeRuta("/players/123")).toBe("Player · HT Lens");
-    expect(tituloDeRuta("/welcome")).toBe("Connect your club · HT Lens");
+    expect(tituloDeRuta("/economy")).toBe("Finances · Hattrick Lens");
+    expect(tituloDeRuta("/players/123")).toBe("Player · Hattrick Lens");
+    expect(tituloDeRuta("/welcome")).toBe("Connect your club · Hattrick Lens");
     expect(nombreNav("Club", "seccion.club")).toBe("Club");
   });
 

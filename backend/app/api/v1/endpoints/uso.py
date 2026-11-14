@@ -448,7 +448,7 @@ async def exportar(
     """El detalle en crudo, para guardarlo fuera.
 
     2026-08-26, y no es un adorno: la base del plan gratuito no tiene copias y
-    en varios proveedores caduca. Todo lo demás de HT Lens se reconstruye
+    en varios proveedores caduca. Todo lo demás de Hattrick Lens se reconstruye
     sincronizando otra vez; esto no, porque no existe en Hattrick. Si se pierde
     la base sin haber exportado, el historial de uso se perdió.
 

@@ -272,7 +272,7 @@ class PlayerTransferRecord:
     # devuelve incluso cuando el jugador ya juega en otro club.
     fallback_salary: int = 0
     # El sueldo que la curva le calcula a quien no dejo ni una lectura, porque
-    # su etapa es anterior a HT Lens (ver `salary_model.py`). Ultimo recurso:
+    # su etapa es anterior a Hattrick Lens (ver `salary_model.py`). Ultimo recurso:
     # solo se usa cuando no hay historial NI dato reportado, y el resultado
     # viaja marcado como estimado para que nunca se sume con lo observado sin
     # decirlo.
@@ -460,7 +460,7 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
     # completo y se marca con `salary_known`.
     salary_calendar_known = record.economy_date is not None or _utc(end) <= _utc(purchased_at)
     # ¿La aplicación llegó a VER a este jugador cobrar? Sin una sola lectura,
-    # la etapa es anterior a HT Lens.
+    # la etapa es anterior a Hattrick Lens.
     observado = bool(record.salary_history) or record.fallback_salary > 0
     salary_known = observado and record.purchased_at is not None and salary_calendar_known
     # Tres estados, no dos: lo que se vio, lo que se calculo y lo que sigue sin
@@ -487,7 +487,7 @@ def compute_balance(record: PlayerTransferRecord) -> PlayerBalance:
         # se publica saldo: es un hueco real y arreglable --se arregla
         # sincronizando-- y taparlo con un número escondería el fallo.
         #
-        # De una etapa anterior a HT Lens no hay ni habrá lecturas de sueldo:
+        # De una etapa anterior a Hattrick Lens no hay ni habrá lecturas de sueldo:
         # Hattrick no publica hacia atrás lo que cobró alguien en 2018. Ahí
         # negarse a dar un saldo es negarse para siempre, así que se da el
         # mejor número posible y se marca con `salary_known` que le falta el
