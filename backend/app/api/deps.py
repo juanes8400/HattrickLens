@@ -5,18 +5,11 @@ from collections.abc import AsyncGenerator
 from fastapi import Cookie, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.application.queries.dashboard import DashboardQueryService
 from app.application.queries.squad import SquadQueryService
 from app.core.config import settings
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 from app.infrastructure.security.jwt import COOKIE_NAME, SessionTokenError, read_user_id
-
-
-async def get_dashboard_service(
-    session: AsyncSession = Depends(get_session),
-) -> AsyncGenerator[DashboardQueryService, None]:
-    yield DashboardQueryService(session)
 
 
 async def get_squad_service(

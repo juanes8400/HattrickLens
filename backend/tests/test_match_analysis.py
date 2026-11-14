@@ -1,7 +1,6 @@
 """HL-071 a HL-074 · Análisis de partido con los datos reales del 1-2 vs etbenianos1."""
 from app.domain.engines.match_analysis import (
     ChanceTally,
-    aggregate_conversion,
     analyse,
     hatstats,
     loddar_stats,
@@ -62,20 +61,6 @@ def test_sector_dominance_and_delta() -> None:
     central = next(s for s in a.sectors if s.sector == "central_def")
     assert central.delta == 34
     assert central.dominance > 0.6
-
-
-def test_aggregate_conversion_over_several_matches() -> None:
-    m = [
-        (ChanceTally(left=5, goals=1), ChanceTally(left=4, goals=2)),
-        (ChanceTally(left=5, goals=2), ChanceTally(left=6, goals=3)),
-    ]
-    agg = aggregate_conversion(m)
-    assert agg["ownChances"] == 10
-    assert agg["opponentChances"] == 10
-    assert agg["ownConversion"] == 0.3
-    assert agg["opponentConversion"] == 0.5
-    assert agg["ownLeft"] == 10
-    assert agg["opponentLeft"] == 10
 
 
 def test_no_chances_is_reported_not_invented() -> None:

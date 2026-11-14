@@ -10,7 +10,6 @@ from app.domain.engines.training_engine import (
     compare_training_types,
     default_setup,
     forecast_level_chain,
-    forecast_pops,
     inverse_age_clock,
     model_info,
     parametros,
@@ -173,16 +172,6 @@ def test_training_exposure_follows_the_ninety_minute_rule() -> None:
     assert training_exposure(90, "partial") == 0.5
     assert training_exposure(90, "none") == 0.0
     assert training_exposure(120, "full") == 1.0
-
-
-def test_forecast_orders_by_soonest_pop_and_declares_unknown_sublevel() -> None:
-    out = forecast_pops(SQUAD, PULGAS)
-    assert out == sorted(out, key=lambda forecast: forecast.weeks_remaining)
-    assert all(forecast.confidence == "integer_level_only" for forecast in out)
-    with_history = forecast_pops(SQUAD, PULGAS, weeks_already_trained={1: 1.0})
-    observed = next(forecast for forecast in with_history if forecast.player == "Florin Tilvar")
-    assert observed.confidence == "estimated_from_pop"
-    assert 0 < observed.progress < 1
 
 
 def test_forecast_level_chain_compounds_skill_cost_and_age() -> None:

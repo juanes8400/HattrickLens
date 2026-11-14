@@ -5,7 +5,7 @@ Transferencias y Juveniles no cargaban. En local no fallaba nunca.
 
 La app entera está escrita sobre fechas INGENUAS en UTC, porque es lo que
 devuelve sqlite, que es donde se desarrolló y se probó todo. Postgres devuelve
-`timestamptz` CON zona, y `player_balance.weeks_owned` resta esa fecha contra
+`timestamptz` CON zona, y el saldo por jugador restaba esa fecha contra
 un `datetime.now(UTC).replace(tzinfo=None)`:
 
     TypeError: can't subtract offset-naive and offset-aware datetimes
@@ -20,7 +20,6 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.dialects import postgresql, sqlite
 
-from app.domain.engines.player_balance import weeks_owned
 from app.infrastructure.db.models import UtcDateTime
 
 CON_ZONA = datetime(2026, 8, 20, 15, 30, tzinfo=UTC)
@@ -52,4 +51,6 @@ def test_the_subtraction_that_broke_transfers_and_youth_works_again() -> None:
     )
     ahora = datetime.now(UTC).replace(tzinfo=None)
     assert comprado is not None
-    assert weeks_owned(comprado, ahora) >= 0
+    # Era `player_balance.weeks_owned`, que se fue en 2026-11-14 sin llamador;
+    # la resta es lo que fallaba y lo que se fija aquí.
+    assert (ahora - comprado).days >= 0

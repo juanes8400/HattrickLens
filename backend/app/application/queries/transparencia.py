@@ -17,7 +17,6 @@ la entienda. Lo que no puede ser texto es el número que la acompaña.
 
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -449,16 +448,6 @@ def _con_signo(v: float) -> str:
     fórmula publicada cambia sola de operador en vez de mentir.
     """
     return f"{'−' if v < 0 else '+'} {_exacto(abs(v))}"
-
-
-def _por_diez_puntos(coeficiente: float) -> str:
-    """Cuánto multiplica llevarse diez puntos porcentuales más de un duelo.
-
-    Un coeficiente ordinal vive en la escala de la recta latente, que no
-    significa nada para quien lee. Lo que sí significa algo es la razón de
-    momios: `e^(β × 0,10)`. Se calcula, no se teclea, para que siga al motor.
-    """
-    return f"×{math.exp(coeficiente * 0.10):.2f}"
 
 
 def _tabla_de_poisson() -> Tabla:

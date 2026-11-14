@@ -14,7 +14,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.application.commands.sync_team import SyncTeamCommand, SyncTeamHandler
 from app.application.queries.player_history import PlayerHistoryQueryService
-from app.domain.engines.experience_engine import detect_level_ups, measure
+from app.domain.engines.experience_engine import measure
 from app.infrastructure.chpp.parsers import get_parser
 from app.infrastructure.db import models as m
 from app.infrastructure.db.unit_of_work import SqlAlchemyUnitOfWork
@@ -69,8 +69,14 @@ def test_one_sync_yields_no_observations_and_the_engine_says_so() -> None:
             ).all()
 
         assert len(rows) == 24                     # la plantilla real
-        snapshots = [(f"{first} {last}", int(e), 0.0) for first, last, e, _ in rows]
-        assert detect_level_ups(snapshots) == []
+        # Por el camino de la aplicación, el mismo que sirve la pantalla
+        # (2026-11-14: el atajo `detect_level_ups` sólo lo usaban las pruebas).
+        async with factory() as s:
+            observations, crossings = await PlayerHistoryQueryService(
+                s
+            ).experience_level_up_observations(team_id)
+        assert observations == []
+        assert crossings == 0
 
         med = measure([])
         assert med.points_per_level == 100
@@ -118,27 +124,19 @@ def test_a_second_sync_with_a_level_up_is_detected_from_stored_history() -> None
             )
             await s.commit()
 
-            rows = (
-                await s.execute(
-                    select(
-                        m.Player.first_name, m.Player.last_name,
-                        m.PlayerSnapshot.experience, m.PlayerSnapshot.captured_at,
-                    )
-                    .join(m.Player, m.Player.id == m.PlayerSnapshot.player_id)
-                    .where(m.Player.team_id == team_id)
-                    .order_by(m.PlayerSnapshot.captured_at)
-                )
-            ).all()
+            observations, crossings = await PlayerHistoryQueryService(
+                s
+            ).experience_level_up_observations(team_id)
 
-        found = detect_level_ups(
-            [(f"{first} {last}", int(e), 0.0) for first, last, e, _ in rows]
-        )
-        assert len(found) == 1
-        assert found[0].to_level == found[0].from_level + 1
+        # El cruce se ve, pero el primero de un jugador no es una muestra: no
+        # se sabe en qué punto de su nivel estaba cuando se le vio por primera
+        # vez. Es la regla de `experience_level_up_observations`.
+        assert crossings == 1
+        assert observations == []
 
         # El umbral no se mueve por un cruce, ni por mil: lo observado se
         # mide y se compara, nunca sustituye al 100 configurado.
-        assert measure(found).points_per_level == 100
+        assert measure(observations).points_per_level == 100
 
     asyncio.run(run())
 

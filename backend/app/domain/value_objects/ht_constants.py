@@ -314,53 +314,6 @@ def tactic_type_name(code: int) -> str:
     return TACTIC_TYPES.get(code, f"táctica {code}")
 
 
-TEAM_ATTITUDE: dict[int, str] = {
-    -1: "Jugar relajados",
-    0: "Normal",
-    1: "Partido de la temporada",
-}
-
-
-def team_attitude_name(code: int) -> str:
-    return TEAM_ATTITUDE.get(code, f"actitud {code}")
-
-
-MATCH_BEHAVIOUR: dict[int, str] = {
-    -1: "Sin cambio",
-    0: "Normal",
-    1: "Ofensivo",
-    2: "Defensivo",
-    3: "hacia Medio",
-    4: "hacia Lateral",
-    5: "Delantero extra",
-    6: "Mediocentro extra",
-    7: "Defensa extra",
-}
-
-
-def match_behaviour_name(code: int) -> str:
-    return MATCH_BEHAVIOUR.get(code, f"comportamiento {code}")
-
-
-PLAYER_CATEGORY: dict[int, str] = {
-    0: "Sin categoría",
-    1: "Portero",
-    2: "Defensa Lateral",
-    3: "Defensa Central",
-    4: "Extremo",
-    5: "Mediocentro",
-    6: "Delantero",
-    7: "Suplente",
-    8: "Reserva",
-    9: "Extra 1",
-    10: "Extra 2",
-}
-
-
-def player_category_name(code: int) -> str:
-    return PLAYER_CATEGORY.get(code, f"categoría {code}")
-
-
 # 2026-08-12, corrección: `club.xml` dejó de traer los niveles agregados por
 # puesto (`AssistantTrainerLevels` y hermanos), verificado en vivo, la
 # versión actual (1.1) sólo trae `<Specialists>` (booleanos) y `<YouthSquad>`.
@@ -398,14 +351,6 @@ STAFF_TYPE_TO_FIELD: dict[int, str] = {code: field for code, (field, _, _) in ST
 STAFF_FIELD_LABELS: dict[str, str] = {
     field: plural for _, (field, _, plural) in STAFF_ROLES.items()
 }
-
-
-def staff_type_name(code: int) -> str:
-    """Nombre del puesto de un empleado concreto. Si CHPP manda un tipo que
-    esta versión no conoce se dice así, en vez de disfrazarlo con el nombre de
-    otro puesto."""
-    role = STAFF_ROLES.get(code)
-    return role[1] if role else f"Puesto desconocido (tipo {code})"
 
 
 # MatchRoleID de CHPP DataTypes, usado en LastMatch y ordenes modernas.

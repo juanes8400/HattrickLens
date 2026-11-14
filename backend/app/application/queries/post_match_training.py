@@ -322,44 +322,6 @@ class PostMatchTrainingService:
             deadline += timedelta(days=7)
         return deadline
 
-    async def latest_completed_training_exposure(
-        self,
-        team_id: int,
-        training_type: int,
-    ) -> dict[int, TrainingWeekExposure]:
-        """Exposición real del ciclo de entrenamiento más reciente ya cerrado.
-
-        ``worlddetails.xml`` suele entregar la próxima fecha de entrenamiento.
-        Para no sumar partidos futuros ni una semana completa a toda la
-        plantilla, retrocedemos al último corte ya ocurrido y leemos únicamente
-        los partidos reales de los siete días anteriores. Cada jugador queda
-        limitado a 90 minutos equivalentes, tal como hace Hattrick.
-        """
-        deadline = await self._latest_completed_training_deadline(team_id)
-        since = deadline - timedelta(days=7)
-
-        segments, _notes = await self._played_segments(team_id, since, deadline)
-        by_player: dict[int, list[PlayedSegment]] = {}
-        for segment in segments:
-            # Sin fecha de partido no hay evidencia para ubicar los minutos en
-            # este ciclo. Esos LastMatch quedan disponibles como respaldo en la
-            # vista a posteriori, pero nunca se atribuyen a una semana concreta.
-            if segment.played_at is None:
-                continue
-            by_player.setdefault(segment.ht_player_id, []).append(segment)
-
-        result: dict[int, TrainingWeekExposure] = {}
-        for ht_player_id, player_segments in by_player.items():
-            exposure = self._exposicion(training_type, player_segments)
-            if exposure <= 0:
-                continue
-            result[ht_player_id] = TrainingWeekExposure(
-                exposure=round(exposure, 4),
-                equivalent_minutes=round(exposure * 90.0, 1),
-                matches=len({segment.ht_match_id for segment in player_segments}),
-            )
-        return result
-
     async def observed_training_progress(
         self,
         team_id: int,

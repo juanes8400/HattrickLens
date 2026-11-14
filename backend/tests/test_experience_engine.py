@@ -20,7 +20,6 @@ from app.domain.engines.experience_engine import (
     LevelUp,
     MatchCount,
     measure,
-    detect_level_ups,
     matches_to_next_level,
     model_info,
     points,
@@ -160,35 +159,18 @@ def test_measurement_breaks_down_by_starting_level() -> None:
     assert 5 not in med.by_level      # a single sample is not reported
 
 
-# ── Detecting level-ups from synchronised history ───────────────────────────
+# ── Level-ups observed in the synchronised history ──────────────────────────
 
-def test_level_ups_are_detected_from_consecutive_snapshots() -> None:
-    found = detect_level_ups([
-        ("Raúl", 4, 20.0), ("Raúl", 4, 26.0), ("Raúl", 5, 1.0),
-        ("Hugo", 2, 10.0), ("Hugo", 2, 27.0), ("Hugo", 3, 0.5),
-    ])
-    assert len(found) == 2
-    raul = next(f for f in found if f.player == "Raúl")
-    assert (raul.from_level, raul.to_level) == (4, 5)
-    # The cost is what he held just before crossing, not after the reset.
-    assert raul.points_accumulated == pytest.approx(26.0)
-
-
-def test_no_level_up_means_no_observation() -> None:
-    assert detect_level_ups([("A", 3, 10.0), ("A", 3, 15.0), ("A", 3, 20.0)]) == []
-
-
-def test_first_sighting_of_a_player_is_never_a_level_up() -> None:
-    assert detect_level_ups([("A", 9, 5.0)]) == []
 
 
 def test_detection_feeds_the_check_not_the_threshold() -> None:
     """Cada sync que pilla un cruce añade una observación con la que comparar.
     El umbral sigue siendo el de la tabla."""
-    snapshots = []
-    for i in range(6):
-        snapshots += [(f"p{i}", 3, 26.0 + i * 0.2), (f"p{i}", 4, 0.0)]
-    med = measure(detect_level_ups(snapshots))
+    observaciones = [
+        LevelUp(player=f"p{i}", from_level=3, to_level=4, points_accumulated=26.0 + i * 0.2)
+        for i in range(6)
+    ]
+    med = measure(observaciones)
     assert med.observations == 6
     assert 26.0 <= (med.observed_mean or 0) <= 27.0
     assert med.points_per_level == 100

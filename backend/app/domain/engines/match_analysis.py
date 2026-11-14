@@ -155,31 +155,3 @@ def analyse(
         strengths=strengths,
         weaknesses=weaknesses,
     )
-
-
-def aggregate_conversion(matches: list[tuple[ChanceTally, ChanceTally]]) -> dict[str, float | int]:
-    """Tasas y ocasiones por zona acumuladas, propias y del rival.
-
-    Sólo se puede dar una tasa de conversión GLOBAL (goles ÷ ocasiones
-    totales): matchdetails.xml no atribuye goles a una zona concreta, así
-    que un "own_special_conversion" no sería un dato real.
-    """
-    own = ChanceTally()
-    opp = ChanceTally()
-    for o, p in matches:
-        for tally, src in ((own, o), (opp, p)):
-            for zone in CHANCE_ZONES:
-                setattr(tally, zone, getattr(tally, zone) + getattr(src, zone))
-            tally.goals += src.goals
-    result: dict[str, float | int] = {
-        "ownConversion": round(own.conversion, 4),
-        "opponentConversion": round(opp.conversion, 4),
-        "ownChances": own.total,
-        "opponentChances": opp.total,
-        "ownGoals": own.goals,
-        "opponentGoals": opp.goals,
-    }
-    for zone in CHANCE_ZONES:
-        result[f"own{zone.capitalize()}"] = getattr(own, zone)
-        result[f"opponent{zone.capitalize()}"] = getattr(opp, zone)
-    return result

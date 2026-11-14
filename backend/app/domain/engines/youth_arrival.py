@@ -19,22 +19,11 @@ Esto es fontanería del recorrido, no un dato del jugador: la fecha no se
 guarda como su llegada ni se enseña en su ficha.
 """
 
-from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from app.domain.value_objects.skill import Age
 
 EDAD_MINIMA_PRIMER_EQUIPO = 17
-
-
-@dataclass(frozen=True)
-class LlegadaMasTemprana:
-    """El suelo, con su semana de Hattrick al lado."""
-
-    fecha: datetime
-    #: "83-05" si se pudo situar en el calendario; `None` si falta el contexto
-    #: del país para traducir la fecha a temporada y semana.
-    semana: str | None
 
 
 def dias_desde_los_diecisiete(edad: Age) -> int:
@@ -53,18 +42,3 @@ def cuando_cumplio_diecisiete(edad_en: Age, fecha: datetime) -> datetime:
     `edad_en` es su edad en `fecha`, de donde se cuenta hacia atrás.
     """
     return fecha - timedelta(days=dias_desde_los_diecisiete(edad_en))
-
-
-def llegada_mas_temprana(
-    edad_en: Age,
-    fecha: datetime,
-    semana_de: "object | None" = None,
-) -> LlegadaMasTemprana:
-    """El suelo del recorrido, listo para usar.
-
-    `semana_de` es una función que traduce una fecha a "temporada-semana"; se
-    recibe de fuera para que este motor no dependa de la base de datos.
-    """
-    cuando = cuando_cumplio_diecisiete(edad_en, fecha)
-    semana = semana_de(cuando) if callable(semana_de) else None
-    return LlegadaMasTemprana(fecha=cuando, semana=semana)

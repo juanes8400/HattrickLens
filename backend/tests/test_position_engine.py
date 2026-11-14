@@ -10,7 +10,6 @@ from app.domain.engines.position_engine import (
     best_position,
     model_info,
     positions,
-    rank_for_position,
     rate,
     rate_all,
     special_roles,
@@ -96,12 +95,6 @@ def test_form_and_stamina_improve_the_contribution() -> None:
     low = rate({**p, "form": 3, "stamina": 3}, "wingback_defensive").rating
     high = rate({**p, "form": 8, "stamina": 8}, "wingback_defensive").rating
     assert high > low
-
-
-def test_a_player_without_skills_ranks_last() -> None:
-    ranked = rank_for_position(list(ROSTER.values()), "wingback_defensive")
-    tail = {p["last_name"] for p, _ in ranked[-4:]}
-    assert "Manakin" in tail and "Cacheiro" in tail
 
 
 def test_rating_never_negative() -> None:

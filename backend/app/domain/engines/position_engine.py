@@ -176,14 +176,6 @@ def best_position(player: dict[str, Any]) -> PositionRating:
     return rate_all(player)[0]
 
 
-def rank_for_position(
-    players: list[dict[str, Any]], position: str
-) -> list[tuple[dict[str, Any], PositionRating]]:
-    """Order a squad by the Manual contribution generated in a given role."""
-    rated = [(p, rate(p, position)) for p in players]
-    return sorted(rated, key=lambda t: -t[1].rating)
-
-
 def best_for_role(
     players: list[dict[str, Any]], role: str
 ) -> tuple[dict[str, Any], PositionRating] | None:

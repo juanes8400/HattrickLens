@@ -142,17 +142,6 @@ def test_only_the_staff_roles_that_exist_in_hattrick_are_listed() -> None:
     assert campos == set(STAFF_FIELD_TO_EFFECT_FN)
 
 
-def test_an_unknown_staff_type_is_named_as_unknown_not_as_another_role() -> None:
-    """El código 3 quedó libre al quitar Portavoz. Si CHPP mandara un empleado
-    con ese tipo, o con uno nuevo que esta versión no conozca, hay que decir
-    que no se sabe, nunca disfrazarlo con el nombre del puesto de al lado."""
-    from app.domain.value_objects.ht_constants import staff_type_name
-
-    assert staff_type_name(2) == "Doctor"
-    assert "desconocido" in staff_type_name(3).lower()
-    assert "desconocido" in staff_type_name(99).lower()
-
-
 def test_role_names_follow_hattrick_wording() -> None:
     """Los nombres son los de Hattrick, no los del XML viejo: el campo interno
     sigue llamándose `medic_levels` por compatibilidad con la base, pero en

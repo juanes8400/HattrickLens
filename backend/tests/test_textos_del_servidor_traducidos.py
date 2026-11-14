@@ -93,8 +93,6 @@ EXENTOS: dict[str, str] = {
     "HT-Tools community formula": (
         "nombre interno del motor en su ficha técnica; ninguna pantalla lo pinta"
     ),
-    "Extra 1": "categoría de jugador sin ningún llamador",
-    "Extra 2": "categoría de jugador sin ningún llamador",
 }
 
 
