@@ -340,6 +340,48 @@ def test_un_barrido_cortado_a_la_mitad_se_reanuda_y_no_se_repite() -> None:
     assert pendientes == list(range(110, 125))
 
 
+def test_el_mas_atrasado_va_primero() -> None:
+    """2026-11-14, decisión del usuario: el orden ya no es el de la base.
+
+    El barrido se recorre en este orden y la cuota lo puede cortar. Con un
+    orden fijo, los del final se quedaban sin mirar siempre que la cuota se
+    acabara a la misma altura. Ahora va primero quien nunca se miró y luego
+    quien lleva más tiempo sin mirarse.
+    """
+    hoy = datetime(2026, 10, 26, 10, 0, tzinfo=UTC)
+    plantilla = [
+        _Barrido(1, datetime(2026, 10, 25, 9, 0, tzinfo=UTC)),  # ayer, tarde
+        _Barrido(2, datetime(2026, 10, 23, 9, 0, tzinfo=UTC)),  # hace tres días
+        _Barrido(3, None),  # nunca
+        _Barrido(4, datetime(2026, 10, 25, 8, 0, tzinfo=UTC)),  # ayer, antes
+    ]
+    assert a_quien_le_toca_hoy(plantilla, hoy) == [3, 2, 4, 1]
+
+
+def test_al_que_el_corte_dejo_fuera_ayer_le_toca_hoy_el_primero() -> None:
+    """El caso que se quería arreglar, de dos días seguidos.
+
+    Ayer la cuota cortó tras los dos primeros: el 3 y el 4 se quedaron con el
+    sello de anteayer. Hoy salen ellos delante, antes que los que sí se miraron.
+    """
+    hoy = datetime(2026, 10, 26, 10, 0, tzinfo=UTC)
+    ayer = datetime(2026, 10, 25, 10, 0, tzinfo=UTC)
+    anteayer = datetime(2026, 10, 24, 10, 0, tzinfo=UTC)
+    plantilla = [_Barrido(1, ayer), _Barrido(2, ayer), _Barrido(3, anteayer), _Barrido(4, anteayer)]
+    assert a_quien_le_toca_hoy(plantilla, hoy) == [3, 4, 1, 2]
+
+
+def test_un_sello_sin_zona_se_ordena_como_utc() -> None:
+    """SQLite devuelve los sellos sin zona; compararlos con los que la llevan
+    rompería el orden con un TypeError."""
+    hoy = datetime(2026, 10, 26, 10, 0, tzinfo=UTC)
+    plantilla = [
+        _Barrido(1, datetime(2026, 10, 25, 9, 0)),
+        _Barrido(2, datetime(2026, 10, 24, 9, 0, tzinfo=UTC)),
+    ]
+    assert a_quien_le_toca_hoy(plantilla, hoy) == [2, 1]
+
+
 # --------------------------------------------------------------------------
 # La fila como la ve el motor
 # --------------------------------------------------------------------------

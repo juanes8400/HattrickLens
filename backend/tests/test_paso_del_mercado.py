@@ -19,10 +19,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.application.commands import paso_del_mercado
 from app.application.commands.paso_del_mercado import (
     correr_el_paso_del_mercado,
 )
 from app.application.queries.precio_comparable import precio_de, precios_de_la_plantilla
+from app.domain.engines.centinela_de_la_cuota import Centinela
 from app.domain.engines.mercado_comparable import (
     COMPROBACIONES,
     Ventana,
@@ -1079,6 +1081,52 @@ async def test_los_vacios_de_verdad_no_cortan_el_barrido(base) -> None:
     assert paso.cuota_agotada is False
     assert len(paso.jugadores_barridos) == 2
     assert paso.ventas_nuevas == 0
+
+
+class _CuotaQueSeAgota(_MercadoFalso):
+    """El canario canta al empezar y calla la segunda vez: la cuota murió en
+    mitad del barrido, y las búsquedas de antes ya volvían vacías por eso."""
+
+    async def __call__(self, ventana: Ventana) -> list[dict[str, Any]]:
+        if ventana.peso == 0:
+            self.canarios += 1
+            return CANTO if self.canarios == 1 else []
+        self.llamadas += 1
+        return []
+
+
+async def test_la_racha_vacia_de_una_cuota_muerta_DEVUELVE_EL_SELLO(base, monkeypatch) -> None:
+    """2026-11-14, decisión del usuario.
+
+    Con umbral 1 (el de verdad es 6, y la base sólo tiene dos jugadores): el
+    primero vuelve vacío, el canario se pregunta antes del segundo y calla.
+    Ese primer vacío no se puede creer, así que pierde el sello y la siguiente
+    sincronización del día lo reintenta.
+    """
+    session, equipo = base
+    monkeypatch.setattr(paso_del_mercado, "Centinela", lambda: Centinela(umbral=1))
+    mercado = _CuotaQueSeAgota()
+    paso = await correr_el_paso_del_mercado(
+        session, equipo, buscar=mercado, historial_de=_sin_historial, ahora=AHORA
+    )
+    assert paso.cuota_agotada is True
+    assert paso.sellos_devueltos == 1
+    assert paso.jugadores_barridos == ()
+    sellos = (await session.execute(select(m.Player.market_swept_at))).scalars().all()
+    assert all(s is None for s in sellos), "nadie se queda con el día dado por medido"
+
+
+async def test_si_el_canario_canta_los_vacios_conservan_el_sello(base, monkeypatch) -> None:
+    """La otra mitad: si Hattrick sigue contestando, los vacíos eran de verdad."""
+    session, equipo = base
+    monkeypatch.setattr(paso_del_mercado, "Centinela", lambda: Centinela(umbral=1))
+    mercado = _MercadoFalso()  # el canario siempre canta, las búsquedas vuelven vacías
+    paso = await correr_el_paso_del_mercado(
+        session, equipo, buscar=mercado, historial_de=_sin_historial, ahora=AHORA
+    )
+    assert paso.cuota_agotada is False
+    assert paso.sellos_devueltos == 0
+    assert len(paso.jugadores_barridos) == 2
 
 
 # --------------------------------------------------------------------------

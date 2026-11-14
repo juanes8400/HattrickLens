@@ -48,11 +48,11 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 254 | 5935 | resumen | 5 | 19 |
 | `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 503 | 4669 | plantilla | 3 | 14 |
 | `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1079 | 9561 | resumen, skills | 9 | 33 |
-| `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1533 | 18402 | jugadores, player_balance, precio_comparable, jugadores | 15 | 46 |
+| `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1533 | 18426 | jugadores, player_balance, precio_comparable, jugadores | 15 | 46 |
 | `/positions` | [PositionsPage.tsx](../frontend/src/pages/PositionsPage.tsx) | 355 | 4237 | plantilla | 3 | 14 |
 | `/lineup` | [LineupPage.tsx](../frontend/src/pages/LineupPage.tsx) | 1019 | 9314 | alineacion, plantilla | 10 | 23 |
 | `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 2154 | 14370 | entrenamiento, jugadores, club | 10 | 37 |
-| `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3653 | 16610 | player_balance, precio_comparable, jugadores, plantilla | 10 | 33 |
+| `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3653 | 16634 | player_balance, precio_comparable, jugadores, plantilla | 10 | 33 |
 | `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1195 | libro | 0 | 1 |
 | `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4039 | 16169 | academy | 13 | 31 |
 | `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 684 | 6300 | matches | 4 | 15 |
@@ -60,7 +60,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1062 | 14720 | cup | 16 | 76 |
 | `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 343 | 16986 | cup, league | 18 | 80 |
 | `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1374 | 22225 | rivals, dashboard | 17 | 81 |
-| `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1387 | 14441 | economy, precio_comparable | 11 | 36 |
+| `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1387 | 14465 | economy, precio_comparable | 11 | 36 |
 | `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3851 | arena | 3 | 10 |
 | `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 20794 | alertas | 19 | 86 |
 | `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 202 | 9259 | dashboard | 10 | 37 |

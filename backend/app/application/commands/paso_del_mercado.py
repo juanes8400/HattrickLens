@@ -114,6 +114,9 @@ class PasoDelMercado:
     cuota_agotada: bool = False
     #: Canarios gastados. Es lo que cuesta poder fiarse de los vacíos.
     canarios: int = 0
+    #: Jugadores a los que se les devolvió el sello porque su búsqueda vacía
+    #: era, en realidad, la cuota ya muerta. Ver `correr_el_paso_del_mercado`.
+    sellos_devueltos: int = 0
     #: Anuncios sin una sola puja que se borraron por no haberse vendido
     #: (2026-11-07). Es la contrapartida de guardarlos: entran todos, incluso a
     #: cero, y el que al final no fue se va. Sin esta cuenta, el fondo creciendo
@@ -149,7 +152,7 @@ async def correr_el_paso_del_mercado(
         await session.flush()
 
     plantilla = await _plantilla(session, equipo.id)
-    toca = set(a_quien_le_toca_hoy(plantilla, ahora))
+    toca = a_quien_le_toca_hoy(plantilla, ahora)
     if not toca:
         # Ya se barrió hoy entero, pero la serie se escribe igual.
         #
@@ -178,9 +181,14 @@ async def correr_el_paso_del_mercado(
     barridos: list[int] = []
     nuevas = 0
     busquedas = 0
-    for jugador in plantilla:
-        if jugador.ht_player_id not in toca:
-            continue
+    devueltos = 0
+    #: Los barridos seguidos que volvieron vacíos, con el sello que tenían
+    #: antes. Son la racha del centinela, jugador a jugador.
+    en_racha: list[tuple[_Jugador, datetime | None]] = []
+    por_id = {j.ht_player_id: j for j in plantilla}
+    # EN EL ORDEN DE `a_quien_le_toca_hoy`: el más atrasado primero.
+    for ht_player_id in toca:
+        jugador = por_id[ht_player_id]
         # EL CANARIO VA ANTES DE GASTAR NADA, y vuelve cuando la racha de
         # vacíos lo pide. Si se queda mudo no es que no haya comparables: es
         # que Hattrick no nos está contestando, y entonces se para aquí sin
@@ -190,7 +198,20 @@ async def correr_el_paso_del_mercado(
             busquedas += 1
             centinela.canto_el_canario(len(filas))
             if not centinela.sigue:
+                # Y LA RACHA QUE LO HIZO SOSPECHAR SE DEVUELVE (2026-11-14,
+                # decisión del usuario). Esos vacíos ya llevaban sello, pero
+                # con el canario mudo no se puede creer que fueran de verdad:
+                # lo probable es que la cuota muriera en mitad de ellos. Sin
+                # sello, la siguiente sincronización del día los reintenta.
+                # Cuesta repetir esas búsquedas, sólo los días en que la cuota
+                # se agota a mitad de barrido.
+                for vacio, sello_de_antes in en_racha:
+                    await _estampar(session, vacio.id, sello_de_antes)
+                    barridos.remove(vacio.ht_player_id)
+                    devueltos += 1
                 break
+            # El canario cantó: los vacíos de antes eran de verdad.
+            en_racha.clear()
         objetivo = objetivo_de(
             jugador.ht_player_id,
             jugador.edad,
@@ -220,6 +241,10 @@ async def correr_el_paso_del_mercado(
         nuevas += await guardar(session, equipo.id, resultado.nuevas, plazos)
         await _estampar(session, jugador.id, ahora)
         barridos.append(jugador.ht_player_id)
+        if resultado.filas_vistas > 0:
+            en_racha.clear()
+        else:
+            en_racha.append((jugador, jugador.market_swept_at))
         await session.flush()
 
     puntos = await _anotar_la_serie(session, equipo, ahora, por_cerrar)
@@ -234,19 +259,23 @@ async def correr_el_paso_del_mercado(
         se_busco=bool(barridos),
         cuota_agotada=centinela.agotada,
         canarios=centinela.canarios,
+        sellos_devueltos=devueltos,
     )
 
 
-async def _estampar(session: AsyncSession, player_id: int, ahora: datetime) -> None:
-    """Deja dicho que a este jugador ya se le buscó hoy.
+async def _estampar(session: AsyncSession, player_id: int, sello: datetime | None) -> None:
+    """Deja dicho cuándo se le buscó por última vez a este jugador.
 
     SÓLO DESPUÉS DE HABER BUSCADO DE VERDAD. Es la mitad del centinela que
     vive aquí: un barrido que no llegó a hacerse no deja sello, así que la
     siguiente sincronización lo reintenta en vez de dar el día por medido.
+
+    También sirve para devolver el sello que tenía, cuando el canario dice que
+    su búsqueda vacía no fue de verdad.
     """
     fila = await session.get(m.Player, player_id)
     if fila is not None:
-        fila.market_swept_at = ahora
+        fila.market_swept_at = sello
 
 
 async def _resolver(
