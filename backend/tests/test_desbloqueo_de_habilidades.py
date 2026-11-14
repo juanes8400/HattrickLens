@@ -108,7 +108,9 @@ async def test_un_fallo_de_permisos_no_tumba_la_sincronizacion():
     chpp = CHPPQueAnota(falla_el_desbloqueo=True)
     resultado = await _sincronizar(chpp)
 
-    assert any("unlockskills" in e for e in resultado.errors)
+    # El aviso habla de lo que pasó, sin el nombre interno de la acción.
+    assert any("habilidades juveniles" in e for e in resultado.errors)
+    assert not any("unlockskills" in e for e in resultado.errors)
     assert any("reconecta" in e.lower() for e in resultado.errors)
     # Y lo importante: se siguio leyendo.
     assert any(a == "details" for _, a in chpp.llamadas)

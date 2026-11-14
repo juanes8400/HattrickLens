@@ -542,17 +542,20 @@ def simulate(
     # equipo, y conviene decirlo en vez de dejar que el usuario lea las
     # probabilidades como si vinieran de sus datos.
     if played < SHRINKAGE_K:
+        # SIN JERGA (2026-11-14). Decía «peso de prior» y «encogimiento»: la
+        # idea es la misma, dicha con palabras de quien lee la Liga, no de
+        # quien escribió el modelo.
         caveats.append(
-            f"Sólo {played} jornadas jugadas frente a un peso de prior de "
-            f"{SHRINKAGE_K:g}: el encogimiento hacia la media de la liga pesa "
-            "más que la evidencia propia de cada equipo, así que las "
-            "probabilidades tiran hacia el sorteo. Es lo correcto, no un "
-            "defecto: con esta muestra, la confianza sería falsa."
+            f"Sólo van {played} jornadas jugadas y hacen falta {SHRINKAGE_K:g} "
+            "para que lo propio de cada equipo pese más que la media de la "
+            "liga: hasta entonces las probabilidades tiran hacia el sorteo. Es "
+            "lo correcto, no un defecto: con esta muestra, la confianza sería "
+            "falsa."
         )
     if not division_known:
         caveats.append(
             "No se sabe si esta es la división más alta o la más baja del país "
-            "(falta sincronizar `LeagueLevel` de leaguedetails), así que ascenso "
+            "(falta sincronizar el nivel de la liga), así que ascenso "
             "y descenso se calculan sin filtrar esos dos casos límite."
         )
     if not fixtures:

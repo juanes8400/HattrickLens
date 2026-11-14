@@ -90,10 +90,12 @@ class PlantillaMixin(BaseDeSync):
         # revela en la siguiente, cuando ya se sepa cual es la academia-- que
         # escribir en el club equivocado.
         if not academia:
+            # Sin el nombre interno delante (2026-11-14): en pantalla no se
+            # nombra la interfaz de Hattrick, y éste salía en el cartel.
             result.errors.append(
-                "unlockskills: no se revelaron las habilidades juveniles porque "
-                "todavia no se sabe cual es la academia de este club; se hara "
-                "en la proxima sincronizacion"
+                "No se revelaron las habilidades juveniles porque todavía no se "
+                "sabe cuál es la academia de este club; se hará en la próxima "
+                "sincronización"
             )
             return
         try:
@@ -105,7 +107,7 @@ class PlantillaMixin(BaseDeSync):
             )
         except Exception as exc:  # noqa: BLE001, la revelacion es opcional
             result.errors.append(
-                "unlockskills: no se pudieron revelar las habilidades juveniles "
+                "No se pudieron revelar las habilidades juveniles "
                 f"({exc.__class__.__name__}). Si es un 401, reconecta con "
                 "Hattrick: el permiso se concede al autorizar."
             )

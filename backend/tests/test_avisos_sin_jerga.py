@@ -80,3 +80,52 @@ def test_ningun_aviso_del_sync_empieza_por_un_nombre_interno() -> None:
     assert not sospechosas, "avisos que empiezan por un nombre interno: " + ", ".join(
         sospechosas
     )
+
+
+#: Lo que tampoco puede salir en un aviso: la jerga de quien escribió el
+#: modelo, no la de quien lo lee.
+JERGA_ESTADISTICA = ("prior", "encogimiento", "shrinkage", "posterior", "LeagueLevel")
+
+
+def _textos_de_avisos() -> list[tuple[str, str]]:
+    """Cada texto que se añade a una lista de avisos (`caveats`), en todo `app`.
+
+    POR QUÉ LA PRUEBA DE ARRIBA NO VIO «PESO DE PRIOR» (2026-11-14). Sólo
+    lee `result.errors.append` dentro de la sincronización, y sólo busca
+    nombres de ficheros. Los avisos de la simulación de liga van por
+    `caveats.append`, en un motor, y su jerga era estadística: no los miraba
+    nadie. Esto los lee todos, estén donde estén.
+    """
+    import ast
+    from pathlib import Path
+
+    app = Path(__file__).resolve().parents[1] / "app"
+    salida: list[tuple[str, str]] = []
+    for ruta in sorted(app.rglob("*.py")):
+        arbol = ast.parse(ruta.read_text(encoding="utf-8"))
+        for nodo in ast.walk(arbol):
+            if not (
+                isinstance(nodo, ast.Call)
+                and isinstance(nodo.func, ast.Attribute)
+                and nodo.func.attr == "append"
+                and isinstance(nodo.func.value, ast.Name)
+                and nodo.func.value.id.endswith("caveats")
+            ):
+                continue
+            for trozo in ast.walk(nodo):
+                if isinstance(trozo, ast.Constant) and isinstance(trozo.value, str):
+                    salida.append((f"{ruta.name}:{nodo.lineno}", trozo.value))
+    return salida
+
+
+def test_ningun_aviso_lleva_jerga_ni_nombres_internos() -> None:
+    textos = _textos_de_avisos()
+    assert textos, "no se encontró ningún aviso: la búsqueda se ha roto"
+    sospechosos = [
+        f"{donde}: {texto[:60]}"
+        for donde, texto in textos
+        for palabra in (*JERGA_ESTADISTICA, *JERGA)
+        if re.search(rf"{re.escape(palabra)}", texto, re.IGNORECASE)
+        and palabra not in {"players", "training", "economy"}
+    ]
+    assert not sospechosos, "avisos con jerga: " + " | ".join(sospechosos)

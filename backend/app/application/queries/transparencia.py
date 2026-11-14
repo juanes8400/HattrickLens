@@ -984,7 +984,7 @@ def catalogo() -> list[Seccion]:
                         ),
                         Fuente(
                             "Puntos que da cada tipo de partido",
-                            "Tabla de Hattrick (docs/reference/tabla_experiencia.html)",
+                            "Tabla de puntos de experiencia de Hattrick",
                         ),
                         Fuente(
                             "Subidas de experiencia ya observadas",
