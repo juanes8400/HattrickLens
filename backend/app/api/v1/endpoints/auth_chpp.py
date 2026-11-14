@@ -1,4 +1,4 @@
-"""OAuth 1.0a dance con CHPP, la única forma de iniciar sesión en HT Lens.
+"""OAuth 1.0a dance con CHPP, la única forma de iniciar sesión en Hattrick Lens.
 
 No hay registro con email/contraseña: conectar con Hattrick.org ES la cuenta.
 Ver docs/04-chpp-sync.md para el diagrama de secuencia completo, y
@@ -62,7 +62,7 @@ def _set_session_cookies(response: Response, user_id: int) -> None:
 @router.get("/connect")
 async def connect() -> dict[str, str]:
     """Arranca el baile: pide un request token y devuelve la URL de Hattrick
-    donde el usuario inicia sesión y autoriza HT Lens.
+    donde el usuario inicia sesión y autoriza Hattrick Lens.
 
     Los fallos se cuentan en vez de reventar con un 500 pelado: la pantalla de
     bienvenida enseña el `detail` cuando es texto, y sin él lo único que veía
@@ -403,6 +403,6 @@ async def delete_account(
         "rows": borradas,
         "message": (
             "Cuenta borrada. Los partidos y las plantillas siguen en Hattrick: "
-            "esto solo borra lo que HT Lens había guardado."
+            "esto solo borra lo que Hattrick Lens había guardado."
         ),
     }

@@ -821,7 +821,7 @@ function SubidasRecientes() {
   const subidas = todas.slice(0, SUBIDAS_EN_PORTADA);
   // Un entrenamiento normal deja bastante mas de cinco subidas --diecisiete
   // en la semana del 15 de septiembre--, y el panel se quedaba con cinco sin
-  // decirlo: parecia que HT Lens solo traia parte de los cambios. Aqui caben
+  // decirlo: parecia que Hattrick Lens solo traia parte de los cambios. Aqui caben
   // cinco, pero el numero entero se dice y se enlaza (2026-09-19).
   const hayMas = todas.length > subidas.length;
   return (

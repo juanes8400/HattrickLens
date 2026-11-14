@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 /**
  * El nombre del país sigue al idioma de la aplicación (2026-09-21).
  *
- * Lo que guarda HT Lens es el nombre de la liga tal y como lo manda
+ * Lo que guarda Hattrick Lens es el nombre de la liga tal y como lo manda
  * Hattrick, que para esta cuenta viene en español. La columna Origen decía
  * «Alemania» con la aplicación en inglés porque el traductor de nombres
  * estaba fijo en español.

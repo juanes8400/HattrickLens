@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 /**
  * 2026-08-05, pedido explícitamente: "mira cómo lo hace Hattrick Control"
  * su ventana "Conexión" muestra en vivo qué fichero/jugador/partido está
- * bajando. Esta es la versión HT Lens: una caja con scroll automático,
+ * bajando. Esta es la versión Hattrick Lens: una caja con scroll automático,
  * alimentada por `api.syncStream` línea a línea.
  */
 export function SyncProgressPanel({ lines }: { lines: string[] }) {

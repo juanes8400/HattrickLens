@@ -1,7 +1,7 @@
 """Cuánto puede pedir cada usuario, para que uno no se coma la cuota de todos.
 
 La cuota de CHPP es de la APLICACIÓN, no de cada manager: si uno sincroniza en
-bucle, Hattrick corta el acceso a todos los usuarios de HT Lens a la vez. Con
+bucle, Hattrick corta el acceso a todos los usuarios de Hattrick Lens a la vez. Con
 un solo usuario eso no importaba; publicada la app es lo primero que puede
 tumbarla, y no por mala fe, basta con una pestaña que recargue sola.
 

@@ -123,7 +123,7 @@ class EconomiaMixin(BaseDeSync):
         """Deja el equipo con LA MONEDA DEL MANAGER, no con la de su pais.
 
         2026-10-25, reporte de un usuario: «I have multiple clubs, but in HT I
-        see all money amounts in my home currency C$. In HT Lens however, when
+        see all money amounts in my home currency C$. In Hattrick Lens however, when
         I look at my other clubs, the amounts are displayed in those countries'
         currency (e.g., Maccabi Oradea shows in NIS)».
 

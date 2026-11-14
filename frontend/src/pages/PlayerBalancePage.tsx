@@ -822,7 +822,7 @@ function SimulacionDePlantilla({
             <Note>
               {fila.salarySource === "estimado"
                 ? tx(
-                    "Los sueldos de este jugador están calculados, no medidos: su etapa empezó antes de que HT Lens lo viera cobrar. El gasto es aproximado y el ROI también.",
+                    "Los sueldos de este jugador están calculados, no medidos: su etapa empezó antes de que Hattrick Lens lo viera cobrar. El gasto es aproximado y el ROI también.",
                   )
                 : tx(
                     "De este jugador no se guardó ningún sueldo, así que el gasto sale más bajo de lo que fue y el ROI, mejor de lo que es.",
@@ -1908,7 +1908,7 @@ export function PlayerBalancePage() {
             {tx("Datos")}
             <Ayuda
               texto={tx(
-                "Todos: todas las ventas, con el sueldo calculado donde no se vio. Sin datos desconocidos: quita las ventas de las que no hay ninguna cifra de sueldo. Sólo lo medido: sólo las ventas cuyo sueldo vio HT Lens semana a semana.",
+                "Todos: todas las ventas, con el sueldo calculado donde no se vio. Sin datos desconocidos: quita las ventas de las que no hay ninguna cifra de sueldo. Sólo lo medido: sólo las ventas cuyo sueldo vio Hattrick Lens semana a semana.",
               )}
             />
             <Tabs
@@ -1958,7 +1958,7 @@ export function PlayerBalancePage() {
         <div className="space-y-1">
           <p className="prosa text-sm text-[var(--muted)]">
             {tx(
-              "Lo que cobraba un jugador sólo se sabe si estaba en tu equipo mientras HT Lens miraba. Del resto de tu historial hay que calcularlo, y de una parte no se puede ni eso, así que",
+              "Lo que cobraba un jugador sólo se sabe si estaba en tu equipo mientras Hattrick Lens miraba. Del resto de tu historial hay que calcularlo, y de una parte no se puede ni eso, así que",
             )}{" "}
             <b className="text-[var(--text)]">{tx("Datos")}</b>{" "}
             {tx("elige de qué te fías.")}
@@ -2027,7 +2027,9 @@ export function PlayerBalancePage() {
                 <>
                   <b className="text-[var(--text)]">
                     {tx("De estas")} {baseRows.length}{" "}
-                    {tx("ventas, HT Lens no llegó a ver cobrar a ninguna.")}
+                    {tx(
+                      "ventas, Hattrick Lens no llegó a ver cobrar a ninguna.",
+                    )}
                   </b>{" "}
                   {tx(
                     "Todas pasaron por el club sin que la aplicación tuviera tus datos, así que con este filtro no queda nada que enseñar.",
@@ -2037,7 +2039,7 @@ export function PlayerBalancePage() {
                 <>
                   <b className="text-[var(--text)]">
                     {tx("Sólo las")} {filteredRows.length}{" "}
-                    {tx("ventas cuyo sueldo vio HT Lens.")}
+                    {tx("ventas cuyo sueldo vio Hattrick Lens.")}
                   </b>{" "}
                   {tx(
                     "De ellas se leyó semana a semana lo que cobraban en tu equipo, así que aquí no hay ningún número calculado. Es lo que se ha podido medir desde que tus datos están en la aplicación.",
@@ -3445,7 +3447,7 @@ function BalanceTable({
       // Tres estados, no dos (2026-09-04). Lo normal es tenerlo medido semana
       // a semana; para quien entró y salió entre dos sincronizaciones el dato
       // sigue llegando de la ficha del jugador. Y para quien pasó por el club
-      // ANTES de que existiera HT Lens no hay ni lo uno ni lo otro: ahí se
+      // ANTES de que existiera Hattrick Lens no hay ni lo uno ni lo otro: ahí se
       // calcula a partir de su TSI y su edad, y se marca con «≈» para que no
       // se confunda con lo medido. Antes esa casilla era un "?" y su coste
       // entraba como 0, que inflaba el saldo.
@@ -3456,7 +3458,7 @@ function BalanceTable({
           <span
             className="tabular-nums text-[var(--muted)]"
             title={tx(
-              "Su etapa es anterior a HT Lens, así que nadie anotó lo que cobraba y Hattrick no lo publica hacia atrás. Esta cifra sale de su TSI y su edad. Con el selector «Sin estimaciones» puedes dejarlo fuera.",
+              "Su etapa es anterior a Hattrick Lens, así que nadie anotó lo que cobraba y Hattrick no lo publica hacia atrás. Esta cifra sale de su TSI y su edad. Con el selector «Sin estimaciones» puedes dejarlo fuera.",
             )}
           >
             ≈ {money(r.salaryTotal, currency)}

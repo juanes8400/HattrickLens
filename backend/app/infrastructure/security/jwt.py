@@ -1,4 +1,4 @@
-"""Sesión de HT Lens tras conectar con Hattrick.
+"""Sesión de Hattrick Lens tras conectar con Hattrick.
 
 No hay contraseña propia que verificar (ver `models.User`): el JWT es la
 prueba de que este navegador completó el baile OAuth con CHPP para un

@@ -8,7 +8,7 @@ import { tx } from "../i18n/tx";
 /**
  * El libro de visitas.
  *
- * 2026-09-05, pedido por el usuario: un sitio donde quien usa HT Lens deje un
+ * 2026-09-05, pedido por el usuario: un sitio donde quien usa Hattrick Lens deje un
  * mensaje, y de donde salgan las funcionalidades siguientes.
  *
  * Firma con el nombre del CLUB, no con el de la cuenta: en Hattrick uno se

@@ -1,6 +1,6 @@
 """2026-09-28, senalado en la revision de la PR #4: un pronostico es de UN club.
 
-Un partido tiene dos lados y los dos pueden estar conectados a HT Lens --la
+Un partido tiene dos lados y los dos pueden estar conectados a Hattrick Lens --la
 misma cuenta con sus dos clubes, o dos managers distintos-- y el pronostico no
 es el mismo para los dos: el motor de zonas usa la alineacion que ESE manager
 envio. Con la clave unica solo en `ht_match_id`, el segundo en abrir Liga

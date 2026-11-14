@@ -1582,7 +1582,7 @@ class MatchWeather(Base):
 class GuestbookEntry(Base):
     """Una firma del libro de visitas.
 
-    2026-09-05, pedido por el usuario: un sitio donde la gente que usa HT Lens
+    2026-09-05, pedido por el usuario: un sitio donde la gente que usa Hattrick Lens
     deje un mensaje, y de donde salgan las funcionalidades siguientes.
 
     Se guarda el `user_id` de quien firma --el libro pide sesión, así que nadie

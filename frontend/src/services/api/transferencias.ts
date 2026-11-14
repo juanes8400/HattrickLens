@@ -88,7 +88,7 @@ export interface PlayerBalanceRow {
   gamesWithUs: number | string;
   salaryKnown: boolean;
   /** De dónde sale `salaryTotal`: `observado` es lo que se vio cobrar,
-   *  `estimado` lo que la curva calcula para una etapa anterior a HT Lens, y
+   *  `estimado` lo que la curva calcula para una etapa anterior a Hattrick Lens, y
    *  `desconocido` es que no hay ni lo uno ni lo otro. */
   salarySource: "observado" | "estimado" | "desconocido";
   /** Identificador de la ETAPA. Dos filas del mismo jugador comparten

@@ -49,7 +49,7 @@ export function BarraDeConsentimiento() {
       <div className="mx-auto flex max-w-4xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="prosa text-sm text-[var(--text)]">
           {tx(
-            "Este sitio enseña anuncios para pagarse el alojamiento. Para que sean personalizados, Google necesita usar cookies. Puedes decir que no y seguir usando HT Lens igual.",
+            "Este sitio enseña anuncios para pagarse el alojamiento. Para que sean personalizados, Google necesita usar cookies. Puedes decir que no y seguir usando Hattrick Lens igual.",
           )}{" "}
           <Link to="/cookies" className="underline">
             {tx("Qué se guarda y por qué")}

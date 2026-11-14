@@ -73,7 +73,7 @@ export const cifra = (v: string | number | boolean | null | undefined) =>
 export const money = (v: number, currency = "") =>
   `${number(v)}${currency ? ` ${currency}` : ""}`;
 
-// Política numérica de HT Lens (2026-08-14): los valores decimales usan
+// Política numérica de Hattrick Lens (2026-08-14): los valores decimales usan
 // punto, nunca la coma dependiente del locale del navegador. La cantidad de
 // decimales la decide cada métrica; por ejemplo 3.5 semanas o 10.99 puntos.
 export const decimal = (v: number, digits = 1) => Number(v).toFixed(digits);
