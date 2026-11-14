@@ -507,7 +507,10 @@ def test_match_archive_error_does_not_seal_an_incomplete_history() -> None:
         assert result.status == "partial"
         # Nombrado como lo ve el usuario, no como se llama el fichero
         # (2026-09-20).
-        assert result.errors == ["archivo de partidos: CHPP 42: Invalid date range"]
+        # Sin nombrar la interfaz de Hattrick (2026-11-14).
+        assert result.errors == [
+            "archivo de partidos: Hattrick contestó con un error (42): Invalid date range"
+        ]
 
     asyncio.run(run())
 

@@ -89,8 +89,32 @@ def a_quien_le_toca_hoy(jugadores: Sequence[_ConSello], ahora: datetime) -> list
     turno buscaban a la vez; ahora el sello es por jugador, que es más fino y
     además resiste que un barrido se corte a la mitad: los que ya se miraron se
     quedan mirados, y a los que no les toca en la siguiente sincronización.
+
+    Y SALEN EN ORDEN: EL MÁS ATRASADO PRIMERO (2026-11-14, decisión del
+    usuario). Antes salían en el orden de la base, que es fijo, y el barrido
+    se recorre en este orden. Si la cuota se acababa más o menos a la misma
+    altura cada día, los del final no se miraban nunca, y siempre eran los
+    mismos. Ahora va primero quien nunca se miró, luego quien lleva más tiempo
+    sin mirarse: al que el corte dejó fuera ayer le toca hoy antes que a
+    nadie. No cuesta ninguna petición; sólo cambia quién va delante.
     """
-    return [j.ht_player_id for j in jugadores if le_toca_hoy(j.market_swept_at, ahora)]
+    pendientes = [j for j in jugadores if le_toca_hoy(j.market_swept_at, ahora)]
+    pendientes.sort(key=_antiguedad_del_sello)
+    return [j.ht_player_id for j in pendientes]
+
+
+def _antiguedad_del_sello(jugador: _ConSello) -> tuple[int, datetime, int]:
+    """Clave de orden: sin sello delante, luego del sello más viejo al más nuevo.
+
+    El identificador al final sólo desempata, para que dos sellos iguales no
+    dependan del orden en que los devuelva la base.
+    """
+    sello = jugador.market_swept_at
+    if sello is None:
+        return (0, datetime.min.replace(tzinfo=UTC), jugador.ht_player_id)
+    if sello.tzinfo is None:
+        sello = sello.replace(tzinfo=UTC)
+    return (1, sello, jugador.ht_player_id)
 
 
 # --------------------------------------------------------------------------

@@ -19,9 +19,18 @@ FROM python:3.12-slim
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /code
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-COPY backend/pyproject.toml backend/uv.lock* ./
-RUN uv sync --frozen --no-dev || uv sync --no-dev
+# `uv` con la versión escrita: con `:latest` cada despliegue podía traer un
+# instalador distinto del que pasó las pruebas.
+COPY --from=ghcr.io/astral-sh/uv:0.13.7 /uv /usr/local/bin/uv
+# El Python es el de la imagen. Si un día no casa con `.python-version`, que la
+# construcción falle en vez de bajarse otro por su cuenta.
+ENV UV_PYTHON_DOWNLOADS=never
+COPY backend/pyproject.toml backend/uv.lock backend/.python-version ./
+# `--locked` instala exactamente lo que dice `uv.lock` y además se niega a
+# seguir si el lock ya no corresponde a `pyproject.toml`. Aquí había un
+# `|| uv sync --no-dev` que, sin lock, resolvía versiones nuevas en cada
+# despliegue sin avisar: producción corría con paquetes que nadie había probado.
+RUN uv sync --locked --no-dev
 
 COPY backend/ ./
 COPY --from=frontend /app/dist ./static

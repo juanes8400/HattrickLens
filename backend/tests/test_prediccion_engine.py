@@ -469,19 +469,6 @@ def test_sin_historia_de_un_lado_no_se_predice():
     assert probabilidades_de_partido([], _lecturas(60)) is None
 
 
-def test_de_punta_a_punta_da_tambien_marcador_y_goles():
-    """La mitad de goles aporta algo que el ordinal no sabe dar."""
-    from app.domain.engines.prediccion import goles_de_partido, marcador_de_partido
-
-    fuerte, flojo = _lecturas(55), _lecturas(20)
-    goles = goles_de_partido(fuerte, flojo)
-    assert goles is not None
-    assert goles[0] > goles[1]
-    marcador = marcador_de_partido(fuerte, flojo)
-    assert marcador is not None
-    assert marcador[0] > marcador[1]
-
-
 def test_de_punta_a_punta_conoce_la_copa():
     """En copa no puede haber empate, y el camino de la pantalla lo sabe."""
     liga = probabilidades_de_partido(_lecturas(45), _lecturas(35))

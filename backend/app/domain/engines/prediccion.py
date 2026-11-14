@@ -702,39 +702,6 @@ def probabilidades_de_partido(
     return probabilidades_del_motor(mio, suyo, factor_local, factor_visitante)
 
 
-def marcador_de_partido(
-    lecturas_local: Sequence[dict[str, Any]],
-    lecturas_visitante: Sequence[dict[str, Any]],
-    metodo: str = PitchZoneMethod.AVERAGE,
-    factor_local: float = 1.0,
-    factor_visitante: float = 1.0,
-) -> tuple[int, int] | None:
-    """El resultado concreto más probable. Lo sabe la mitad de goles."""
-    mio = resumen_de_lecturas(lecturas_local, metodo, en_casa=True)
-    suyo = resumen_de_lecturas(lecturas_visitante, metodo, en_casa=False)
-    if mio is None or suyo is None:
-        return None
-    return marcador_mas_probable(mio, suyo, factor_local, factor_visitante)
-
-
-def goles_de_partido(
-    lecturas_local: Sequence[dict[str, Any]],
-    lecturas_visitante: Sequence[dict[str, Any]],
-    metodo: str = PitchZoneMethod.AVERAGE,
-    factor_local: float = 1.0,
-    factor_visitante: float = 1.0,
-) -> tuple[float, float] | None:
-    """Cuántos goles espera marcar cada uno."""
-    mio = resumen_de_lecturas(lecturas_local, metodo, en_casa=True)
-    suyo = resumen_de_lecturas(lecturas_visitante, metodo, en_casa=False)
-    if mio is None or suyo is None:
-        return None
-    return (
-        goles_esperados(mio, suyo, factor_local),
-        goles_esperados(suyo, mio, factor_visitante),
-    )
-
-
 def tabla_de_puntos_esperados(
     partidos: Sequence[tuple[int, int, Probabilidades]],
 ) -> dict[int, float]:

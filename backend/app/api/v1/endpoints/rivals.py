@@ -424,45 +424,6 @@ async def _own_pitch_ratings(
     return out
 
 
-async def _rival_pitch_ratings(
-    client: CHPPClient,
-    rival_ht_team_id: int,
-    matches: list[dict[str, Any]],
-) -> list[dict[str, int]]:
-    """Ratings de sector del rival para una lista concreta de sus partidos
-    pedidos en vivo, uno por uno (matchdetails.xml no acepta varios matchID
-    a la vez)."""
-    out: list[dict[str, int]] = []
-    for rmt in matches:
-        details = await client.fetch(
-            "matchdetails",
-            version=FILE_VERSIONS["matchdetails"],
-            matchID=rmt["ht_match_id"],
-        )
-        for side in ("home", "away"):
-            side_data = details.get(side) or {}
-            if side_data.get("team_id") != rival_ht_team_id:
-                continue
-            ratings = side_data.get("ratings", {})
-            out.append(
-                {
-                    "left_def": ratings.get("left_def", 0),
-                    "central_def": ratings.get("central_def", 0),
-                    "right_def": ratings.get("right_def", 0),
-                    "midfield": ratings.get("midfield", 0),
-                    "left_att": ratings.get("left_att", 0),
-                    "central_att": ratings.get("central_att", 0),
-                    "right_att": ratings.get("right_att", 0),
-                    # Sin esto el modelo de prediccion trabajaria con siete de
-                    # sus nueve variables y las dos que faltan entrarian
-                    # neutras a 0,5, que no es un valor sino no saber.
-                    "sp_def": ratings.get("set_pieces_def", 0),
-                    "sp_att": ratings.get("set_pieces_att", 0),
-                }
-            )
-    return out
-
-
 @dataclass
 class RivalMatchesAndLineups:
     """Lo que `players.xml` + `matches.xml` + `matchlineup.xml` de un equipo

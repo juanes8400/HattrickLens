@@ -10,7 +10,6 @@ from datetime import datetime
 from app.domain.engines.youth_arrival import (
     cuando_cumplio_diecisiete,
     dias_desde_los_diecisiete,
-    llegada_mas_temprana,
 )
 from app.domain.value_objects.skill import Age
 
@@ -41,13 +40,3 @@ def test_a_hattrick_year_is_a_hundred_and_twelve_days() -> None:
     assert dias_desde_los_diecisiete(Age(18, 0)) == 112
 
 
-def test_the_week_label_comes_from_outside() -> None:
-    """El motor no sabe de temporadas: se le pasa quién traduce fechas, para
-    que no dependa de la base."""
-    r = llegada_mas_temprana(
-        Age(17, 4), datetime(2022, 2, 25), semana_de=lambda _: "72-09"
-    )
-    assert r.fecha == datetime(2022, 2, 21)
-    assert r.semana == "72-09"
-    # Y sin traductor, la fecha sigue siendo válida.
-    assert llegada_mas_temprana(Age(17, 4), datetime(2022, 2, 25)).semana is None

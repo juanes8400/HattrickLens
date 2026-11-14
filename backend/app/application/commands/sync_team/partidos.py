@@ -717,8 +717,10 @@ class PartidosMixin(BaseDeSync):
         )
         if payload.get("chpp_error"):
             code = payload.get("chpp_error_code", 0)
-            message = payload.get("chpp_error_message") or "respuesta CHPP inválida"
-            raise RuntimeError(f"CHPP {code}: {message}")
+            message = payload.get("chpp_error_message") or "respuesta inválida de Hattrick"
+            # Este texto acaba en el cartel de sincronización parcial, detrás
+            # del nombre del historial: sin nombrar la interfaz (2026-11-14).
+            raise RuntimeError(f"Hattrick contestó con un error ({code}): {message}")
 
         matches = [mt for mt in payload.get("matches", []) if mt.get("ht_match_id")]
         # Si Hattrick ignoró el rango, contesta con otros partidos y sin error.

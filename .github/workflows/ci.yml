@@ -9,6 +9,15 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     defaults: {run: {working-directory: backend}}
+    # Para todos los pasos: las pruebas las necesitan para arrancar la
+    # configuración, y las migraciones, para saber a qué base hablar.
+    env:
+      DATABASE_URL: postgresql+asyncpg://hattricklens:hattricklens@localhost:5432/hattricklens_test
+      REDIS_URL: redis://localhost:6379/0
+      SECRET_KEY: test
+      # Fernet exige EXACTAMENTE 32 bytes; la anterior descodificaba a 35
+      # y las tres pruebas de cifrado reventaban con ValueError.
+      TOKEN_ENCRYPTION_KEY: Y2xhdmUtZGUtcHJ1ZWJhLWRlLUNJLW5vLXJlYWwhISE=
     services:
       postgres:
         image: postgres:16-alpine
@@ -21,21 +30,29 @@ jobs:
         ports: ["6379:6379"]
     steps:
       - uses: actions/checkout@v4
+      # La misma versión de `uv` que copia el Dockerfile de la raíz.
       - uses: astral-sh/setup-uv@v4
-      # The initial repository has no committed uv.lock yet. Let uv resolve and
-      # create the ephemeral runner lock instead of failing before validation.
-      - run: uv sync
+        with: {version: "0.13.7"}
+      # `--locked`: se instala lo que dice `uv.lock` (y el Python de
+      # `.python-version`, el 3.12 de producción), y el trabajo falla si alguien
+      # tocó `pyproject.toml` sin regenerar el lock. Antes era `uv sync` a
+      # secas: cada ejecución resolvía las versiones del día, así que lo que se
+      # probaba aquí no era lo que se desplegaba.
+      - run: uv sync --locked
       - run: uv run ruff check app
       - run: uv run ruff format --check app
       - run: uv run mypy app/domain app/application
       - run: uv run pytest -q --cov=app --cov-fail-under=80
-        env:
-          DATABASE_URL: postgresql+asyncpg://hattricklens:hattricklens@localhost:5432/hattricklens_test
-          REDIS_URL: redis://localhost:6379/0
-          SECRET_KEY: test
-          # Fernet exige EXACTAMENTE 32 bytes; la anterior descodificaba a 35
-          # y las tres pruebas de cifrado reventaban con ValueError.
-          TOKEN_ENCRYPTION_KEY: Y2xhdmUtZGUtcHJ1ZWJhLWRlLUNJLW5vLXJlYWwhISE=
+      # LAS MIGRACIONES, CONTRA UN POSTGRES DE VERDAD (2026-11-14). Las pruebas
+      # montan SQLite en memoria y nunca tocan este Postgres, que estaba
+      # levantado sin que nadie le hablara. Y producción arranca con
+      # `alembic upgrade head`: una migración que sólo falla en Postgres
+      # (un tipo, un ALTER que SQLite no hace igual) se descubría al
+      # desplegar, con el servicio caído. Subir, bajar una y volver a subir
+      # comprueba además que la última migración sabe deshacerse.
+      - run: uv run alembic upgrade head
+      - run: uv run alembic downgrade -1
+      - run: uv run alembic upgrade head
 
   frontend:
     runs-on: ubuntu-latest
@@ -60,21 +77,16 @@ jobs:
       - run: npm run format:check
       - run: npm run build
 
+  # LO QUE SE DESPLIEGA, CONSTRUIDO EN CADA PR (2026-11-14). Render construye
+  # el Dockerfile de la RAÍZ: el frontend compilado y la API en una sola
+  # imagen. Este trabajo construía `backend/Dockerfile` y `frontend/Dockerfile`
+  # --los del docker-compose local, que no despliega nadie-- y sólo al llegar
+  # a `main`, o sea cuando ya era tarde. Ahora construye el de verdad antes
+  # de fusionar, y no publica nada: Render construye su propia imagen.
   docker:
-    if: github.ref == 'refs/heads/main'
-    needs: [backend, frontend]
     runs-on: ubuntu-latest
-    permissions: {packages: write, contents: read}
     steps:
       - uses: actions/checkout@v4
-      - uses: docker/login-action@v3
-        with: {registry: ghcr.io, username: "${{ github.actor }}", password: "${{ secrets.GITHUB_TOKEN }}"}
-      # `github.repository` es "juanes8400/HattrickLens" y Docker exige el
-      # nombre en MINUSCULAS, asi que la etiqueta se rechazaba antes de
-      # empezar a construir.
-      - id: repo
-        run: echo "lower=${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
       - uses: docker/build-push-action@v6
-        with: {context: backend, push: true, tags: "ghcr.io/${{ steps.repo.outputs.lower }}/api:${{ github.sha }}"}
-      - uses: docker/build-push-action@v6
-        with: {context: frontend, push: true, tags: "ghcr.io/${{ steps.repo.outputs.lower }}/frontend:${{ github.sha }}"}
+        with: {context: ., file: Dockerfile, push: false}

@@ -299,15 +299,6 @@ class PlayerBalance:
     salary_source: str = "observado"
 
 
-def weeks_owned(purchased_at: datetime, end: datetime) -> int:
-    """Semanas completas de posesión.
-
-    Sigue siendo útil como medida de antigüedad, pero ya NO decide cuántos
-    salarios se pagaron. Los salarios siguen `salary_payment_dates`.
-    """
-    return max((end - purchased_at).days // 7, 0)
-
-
 _WEEK = timedelta(days=7)
 
 

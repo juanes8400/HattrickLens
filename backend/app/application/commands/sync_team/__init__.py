@@ -166,7 +166,7 @@ class SyncTeamHandler(  # noqa: D101
                             # `teamdetails` que la nombra.
                             if academia is None:
                                 result.errors.append(
-                                    f"{_nombre_legible(file)}: todavia no se sabe cual es la "
+                                    f"{_nombre_legible(file)}: todavía no se sabe cuál es la "
                                     "academia de este club; sincroniza sus datos de equipo "
                                     "primero y vuelve a intentarlo"
                                 )

@@ -382,48 +382,6 @@ def forecast_level_chain(
     return out
 
 
-@dataclass
-class PopForecast:
-    player: str
-    skill: str
-    current_level: int
-    weeks_remaining: float
-    progress: float
-    confidence: str
-
-
-def forecast_pops(
-    players: list[dict[str, Any]],
-    setup: TrainingSetup,
-    weeks_already_trained: dict[int, float] | None = None,
-) -> list[PopForecast]:
-    trained = weeks_already_trained or {}
-    out: list[PopForecast] = []
-    for player in players:
-        level = int(player.get("skills", {}).get(setup.skill, 0))
-        speed = weeks_to_next_level(
-            setup.skill,
-            level,
-            player.get("age_years", 17),
-            player.get("age_days", 0),
-            setup,
-        )
-        done = trained.get(player.get("ht_player_id", 0), 0.0)
-        remaining = max(speed.weeks_to_next_level - done, 0.0)
-        progress = min(done / speed.weeks_to_next_level, 1.0) if speed.weeks_to_next_level else 0.0
-        out.append(
-            PopForecast(
-                player=player.get("name", ""),
-                skill=setup.skill,
-                current_level=level,
-                weeks_remaining=round(remaining, 1),
-                progress=round(progress, 3),
-                confidence="estimated_from_pop" if done else "integer_level_only",
-            )
-        )
-    return sorted(out, key=lambda forecast: forecast.weeks_remaining)
-
-
 def compare_training_types(
     players: list[dict[str, Any]],
     setup: TrainingSetup,

@@ -247,34 +247,6 @@ def weeks_to_next_level(
     return round(matches_to_next_level(matches, "league") / league_matches_per_week, 1)
 
 
-def detect_level_ups(
-    snapshots: list[tuple[str, int, float]],
-) -> list[LevelUp]:
-    """Turn a chronological series of (player, experience, points) readings into
-    observed level-ups.
-
-    Every synchronisation that catches a player crossing a level adds one
-    observation. They are a CHECK on the configured 100 (see `measure`), not a
-    source for it.
-    """
-    out: list[LevelUp] = []
-    previous: dict[str, tuple[int, float]] = {}
-    for player, level, accumulated in snapshots:
-        before = previous.get(player)
-        if before and level > before[0]:
-            out.append(
-                LevelUp(
-                    player=player,
-                    from_level=before[0],
-                    to_level=level,
-                    # Points held just before the increase are what the level cost
-                    points_accumulated=before[1],
-                )
-            )
-        previous[player] = (level, accumulated)
-    return out
-
-
 def recommend_captain(players: list[dict[str, Any]]) -> dict[str, Any] | None:
     """Captain suitability leans on leadership and experience. The position
     engine owns the weights; this is the convenience entry point."""

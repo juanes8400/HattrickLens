@@ -453,23 +453,6 @@ def objetivo_de(
     )
 
 
-def perfil_de(objetivo: Objetivo) -> tuple[int, str, int, str, int, str, int]:
-    """La huella del jugador, para saber cuándo lo guardado ya no es suyo.
-
-    Si cambia la edad o cualquiera de las tres habilidades, lo acumulado
-    describe a otro jugador y se tira.
-    """
-    return (
-        objetivo.edad,
-        objetivo.primaria.habilidad,
-        objetivo.primaria.nivel,
-        objetivo.secundaria.habilidad,
-        objetivo.secundaria.nivel,
-        objetivo.terciaria.habilidad,
-        objetivo.terciaria.nivel,
-    )
-
-
 #: Cuántos filtros de habilidad admite `transfersearch`. Son cuatro, pero el
 #: cuarto se deja libre a propósito: ver `infrastructure/chpp/mercado`.
 FILTROS_DE_HABILIDAD = 3
@@ -1208,14 +1191,6 @@ def le_toca_hoy(sello: datetime | None, ahora: datetime) -> bool:
 # turno busca siempre-- y sólo quedaba de bandera para el informe. Con el ocho
 # derogado no le queda ni umbral con el que comparar: el objetivo son 30, los
 # junta el mercado a su ritmo, y eso no es algo que la aplicación decida.
-
-
-def _franja(rasgo: Rasgo, abajo: int, arriba: int) -> Franja:
-    return Franja(
-        habilidad=rasgo.habilidad,
-        minimo=max(0, rasgo.nivel - abajo),
-        maximo=rasgo.nivel + arriba,
-    )
 
 
 def _nombre(fila: Mapping[str, Any]) -> str:

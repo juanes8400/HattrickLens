@@ -588,7 +588,8 @@ def test_league_declares_the_limits_of_its_model() -> None:
     d = _run(go())
     assert "lesiones" in d.model["doesNotModel"]
     assert any("forma agregada" in c for c in d.caveats)
-    assert any("encogimiento" in c for c in d.caveats)  # sólo 4 jornadas
+    # Sólo 4 jornadas: el aviso lo dice sin jerga (2026-11-14).
+    assert any("media de la liga" in c for c in d.caveats)
 
 
 CAVEAT_NEEDLE = "trae los partidos de tu equipo"

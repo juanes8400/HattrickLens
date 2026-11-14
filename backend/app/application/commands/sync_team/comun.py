@@ -665,7 +665,7 @@ async def aforo_del_estadio(
     de_quien = int(arena.get("ht_team_id") or 0)
     if de_quien and de_quien != ht_team_id:
         result.errors.append(
-            f"{_nombre_legible('arenadetails')}: Hattrick contesto con el estadio del "
+            f"{_nombre_legible('arenadetails')}: Hattrick contestó con el estadio del "
             f"club {de_quien}, no el del {ht_team_id}; el aforo se deja sin dato"
         )
         return None

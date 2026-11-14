@@ -42,7 +42,6 @@ from __future__ import annotations
 from app.domain.engines.youth_training_plan import ENTRENAMIENTOS
 from app.domain.value_objects.formations import (
     LINE_COUNTS,
-    resolve_split,
     slots_for,
 )
 
@@ -135,34 +134,6 @@ def desperdicio(
         return 0
     tope = max(cuentas.values())
     return max(0, tope - plazas(entrenamiento, formacion, central_defenders, inner_midfielders))
-
-
-def reparto_que_mas_aprovecha(entrenamiento: str, formacion: str) -> tuple[int, int] | None:
-    """El reparto de esta formación que gana más plazas, si gana alguna.
-
-    Sólo tiene algo que decir en Lateral, que es el único entrenamiento cuyas
-    plazas dependen del reparto. Devuelve `None` cuando el reparto por defecto
-    ya es el mejor, que es lo normal: así quien lo llame sólo tiene que enseñar
-    algo cuando de verdad hay algo que enseñar.
-    """
-    from app.domain.value_objects.formations import (
-        central_defender_options,
-        inner_midfielder_options,
-    )
-
-    if formacion not in LINE_COUNTS:
-        return None
-    base = plazas(entrenamiento, formacion)
-    mejor: tuple[int, int] | None = None
-    mejor_cuenta = base
-    for centrales in central_defender_options(formacion):
-        for interiores in inner_midfielder_options(formacion):
-            cuantas = plazas(entrenamiento, formacion, centrales, interiores)
-            if cuantas > mejor_cuenta:
-                mejor_cuenta, mejor = cuantas, (centrales, interiores)
-    if mejor is None or mejor == resolve_split(formacion):
-        return None
-    return mejor
 
 
 #: El código de entrenamiento de CHPP, traducido al de la tabla de puestos.

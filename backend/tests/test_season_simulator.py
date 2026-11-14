@@ -173,7 +173,10 @@ def test_shrinkage_keeps_early_season_estimates_humble() -> None:
 
     # Mismo ritmo de goles por partido, muchísima más evidencia al final.
     assert late_leader.attack_strength > early_leader.attack_strength
-    assert any("encogimiento" in c for c in early_sim.caveats)
+    # El aviso lo dice sin jerga (2026-11-14): cuántas jornadas faltan para
+    # que pese lo propio de cada equipo, no «peso de prior» ni «encogimiento».
+    assert any("media de la liga" in c for c in early_sim.caveats)
+    assert not any("encogimiento" in c or "prior" in c for c in early_sim.caveats)
 
 
 def test_shrinkage_weight_matches_the_documented_formula() -> None:
