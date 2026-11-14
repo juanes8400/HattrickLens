@@ -84,8 +84,10 @@ from app.domain.engines.rival_scouting import (
 )
 from app.domain.value_objects.ht_constants import (
     FRIENDLY_MATCH_TYPES,
+    MATCH_TYPE_CUP,
     MATCH_TYPE_DUEL,
     MATCH_TYPE_LADDER,
+    MATCH_TYPE_MASTERS,
     MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE,
     MATCH_TYPE_NATIONAL_TEAM_COMPETITIVE_CUP_RULES,
     MATCH_TYPE_NATIONAL_TEAM_FRIENDLY,
@@ -870,6 +872,13 @@ def _prediccion_del_rival(
     }
 
 
+#: Los oficiales cuyo pronóstico guarda la ficha de rival. Liga queda fuera:
+#: lo guarda su propia pantalla, con su propio motor.
+OFICIALES_QUE_PRONOSTICA_LA_FICHA: frozenset[int] = frozenset(
+    {MATCH_TYPE_QUALIFICATION, MATCH_TYPE_CUP, MATCH_TYPE_MASTERS}
+)
+
+
 def _en_casa_y_fuera(prediccion: dict[str, Any], *, propio_en_casa: bool) -> dict[str, Any]:
     """La terna de la ficha, puesta en local y visitante, que es como se guarda.
 
@@ -1452,10 +1461,16 @@ async def rival_scouting(
     # Se reescribe mientras siga pendiente, igual que el de liga: vale lo
     # último que llegó a ver antes del pitido. Y si falla, no se nota: ver
     # `guardar_lo_dicho`.
+    #
+    # Y TAMBIÉN LA COPA Y EL MASTERS (2026-11-14, pedido del usuario: «todos
+    # los partidos oficiales deben tener predicción»). Liga la guarda desde su
+    # pantalla; los demás oficiales se pronostican aquí --Copa pinta esta misma
+    # ficha desde el 2026-11-09-- y se tiraban sin guardar, así que después
+    # del partido no había con qué comparar.
     if (
         prediccion is not None
         and cruce_pendiente is not None
-        and cruce_pendiente.match_type == MATCH_TYPE_QUALIFICATION
+        and cruce_pendiente.match_type in OFICIALES_QUE_PRONOSTICA_LA_FICHA
         and propio_en_casa is not None
     ):
         await guardar_lo_dicho(

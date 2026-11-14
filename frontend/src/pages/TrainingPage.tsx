@@ -1345,7 +1345,10 @@ export function TrainingPage() {
   const assistantRole =
     staff?.roles.find((role) => role.key === "assistant_trainer_levels") ??
     null;
-  const trainerName = data.weeklyLog[0]?.trainerName || sinDato;
+  // El de HOY primero (2026-11-14): el registro semanal sólo cambia con la
+  // actualización, y un entrenador nuevo a mitad de semana no salía.
+  const trainerName =
+    data.trainerName || data.weeklyLog[0]?.trainerName || sinDato;
   const trainerSpeed = staff
     ? trainerTrainingSpeedPct(staff.trainer.skillLevel)
     : null;

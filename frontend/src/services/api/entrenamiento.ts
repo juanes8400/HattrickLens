@@ -213,6 +213,8 @@ export interface TrainingSquad {
   };
   players: TrainingSquadPlayerRow[];
   weeklyLog: TrainingSquadWeeklyLogEntry[];
+  /** El entrenador de hoy, de la última lectura (2026-11-14). */
+  trainerName?: string | null;
   notes: string[];
 }
 

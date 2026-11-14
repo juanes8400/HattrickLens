@@ -102,6 +102,9 @@ export interface League {
     mostLikelyScore: string;
     verdict: string;
     isHome: boolean;
+    /** Si ya mandaste órdenes para ESTE partido (2026-11-14). Es un hecho
+     *  aparte del pronóstico: `null` si no se sabe. */
+    ordersSent?: boolean | null;
     /** De dónde sale cada lado (2026-09-12). `null` sin ratings de los dos:
      *  entonces el pronóstico sale de los goles de la temporada. */
     sources: {

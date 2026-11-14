@@ -48,7 +48,7 @@ for (const country of countries as CountryEntry[]) {
 
 // Nombres de ligas Hattrick que no son el nombre ISO mostrado por el
 // navegador. Solo se usa para registros históricos que guardaron el texto
-// de teamdetails.xml antes de que HT Lens conservara CountryCode.
+// de teamdetails.xml antes de que Hattrick Lens conservara CountryCode.
 const HATTRICK_COUNTRY_ALIASES: Record<string, string> = {
   inglaterra: "gb",
   madagasikara: "mg",

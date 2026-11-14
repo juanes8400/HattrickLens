@@ -1,7 +1,7 @@
 // SÓLO LO QUE SE DIBUJA, no la librería entera (2026-09-20).
 //
 // `import * as echarts from "echarts"` trae los treinta y pico tipos de
-// gráfica que existen: mapas, árboles, velas, embudos, termómetros. HT Lens
+// gráfica que existen: mapas, árboles, velas, embudos, termómetros. Hattrick Lens
 // dibuja siete. El trozo pesaba 1.054 kB por traer todo lo demás.
 //
 // La lista de abajo es la fuente de la verdad: una gráfica cuyo tipo o cuyo

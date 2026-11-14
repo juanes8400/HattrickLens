@@ -38,9 +38,9 @@ export function ReportarFallo() {
   const { pathname } = useLocation();
 
   // EL MISMO NOMBRE QUE USA LA TELEMETRÍA, no el título de la pestaña. El
-  // título trae el sufijo «· HT Lens» pegado --se vio al probarlo-- y, más
+  // título trae el sufijo «· Hattrick Lens» pegado --se vio al probarlo-- y, más
   // importante, con otro nombre un reporte y las visitas de esa misma pantalla
-  // no se podrían cruzar: dirían «Dashboard · HT Lens» y «Dashboard».
+  // no se podrían cruzar: dirían «Dashboard · Hattrick Lens» y «Dashboard».
   const pantalla = moduloDe(pathname);
 
   const enviar = async () => {

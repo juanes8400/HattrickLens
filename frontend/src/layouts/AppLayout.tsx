@@ -32,7 +32,7 @@ function NavigationLinks({ onNavigate }: { onNavigate?: () => void }) {
           entrar. Sólo aparece con la bandera encendida Y con enlace. */}
       <ApoyarProyecto forma="menu" />
       <nav
-        aria-label={t("layout.secciones", "Secciones de HT Lens")}
+        aria-label={t("layout.secciones", "Secciones de Hattrick Lens")}
         className="flex flex-col gap-0.5"
       >
         {agrupar(items).map((grupo) => (
@@ -108,27 +108,33 @@ function ClubNavigation({
 
           `title` con las dos cosas separadas: a 10 píxeles el commit se lee
           mal, y copiarlo de un tooltip es más fiable que transcribirlo. */}
-      <div className="mb-3 flex items-baseline gap-2 px-2 py-1.5 font-semibold">
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center self-center rounded-md bg-[var(--accent)] text-xs font-bold text-white">
+      {/* EL NOMBRE ARRIBA Y LA VERSIÓN DEBAJO (2026-11-14). Iban en una sola
+          línea mientras el nombre fue el corto; con «Hattrick Lens» ya no
+          caben los dos en los 200 píxeles de la barra, y el nombre se partía
+          en dos renglones. */}
+      <div className="mb-3 flex items-center gap-2 px-2 py-1.5 font-semibold">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-[var(--accent)] text-xs font-bold text-white">
           HL
         </span>
-        <span>HT Lens</span>
-        <span
-          className="text-[10px] font-normal tabular-nums text-[var(--muted)]"
-          title={
-            __COMMIT__
-              ? t(
-                  "layout.versionConCommit",
-                  "Versión {{version}} · commit {{commit}}",
-                  { version: __VERSION__, commit: __COMMIT__ },
-                )
-              : t("layout.version", "Versión {{version}}", {
-                  version: __VERSION__,
-                })
-          }
-        >
-          v{__VERSION__}
-          {__COMMIT__ ? ` · ${__COMMIT__}` : ""}
+        <span className="flex min-w-0 flex-col leading-tight">
+          <span className="whitespace-nowrap">Hattrick Lens</span>
+          <span
+            className="text-[10px] font-normal tabular-nums text-[var(--muted)]"
+            title={
+              __COMMIT__
+                ? t(
+                    "layout.versionConCommit",
+                    "Versión {{version}} · commit {{commit}}",
+                    { version: __VERSION__, commit: __COMMIT__ },
+                  )
+                : t("layout.version", "Versión {{version}}", {
+                    version: __VERSION__,
+                  })
+            }
+          >
+            v{__VERSION__}
+            {__COMMIT__ ? ` · ${__COMMIT__}` : ""}
+          </span>
         </span>
       </div>
       <div className="mb-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-2">
@@ -259,7 +265,7 @@ export function AppLayout() {
             <span className="font-medium text-[var(--text)]">
               {current && "label" in current && current.label
                 ? nombreNav(current.label, current.clave)
-                : "HT Lens"}
+                : "Hattrick Lens"}
             </span>
             <span className="hidden sm:inline">
               {data?.teamName && ` · ${data.teamName}`}

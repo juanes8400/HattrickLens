@@ -121,7 +121,12 @@ export function SyncPage() {
 
       {progressLog && <SyncProgressPanel lines={progressLog} />}
 
-      {fullSync.isError && <ErrorState error={fullSync.error} />}
+      {fullSync.isError && (
+        <ErrorState
+          error={fullSync.error}
+          alReintentar={() => fullSync.mutate()}
+        />
+      )}
 
       {result?.status === "partial" && (
         <Note>

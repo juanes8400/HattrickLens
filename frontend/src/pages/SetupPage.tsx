@@ -153,7 +153,7 @@ export function SetupPage() {
             HL
           </span>
           <div>
-            <div className="font-semibold">HT Lens</div>
+            <div className="font-semibold">Hattrick Lens</div>
             <div className="text-xs text-[var(--muted)]">
               {t("nav.configuracion", "Configuración de tu club")}
             </div>
@@ -180,7 +180,7 @@ export function SetupPage() {
           />
           <SetupStep
             number="3"
-            title={t("setup.explorar", "Explorar HT Lens")}
+            title={t("setup.explorar", "Explorar Hattrick Lens")}
             state={completed || alreadyImported ? "current" : "pending"}
           />
         </ol>

@@ -7,6 +7,7 @@ Nacional/Divisional y CupLevel distingue Principal/Desafío/Consuelo.
 """
 
 import json
+import logging
 from collections.abc import Callable, Iterable
 from datetime import UTC, datetime
 from typing import Any, cast
@@ -24,6 +25,8 @@ from app.domain.engines.taquilla import taquilla_de_varios
 from app.domain.value_objects.ht_constants import MATCH_TYPE_LEAGUE
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
+
+_log = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -274,15 +277,17 @@ async def _readiness(
         return mt.away_team_name if mt.home_team_ht_id == team_ht_id else mt.home_team_name
 
     def penalty_order(xi: list[tuple[m.PlayerSnapshot, m.Player]]) -> list[dict[str, Any]]:
-        """Los tiradores de ese once, del primero al último.
+        """Los tiradores de TODA la plantilla, del primero al último.
 
-        2026-08-19, pedido explícito: el orden depende del once que estés
-        mirando. Antes salía de TODA la plantilla, así que podía proponer de
-        tirador a alguien que ni siquiera está en el campo cuando llegan los
-        penaltis.
+        2026-11-14, pedido del usuario: «deben aparecer todos los jugadores,
+        no solo los que juegan». Deshace lo del 2026-08-19, que dejaba sólo
+        el once de referencia: quien entra de cambio también puede tirar, y
+        la lista corta escondía a buenos tiradores del banquillo. El once
+        elegido no se pierde: cada fila dice si está en él (`starter`).
         """
+        en_el_once = {player.ht_player_id for _, player in xi}
         filas = []
-        for snap, player in xi:
+        for snap, player in roster:
             # Índice transparente para ordenar, no una probabilidad de marcar.
             indice = (
                 (snap.set_pieces or 0) * 0.45
@@ -299,6 +304,7 @@ async def _readiness(
                     "experience": snap.experience,
                     "technical": snap.specialty == 1,
                     "readiness_index": round(indice, 2),
+                    "starter": player.ht_player_id in en_el_once,
                 }
             )
         filas.sort(key=lambda fila: (-fila["readiness_index"], fila["name"]))
@@ -333,8 +339,7 @@ async def _readiness(
             "average_stamina": average_stamina,
             "stamina_bands": stamina_bands,
             "starters_count": len(xi),
-            # Los once que patearían si el partido llega a penaltis con ESTE
-            # once en el campo.
+            # Toda la plantilla, marcando a los de ESTE once.
             "penalty_candidates": penalty_order(xi),
         }
 
@@ -660,6 +665,14 @@ async def _prediccion_de_rivales(
     except HTTPException:
         # Sin token, acceso revocado o Hattrick caído: la ficha lo dice con un
         # error porque es su pantalla; aquí es un panel más y se queda vacío.
+        return None
+    # Y CUALQUIER OTRO TROPIEZO TAMBIÉN (2026-11-14, visto por el usuario al
+    # cambiar a «Máximo por carril», «Máximo» o «Último partido»: un 500). Un
+    # corte de Hattrick a mitad de la ficha no llega como `HTTPException` sino
+    # como el error de la conexión, y ése salía por encima y tumbaba Copa
+    # entera por un panel.
+    except Exception as exc:  # noqa: BLE001
+        _log.warning("Copa sin predicción contra %s: %r", rival_ht_id, exc)
         return None
     dicho = ficha.get("prediction")
     if not dicho:

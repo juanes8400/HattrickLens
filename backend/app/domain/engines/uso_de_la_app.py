@@ -327,7 +327,7 @@ def adopcion(eventos: list[Evento]) -> list[Adopcion]:
 class UsoDePais:
     """Un renglón por país, para el mapa.
 
-    2026-09-28, pedido del usuario. HT Lens se anuncia en foros de países muy
+    2026-09-28, pedido del usuario. Hattrick Lens se anuncia en foros de países muy
     distintos y hasta ahora no había forma de saber a cuáles llegó: la tabla de
     personas da nombres, no procedencias. El país no se pregunta ni se deduce de
     la conexión, sale de la liga del club, que es un dato que Hattrick ya da.

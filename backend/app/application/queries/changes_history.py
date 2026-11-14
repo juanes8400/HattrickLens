@@ -313,7 +313,7 @@ async def build_changes_history(
     `weeks=SIEMPRE` (0) compara contra el PRIMER cierre guardado de cada
     jugador en vez de contra una fecha común. Ojo con lo que promete esa
     palabra: «siempre» es desde que esta aplicación empezó a mirar, no desde
-    que el jugador existe, de quien se compró antes de que existiera HT Lens
+    que el jugador existe, de quien se compró antes de que existiera Hattrick Lens
     no hay un antes que reconstruir.
 
     Es una comparación NETA contra el cierre semanal de hace `weeks` semanas,

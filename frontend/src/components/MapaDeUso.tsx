@@ -15,7 +15,7 @@ import { tx } from "../i18n/tx";
 
 /** De dónde es la gente y cuánto usa la aplicación, sobre el mapa.
  *
- *  2026-09-28, pedido del usuario. HT Lens se anuncia en foros de países muy
+ *  2026-09-28, pedido del usuario. Hattrick Lens se anuncia en foros de países muy
  *  distintos y no había forma de saber a cuáles llegó de verdad: la tabla de
  *  personas da nombres, no procedencias, y un nombre de Hattrick no dice el
  *  país. El país sale de la liga del club, que Hattrick ya publica; aquí no se
@@ -24,7 +24,7 @@ import { tx } from "../i18n/tx";
  *  2026-10-23, pedido del usuario: EL COLOR VA POR PERSONAS. Nació por clics y
  *  la razón de entonces sigue siendo verdad --un país con cuatro managers que
  *  abren y cierran colorea menos que uno con dos que trabajan dentro-- pero no
- *  es la pregunta que este mapa contesta. «¿A qué países llegó HT Lens?» se
+ *  es la pregunta que este mapa contesta. «¿A qué países llegó Hattrick Lens?» se
  *  contesta con gente; con clics, el país del autor se come el mapa entero y
  *  los demás quedan en el primer tono, porque una sola persona muy activa
  *  acumula más clics que cinco recién llegadas.

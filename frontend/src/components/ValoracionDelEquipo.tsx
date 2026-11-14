@@ -131,10 +131,10 @@ export function ValoracionDelEquipo({
       title={tx("Valor de Plantilla")}
       meta={
         <Link
-          to="/transfers/balance"
+          to="/transfers/balance?seccion=plantilla"
           className="text-xs text-[var(--accent)] hover:underline"
         >
-          {tx("ver la tabla completa")}
+          {tx("jugador por jugador, en Transferencias")}
         </Link>
       }
       ayuda={tx(

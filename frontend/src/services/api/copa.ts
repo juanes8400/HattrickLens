@@ -198,6 +198,9 @@ export interface CupPenaltyCandidate {
   experience: number;
   technical: boolean;
   readinessIndex: number;
+  /** Si está en el once de referencia elegido (2026-11-14): la lista trae
+   *  ahora a toda la plantilla. */
+  starter?: boolean;
 }
 
 export const apiCopa = {

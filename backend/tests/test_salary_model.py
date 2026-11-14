@@ -1,7 +1,7 @@
 """La curva que estima el sueldo de quien nadie lo anotó.
 
 2026-09-04. De las 599 etapas de Pulgas Arrechas, 515 llevan el sueldo a cero
-por ignorancia: el jugador pasó por el club antes de que existiera HT Lens y
+por ignorancia: el jugador pasó por el club antes de que existiera Hattrick Lens y
 Hattrick no publica hacia atrás lo que cobraba. Contarlo como cero es
 equivocarse el 100%, así que se estima y se marca.
 """

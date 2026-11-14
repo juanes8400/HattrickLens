@@ -1,5 +1,6 @@
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { EChartsOption } from "echarts";
 import { economySankeyOption } from "../charts/chartOptions";
 import { Chart } from "../charts/Chart";
@@ -45,7 +46,13 @@ type Horizon = "2" | "4" | "8" | "12" | "16";
  * arrastre la petición de una pestaña que nadie ha pulsado.
  */
 export function EconomyPage() {
-  const [section, setSection] = useState<EconomySection>("resumen");
+  // `?seccion=valoracion` abre directamente «Valor de Plantilla»: es la
+  // puerta de vuelta desde Transferencias / Plantilla actual (2026-11-14,
+  // pedido del usuario: que las dos pantallas «conversen mejor»).
+  const [searchParams] = useSearchParams();
+  const [section, setSection] = useState<EconomySection>(
+    searchParams.get("seccion") === "valoracion" ? "valoracion" : "resumen",
+  );
   const [horizon, setHorizon] = useState<Horizon>("8");
   const { data, isLoading, isError, error } = useEconomy(Number(horizon));
 

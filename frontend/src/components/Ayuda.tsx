@@ -18,7 +18,7 @@ export function Ayuda({ texto }: { texto: string }) {
       </button>
       <span
         role="tooltip"
-        className="pointer-events-none absolute left-1/2 top-full z-30 mt-1.5 hidden w-64 -translate-x-1/2 rounded-md border border-[var(--border)] bg-[var(--surface)] p-2.5 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-[var(--text)] shadow-lg group-focus-within:block group-hover:block"
+        className="pointer-events-none absolute left-1/2 top-full z-30 mt-1.5 hidden w-64 -translate-x-1/2 rounded-md border border-[var(--border)] bg-[var(--surface)] p-2.5 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-[var(--text)] shadow-lg whitespace-pre-line group-focus-within:block group-hover:block"
       >
         {texto}
       </span>

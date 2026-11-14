@@ -183,7 +183,19 @@ async def training_squad(
     if view is None:
         raise HTTPException(404, f"team {team_id} not found")
     s = view.setup
+    # EL ENTRENADOR DE HOY, no el del último entrenamiento aplicado
+    # (2026-11-14, visto por el usuario: Cándido Cacheiro ya era el
+    # entrenador y la pantalla seguía nombrando al anterior). El registro
+    # semanal sólo apunta lo vigente en cada actualización, así que un
+    # cambio a mitad de semana no llegaba hasta la siguiente.
+    actual = await session.scalar(
+        select(m.TrainingSnapshot.trainer_name)
+        .where(m.TrainingSnapshot.team_id == team_id)
+        .order_by(m.TrainingSnapshot.captured_at.desc())
+        .limit(1)
+    )
     return {
+        "trainerName": actual or None,
         "skill": view.skill,
         "skillLabel": view.skill_label,
         "availableSkills": [{"skill": s_, "label": lbl} for s_, lbl in view.available_skills],

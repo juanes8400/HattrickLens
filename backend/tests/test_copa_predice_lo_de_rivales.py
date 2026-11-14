@@ -212,3 +212,27 @@ def test_si_la_ficha_no_puede_contestar_la_pantalla_SIGUE_EN_PIE(
     assert body["prediction"] is None
     assert len(body["nextMatches"]) == 1, "el cruce se sigue enseñando"
     assert len(caida.llamadas) == 1
+
+
+@pytest.mark.parametrize("metodo", ["max", "max_parallel", "last", "submitted"])
+def test_un_tropiezo_que_NO_es_HTTP_tampoco_tumba_Copa(
+    seeded: tuple[TestClient, int],  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+    metodo: str,
+) -> None:
+    """2026-11-14, visto por el usuario: «Máximo por carril», «Máximo» o
+    «Último partido» daban un 500 en Copa. Un corte de Hattrick a mitad de la
+    ficha no sale como `HTTPException` sino como el error de la conexión, y
+    sólo se atrapaba el primero."""
+    caida = _FichaFalsa(TimeoutError("Hattrick no contesta"))
+    monkeypatch.setattr("app.api.v1.endpoints.rivals.rival_scouting", caida)
+    client, team_id = seeded
+    asyncio.run(_preparar(bandera=True, cuando=MANANA))
+
+    resp = client.get(
+        f"/api/v1/teams/{team_id}/cup",
+        params={"pitch_zone_method_own": metodo, "pitch_zone_method_rival": metodo},
+    )
+
+    assert resp.status_code == 200
+    assert resp.json()["prediction"] is None

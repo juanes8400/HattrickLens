@@ -605,7 +605,7 @@ class PlayerBalanceQueryService:
         # fecha de detección (ver `salida_sellada` más abajo).
         primera_foto = snapshots[0].captured_at if snapshots else None
 
-        # Sueldos de antes de HT Lens. Hattrick no publica hacia atras lo que
+        # Sueldos de antes de Hattrick Lens. Hattrick no publica hacia atras lo que
         # cobraba nadie, asi que las etapas anteriores a la primera
         # sincronizacion llevan el sueldo a cero por ignorancia, contarlo asi
         # es equivocarse el 100 %. La curva se ajusta con las semanas del

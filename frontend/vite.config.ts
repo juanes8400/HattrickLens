@@ -68,7 +68,7 @@ function robotsYSitemap(sitio: string): Plugin {
     apply: "build",
     generateBundle() {
       const lineas = [
-        "# HT Lens",
+        "# Hattrick Lens",
         "User-agent: *",
         "Allow: /",
         "",

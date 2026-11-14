@@ -89,7 +89,7 @@ export function WelcomePage() {
             HL
           </span>
           <div>
-            <p className="text-lg font-semibold">HT Lens</p>
+            <p className="text-lg font-semibold">Hattrick Lens</p>
             <p className="text-sm text-[var(--muted)]">
               {t("bienvenida.lema", "Tu centro de mando para Hattrick")}
             </p>
@@ -108,7 +108,7 @@ export function WelcomePage() {
         <p className="mt-3 max-w-md leading-6 text-[var(--muted)]">
           {t(
             "bienvenida.intro",
-            "Autoriza HT Lens mediante la conexión oficial de Hattrick. Después podrás sincronizar tu plantilla, entrenamiento, finanzas y partidos cuando tú lo decidas.",
+            "Autoriza Hattrick Lens mediante la conexión oficial de Hattrick. Después podrás sincronizar tu plantilla, entrenamiento, finanzas y partidos cuando tú lo decidas.",
           )}
         </p>
 
@@ -159,7 +159,7 @@ export function WelcomePage() {
               <span className="text-[var(--muted)]">
                 {t(
                   "bienvenida.paso3",
-                  "HT Lens no hace una sincronización completa hasta que tú la solicitas.",
+                  "Hattrick Lens no hace una sincronización completa hasta que tú la solicitas.",
                 )}
               </span>
             </p>
@@ -191,7 +191,7 @@ export function WelcomePage() {
         <p className="mt-4 text-center text-xs leading-5 text-[var(--muted)]">
           {t(
             "bienvenida.legal",
-            "HT Lens usa información de Hattrick.org con autorización de sus propietarios. Tus credenciales de Hattrick nunca pasan por esta aplicación.",
+            "Hattrick Lens usa información de Hattrick.org con autorización de sus propietarios. Tus credenciales de Hattrick nunca pasan por esta aplicación.",
           )}
         </p>
         {/* El apoyo va DEBAJO del botón de conectar y con la mitad de peso
@@ -203,7 +203,7 @@ export function WelcomePage() {
             <span className="text-xs leading-5 text-[var(--muted)]">
               {t(
                 "bienvenida.gratis",
-                "HT Lens es gratis. El servidor lo pago yo, 7 US$ al mes.",
+                "Hattrick Lens es gratis. El servidor lo pago yo, 7 US$ al mes.",
               )}
             </span>
             {/* `a` y no `Link`: la bienvenida vive FUERA del enrutador de la
@@ -243,7 +243,7 @@ export function WelcomePage() {
             forma de llegar a el desde fuera. */}
         <div className="mt-6 flex flex-wrap justify-center gap-4 text-xs text-[var(--muted)]">
           <a href="/guia" className="hover:text-[var(--text)]">
-            {tx("Cómo funciona HT Lens")}
+            {tx("Cómo funciona Hattrick Lens")}
           </a>
           <a href="/privacidad" className="hover:text-[var(--text)]">
             {tx("Privacidad y cookies")}

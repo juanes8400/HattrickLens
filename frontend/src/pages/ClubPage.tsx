@@ -30,6 +30,7 @@ import { skillLevelLabel } from "../utils/skillLevels";
 import { ventanaDeGraficas } from "../utils/ventanaDeGraficas";
 import type { Club, PsychologyMatch } from "../services/api";
 import { escalaOficial, nivelOficial } from "../i18n/glosario";
+import { tx } from "../i18n/tx";
 
 /**
  * Club y cuerpo técnico, en tres pestañas.
@@ -536,10 +537,10 @@ function Socios({ data }: { data: Club }) {
 
       <Panel
         title={t("club.animoAficion", "Ánimo de la afición")}
-        meta={t(
-          "club.animoMeta",
-          "escala completa · de muy baja a poemas de amor",
-        )}
+        meta={tx("escala completa · de {{v0}} a {{v1}}", {
+          v0: escalaAficion()[0]?.label.toLowerCase() ?? "",
+          v1: escalaAficion().at(-1)?.label.toLowerCase() ?? "",
+        })}
       >
         {historia.length > 1 ? (
           <div className="p-4">
@@ -567,25 +568,28 @@ function Socios({ data }: { data: Club }) {
   );
 }
 
-/** Los diez peldaños de popularidad, con los nombres del juego. */
+/** Los DOCE peldaños del ánimo de la afición, con los nombres del juego.
+ *
+ *  Eran diez, del 0 al 9, con nombres puestos a ojo («muy baja», «eufóricos»)
+ *  y desplazados respecto al juego (2026-11-14, visto por el usuario: «el
+ *  nivel 10 está dañado»). El juego va del 0 al 11 y su 10 es «Bailando en
+ *  las calles»: una afición en ese nivel caía fuera de la escala. Ahora son
+ *  los del glosario oficial; en otros idiomas los pone `nivelOficial`. */
 const ESCALA_AFICION: Peldano[] = [
-  { level: 0, label: "muy baja" },
-  { level: 1, label: "furiosos" },
-  { level: 2, label: "irritados" },
-  { level: 3, label: "calmados" },
-  { level: 4, label: "contentos" },
-  { level: 5, label: "satisfechos" },
-  { level: 6, label: "eufóricos" },
-  { level: 7, label: "muy alta" },
-  { level: 8, label: "bailando en las calles" },
-  { level: 9, label: "poemas de amor" },
+  { level: 0, label: "Sanguinarios" },
+  { level: 1, label: "Furiosos" },
+  { level: 2, label: "Enfadados" },
+  { level: 3, label: "Irritados" },
+  { level: 4, label: "Decepcionados" },
+  { level: 5, label: "Calmados" },
+  { level: 6, label: "Satisfechos" },
+  { level: 7, label: "Contentos" },
+  { level: 8, label: "Encantados" },
+  { level: 9, label: "Felices" },
+  { level: 10, label: "Bailando en las calles" },
+  { level: 11, label: "¡Adorándote!" },
 ];
 
 function escalaAficion(): Peldano[] {
-  return ESCALA_AFICION.map((p) => ({
-    level: p.level,
-    label:
-      nivelOficial("aficion", p.level) ??
-      i18n.t(`club.aficion.${p.level}`, p.label),
-  }));
+  return escalaOficial("aficion", ESCALA_AFICION);
 }

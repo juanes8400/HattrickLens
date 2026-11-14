@@ -176,7 +176,7 @@ export function AutorPage() {
       <header>
         <h1 className="text-xl font-semibold">{tx("Autor")}</h1>
         <p className="text-sm text-[var(--muted)]">
-          {tx("Quién hace HT Lens, y qué ha publicado.")}
+          {tx("Quién hace Hattrick Lens, y qué ha publicado.")}
         </p>
       </header>
 
@@ -240,7 +240,7 @@ export function AutorPage() {
             </p>
             <p>
               {tx(
-                "HT Lens es esa misma manía aplicada a un club de Hattrick. Empezó siendo una hoja de cálculo, se hizo demasiado grande, y acabó aquí.",
+                "Hattrick Lens es esa misma manía aplicada a un club de Hattrick. Empezó siendo una hoja de cálculo, se hizo demasiado grande, y acabó aquí.",
               )}
             </p>
             <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--muted)]">

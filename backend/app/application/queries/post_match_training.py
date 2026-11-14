@@ -473,6 +473,8 @@ class PostMatchTrainingService:
                     m.PlayerMatchRating.rating,
                     m.Match.played_lineup_json,
                     m.Match.played_events_json,
+                    m.Match.home_team_ht_id,
+                    m.Match.away_team_ht_id,
                 )
                 .join(m.Player, m.Player.id == m.PlayerMatchRating.player_id)
                 .outerjoin(m.Match, m.Match.ht_match_id == m.PlayerMatchRating.ht_match_id)
@@ -481,6 +483,8 @@ class PostMatchTrainingService:
             )
         ).all()
 
+        equipo = await self._s.get(m.Team, team_id)
+        propio = equipo.ht_team_id if equipo is not None else None
         segments: list[PlayedSegment] = []
         #: El once y los cambios de cada partido, para repartir los minutos.
         alineaciones: dict[int, tuple[str | None, str | None]] = {}
@@ -506,6 +510,18 @@ class PostMatchTrainingService:
                 # reales, pedido explícito 2026-08-11: no deben influir en
                 # qué entrenamiento conviene según los minutos jugados.
                 if fila_match_type in NON_OFFICIAL_MATCH_TYPES:
+                    continue
+                # SÓLO LOS PARTIDOS DE ESTE EQUIPO (2026-11-14, pedido del
+                # usuario: a un recién llegado no se le cuentan los partidos
+                # que jugó con su club anterior). La ficha de un fichaje trae
+                # su último partido allí, y si ese partido está en la base
+                # --el de un rival que se estudió, por ejemplo-- entraba en
+                # sus minutos como si lo hubiera entrenado aquí. Hattrick sólo
+                # entrena con tu equipo.
+                if propio is not None and propio not in (
+                    fila.home_team_ht_id,
+                    fila.away_team_ht_id,
+                ):
                     continue
                 played_at = _aware(fila_played_at)
                 if not (since <= played_at <= deadline):

@@ -822,6 +822,12 @@ def comparables_de(
     """
     medidos: list[Comparable] = []
     for venta in fondo:
+        # NUNCA ÉL MISMO (2026-11-14, regla del usuario: «no usarlo a él mismo
+        # como ejemplo del propio jugador»). Si lo compraste en el mercado, su
+        # propia venta está en el fondo y, con sus mismas habilidades, salía
+        # clavada al 100 % y encabezaba la lista que le pone precio.
+        if venta.ht_player_id == objetivo.ht_player_id:
+            continue
         peso = peso_de(venta, objetivo)
         if peso is None:
             continue
