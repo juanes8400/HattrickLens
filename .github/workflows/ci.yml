@@ -21,10 +21,15 @@ jobs:
         ports: ["6379:6379"]
     steps:
       - uses: actions/checkout@v4
+      # La misma versión de `uv` que copia el Dockerfile de la raíz.
       - uses: astral-sh/setup-uv@v4
-      # The initial repository has no committed uv.lock yet. Let uv resolve and
-      # create the ephemeral runner lock instead of failing before validation.
-      - run: uv sync
+        with: {version: "0.13.7"}
+      # `--locked`: se instala lo que dice `uv.lock` (y el Python de
+      # `.python-version`, el 3.12 de producción), y el trabajo falla si alguien
+      # tocó `pyproject.toml` sin regenerar el lock. Antes era `uv sync` a
+      # secas: cada ejecución resolvía las versiones del día, así que lo que se
+      # probaba aquí no era lo que se desplegaba.
+      - run: uv sync --locked
       - run: uv run ruff check app
       - run: uv run ruff format --check app
       - run: uv run mypy app/domain app/application
