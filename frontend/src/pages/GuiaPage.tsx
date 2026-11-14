@@ -1,7 +1,7 @@
 /** La Wiki, en abierto.
  *
  *  POR QUÉ EXISTE UNA SEGUNDA PUERTA A LO MISMO. La Wiki son mil ochocientas
- *  líneas que explican cómo funciona Hattrick y cómo calcula HT Lens, y hasta
+ *  líneas que explican cómo funciona Hattrick y cómo calcula Hattrick Lens, y hasta
  *  hoy vivían ENTERAS detrás del OAuth. Eso dejaba el sitio público reducido a
  *  una pantalla de «conecta tu club» y dos páginas legales: nada que leer para
  *  quien llega de un buscador, y nada que revisar para el rastreador de

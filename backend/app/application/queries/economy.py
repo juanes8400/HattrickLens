@@ -1176,7 +1176,7 @@ def _sum_optional(*values: int | None) -> int | None:
 # Mismo orden y mismos nombres que el informe de finanzas semanal de Hattrick.
 # "Patrocinadores" agrupa IncomeSponsors + IncomeSponsorBonuses y "Temporal"
 # agrupa los campos Financial + Temporary, no son agrupaciones inventadas por
-# HT Lens, son cómo Hattrick presenta estas partidas.
+# Hattrick Lens, son cómo Hattrick presenta estas partidas.
 def _income_items(snapshot: m.EconomySnapshot) -> list[tuple[str, str, int | None]]:
     return [
         ("IncomeSpectators", "Taquillas", snapshot.income_spectators),

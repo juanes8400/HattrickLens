@@ -142,7 +142,7 @@ class BaseDeSync:
         """El id de la cantera de ESTE club, tal y como lo dio `teamdetails`.
 
         `None` = todavia no se sabe (el club se sincronizo con una version
-        anterior de HT Lens); `0` = este club no tiene cantera; cualquier otro
+        anterior de Hattrick Lens); `0` = este club no tiene cantera; cualquier otro
         numero es la suya. La diferencia importa: con `None` se pregunta como
         siempre, y quien avisa de un cruce es la comprobacion del club dueno
         al guardar `youthteamdetails`.

@@ -55,17 +55,20 @@ PLAYER_METRICS: tuple[tuple[str, str, str], ...] = (
     ("set_pieces", "Balón parado", "BP"),
 )
 
+#: Los mismos doce del glosario oficial que `club.POPULARITY` (2026-11-14).
 POPULARITY: dict[int, str] = {
     0: "Sanguinarios",
     1: "Furiosos",
-    2: "Irritados",
-    3: "Tranquilos",
-    4: "Contentos",
-    5: "Satisfechos",
-    6: "Delirantes",
-    7: "Eufóricos",
-    8: "Bailando en las calles",
-    9: "Escribiendo poemas de amor",
+    2: "Enfadados",
+    3: "Irritados",
+    4: "Decepcionados",
+    5: "Calmados",
+    6: "Satisfechos",
+    7: "Contentos",
+    8: "Encantados",
+    9: "Felices",
+    10: "Bailando en las calles",
+    11: "¡Adorándote!",
 }
 
 MEANINGFUL_CATEGORIES = ("jugadores", "entrenamiento", "economía", "economia")

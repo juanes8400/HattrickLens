@@ -1,7 +1,7 @@
 """Lo que paso despues del pitido inicial: los cambios y el cobrador.
 
 2026-10-08, reportado por un usuario: su jugador 513909842 jugo 87 minutos de
-lateral y 3 de extremo, y HT Lens le daba la semana entera de entrenamiento de
+lateral y 3 de extremo, y Hattrick Lens le daba la semana entera de entrenamiento de
 Lateral, el 100 %. Le tocaba el 51,7 %, porque el lateral cobra el 50 %.
 
 POR QUE NO SE PODIA CALCULAR. Los minutos salian de `playerdetails.xml`, que en

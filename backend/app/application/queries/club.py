@@ -50,17 +50,22 @@ STAFF_FIELDS: tuple[tuple[str, str], ...] = tuple(
 STAFF_FIELD_TO_TYPE: dict[str, int] = {field: code for code, field in STAFF_TYPE_TO_FIELD.items()}
 
 TRAINER_TYPES = {0: "Defensivo", 1: "Ofensivo", 2: "Equilibrado"}
+#: El ánimo de la afición, del 0 al 11, con los nombres del glosario oficial
+#: (2026-11-14). Era una lista de diez puesta a ojo y desplazada: el 10 del
+#: juego, «Bailando en las calles», salía como «Sin dato».
 POPULARITY = {
-    0: "muy baja",
-    1: "furiosos",
-    2: "irritados",
-    3: "calmados",
-    4: "contentos",
-    5: "satisfechos",
-    6: "eufóricos",
-    7: "muy alta",
-    8: "bailando en las calles",
-    9: "enviando poemas de amor",
+    0: "Sanguinarios",
+    1: "Furiosos",
+    2: "Enfadados",
+    3: "Irritados",
+    4: "Decepcionados",
+    5: "Calmados",
+    6: "Satisfechos",
+    7: "Contentos",
+    8: "Encantados",
+    9: "Felices",
+    10: "Bailando en las calles",
+    11: "¡Adorándote!",
 }
 
 

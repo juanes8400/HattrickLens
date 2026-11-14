@@ -1,12 +1,12 @@
 /**
- * Traducción de HT Lens (2026-09-15).
+ * Traducción de Hattrick Lens (2026-09-15).
  *
  * La regla que protege lo ya montado: el español es el idioma por defecto y
  * el de respaldo. Cada texto se busca por clave; si falta en el idioma
  * elegido se enseña en español, nunca vacío.
  *
  * Dos espacios de nombres:
- *   · `app`: los textos propios de HT Lens (`es.json`, `en.json`).
+ *   · `app`: los textos propios de Hattrick Lens (`es.json`, `en.json`).
  *   · `glosario`: el vocabulario oficial de Hattrick, generado desde
  *     `translations.xml` con `backend/scripts/generar_glosario.py`. No se
  *     edita a mano.

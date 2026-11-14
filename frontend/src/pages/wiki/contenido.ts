@@ -40,7 +40,7 @@ export const ARTICULOS: Articulo[] = [
   {
     id: "que-es",
     grupo: "empezar",
-    titulo: tx("Qué es HT Lens"),
+    titulo: tx("Qué es Hattrick Lens"),
     resumen: tx(
       "Una herramienta de análisis para managers de Hattrick: lee los datos de tu club y los convierte en respuestas con su porqué.",
     ),
@@ -49,7 +49,7 @@ export const ARTICULOS: Articulo[] = [
         titulo: tx("Para qué sirve"),
         texto: [
           tx(
-            "Hattrick enseña muchos números pero pocas conclusiones. HT Lens hace el paso que falta: cruza la plantilla, los partidos, la economía, la liga y la academia para contestar preguntas de gestión. Cada pantalla tiene una pregunta concreta escrita bajo su título, y todo lo que hay en ella existe para responderla.",
+            "Hattrick enseña muchos números pero pocas conclusiones. Hattrick Lens hace el paso que falta: cruza la plantilla, los partidos, la economía, la liga y la academia para contestar preguntas de gestión. Cada pantalla tiene una pregunta concreta escrita bajo su título, y todo lo que hay en ella existe para responderla.",
           ),
           tx(
             "No juega por ti ni toma decisiones: te da la información ordenada y con su margen de error para que decidas mejor. Cuando un número es una estimación lo dice, y cuando algo no se puede saber lo dice también en vez de rellenarlo.",
@@ -74,7 +74,7 @@ export const ARTICULOS: Articulo[] = [
         titulo: tx("De dónde salen los datos"),
         texto: [
           tx(
-            "De tu propio club en Hattrick, a través de la conexión oficial que autorizas al entrar. HT Lens nunca ve tu contraseña. Los datos se guardan al sincronizar, así que las pantallas cargan rápido y conservan la historia aunque Hattrick sólo publique las últimas semanas. La excepción son los rivales: de ellos sólo se lee lo público, en vivo, cada vez que abres su ficha.",
+            "De tu propio club en Hattrick, a través de la conexión oficial que autorizas al entrar. Hattrick Lens nunca ve tu contraseña. Los datos se guardan al sincronizar, así que las pantallas cargan rápido y conservan la historia aunque Hattrick sólo publique las últimas semanas. La excepción son los rivales: de ellos sólo se lee lo público, en vivo, cada vez que abres su ficha.",
           ),
         ],
       },
@@ -112,7 +112,7 @@ export const ARTICULOS: Articulo[] = [
         titulo: tx("Conectar tu club"),
         texto: [
           tx(
-            "En la bienvenida pulsas «Conecta tu club». Hattrick te pide autorizar a HT Lens con su propia pantalla de permisos; al aceptar vuelves a la app, eliges el equipo (si manejas más de uno) y empieza la primera importación. Si Hattrick no devuelve ningún club administrado, la app lo dice y te deja repetir la conexión.",
+            "En la bienvenida pulsas «Conecta tu club». Hattrick te pide autorizar a Hattrick Lens con su propia pantalla de permisos; al aceptar vuelves a la app, eliges el equipo (si manejas más de uno) y empieza la primera importación. Si Hattrick no devuelve ningún club administrado, la app lo dice y te deja repetir la conexión.",
           ),
           tx(
             "Si más adelante la sesión con Hattrick vence, las pantallas lo avisan con un botón para reconectar. Los datos ya importados no se pierden.",
@@ -920,7 +920,7 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
       {
-        titulo: tx("Los sueldos de antes de HT Lens"),
+        titulo: tx("Los sueldos de antes de Hattrick Lens"),
         texto: [
           tx(
             "De cuatro de las cinco partes del saldo (compra, venta, agente y listados) se recupera la historia completa. El sueldo no: Hattrick no publica lo que cobraba un jugador hace años. Para esas etapas el sueldo se estima con el TSI y la edad del jugador, ajustado con las lecturas reales de tu propio club; si hay al menos una lectura real de ese jugador, se usa como ancla y el error baja mucho.",
@@ -1598,7 +1598,7 @@ export const ARTICULOS: Articulo[] = [
     grupo: "inteligencia",
     titulo: tx("Wiki"),
     ruta: "/wiki",
-    resumen: tx("Esta página: la documentación de todo HT Lens."),
+    resumen: tx("Esta página: la documentación de todo Hattrick Lens."),
     secciones: [
       {
         titulo: tx("Cómo se usa"),
@@ -1618,14 +1618,14 @@ export const ARTICULOS: Articulo[] = [
     titulo: tx("Autor, Libro de visitas y Apoyar"),
     ruta: "/autor",
     resumen: tx(
-      "Quién hace HT Lens, cómo pedirle funcionalidades y cómo apoyar el proyecto.",
+      "Quién hace Hattrick Lens, cómo pedirle funcionalidades y cómo apoyar el proyecto.",
     ),
     secciones: [
       {
         titulo: tx("Qué hay"),
         puntos: [
           tx(
-            "Autor: quién hace HT Lens, sus publicaciones científicas y su divulgación.",
+            "Autor: quién hace Hattrick Lens, sus publicaciones científicas y su divulgación.",
           ),
           tx(
             "Libro de visitas: deja un mensaje con lo que te sirve y lo que te falta. De ahí salen las funcionalidades siguientes.",

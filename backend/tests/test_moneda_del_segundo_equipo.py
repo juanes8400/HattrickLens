@@ -189,7 +189,7 @@ def test_un_club_del_que_no_consta_si_es_principal_no_se_castiga() -> None:
 # ── La moneda del MANAGER, no la del pais del club (2026-10-25) ──────────────
 #
 # Reporte de un usuario: «I have multiple clubs, but in HT I see all money
-# amounts in my home currency C$. In HT Lens however, when I look at my other
+# amounts in my home currency C$. In Hattrick Lens however, when I look at my other
 # clubs, the amounts are displayed in those countries' currency (e.g., Maccabi
 # Oradea shows in NIS)».
 #

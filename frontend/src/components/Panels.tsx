@@ -302,7 +302,17 @@ export function Loading() {
   );
 }
 
-export function ErrorState({ error }: { error: unknown }) {
+export function ErrorState({
+  error,
+  alReintentar,
+}: {
+  error: unknown;
+  /** Qué repetir. Sin él se vuelven a pedir los datos de la pantalla, que es
+   *  lo que falla casi siempre; pero si lo que falló fue una ACCIÓN --lanzar
+   *  la sincronización--, volver a pedir datos no la repite ni quita el
+   *  error, y el botón parecía no hacer nada (2026-11-14). */
+  alReintentar?: () => unknown;
+}) {
   const { t } = useTranslation();
   if (error instanceof ApiError && error.status === 401) {
     return (
@@ -325,7 +335,7 @@ export function ErrorState({ error }: { error: unknown }) {
       </div>
     );
   }
-  return <ErrorConReintento error={error} />;
+  return <ErrorConReintento error={error} alReintentar={alReintentar} />;
 }
 
 /** El fallo genérico, con la salida a mano.
@@ -338,7 +348,13 @@ export function ErrorState({ error }: { error: unknown }) {
  *  El botón vuelve a pedir lo que esta pantalla tenga pendiente, sin tocar el
  *  resto del estado.
  */
-function ErrorConReintento({ error }: { error: unknown }) {
+function ErrorConReintento({
+  error,
+  alReintentar,
+}: {
+  error: unknown;
+  alReintentar?: () => unknown;
+}) {
   const { t } = useTranslation();
   const cliente = useQueryClient();
   const [reintentando, setReintentando] = useState(false);
@@ -352,13 +368,17 @@ function ErrorConReintento({ error }: { error: unknown }) {
       <p className="prosa mt-3 text-sm text-[var(--muted)]">
         {t(
           "comun.errorTexto",
-          "Puede ser un tropiezo momentáneo. Si vuelve a fallar, revisa que la conexión local de HT Lens siga en pie.",
+          "Puede ser un tropiezo momentáneo. Si vuelve a fallar, revisa que la conexión local de Hattrick Lens siga en pie.",
         )}
       </p>
       <button
         type="button"
         disabled={reintentando}
         onClick={() => {
+          if (alReintentar) {
+            alReintentar();
+            return;
+          }
           setReintentando(true);
           void cliente
             .refetchQueries({ type: "active" })
@@ -401,7 +421,7 @@ export function SinDatos() {
       <p className="prosa mt-1 text-sm text-[var(--muted)]">
         {t(
           "comun.sinDatos",
-          "La pantalla pidió sus datos y se quedó sin respuesta. Suele ser que la conexión local de HT Lens no está en pie.",
+          "La pantalla pidió sus datos y se quedó sin respuesta. Suele ser que la conexión local de Hattrick Lens no está en pie.",
         )}
       </p>
       <button

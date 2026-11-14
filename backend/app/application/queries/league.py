@@ -608,6 +608,19 @@ def _proximo_con_alineaciones(
     }
 
 
+def _hay_ordenes(enviada: "AlineacionEnviada | None", partido: m.Match | None) -> bool | None:
+    """Si ya mandaste órdenes para ESE partido: sí, no, o no se sabe.
+
+    Las de en vivo sólo cuentan si son del mismo `ht_match_id`. Sin ellas
+    queda lo que vio el último sync (`orders_given`); sin partido, no se sabe.
+    """
+    if partido is None:
+        return None
+    if enviada is not None and enviada.ht_match_id == partido.ht_match_id:
+        return True
+    return partido.orders_given
+
+
 def de_la_temporada_de_la_tabla(matches: list[Any], *, rondas_jugadas: int) -> list[Any]:
     """Los partidos de la serie que pertenecen a la temporada de la tabla.
 
@@ -1171,6 +1184,13 @@ class LeagueQueryService:
             )
             if proximo is not None:
                 next_match |= proximo
+            # SI HAY ÓRDENES ES UN HECHO, NO UNA CONSECUENCIA DEL PRONÓSTICO
+            # (2026-11-14, visto por el usuario contra Angkor FC). La pantalla
+            # lo deducía de `sources.own.kind`, y en la jornada 1 de una serie
+            # nueva no hay ratings, el pronóstico cae a los goles y decía
+            # «sin enviar» con las órdenes ya mandadas. Vale lo que diga
+            # Hattrick en vivo; si no contestó, lo sincronizado.
+            next_match["ordersSent"] = _hay_ordenes(enviada, cruce_pendiente)
             # Lo que acabamos de decir queda escrito: ver `guardar_lo_dicho`.
             # La fuente importa tanto como los números, porque el respaldo de
             # goles agregados ignora alineaciones y tácticas y no se le puede

@@ -1,6 +1,6 @@
 """Identidad = cuenta de Hattrick, no email/contraseña propios.
 
-Conectar vía OAuth con CHPP es el único inicio de sesión de HT Lens. Se
+Conectar vía OAuth con CHPP es el único inicio de sesión de Hattrick Lens. Se
 reconoce a un usuario que vuelve a conectar por `ht_user_id` (UserID de CHPP),
 no por credenciales propias, de ahí que email/password_hash pasen a ser
 opcionales en vez de obligatorios.

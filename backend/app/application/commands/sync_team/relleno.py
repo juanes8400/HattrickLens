@@ -360,7 +360,7 @@ class RellenoMixin(BaseDeSync):
         `players.xml/CountryID` vive en PlayerSnapshot y
         `worlddetails.xml/Country/CountryID` resuelve su nombre. No se
         infiere nada por nombre, bandera o club. Esto cubre toda la plantilla
-        actual y cualquier exjugador del que HT Lens sí haya conservado al
+        actual y cualquier exjugador del que Hattrick Lens sí haya conservado al
         menos un snapshot real.
         """
         from sqlalchemy import select

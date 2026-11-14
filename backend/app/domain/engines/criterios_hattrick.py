@@ -775,6 +775,12 @@ class Criterio:
     maximo: int
 
     def admite(self, nivel: int) -> bool:
+        # UN «>=» NO TIENE TECHO (2026-11-14, pregunta del usuario: Hattrick
+        # dice «>= 13» y Lens «13-20», ¿y el de nivel 22?). El juego sigue
+        # por encima de divino, y con el tope de la escala aquí una venta de
+        # nivel 21 o 22 quedaba fuera aunque Hattrick sí la enseñaría.
+        if self.operador == ">=":
+            return nivel >= self.minimo
         return self.minimo <= nivel <= self.maximo
 
 

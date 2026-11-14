@@ -221,7 +221,7 @@ NOMBRE_DEL_PUESTO: dict[str, str] = {
 
 
 #: A quién se le debe la fórmula. El usuario lo pidió expreso y es de
-#: justicia: HT Lens no inventó nada de esto, sólo lo reimplementó para no
+#: justicia: Hattrick Lens no inventó nada de esto, sólo lo reimplementó para no
 #: depender de una llamada a una web ajena. El documento consultado no nombra
 #: a una persona concreta, así que aquí no se nombra ninguna.
 NOTA_DE_CREDITO = (

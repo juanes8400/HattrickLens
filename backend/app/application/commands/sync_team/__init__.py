@@ -200,7 +200,7 @@ class SyncTeamHandler(  # noqa: D101
             # después de players en el flujo normal, el cruce se hace aquí,
             # cuando ambos ya están persistidos. También permite completar
             # snapshots existentes al actualizar desde una versión anterior
-            # de HT Lens, sin volver a pedir una ficha por jugador.
+            # de Hattrick Lens, sin volver a pedir una ficha por jugador.
             if "players" in files or "worlddetails" in files:
                 await self._backfill_native_countries_from_snapshots(uow, cmd.team_id, result)
             if "players" in files:
