@@ -277,12 +277,26 @@ function Filtro({
 // sigue viajando en `puja`. La tabla de stand-by la enseña en su columna,
 // que es donde una puja significa algo: ahí todavía no hay precio.
 
+/** El nivel del vendido en la habilidad `i` de tu jugador, o `null` si no
+ *  lo sabemos: ventas guardadas sin sus siete habilidades en las que esa no
+ *  está entre sus tres más altas. Un 0 diría que no la tiene. */
+function enTuHabilidad(f: ComparableDeMercado, i: number): number | null {
+  if (f.enTusHabilidades?.length) return f.enTusHabilidades[i] ?? null;
+  // Una respuesta sin el campo (caché de antes de la 6.6.1): lo de antes.
+  return f.perfil[i]?.nivel ?? null;
+}
+
 /** Las columnas, armadas contra la terna del jugador que pregunta.
  *
  *  No son fijas porque la terna no lo es: a un delantero se le comparan
- *  anotación, pases y jugadas, y a un defensa otras tres. Como todos los
- *  comparables comparten la terna del objetivo --esa es la definición de
- *  comparable-- `perfil[i]` es la misma habilidad en todas las filas.
+ *  anotación, pases y jugadas, y a un defensa otras tres. Cada celda es el
+ *  nivel del vendido EN ESA HABILIDAD DE TU JUGADOR (`enTuHabilidad`).
+ *
+ *  AQUÍ DECÍA que todos los comparables comparten la terna del objetivo, y
+ *  dejó de ser cierto cuando entró el sello de Hattrick: un «Equivalente»
+ *  puede tener otras tres más altas. La tabla pintaba `perfil[i]` --las SUYAS--
+ *  bajo los nombres de las tuyas, y un vendido con Lateral 6 y Jugadas 5 salía
+ *  con un 6 en «Jugadas» (2026-11-15, lo vio el usuario; arreglo, opción A).
  *
  *  EL ORDEN ES EL QUE DICTÓ EL USUARIO (2026-11-07): «ID, País, Jugador, Se
  *  parece, Edad, TSI, Forma, Habilidades (1,2,3), Fecha, Precio». Lo dijo dos
@@ -444,7 +458,15 @@ export function columnasDe(
       key: `habilidad${i}`,
       header: nombreDeHabilidad(rasgo.habilidad),
       align: "right" as const,
-      value: (f: ComparableDeMercado) => f.perfil[i]?.nivel ?? 0,
+      value: (f: ComparableDeMercado) => enTuHabilidad(f, i) ?? -1,
+      render: (f: ComparableDeMercado) => {
+        const nivel = enTuHabilidad(f, i);
+        return nivel == null ? (
+          <span className="text-[var(--muted)]">—</span>
+        ) : (
+          nivel
+        );
+      },
     })),
     // AQUÍ VIVÍA «Cierra», y se fue con las subastas abiertas (2026-11-07).
     // Decía cuánto le faltaba a una puja para convertirse en precio --«en 11
@@ -669,7 +691,15 @@ export function columnasEnEspera(
       key: `habilidad${i}`,
       header: nombreDeHabilidad(rasgo.habilidad),
       align: "right" as const,
-      value: (f: ComparableDeMercado) => f.perfil[i]?.nivel ?? 0,
+      value: (f: ComparableDeMercado) => enTuHabilidad(f, i) ?? -1,
+      render: (f: ComparableDeMercado) => {
+        const nivel = enTuHabilidad(f, i);
+        return nivel == null ? (
+          <span className="text-[var(--muted)]">—</span>
+        ) : (
+          nivel
+        );
+      },
     })),
     {
       key: "cierra",

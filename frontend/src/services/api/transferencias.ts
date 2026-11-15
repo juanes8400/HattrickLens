@@ -319,6 +319,10 @@ export interface ComparableDeMercado {
   /** Si es la fila de referencia: tu propio jugador, no una venta. Va fijada
    *  arriba y sombreada, y sus columnas de dinero y de plazo salen vacías. */
   propio?: boolean;
+  /** Su nivel en las tres habilidades de TU jugador, en el orden de las
+   *  columnas. `perfil` son las suyas, que en un «Equivalente» pueden ser
+   *  otras. `null` es «no lo sabemos» (2026-11-15). */
+  enTusHabilidades?: (number | null)[];
 }
 
 /** Lo que ha costado la gente parecida a un jugador tuyo. */
