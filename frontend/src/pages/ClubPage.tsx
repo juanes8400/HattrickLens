@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 import { Chart } from "../charts/Chart";
@@ -27,7 +27,7 @@ import {
   trainingStaffLevelColor,
 } from "../utils/staffEffects";
 import { skillLevelLabel } from "../utils/skillLevels";
-import { ventanaDeGraficas } from "../utils/ventanaDeGraficas";
+import { recortarClub, ventanaDeGraficas } from "../utils/ventanaDeGraficas";
 import type { Club, PsychologyMatch } from "../services/api";
 import { escalaOficial, nivelOficial } from "../i18n/glosario";
 import { tx } from "../i18n/tx";
@@ -54,7 +54,13 @@ type Seccion = "psicologia" | "tecnico" | "socios";
 
 export function ClubPage() {
   const { t } = useTranslation();
-  const { data, isLoading, isError, error } = useClub();
+  const respuesta = useClub();
+  const { isLoading, isError, error } = respuesta;
+  // Todas las gráficas abarcan como mucho dieciséis semanas (2026-11-14).
+  const data = useMemo(
+    () => (respuesta.data ? recortarClub(respuesta.data) : undefined),
+    [respuesta.data],
+  );
   const [seccion, setSeccion] = useState<Seccion>("psicologia");
 
   // Timestamps ISO reales (no el "dd/mm/yyyy" de `date()`) para que el filtro

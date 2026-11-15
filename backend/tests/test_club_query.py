@@ -119,3 +119,15 @@ def test_club_ignores_historical_minus_one_for_each_psychology_series() -> None:
         for series in (data["psychology"]["spirit"], data["psychology"]["confidence"])
         for reading in series["readings"]
     )
+
+
+def test_psicologia_abarca_las_ultimas_dieciseis_semanas() -> None:
+    """2026-11-14, pedido del usuario: «las últimas 16 semanas». Eran ocho."""
+    async def scenario():
+        factory, team_id = await seeded_session()
+        async with factory() as session:
+            return await ClubQueryService(session).get(team_id)
+
+    data = asyncio.run(scenario())
+    assert data is not None
+    assert data["psychology"]["weeks"] == 16
