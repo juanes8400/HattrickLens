@@ -311,7 +311,6 @@ function segunElPeso(peso: number, base: number) {
     : { symbolSize: base - 2, opacity: 0.8 };
 }
 
-const SUBASTA_ABIERTA = "#4f7cff";
 const VENTA_CERRADA = "#2fbf71";
 const LINEA_DE_LA_MEDIA = "#94a3b8";
 
@@ -339,7 +338,6 @@ function aro(color: string) {
 
 const DISCO = { symbol: "circle" } as const;
 const ARO = aro(VENTA_CERRADA);
-const PUJA = aro(SUBASTA_ABIERTA);
 
 /** Sombrea el hueco entre dos líneas de la MISMA magnitud.
  *
@@ -788,8 +786,7 @@ function corto(v: number): string {
  * Cuando una lectura traiga veinte o treinta, el violín empezará a tener
  * sentido y la nube a estorbar.
  *
- * Relleno es venta cerrada y hueco es subasta todavía abierta: el estado
- * importa tanto como el número, porque una puja sólo puede subir.
+ * Sólo ventas cerradas: las subastas abiertas no se pintan (2026-11-14).
  *
  * LA LÍNEA ES OPCIONAL desde el 2026-10-24, y ésa es la parte importante.
  * Los puntos son HECHOS --ventas que existieron, a precios que se pagaron-- y
@@ -897,9 +894,8 @@ export function serieDePuntosOption(
       ].join("<br/>"),
     };
   };
-  const reparte = (p: Punto, firme: boolean, peso: number) => {
-    if (!firme) nube.push(p);
-    else if ((peso ?? PESO_DEL_CLAVADO) >= PESO_DEL_CLAVADO) clavadas.push(p);
+  const reparte = (p: Punto, peso: number) => {
+    if ((peso ?? PESO_DEL_CLAVADO) >= PESO_DEL_CLAVADO) clavadas.push(p);
     else avaladas.push(p);
   };
   // EL EJE SON TODAS LAS SEMANAS, también las vacías (2026-11-08). Una
@@ -910,7 +906,6 @@ export function serieDePuntosOption(
     : [];
   const dondeVa = new Map(eje.map((s, i) => [s, i]));
 
-  const nube: Punto[] = [];
   const clavadas: Punto[] = [];
   const avaladas: Punto[] = [];
   // LA LÍNEA TAMBIÉN LLEVA TOOLTIP, y por eso sus puntos son objetos y no
@@ -961,7 +956,7 @@ export function serieDePuntosOption(
     const firmes = l.precios.filter(([, firme]) => firme);
     if (firmes.length > 0) {
       for (const [precio, , peso] of firmes)
-        reparte(punto(i, precio, true, peso), true, peso);
+        reparte(punto(i, precio, true, peso), peso);
       // LA LINEA ES LA MEDIA DE LO QUE SE VE (2026-10-09, decision del
       // usuario). Antes era la media ponderada del panel --la cifra grande de
       // arriba-- y al quitar las pujas de los puntos dejaba de describir el
@@ -976,12 +971,10 @@ export function serieDePuntosOption(
       );
       return;
     }
-    // UNA SEMANA GUARDADA SIEMPRE TIENE VENTAS desde el 2026-11-08: el
-    // barrido no escribe la semana que no cerró ninguna. Si llegara una sin
-    // ellas, sus pujas se enseñan y la media se queda en blanco, que es lo
-    // que ya hacía antes.
-    for (const [precio, , peso] of l.precios)
-      nube.push(punto(i, precio, false, peso));
+    // SIN PUJAS, NI SIQUIERA AQUÍ (2026-11-14, pedido del usuario: «quitar
+    // los puntos azules del histograma»). Una semana sin ventas cerradas se
+    // queda vacía, que es lo que es: las subastas siguen en la tabla
+    // «Esperando su precio», que es donde se explica que todavía no cuentan.
   });
 
   return {
@@ -1072,13 +1065,6 @@ export function serieDePuntosOption(
             },
           ]
         : []),
-      {
-        type: "scatter",
-        name: tx("Subasta abierta"),
-        data: nube,
-        ...PUJA,
-        z: 2,
-      },
       // EN PANTALLA SE LLAMAN DISTINTO desde el 2026-10-31: el 100 es
       // «idéntico» y el 90 «equivalente». Aqui siguen siendo el clavado y
       // el avalado, que es como se llaman en el dominio.
@@ -1126,8 +1112,8 @@ export function serieDePuntosOption(
 /**
  * El reparto de precios como UNA TIRA DE PUNTOS, no como barras.
  *
- * Cada punto es una venta sobre el eje de precio. Relleno es venta cerrada y
- * hueco es subasta todavía abierta.
+ * Cada punto es una venta cerrada sobre el eje de precio; las subastas
+ * abiertas no se pintan desde el 2026-11-14.
  *
  * POR QUÉ NO UN HISTOGRAMA, que fue lo primero que se construyó: con siete
  * ventas los cubos salen de cuatro, y los tres precios bajos --1.000, 3.000 y
@@ -1171,7 +1157,6 @@ export function tiraDePuntosOption(
   };
   const clavadas: Punto[] = [];
   const avaladas: Punto[] = [];
-  const abiertas: Punto[] = [];
   let anterior = -Infinity;
   let piso = 0;
   for (const [precio, firme, peso] of orden) {
@@ -1189,8 +1174,8 @@ export function tiraDePuntosOption(
         firme ? tx("venta cerrada") : tx("puja abierta, no promedia"),
       ].join("<br/>"),
     };
-    if (!firme) abiertas.push(punto);
-    else if (clavado) clavadas.push(punto);
+    if (!firme) continue;
+    if (clavado) clavadas.push(punto);
     else avaladas.push(punto);
   }
   const alto = Math.max(piso, 2);
@@ -1237,11 +1222,16 @@ export function tiraDePuntosOption(
       show: false,
     },
     series: [
+      // LAS MARCAS VAN CON LOS IDÉNTICOS desde el 2026-11-14. Iban en la
+      // serie de las subastas abiertas, que se fue con ellas: «quitar los
+      // puntos azules del histograma». Aunque no hubiera ninguna, la serie
+      // dejaba su punto azul en la leyenda.
       {
         type: "scatter",
-        name: tx("Subasta abierta"),
-        data: abiertas,
-        ...PUJA,
+        name: tx("Idéntico"),
+        data: clavadas,
+        itemStyle: { color: VENTA_CERRADA },
+        ...DISCO,
         markLine: {
           symbol: "none",
           // CON TOOLTIP, no `silent` (2026-10-28). Las dos marcas llevan el
@@ -1264,13 +1254,6 @@ export function tiraDePuntosOption(
       // DOS SERIES PARA LAS CERRADAS, y no una, para que el tamaño tenga
       // leyenda: con una sola serie el clavado y el avalado se dibujaban
       // distinto y nada decia por que.
-      {
-        type: "scatter",
-        name: tx("Idéntico"),
-        data: clavadas,
-        itemStyle: { color: VENTA_CERRADA },
-        ...DISCO,
-      },
       {
         type: "scatter",
         name: tx("Equivalente"),

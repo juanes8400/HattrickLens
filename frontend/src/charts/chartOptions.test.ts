@@ -106,17 +106,13 @@ describe("las gráficas del comparador", () => {
       );
     });
 
-    /** La puja llevaba `emptyCircle` desde el principio, con el mismo nucleo
-     *  blanco: grande y azul, nadie lo veia. */
-    it("la subasta abierta también es un aro hueco de verdad", () => {
-      const puja = porNombre(opcion, "Subasta abierta")?.itemStyle;
-      expect(puja?.color).toBe("transparent");
-      expect(puja?.borderWidth).toBeGreaterThan(0);
-      expect(puja?.borderColor).toBeTruthy();
-      // Y no del verde de las cerradas: la puja es lo otro.
-      expect(puja?.borderColor).not.toBe(
-        porNombre(opcion, "Idéntico")?.itemStyle?.color,
-      );
+    /** 2026-11-14, pedido del usuario: «quitar los puntos azules del
+     *  histograma». Ni puntos ni entrada en la leyenda. */
+    it("las subastas abiertas no se pintan", () => {
+      expect(porNombre(opcion, "Subasta abierta")).toBeUndefined();
+      const todos = series(opcion).flatMap((x) => puntos(x));
+      expect(todos.some((x) => x.tip.includes("no promedia"))).toBe(false);
+      expect(todos).toHaveLength(2);
     });
 
     it("el clavado se pinta MÁS GRANDE que el avalado", () => {
@@ -134,15 +130,11 @@ describe("las gráficas del comparador", () => {
       expect(puntos(porNombre(opcion, "Equivalente"))[0]!.tip).toContain(
         "equivalente",
       );
-      const puja = puntos(porNombre(opcion, "Subasta abierta"))[0]!;
-      expect(puja.tip).toContain("no promedia");
     });
 
     it("las marcas de media y mediana se pueden preguntar", () => {
       // `silent: true` las dejaba mudas, y son el dato que más se mira.
-      expect(porNombre(opcion, "Subasta abierta")?.markLine?.silent).toBe(
-        false,
-      );
+      expect(porNombre(opcion, "Idéntico")?.markLine?.silent).toBe(false);
     });
   });
 
