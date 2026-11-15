@@ -62,28 +62,25 @@ export const SEMANAS_DE_LAS_GRAFICAS = 16;
 
 const SEMANA_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** El instante a partir del cual se dibuja: `semanas` antes del dato más
- *  reciente (no de hoy, para que una cuenta que dejó de sincronizar no se
- *  quede con las gráficas vacías). `null` si no hay ninguna fecha. */
+/** El instante a partir del cual se dibuja: `semanas` antes de HOY.
+ *
+ *  Desde hoy y no desde el último dato, aclarado por el usuario el mismo
+ *  2026-11-14: «las últimas 16 semanas». Una cuenta que dejó de sincronizar
+ *  ve sólo lo que cae dentro, que es lo que se le pidió a la pantalla. Es la
+ *  misma cuenta que hace el servidor con Espíritu y Confianza. */
 export function corteDeSemanas(
-  fechas: (string | null | undefined)[],
+  ahora: () => Date = () => new Date(),
   semanas: number = SEMANAS_DE_LAS_GRAFICAS,
-): number | null {
-  const ms = fechas
-    .filter((x): x is string => Boolean(x))
-    .map((x) => new Date(x).getTime())
-    .filter(Number.isFinite);
-  if (ms.length === 0) return null;
-  return Math.max(...ms) - semanas * SEMANA_MS;
+): number {
+  return ahora().getTime() - semanas * SEMANA_MS;
 }
 
 /** Los elementos cuya fecha no es anterior al corte. */
 export function desdeElCorte<T>(
   items: T[],
   fecha: (x: T) => string,
-  corte: number | null,
+  corte: number,
 ): T[] {
-  if (corte == null) return items;
   return items.filter((x) => new Date(fecha(x)).getTime() >= corte);
 }
 
@@ -91,22 +88,17 @@ const diaAlMediodia = (d: { day: string }) => `${d.day}${MEDIODIA}`;
 
 /** El club con TODAS sus series recortadas a las últimas dieciséis semanas.
  *
- *  Un único corte para la pantalla entera, sacado de todo lo que se dibuja:
- *  así Psicología, Cuerpo técnico y Socios abarcan el mismo tramo, y las
+ *  Un único corte para la pantalla entera: así Psicología, Cuerpo técnico y Socios abarcan el mismo tramo, y las
  *  cuentas del pie (PIC, ventas, bajadas del %) hablan del mismo período que
  *  la gráfica que tienen encima. Se recortan los DATOS, no sólo el eje: la
  *  gráfica de Psicología no se sale de su marco, pero lo que quedara fuera
  *  se dibujaría a la izquierda, encima de las etiquetas. */
-export function recortarClub(club: Club): Club {
+export function recortarClub(
+  club: Club,
+  ahora: () => Date = () => new Date(),
+): Club {
   const psi = club.psychology;
-  const corte = corteDeSemanas([
-    ...psi.spirit.readings.map((r) => r.at),
-    ...psi.confidence.readings.map((r) => r.at),
-    ...psi.matches.map((m) => m.playedAt),
-    ...[...psi.sellDays, ...psi.buyDays].map(diaAlMediodia),
-    ...club.supporterHistory.map((s) => s.capturedAt),
-    ...club.staffHistory.map((s) => s.capturedAt),
-  ]);
+  const corte = corteDeSemanas(ahora);
   const serie = (s: PsychologySeries): PsychologySeries => ({
     ...s,
     readings: desdeElCorte(s.readings, (r) => r.at, corte),

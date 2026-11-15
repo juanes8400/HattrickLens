@@ -139,15 +139,16 @@ describe("las gráficas de Club abarcan dieciséis semanas como mucho", () => {
       notes: [],
     }) as Club;
 
-  it("el corte cae dieciséis semanas antes del dato más reciente", () => {
+  const hoy = () => new Date(ULTIMA);
+
+  it("el corte cae dieciséis semanas antes de hoy", () => {
     expect(SEMANAS_DE_LAS_GRAFICAS).toBe(16);
-    expect(corteDeSemanas(veinte)).toBe(new Date(semana(16)).getTime());
-    expect(corteDeSemanas([null, undefined])).toBeNull();
+    expect(corteDeSemanas(hoy)).toBe(new Date(semana(16)).getTime());
   });
 
   it("de veinte semanas quedan las diecisiete lecturas de los extremos", () => {
     // De la semana −16 a la 0, ambas incluidas: 17 lecturas, 16 tramos.
-    const r = recortarClub(club(veinte));
+    const r = recortarClub(club(veinte), hoy);
     const psi = r.psychology;
     expect(psi.spirit.readings).toHaveLength(17);
     expect(psi.spirit.readings[0]!.at).toBe(semana(16));
@@ -170,9 +171,19 @@ describe("las gráficas de Club abarcan dieciséis semanas como mucho", () => {
 
   it("con menos de dieciséis semanas no se quita nada", () => {
     const pocas = veinte.slice(-10);
-    const r = recortarClub(club(pocas));
+    const r = recortarClub(club(pocas), hoy);
     expect(r.psychology.spirit.readings).toHaveLength(10);
     expect(r.psychology.buyDays).toHaveLength(10);
     expect(r.staffHistory).toHaveLength(10);
+  });
+
+  it("cuenta desde hoy, no desde el último dato", () => {
+    // Cuatro semanas sin sincronizar: de las veinte quedan las trece (de la
+    // −12 a la 0) que caen en las dieciséis semanas que acaban hoy.
+    const dentroDeUnMes = () => new Date(ULTIMA + 4 * 7 * 24 * 3600 * 1000);
+    const r = recortarClub(club(veinte), dentroDeUnMes);
+    expect(r.psychology.spirit.readings).toHaveLength(13);
+    expect(r.psychology.spirit.readings[0]!.at).toBe(semana(12));
+    expect(r.supporterHistory).toHaveLength(13);
   });
 });

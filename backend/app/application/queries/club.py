@@ -185,6 +185,14 @@ def _historial_psicologico(lecturas: list[m.TrainingSnapshot]) -> list[dict[str,
     return salida
 
 
+#: Lo que abarcan las gráficas de Club: las últimas dieciséis semanas, una
+#: temporada. 2026-11-14, pedido del usuario («las últimas 16 semanas»). Eran
+#: ocho para Espíritu y Confianza, mientras Socios no tenía límite y estiraba
+#: el eje de todas. El frontend recorta lo demás con la misma cifra
+#: (`SEMANAS_DE_LAS_GRAFICAS` en `utils/ventanaDeGraficas.ts`).
+SEMANAS_DE_LAS_GRAFICAS = 16
+
+
 class ClubQueryService:
     """Read-only club view composed from append-only CHPP snapshots."""
 
@@ -195,7 +203,7 @@ class ClubQueryService:
         self,
         team: m.Team,
         lecturas: list[m.TrainingSnapshot],
-        semanas: int = 8,
+        semanas: int = SEMANAS_DE_LAS_GRAFICAS,
     ) -> dict[str, Any]:
         """Espíritu y confianza con el motivo de cada movimiento.
 
