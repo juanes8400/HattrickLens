@@ -341,6 +341,19 @@ export interface PuntoDeLaSerie {
    *  Las lecturas anotadas antes del 2026-10-09 no lo guardaron y llegan
    *  como 100. */
   precios: [number, boolean, number][];
+  /** Lo que cambió en la búsqueda desde el punto anterior --al cumplir años
+   *  o al subir una habilidad--, vacío si nada. Desde el 2026-11-15 la serie
+   *  no vuelve a empezar con un cambio: sigue, y esa semana se marca. */
+  cambios: CambioDeCriterio[];
+}
+
+/** Una parte de la búsqueda que se movió. `que` es «edad» o el nombre de
+ *  una habilidad (`scoring`...); `antes` y `despues` son franjas «7-9», y
+ *  una vacía dice que esa habilidad entró o salió de las tres. */
+export interface CambioDeCriterio {
+  que: string;
+  antes: string;
+  despues: string;
 }
 
 /** El precio comparable de un jugador, resumido para la tabla de la plantilla.

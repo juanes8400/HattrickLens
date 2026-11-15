@@ -68,6 +68,7 @@ import type {
   ComparableDeMercado,
   CriterioDeHattrick,
   PrecioComparable,
+  PuntoDeLaSerie,
   RasgoVisible,
 } from "../services/api";
 
@@ -81,6 +82,25 @@ function perfilLegible(perfil: RasgoVisible[]): string {
   return perfil
     .map((r) => `${nombreDeHabilidad(r.habilidad)} ${r.nivel}`)
     .join(" · ");
+}
+
+/** El texto de la raya de una semana en que cambiaron los criterios: qué se
+ *  movió, de qué franja a cuál. «—» cuando la habilidad entró o salió de las
+ *  tres que identifican al jugador. */
+function describirCambio(punto: PuntoDeLaSerie): string {
+  // «25-25» es un solo valor y se lee «25»; «7-9», «7–9».
+  const franja = (s: string) => {
+    if (!s) return "—";
+    const [desde, hasta] = s.split("-");
+    return desde === hasta ? (desde ?? s) : s.replace("-", "–");
+  };
+  return [
+    `${punto.semana} · ${tx("Cambiaron los criterios de comparación")}`,
+    ...(punto.cambios ?? []).map(
+      (c) =>
+        `${c.que === "edad" ? tx("Edad") : nombreDeHabilidad(c.que)}: ${franja(c.antes)} → ${franja(c.despues)}`,
+    ),
+  ].join("<br/>");
 }
 
 /** Desde cuántas lecturas vale la pena dibujar la serie. Con una no hay
@@ -955,7 +975,15 @@ export function PrecioPorComparables({
           
           Los puntos se quedan: son ventas que existieron a precios que se
           pagaron, y enseñarlas es lo que deja ver cómo se va llenando el
-          fondo. Lo que se va es la respuesta que todavía no toca. */}
+          fondo. Lo que se va es la respuesta que todavía no toca.
+
+          LA LÍNEA VUELVE, SIEMPRE (2026-11-15, el usuario: «no olvides que
+          líneas deben unir los puntos»). Lo de arriba era cierto cuando la
+          línea era «Media de las ventas cerradas» y se leía como el precio.
+          Desde el 2026-11-08 es «Media de la semana»: une lo que se pagó
+          cada semana y no es la respuesta del panel. La respuesta es el
+          acumulado --el recuadro y la raya horizontal--, y ése sigue sin
+          salir mientras no haya número. */}
       {datos.serie.length >= MINIMO_PARA_LA_SERIE && (
         <div className="px-4 pb-2">
           {/* LA GRÁFICA Y EL ACUMULADO, UNO AL LADO DEL OTRO (2026-11-08,
@@ -971,16 +999,11 @@ export function PrecioPorComparables({
             <div className="min-w-0 flex-[3_1_320px]">
               <Chart
                 height={200}
-                ariaLabel={
-                  hayNumero
-                    ? tx("Lo que se pagó cada semana por jugadores parecidos")
-                    : tx(
-                        "Las ventas encontradas hasta ahora, sin media todavía",
-                      )
-                }
+                ariaLabel={tx(
+                  "Lo que se pagó cada semana por jugadores parecidos",
+                )}
                 option={serieDePuntosOption(datos.serie, {
                   detalle: (v) => money(v, datos.moneda),
-                  conMedia: hayNumero,
                   etiquetaMedia: tx("Media de la semana"),
                   // LA MISMA CIFRA DE ARRIBA, no otra. Se unificaron a 24
                   // semanas el 2026-11-08 --«unifiquemos a 24 semanas, no hay
@@ -988,6 +1011,12 @@ export function PrecioPorComparables({
                   // medias distintas del mismo jugador.
                   acumulado: datos.media,
                   etiquetaAcumulado: tx("acumulado"),
+                  // LA GRÁFICA SIGUE CUANDO CAMBIAN LOS CRITERIOS (2026-11-15,
+                  // decisión del usuario) y esa semana lleva una raya que dice
+                  // qué cambió: un salto ahí puede ser del jugador, no del
+                  // mercado.
+                  etiquetaCambio: tx("cambio"),
+                  describirCambio: (i) => describirCambio(datos.serie[i]!),
                 })}
               />
             </div>
@@ -1013,7 +1042,7 @@ export function PrecioPorComparables({
           {!hayNumero && (
             <p className="prosa text-xs text-[var(--muted)]">
               {tx(
-                "Son las ventas encontradas hasta ahora, una por punto. La línea de la media aparece cuando haya bastantes para dar un precio.",
+                "Son las ventas encontradas hasta ahora, una por punto, y la línea une la media de cada semana. El acumulado aparece cuando haya bastantes para dar un precio.",
               )}
             </p>
           )}

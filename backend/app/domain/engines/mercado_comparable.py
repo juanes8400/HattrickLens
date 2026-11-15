@@ -493,12 +493,14 @@ def clave_de_criterios(objetivo: Objetivo) -> str:
 
     2026-10-26, decisión del usuario sobre qué pasa cuando los criterios de un
     jugador se mueven: «en ese caso, la gráfica de precios volverá a empezar».
+    REVOCADA el 2026-11-15: la gráfica continúa y la semana del cambio se
+    marca (`cambios_de_criterios`). La clave sigue haciendo falta para eso.
 
     POR QUÉ SE MUEVEN. Los criterios son del jugador y Hattrick los recalcula
     con él: al cumplir años cambia su ventana de edad, y al subir una habilidad
     cambia cuál lo identifica y con qué banda. Desde ese momento el barrido
-    está preguntando por OTRA gente, así que los números de antes y los de
-    después no son la misma medida y unirlos con una línea sería mentir.
+    está preguntando por OTRA gente, y por eso el cambio se marca: un salto en
+    esa semana puede ser del jugador y no del mercado.
 
     LA CLAVE ES LA BÚSQUEDA, no la terna. Se construye de la ventana que de
     verdad sale por el cable --edad y las tres franjas-- porque es exactamente
@@ -517,6 +519,67 @@ def clave_de_criterios(objetivo: Objetivo) -> str:
     for franja in (ventana.primaria, ventana.secundaria, ventana.terciaria):
         partes.append(f"{franja.habilidad}:{franja.minimo}-{franja.maximo}")
     return "|".join(partes)
+
+
+#: Lo que se marca como «edad» en un cambio de criterios. Las habilidades van
+#: con su propio nombre (`scoring`, `set_pieces`...), que la pantalla traduce.
+EDAD = "edad"
+
+
+@dataclass(frozen=True, slots=True)
+class CambioDeCriterio:
+    """Una parte de la búsqueda que se movió de una semana a otra.
+
+    `antes` y `despues` son las franjas tal como salen por el cable, «24-26» o
+    «7-9». Vacía cuando la habilidad entró o salió de las tres que identifican
+    al jugador: antes no se le pedía, o ya no se le pide.
+    """
+
+    que: str
+    antes: str
+    despues: str
+
+
+def _partes_de_la_clave(clave: str) -> dict[str, str]:
+    """`"24-26|scoring:7-9|..."` → `{"edad": "24-26", "scoring": "7-9", ...}`."""
+    if not clave:
+        return {}
+    edad, *franjas = clave.split("|")
+    partes = {EDAD: edad}
+    for franja in franjas:
+        habilidad, _, tramo = franja.partition(":")
+        partes[habilidad] = tramo
+    return partes
+
+
+def cambios_de_criterios(antes: str, despues: str) -> tuple[CambioDeCriterio, ...]:
+    """Qué se movió en la búsqueda entre dos claves de `clave_de_criterios`.
+
+    2026-11-15, decisión del usuario: la gráfica de precios YA NO VUELVE A
+    EMPEZAR cuando le cambian los criterios a un jugador --«seguimos llevando
+    seguimiento junto a los precios anteriores»-- y la semana del cambio se
+    marca con lo que cambió. Esto es lo que la marca enseña.
+
+    Dice cómo cambió LA BÚSQUEDA y no el jugador, porque es lo único que se
+    guarda: al cumplir años se mueve la ventana de edad, y al subir una
+    habilidad su franja. Es también lo que explica el salto de la gráfica:
+    desde esa semana se le compara con otra gente.
+
+    Vacío si una de las dos claves es vacía --sin búsqueda posible no hay
+    nada con qué comparar-- o si son iguales.
+    """
+    if not antes or not despues or antes == despues:
+        return ()
+    de_antes = _partes_de_la_clave(antes)
+    de_ahora = _partes_de_la_clave(despues)
+    # La edad primero y luego las habilidades en el orden de la búsqueda
+    # nueva; las que salieron, al final.
+    orden = list(de_ahora) + [k for k in de_antes if k not in de_ahora]
+    return tuple(
+        CambioDeCriterio(que, de_antes.get(que, ""), de_ahora.get(que, ""))
+        for que in orden
+        if de_antes.get(que, "") != de_ahora.get(que, "")
+    )
 
 
 def plan_de_busqueda(objetivo: Objetivo) -> tuple[Ventana, ...]:

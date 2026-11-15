@@ -180,6 +180,7 @@ export type {
   YouthSummary,
 } from "./sincronizacion";
 export type {
+  CambioDeCriterio,
   ComparableDeMercado,
   CriterioDeHattrick,
   PlayerBalance,

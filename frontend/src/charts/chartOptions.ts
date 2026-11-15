@@ -825,6 +825,25 @@ export function semanasEntre(primera: string, ultima: string): string[] {
   );
 }
 
+/** Los tramos que cruzan semanas vacías, y sólo ésos: `[x, y]` del último
+ *  punto antes del hueco y del primero después, cada tramo cerrado con un
+ *  `null` para que la línea no siga hasta el siguiente. Dos semanas seguidas
+ *  no dan tramo: ésas las une la línea continua. */
+export function puentes(
+  valores: (number | null)[],
+): ([number, number] | null)[] {
+  const tramos: ([number, number] | null)[] = [];
+  let anterior: number | undefined;
+  valores.forEach((v, x) => {
+    if (v == null) return;
+    if (anterior !== undefined && x - anterior > 1) {
+      tramos.push([anterior, valores[anterior]!], [x, v], null);
+    }
+    anterior = x;
+  });
+  return tramos;
+}
+
 export function serieDePuntosOption(
   lecturas: {
     cuando: string;
@@ -835,6 +854,8 @@ export function serieDePuntosOption(
     enCurso: boolean;
     media: number | null;
     precios: [number, boolean, number][];
+    /** Si en esta semana cambiaron los criterios de comparación. */
+    cambios?: unknown[];
   }[],
   opciones: {
     // AQUÍ VIVÍA `etiqueta`, la que convertía la fecha de cada lectura en el
@@ -852,6 +873,11 @@ export function serieDePuntosOption(
      *  normal y cuáles por debajo (2026-11-08, pedido del usuario). */
     acumulado?: number | null;
     etiquetaAcumulado?: string;
+    /** El rótulo de la raya vertical de las semanas en que cambiaron los
+     *  criterios, y el texto de su tooltip (2026-11-15: la gráfica sigue
+     *  tras un cambio y la semana se marca). Sin ellos no se marca nada. */
+    etiquetaCambio?: string;
+    describirCambio?: (lectura: number) => string;
   },
 ): EChartsOption {
   const conMedia = opciones.conMedia !== false;
@@ -953,6 +979,11 @@ export function serieDePuntosOption(
   // ahora en adelante solo tendremos ventas cerradas»-- y con él las veinte
   // líneas que nadie podía volver a alcanzar.
   lecturas.forEach((l, i) => {
+    // FUERA DEL EJE NO SE PINTA. El eje son las 25 semanas más recientes, y
+    // desde que la serie ya no se corta al cambiar los criterios (2026-11-15)
+    // puede traer más: sin esto, esos puntos caían en la posición de su
+    // índice, encima de semanas que no eran las suyas.
+    if (!dondeVa.has(l.semana)) return;
     const firmes = l.precios.filter(([, firme]) => firme);
     if (firmes.length > 0) {
       for (const [precio, , peso] of firmes)
@@ -976,6 +1007,14 @@ export function serieDePuntosOption(
     // queda vacía, que es lo que es: las subastas siguen en la tabla
     // «Esperando su precio», que es donde se explica que todavía no cuentan.
   });
+
+  const marcas = opciones.describirCambio
+    ? lecturas.flatMap((l, i) =>
+        l.cambios?.length && dondeVa.has(l.semana)
+          ? [{ xAxis: l.semana, tip: opciones.describirCambio!(i) }]
+          : [],
+      )
+    : [];
 
   return {
     grid: { left: 8, right: 14, top: 18, bottom: 46, containLabel: true },
@@ -1041,17 +1080,22 @@ export function serieDePuntosOption(
       // tiene que ir primera para que sea la que se encuentra por nombre, que
       // es la que lleva los símbolos y los tooltips.
       //
-      // Mismos valores con `connectNulls`, así que cruza las semanas sin
-      // ventas con una línea de puntos: dice «de aquí a aquí no medimos» sin
-      // cortar el dibujo ni inventar un precio. Lo eligió el usuario el
-      // 2026-11-08 sobre las dos opciones que se le dieron, hueco o línea
-      // partida, y es mejor que las dos.
+      // Cruza las semanas sin ventas con una línea de puntos: dice «de aquí a
+      // aquí no medimos» sin cortar el dibujo ni inventar un precio. Lo eligió
+      // el usuario el 2026-11-08 sobre las dos opciones que se le dieron,
+      // hueco o línea partida, y es mejor que las dos.
+      //
+      // SÓLO EN LOS HUECOS (2026-11-15, decisión del usuario). Antes llevaba
+      // todos los valores con `connectNulls` y corría por debajo de la sólida
+      // de punta a punta: en los bordes de un tramo continuo asomaban sus
+      // puntos, y dos semanas seguidas parecían unidas con punteado. Ahora
+      // son tramos sueltos, `[x, y]`, separados por `null`.
       ...(conMedia
         ? [
             {
               type: "line" as const,
               name: opciones.etiquetaMedia,
-              data: medias.map((p) => (p ? p.value : null)),
+              data: puentes(medias.map((p) => (p ? p.value : null))),
               symbol: "none" as const,
               lineStyle: {
                 width: 1.5,
@@ -1059,7 +1103,7 @@ export function serieDePuntosOption(
                 type: "dotted" as const,
                 opacity: 0.55,
               },
-              connectNulls: true,
+              connectNulls: false,
               silent: true,
               z: 0,
             },
@@ -1084,6 +1128,29 @@ export function serieDePuntosOption(
         itemStyle: { color: VENTA_CERRADA },
         ...DISCO,
         z: 4,
+        // LA SEMANA EN QUE CAMBIARON LOS CRITERIOS, una raya vertical
+        // (2026-11-15, decisión del usuario). Va en esta serie porque es la
+        // única que existe siempre: la de la media se va cuando el panel aún
+        // no tiene número, y el cambio hay que verlo igual.
+        ...(marcas.length
+          ? {
+              markLine: {
+                symbol: "none" as const,
+                label: {
+                  formatter: opciones.etiquetaCambio ?? "",
+                  fontSize: 10,
+                  position: "end" as const,
+                },
+                lineStyle: {
+                  type: "dashed" as const,
+                  width: 1,
+                  color: LINEA_DE_LA_MEDIA,
+                },
+                emphasis: { lineStyle: { width: 2 } },
+                data: marcas,
+              },
+            }
+          : {}),
       },
     ],
     legend: { bottom: 0, itemHeight: 8, textStyle: { fontSize: 10 } },

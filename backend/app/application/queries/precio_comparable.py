@@ -45,9 +45,11 @@ from app.domain.engines.criterios_hattrick import criterios_de
 from app.domain.engines.mercado_comparable import (
     PESO_DEL_CLAVADO,
     VIDA,
+    CambioDeCriterio,
     Comparable,
     Guardado,
     Objetivo,
+    cambios_de_criterios,
     comparables_de,
     estimar,
     nunca_tuvo_puja,
@@ -209,6 +211,11 @@ class PuntoDeLaSerie:
     #: mas pequeño y mas suave lo que se parece menos. Las lecturas anotadas
     #: antes del 2026-10-09 no lo guardaron y salen a 100.
     precios: tuple[tuple[int, bool, int], ...]
+    #: Lo que cambió en la búsqueda desde el punto anterior, cuando cambió:
+    #: al cumplir años o al subir una habilidad. Vacío en el resto. La
+    #: pantalla lo marca con una raya vertical (2026-11-15, decisión del
+    #: usuario: la gráfica continúa y la semana del cambio se señala).
+    cambios: tuple[CambioDeCriterio, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -499,8 +506,9 @@ class PrecioDeUnJugador:
     #: Subastas abiertas que se enseñan pero NO promedian.
     provisionales: int
     semanas_del_mas_viejo: int
-    #: Las medias de las lecturas pasadas del tramo vigente, de la más vieja a
-    #: la más nueva, para dibujar una chispa. Vacía mientras no haya historia.
+    #: Las medias de las lecturas pasadas, de la más vieja a la más nueva,
+    #: para dibujar una chispa. Vacía mientras no haya historia. Sigue aunque
+    #: le cambien los criterios, igual que la gráfica de la ficha.
     serie: tuple[int, ...]
 
 
@@ -670,8 +678,8 @@ async def _series_de_la_plantilla(
 ) -> dict[int, tuple[int, ...]]:
     """Las medias pasadas de cada jugador, en una sola consulta.
 
-    Mismas dos reglas que `_serie` --una fila por semana de Hattrick, y el
-    corte por tramo vigente-- pero para todos a la vez: la tabla sólo necesita
+    Mismas reglas que `_serie` --una fila por semana de Hattrick, y sin corte
+    cuando cambian los criterios-- pero para todos a la vez: la tabla sólo necesita
     la línea, no cada nube. Si las dos pantallas no leyeran igual, dibujarían
     el mismo precio con distinta cadencia.
     """
@@ -695,14 +703,8 @@ async def _series_de_la_plantilla(
 
     series: dict[int, tuple[int, ...]] = {}
     for ht_player_id, lecturas in por_jugador.items():
-        vigente = lecturas[-1].criteria_key
-        corte = len(lecturas)
-        while corte > 0 and lecturas[corte - 1].criteria_key == vigente:
-            corte -= 1
         medias = [
-            convertido(lectura.mean_price)
-            for lectura in lecturas[corte:]
-            if lectura.mean_price is not None
+            convertido(lectura.mean_price) for lectura in lecturas if lectura.mean_price is not None
         ]
         if medias:
             series[ht_player_id] = tuple(medias)
@@ -774,12 +776,13 @@ async def _serie(
     cuándo lo leímos-- y se quedan fuera. No se borran: son lo único de esta
     base que no se podría reconstruir, porque el fondo no sabe cómo estuvo.
 
-    SÓLO EL TRAMO VIGENTE (2026-10-26, decisión del usuario: cuando le cambian
-    los criterios, «la gráfica de precios volverá a empezar»). Los criterios
-    son del jugador y Hattrick los recalcula con él --al cumplir años, al subir
-    una habilidad-- y desde ese momento el barrido pregunta por otra gente. Dos
-    medidas distintas unidas por una línea dibujarían una subida o una bajada
-    que no ocurrió.
+    LA SERIE CONTINÚA CUANDO CAMBIAN LOS CRITERIOS (2026-11-15, decisión del
+    usuario: «seguimos llevando seguimiento junto a los precios anteriores»).
+    Hasta entonces se cortaba en el último cambio --«la gráfica de precios
+    volverá a empezar», 2026-10-26-- y al cumplir años la gráfica se quedaba
+    en blanco. Ahora sigue, y el primer punto con criterios nuevos lleva en
+    `cambios` qué se movió: desde esa semana se le compara con otra gente, y
+    un salto ahí puede ser del jugador y no del mercado.
     """
     filas = (
         (
@@ -796,16 +799,6 @@ async def _serie(
         .scalars()
         .all()
     )
-    # El tramo vigente es el del ÚLTIMO punto, y se corta hacia atrás: en
-    # cuanto aparece una clave distinta, lo anterior es otra medida. Se recorre
-    # al revés porque lo que define el tramo es el final, no el principio.
-    if filas:
-        vigente = filas[-1].criteria_key
-        corte = len(filas)
-        while corte > 0 and filas[corte - 1].criteria_key == vigente:
-            corte -= 1
-        filas = filas[corte:]
-
     # CUÁL ES LA DE AHORA, para que la pantalla la dibuje viva. Se compara
     # con la etiqueta de hoy y no con «la última fila»: si no se sincroniza en
     # dos semanas, la última fila es de una semana ya cerrada y pintarla como
@@ -818,7 +811,12 @@ async def _serie(
     esta_semana = season_week_for_datetime(world, momento) if world else None
 
     puntos = []
+    anterior = ""
     for fila in filas:
+        cambios = cambios_de_criterios(anterior, fila.criteria_key)
+        # Una semana sin búsqueda posible (clave vacía) no rompe el hilo: el
+        # cambio se mide contra la última que sí tenía.
+        anterior = fila.criteria_key or anterior
         try:
             nube = json.loads(fila.prices_json or "[]")
         except ValueError:
@@ -840,6 +838,7 @@ async def _serie(
                     for p in nube
                     if isinstance(p, dict)
                 ),
+                cambios=cambios,
             )
         )
     return tuple(puntos)

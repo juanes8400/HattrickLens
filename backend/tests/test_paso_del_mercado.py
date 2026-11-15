@@ -1130,18 +1130,16 @@ async def test_si_el_canario_canta_los_vacios_conservan_el_sello(base, monkeypat
 
 
 # --------------------------------------------------------------------------
-# La grafica vuelve a empezar cuando cambian los criterios
+# La grafica sigue cuando cambian los criterios, y marca la semana
 # --------------------------------------------------------------------------
 
 
-async def test_al_cambiarle_los_criterios_la_SERIE_EMPIEZA_DE_NUEVO(base) -> None:
-    """2026-10-26: «en ese caso, la grafica de precios volvera a empezar».
+async def test_al_cambiarle_los_criterios_la_SERIE_SIGUE_y_marca_el_cambio(base) -> None:
+    """2026-11-15: «la gráfica continúa», y la semana del cambio se marca.
 
-    Se le barre, cumple años, se le vuelve a barrer. Los puntos de antes siguen
-    en la tabla --no se borra nada, que es la unica perdida de esta base que no
-    se podria deshacer-- pero la pantalla enseña solo el tramo vigente: desde
-    que cambio la ventana se le esta comparando con OTRA gente, y unir las dos
-    medidas con una linea dibujaria una subida que no ocurrio.
+    Hasta ese dia la serie volvia a empezar (2026-10-26). Se le barre, cumple
+    años, se le vuelve a barrer: la pantalla enseña las dos semanas, y la
+    segunda dice que su ventana de edad se movio.
     """
     from app.application.queries.precio_comparable import _serie
 
@@ -1242,15 +1240,18 @@ async def test_al_cambiarle_los_criterios_la_SERIE_EMPIEZA_DE_NUEVO(base) -> Non
     assert len(set(claves)) == 2, f"tienen que ser dos tramos: {claves}"
     assert claves[-1] != clave_vieja
 
-    # Y la pantalla enseña SOLO el tramo nuevo, aunque los viejos sigan ahi.
+    # Y la pantalla enseña LAS DOS, con la marca en la primera del tramo nuevo.
     serie = await _serie(session, equipo.id, ALBERTO, lambda x: x, manana)
-    cuantos_del_tramo = sum(1 for k in claves if k == claves[-1])
-    assert len(serie) == cuantos_del_tramo
-    assert len(serie) < len(todas), "lo de antes no se borra, solo no se pinta"
+    assert len(serie) == len(todas), "lo de antes sigue en la gráfica"
+    assert serie[0].cambios == (), "el primer punto no cambia respecto de nada"
+    primero_nuevo = claves.index(claves[-1])
+    marcados = [i for i, punto in enumerate(serie) if punto.cambios]
+    assert marcados == [primero_nuevo], "sólo se marca la semana del cambio"
+    assert [c.que for c in serie[primero_nuevo].cambios] == ["edad"]
 
 
 async def test_sin_cambio_de_criterios_la_serie_NO_se_corta(base) -> None:
-    """Que lo de arriba no haya convertido cada barrido en un tramo nuevo."""
+    """Que lo de arriba no haya convertido cada barrido en un cambio."""
     from app.application.queries.precio_comparable import _serie
 
     session, equipo = base
@@ -1298,3 +1299,4 @@ async def test_sin_cambio_de_criterios_la_serie_NO_se_corta(base) -> None:
     serie = await _serie(session, equipo.id, ALBERTO, lambda x: x, AHORA + timedelta(days=2))
     assert len(serie) == len(todas)
     assert serie[-1].semana == max(semanas)
+    assert all(not punto.cambios for punto in serie), "sin cambio, sin marca"
