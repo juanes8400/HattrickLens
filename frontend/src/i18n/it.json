@@ -428,7 +428,8 @@
       "liga": "campionato",
       "partidos": "partite",
       "staff": "staff",
-      "transferencias": "trasferimenti"
+      "transferencias": "trasferimenti",
+      "uso": "utilizzo"
     },
     "severidad": {
       "danger": "Pericolo",

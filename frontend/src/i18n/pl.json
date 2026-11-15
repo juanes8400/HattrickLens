@@ -62,7 +62,8 @@
       "liga": "liga",
       "partidos": "mecze",
       "staff": "personel",
-      "transferencias": "transfery"
+      "transferencias": "transfery",
+      "uso": "użycie"
     },
     "nada": "W tej chwili nic nie wymaga twojej uwagi.",
     "ningunaFiltro": "Żaden aktywny alert nie pasuje do filtra.",

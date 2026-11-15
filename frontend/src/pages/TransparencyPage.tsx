@@ -23,6 +23,13 @@ import type {
 
 import { nombreDeHabilidad } from "../i18n/habilidades";
 import { tx } from "../i18n/tx";
+
+/** El nombre de cada ajuste de la matriz, en el idioma de la app. Llegaban
+ *  las claves del YAML («form», «stamina», «loyalty») también en español
+ *  (2026-11-15, revisión de QA). Fidelidad no está en el glosario. */
+function nombreDeAjuste(clave: string): string {
+  return clave === "loyalty" ? tx("Fidelidad") : nombreDeHabilidad(clave);
+}
 /**
  * Transparencia: como se calcula cada numero de la herramienta.
  *
@@ -418,7 +425,7 @@ function PositionsPanel({
                 key={name}
                 className="rounded border border-[var(--border)] bg-[var(--surface-2)] p-2"
               >
-                <b className="capitalize text-[var(--text)]">{name}</b>
+                <b className="text-[var(--text)]">{nombreDeAjuste(name)}</b>
                 <code className="mt-1 block font-mono text-[10px]">
                   {formula}
                 </code>

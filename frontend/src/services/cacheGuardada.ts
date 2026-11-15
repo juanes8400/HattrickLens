@@ -20,7 +20,9 @@ const EDAD_MAXIMA_MS = 24 * 60 * 60 * 1000;
 
 function persistible(clave: readonly unknown[]): boolean {
   const nombre = String(clave[0] ?? "");
-  return !/session|auth/i.test(nombre);
+  // Los diccionarios tampoco: pesan más de un megabyte y vienen del propio
+  // código, no del servidor (2026-11-15, los de la pantalla Uso).
+  return !/session|auth|diccionarios/i.test(nombre);
 }
 
 export function restaurarCache(qc: QueryClient): void {
