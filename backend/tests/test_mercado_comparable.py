@@ -1444,3 +1444,48 @@ def test_la_clave_de_verdad_se_lee_entera() -> None:
         clave_de_criterios(_objetivo(edad=31)), clave_de_criterios(_objetivo(edad=32))
     )
     assert [c.que for c in cambios] == ["edad"]
+
+
+# --------------------------------------------------------------------------
+# Las columnas de la tabla: su nivel en TUS habilidades (2026-11-15, opción A)
+# --------------------------------------------------------------------------
+
+
+def test_la_columna_dice_su_nivel_en_tu_habilidad_y_no_en_la_suya() -> None:
+    """El vendido tiene Lateral 6 y Jugadas 5; tu jugador, Jugadas 6.
+
+    Antes la tabla enseñaba sus tres más altas bajo los nombres de las tuyas,
+    y su Lateral 6 salía en la columna «Jugadas»: idéntico a la vista,
+    «Equivalente» en la etiqueta.
+    """
+    from app.application.queries.precio_comparable import _en_las_de
+
+    tuyo = _objetivo(defending=10, passing=6, playmaking=6)
+    vendido = _guardado(1, defending=10, passing=6, winger=6, playmaking=5)
+    assert [r.habilidad for r in (tuyo.primaria, tuyo.secundaria, tuyo.terciaria)] == [
+        "defending",
+        "playmaking",
+        "passing",
+    ]
+    assert "winger" in {
+        vendido.primaria.habilidad,
+        vendido.secundaria.habilidad,
+        vendido.terciaria.habilidad,
+    }
+    assert _en_las_de(vendido, tuyo) == (10, 5, 6)
+
+
+def test_sin_las_siete_lo_que_no_esta_en_sus_tres_no_se_sabe() -> None:
+    from app.application.queries.precio_comparable import _en_las_de
+
+    tuyo = _objetivo(defending=10, passing=6, playmaking=6)
+    viejo = _guardado(2, sin_las_siete=True, defending=10, passing=6, winger=6, playmaking=5)
+    assert _en_las_de(viejo, tuyo) == (10, None, 6)
+
+
+def test_el_identico_coincide_columna_a_columna() -> None:
+    from app.application.queries.precio_comparable import _en_las_de
+
+    tuyo = _objetivo(defending=10, passing=6, playmaking=6)
+    igual = _guardado(3, defending=10, passing=6, playmaking=6)
+    assert _en_las_de(igual, tuyo) == (10, 6, 6)

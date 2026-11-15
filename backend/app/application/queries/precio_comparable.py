@@ -163,6 +163,14 @@ class FilaDeComparable:
     #: (2026-10-09, pedido del usuario). No tiene precio ni plazo: no está en
     #: venta, está de referencia.
     propio: bool = False
+    #: SU NIVEL EN LAS TRES HABILIDADES DE TU JUGADOR, en el orden de `perfil`
+    #: del panel (2026-11-15, decisión del usuario, opción A). `perfil` son
+    #: las tres más altas DEL VENDIDO, y la tabla las pintaba bajo los nombres
+    #: de las del tuyo: un vendido con Lateral 6 y Jugadas 5 salía con un 6 en
+    #: la columna «Jugadas», idéntico a la vista y «Equivalente» en la etiqueta.
+    #: `None` cuando no lo sabemos: ventas guardadas sin sus siete habilidades
+    #: y en las que esa habilidad no está entre sus tres más altas.
+    en_tus_habilidades: tuple[int | None, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -396,6 +404,7 @@ async def precio_de(
             edad=foto.age_years or 0,
             dias=foto.age_days if foto.age_days is not None else -1,
             perfil=_perfil(objetivo),
+            en_tus_habilidades=tuple(r.nivel for r in _perfil(objetivo)),
             semanas=0,
             cierra=None,
             especialidad=SPECIALTIES.get(foto.specialty or 0, ""),
@@ -422,19 +431,41 @@ async def precio_de(
         # valen lo mismo: lo que el usuario pidió es «que se haya vendido», no
         # «que entre en la media». Si algún día una venta cerrada dejara de
         # promediar, seguiría siendo una venta y seguiría mereciendo su fila.
-        comparables=tuple(_fila(c, momento, paises, convertido) for c in elegidos if c.venta.firme),
+        comparables=tuple(
+            _fila(c, objetivo, momento, paises, convertido) for c in elegidos if c.venta.firme
+        ),
         # Y LO QUE SIGUE ESPERANDO SU PRECIO, en su propia tabla (2026-11-08).
         # Las mismas columnas de origen, otra lectura: ahí `precio` no
         # significa nada --nadie ha pagado-- y lo que habla es la puja, lo que
         # pide el dueño y cuándo cierra.
         en_espera=tuple(
-            _fila(c, momento, paises, convertido) for c in elegidos if not c.venta.firme
+            _fila(c, objetivo, momento, paises, convertido) for c in elegidos if not c.venta.firme
         ),
+    )
+
+
+def _en_las_de(venta: Guardado, objetivo: Objetivo) -> tuple[int | None, ...]:
+    """El nivel del vendido en cada una de las tres habilidades de tu jugador.
+
+    De sus siete habilidades cuando las tenemos; si no, de sus tres más altas,
+    que siempre se guardaron. Si esa habilidad no está en ninguna de las dos,
+    `None`: no la sabemos, y un 0 diría que no la tiene.
+    """
+    propias = {r.habilidad: r.nivel for r in (venta.primaria, venta.secundaria, venta.terciaria)}
+
+    def nivel(habilidad: str) -> int | None:
+        if habilidad in venta.habilidades:
+            return int(venta.habilidades[habilidad])
+        return propias.get(habilidad)
+
+    return tuple(
+        nivel(r.habilidad) for r in (objetivo.primaria, objetivo.secundaria, objetivo.terciaria)
     )
 
 
 def _fila(
     c: Comparable,
+    objetivo: Objetivo,
     momento: datetime,
     paises: dict[int, tuple[str, str]],
     convertido: Callable[[int], int],
@@ -458,6 +489,7 @@ def _fila(
         edad=c.venta.edad,
         dias=c.venta.dias,
         perfil=_perfil(c.venta),
+        en_tus_habilidades=_en_las_de(c.venta, objetivo),
         semanas=_semanas(c.venta.visto_el, momento),
         # EL PLAZO SALE DE LA VENTA, no de un diccionario por jugador
         # (2026-11-07). Desde la migración 0105 un mismo jugador puede tener
