@@ -1822,12 +1822,13 @@ class MarketEstimate(Base):
     prices_json: Mapped[str] = mapped_column(Text, default="[]")
     #: CON QUE SE LE COMPARABA ESE DIA: la ventana que de verdad salio por el
     #: cable, en una cadena (`clave_de_criterios`). Cuando cambia, la grafica
-    #: vuelve a empezar (2026-10-26, decision del usuario).
+    #: SIGUE y marca esa semana con lo que cambio (2026-11-15, decision del
+    #: usuario; hasta entonces volvia a empezar).
     #:
     #: Los criterios son del jugador y Hattrick los recalcula con el: al cumplir
     #: años cambia su ventana de edad, y al subir una habilidad cambia cual lo
-    #: identifica. Desde ese momento el barrido pregunta por OTRA gente, asi que
-    #: unir los dos tramos con una linea dibujaria una subida que no ocurrio.
+    #: identifica. Desde ese momento el barrido pregunta por OTRA gente, y por
+    #: eso se marca: un salto ahi puede ser del jugador y no del mercado.
     #:
     #: Vacia en las filas anteriores a la columna, y la vacia no coincide con
     #: ninguna ventana: el primer punto nuevo abre tramo. Ver la migracion 0107.

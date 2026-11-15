@@ -3,6 +3,7 @@ import {
   anchoDeKernel,
   bandBetween,
   histogramaDeErrorOption,
+  puentes,
   semanasEntre,
   serieDePuntosOption,
   tiraDePuntosOption,
@@ -255,11 +256,11 @@ describe("las gráficas del comparador", () => {
       // lleva los símbolos y los tooltips.
       expect(solida!.connectNulls).toBe(false);
       expect(solida!.symbol).not.toBe("none");
-      expect(puente!.connectNulls).toBe(true);
       expect(puente!.lineStyle?.type).toBe("dotted");
       expect(puente!.symbol).toBe("none");
-      // Los mismos valores: el puente no inventa ningún precio.
-      expect(puente!.data).toEqual([100_000, 120_000, null, null, 90_000]);
+      // SÓLO EL HUECO (2026-11-15): de 83-14 a 84-01, y nada entre 83-13 y
+      // 83-14, que son seguidas. Con los mismos precios: no inventa ninguno.
+      expect(puente!.data).toEqual([[1, 120_000], [4, 90_000], null]);
     });
 
     it("la semana en curso va HUECA y lo dice", () => {
@@ -284,6 +285,84 @@ describe("las gráficas del comparador", () => {
       ) as unknown as Record<string, unknown>;
       const linea = series(sin).find((s) => s.name === "Media") as Linea;
       expect(linea.markLine).toBeUndefined();
+    });
+
+    // 2026-11-15: la gráfica ya no vuelve a empezar cuando cambian los
+    // criterios. Sigue, y la semana del cambio lleva una raya vertical.
+    describe("la semana en que cambiaron los criterios", () => {
+      const conCambio = (
+        cambia: string,
+        extra: Partial<Parameters<typeof serieDePuntosOption>[1]> = {},
+      ) =>
+        serieDePuntosOption(
+          [
+            lectura("83-13", 100_000),
+            { ...lectura("83-14", 160_000), cambios: [{}] },
+            lectura("84-01", 170_000),
+          ].map((l) => (l.semana === cambia ? l : { ...l, cambios: [] })),
+          {
+            ...COMUNES,
+            etiquetaCambio: "cambio",
+            describirCambio: (i) => `marca ${i}`,
+            ...extra,
+          },
+        ) as unknown as Record<string, unknown>;
+      type ConMarca = Serie & {
+        markLine?: { data?: { xAxis: string; tip: string }[] };
+      };
+      const marcas = (opcion: Record<string, unknown>) =>
+        series(opcion).flatMap(
+          (s) =>
+            (s as ConMarca).markLine?.data?.filter((d) => "xAxis" in d) ?? [],
+        );
+
+      it("lleva una raya en esa semana, con lo que cambió", () => {
+        expect(marcas(conCambio("83-14"))).toEqual([
+          { xAxis: "83-14", tip: "marca 1" },
+        ]);
+      });
+
+      it("la raya sale aunque todavía no haya media", () => {
+        expect(marcas(conCambio("83-14", { conMedia: false }))).toHaveLength(1);
+      });
+
+      it("sin cambio no hay raya", () => {
+        expect(marcas(conCambio("ninguna"))).toEqual([]);
+      });
+    });
+
+    it("lo que queda fuera de las 25 semanas no se pinta encima de otra", () => {
+      // La serie ya no se corta al cambiar los criterios, así que puede traer
+      // más semanas de las que caben en el eje.
+      const larga = serieDePuntosOption(
+        [lectura("80-01", 999_000), lectura("84-01", 100_000)],
+        COMUNES,
+      ) as unknown as Record<string, unknown>;
+      const puntos = series(larga)
+        .filter((s) => s.type === "scatter")
+        .flatMap((s) => s.data as { value: [number, number] }[]);
+      expect(puntos.map((p) => p.value[1])).toEqual([100_000]);
+    });
+  });
+
+  describe("puentes", () => {
+    it("dos semanas seguidas no llevan punteado", () => {
+      expect(puentes([1, 2, 3])).toEqual([]);
+    });
+
+    it("cada hueco es un tramo suelto", () => {
+      expect(puentes([1, null, 3, 4, null, null, 7])).toEqual([
+        [0, 1],
+        [2, 3],
+        null,
+        [3, 4],
+        [6, 7],
+        null,
+      ]);
+    });
+
+    it("los vacíos de los extremos no se unen con nada", () => {
+      expect(puentes([null, 2, null])).toEqual([]);
     });
   });
 

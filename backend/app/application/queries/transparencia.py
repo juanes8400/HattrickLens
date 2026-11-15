@@ -2930,8 +2930,10 @@ def catalogo() -> list[Seccion]:
                         "venta y nada más.",
                         "Cuando al jugador le cambian los criterios de comparación "
                         "--al cumplir años o al subir una habilidad-- la gráfica "
-                        "vuelve a empezar: unir con una línea dos medidas distintas "
-                        "dibujaría una subida o una bajada que no ocurrió.",
+                        "continúa y esa semana se marca con una raya vertical que "
+                        "dice qué cambió: desde ahí se le compara con otra gente, y "
+                        "un salto en esa semana puede ser del jugador y no del "
+                        "mercado.",
                     ],
                 ),
             ],

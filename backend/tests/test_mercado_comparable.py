@@ -31,6 +31,7 @@ from app.domain.engines.mercado_comparable import (
     Guardado,
     Objetivo,
     caduco,
+    cambios_de_criterios,
     candidato_de,
     clave_de_criterios,
     comparables_de,
@@ -1399,3 +1400,47 @@ def test_un_mayor_o_igual_no_tiene_techo() -> None:
     assert not abierto.admite(12)
     banda = Criterio("playmaking", "banda", 13, 15)
     assert not banda.admite(16)
+
+
+# --------------------------------------------------------------------------
+# Qué se movió entre dos semanas (2026-11-15: la gráfica sigue y lo marca)
+# --------------------------------------------------------------------------
+
+
+def test_al_cumplir_años_solo_se_marca_la_edad() -> None:
+    antes = "24-26|scoring:7-9|passing:5-7|winger:4-6"
+    despues = "25-27|scoring:7-9|passing:5-7|winger:4-6"
+    cambios = cambios_de_criterios(antes, despues)
+    assert [(c.que, c.antes, c.despues) for c in cambios] == [("edad", "24-26", "25-27")]
+
+
+def test_al_subir_una_habilidad_se_marca_su_franja() -> None:
+    antes = "24-26|scoring:7-9|passing:5-7|winger:4-6"
+    despues = "24-26|scoring:8-10|passing:5-7|winger:4-6"
+    cambios = cambios_de_criterios(antes, despues)
+    assert [(c.que, c.antes, c.despues) for c in cambios] == [("scoring", "7-9", "8-10")]
+
+
+def test_la_habilidad_que_entra_y_la_que_sale_llevan_un_lado_vacio() -> None:
+    antes = "24-26|scoring:7-9|passing:5-7|winger:4-6"
+    despues = "24-26|scoring:7-9|passing:5-7|playmaking:6-8"
+    cambios = cambios_de_criterios(antes, despues)
+    assert [(c.que, c.antes, c.despues) for c in cambios] == [
+        ("playmaking", "", "6-8"),
+        ("winger", "4-6", ""),
+    ]
+
+
+def test_sin_cambio_o_sin_busqueda_no_hay_marca() -> None:
+    clave = clave_de_criterios(_objetivo())
+    assert cambios_de_criterios(clave, clave) == ()
+    assert cambios_de_criterios("", clave) == ()
+    assert cambios_de_criterios(clave, "") == ()
+
+
+def test_la_clave_de_verdad_se_lee_entera() -> None:
+    """Con la clave que sale de `clave_de_criterios`, no con una escrita a mano."""
+    cambios = cambios_de_criterios(
+        clave_de_criterios(_objetivo(edad=31)), clave_de_criterios(_objetivo(edad=32))
+    )
+    assert [c.que for c in cambios] == ["edad"]
