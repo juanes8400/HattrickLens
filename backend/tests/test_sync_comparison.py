@@ -906,3 +906,76 @@ def test_una_lectura_de_este_mismo_sync_ya_cuenta() -> None:
         await engine.dispose()
 
     asyncio.run(scenario())
+
+
+def test_las_ventas_del_aviso_son_las_ACUMULADAS_no_las_de_la_semana() -> None:
+    """2026-11-14, visto por el usuario: «5 → 7» cuando el comparador ya iba
+    por 12. Cada lectura es el punto de UNA semana (migración 0113), con las
+    ventas cerradas en esa semana. El aviso tiene que decir cuántas lleva:
+    5 la semana pasada y 7 ésta son «5 → 12». Una ventana de criterios
+    distinta no suma: con otros criterios se vuelve a empezar."""
+
+    async def scenario() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        ayer = datetime.now(UTC) - timedelta(days=7)
+        hoy = ayer + timedelta(days=7)
+        async with factory() as session:
+            team = m.Team(ht_team_id=537758, name="Pulgas Arrechas", currency_rate=1.0)
+            session.add(team)
+            await session.flush()
+            player = m.Player(
+                ht_player_id=472301981, team_id=team.id, first_name="Iñaki", last_name="B"
+            )
+            session.add(player)
+            await session.flush()
+            for momento in (ayer, hoy):
+                sync = m.Sync(
+                    user_id=1,
+                    team_id=team.id,
+                    kind="players",
+                    status="completed",
+                    started_at=momento,
+                    finished_at=momento,
+                )
+                session.add(sync)
+                await session.flush()
+                session.add(_player_snapshot(sync.id, player.id, momento))
+
+            # Con OTROS criterios, de antes: no suma.
+            session.add(
+                _lectura_de_valor(
+                    team.id,
+                    player.ht_player_id,
+                    ayer - timedelta(days=14),
+                    900_000,
+                    criteria_key="otra",
+                    n=9,
+                )
+            )
+            session.add(
+                _lectura_de_valor(
+                    team.id, player.ht_player_id, ayer - timedelta(hours=1), 1_000_000, n=5
+                )
+            )
+            session.add(
+                _lectura_de_valor(
+                    team.id, player.ht_player_id, hoy - timedelta(hours=1), 1_200_000, n=7
+                )
+            )
+            await session.commit()
+
+            report = await build_sync_comparison(session, team.id)
+
+        mv = report["valueMoves"][0]
+        assert (mv["nBefore"], mv["nAfter"]) == (5, 12)
+        await engine.dispose()
+
+    asyncio.run(scenario())
