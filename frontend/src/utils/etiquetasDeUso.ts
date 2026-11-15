@@ -21,14 +21,18 @@ export interface Pulsado {
   clicks: number;
 }
 
-/** De cualquier traducción, su texto en español. */
-export function inversoDe(diccionarios: Textos[]): Map<string, string> {
-  const inverso = new Map<string, string>();
+/** De cualquier traducción, su texto en español.
+ *
+ *  Un objeto plano y no un `Map`: viaja por la caché de consultas, que se
+ *  guarda como JSON. Con un `Map`, al recargar volvía como `{}` sin `.get` y
+ *  la pantalla Uso entera se caía (visto al verificar este mismo arreglo). */
+export function inversoDe(diccionarios: Textos[]): Textos {
+  const inverso: Textos = {};
   for (const d of diccionarios) {
     for (const [espanol, traducido] of Object.entries(d)) {
       // El primero gana: si dos textos españoles se traducen igual, son el
       // mismo botón a efectos de contarlo.
-      if (!inverso.has(traducido)) inverso.set(traducido, espanol);
+      if (!Object.hasOwn(inverso, traducido)) inverso[traducido] = espanol;
     }
   }
   return inverso;
@@ -41,19 +45,29 @@ export function inversoDe(diccionarios: Textos[]): Map<string, string> {
  */
 export function fusionarPulsados(
   pulsados: Pulsado[],
-  inverso: Map<string, string>,
+  inverso: Textos,
   mostrar: (espanol: string) => string,
 ): Pulsado[] {
+  // «Lo más pulsado» las guarda compuestas, «Pantalla · botón»: cada parte
+  // vuelve a su español y se enseña por separado.
+  const SEP = " · ";
+  const aEspanol = (label: string) =>
+    label
+      .split(SEP)
+      .map((parte) => (Object.hasOwn(inverso, parte) ? inverso[parte]! : parte))
+      .join(SEP);
+  const enPantalla = (espanol: string) =>
+    espanol.split(SEP).map(mostrar).join(SEP);
   const porBoton = new Map<string, number>();
   for (const p of pulsados) {
-    const espanol = inverso.get(p.label) ?? p.label;
+    const espanol = aEspanol(p.label);
     porBoton.set(espanol, (porBoton.get(espanol) ?? 0) + p.clicks);
   }
   // Dos textos españoles distintos pueden enseñarse igual en este idioma: se
   // suman también, para que la lista no repita una fila.
   const porVisible = new Map<string, number>();
   for (const [espanol, clicks] of porBoton) {
-    const visible = mostrar(espanol);
+    const visible = enPantalla(espanol);
     porVisible.set(visible, (porVisible.get(visible) ?? 0) + clicks);
   }
   return [...porVisible]

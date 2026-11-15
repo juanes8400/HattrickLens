@@ -37,10 +37,32 @@ describe("los pulsados, uno por botón", () => {
         { label: "Players", clicks: 8 },
         { label: "Players", clicks: 3 },
       ],
-      new Map(),
+      {},
       (x) => x,
     );
     expect(r).toEqual([{ label: "Players", clicks: 11 }]);
+  });
+
+  it("las compuestas «Pantalla · botón» se traducen parte por parte", () => {
+    const r = fusionarPulsados(
+      [
+        { label: "Jugadores · Logarítmica", clicks: 2 },
+        { label: "Spieler · Logarithmisch", clicks: 1 },
+      ],
+      inverso,
+      enIngles,
+    );
+    expect(r).toEqual([{ label: "Players · Logarithmic", clicks: 3 }]);
+  });
+
+  it("el diccionario sobrevive a la caché, que lo guarda como JSON", () => {
+    const vuelta = JSON.parse(JSON.stringify(inverso)) as typeof inverso;
+    const r = fusionarPulsados(
+      [{ label: "Spieler", clicks: 1 }],
+      vuelta,
+      enIngles,
+    );
+    expect(r).toEqual([{ label: "Players", clicks: 1 }]);
   });
 
   it("lo que no está en ningún diccionario se queda como llegó", () => {

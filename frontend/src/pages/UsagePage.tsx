@@ -29,7 +29,7 @@ import {
 /** Los cuatro diccionarios, para devolver cada etiqueta a su texto en
  *  español (ver `utils/etiquetasDeUso.ts`). Son los mismos trozos que carga
  *  el cambio de idioma; esta pantalla sólo la abre el autor. */
-async function cargarInverso(): Promise<Map<string, string>> {
+async function cargarInverso(): Promise<Textos> {
   const d = await Promise.all([
     import("../i18n/textos/en.json"),
     import("../i18n/textos/de.json"),
@@ -43,11 +43,12 @@ async function cargarInverso(): Promise<Map<string, string>> {
  *  diccionarios se juntan sólo los que ya se enseñan igual. */
 function usePulsados(): (lista: Pulsado[]) => Pulsado[] {
   const { data: inverso } = useQuery({
-    queryKey: ["uso", "inverso-de-etiquetas"],
+    // «diccionarios» la deja fuera de la caché guardada (cacheGuardada.ts).
+    queryKey: ["diccionarios", "inverso-de-etiquetas"],
     queryFn: cargarInverso,
     staleTime: Infinity,
   });
-  return (lista) => fusionarPulsados(lista, inverso ?? new Map(), tx);
+  return (lista) => fusionarPulsados(lista, inverso ?? {}, tx);
 }
 /** Qué usa la gente. Sólo la abre el administrador, la comprobación de verdad
  *  está en el servidor, en `require_admin`; esconder el enlace no protege nada.
