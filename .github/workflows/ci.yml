@@ -15,9 +15,7 @@ jobs:
       DATABASE_URL: postgresql+asyncpg://hattricklens:hattricklens@localhost:5432/hattricklens_test
       REDIS_URL: redis://localhost:6379/0
       SECRET_KEY: test
-      # Fernet exige EXACTAMENTE 32 bytes; la anterior descodificaba a 35
-      # y las tres pruebas de cifrado reventaban con ValueError.
-      TOKEN_ENCRYPTION_KEY: Y2xhdmUtZGUtcHJ1ZWJhLWRlLUNJLW5vLXJlYWwhISE=
+      # TOKEN_ENCRYPTION_KEY no va escrita aquí: la genera el primer paso.
     services:
       postgres:
         image: postgres:16-alpine
@@ -30,6 +28,16 @@ jobs:
         ports: ["6379:6379"]
     steps:
       - uses: actions/checkout@v4
+      # UNA CLAVE DE USAR Y TIRAR en cada ejecución (2026-11-15). Antes iba
+      # escrita en este fichero: era de prueba («clave-de-prueba-de-CI-no-real»)
+      # pero tenía forma de clave Fernet, y en un repositorio público cualquier
+      # escáner de secretos la daba por filtrada. Fernet exige 32 bytes en
+      # base64 urlsafe; se enmascara para que no salga en el registro.
+      - name: Clave de cifrado de usar y tirar
+        run: |
+          clave=$(python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())')
+          echo "::add-mask::$clave"
+          echo "TOKEN_ENCRYPTION_KEY=$clave" >> "$GITHUB_ENV"
       # La misma versión de `uv` que copia el Dockerfile de la raíz.
       - uses: astral-sh/setup-uv@v4
         with: {version: "0.13.7"}
