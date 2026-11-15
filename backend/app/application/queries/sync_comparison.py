@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.queries.player_balance import PlayerBalanceQueryService
 from app.application.queries.weekly import start_of_iso_week
 from app.domain.engines import academy_engine as academy
+from app.domain.engines.mercado_comparable import OBJETIVO_DE_DATOS
 from app.domain.engines.movimiento_de_valor import (
     Lectura,
     Movimiento,
@@ -1353,6 +1354,34 @@ async def _movimientos_de_valor(
     if not jugadores:
         return []
 
+    # CUÁNTAS VENTAS LLEVA, NO CUÁNTAS HUBO ESA SEMANA (2026-11-14, visto por
+    # el usuario: «5 → 7» cuando el comparador ya iba por 12). Desde la 0113
+    # cada fila es el punto de UNA semana y su `n` son las ventas cerradas en
+    # esa semana; tomarlo tal cual comparaba la semana pasada con ésta. Lo que
+    # se cuenta aquí es el acumulado desde que rige la misma ventana de
+    # criterios, con el mismo tope de comparables que el número grande del
+    # comparador.
+    semanales = (
+        await session.execute(
+            select(
+                m.MarketEstimate.ht_player_id,
+                m.MarketEstimate.criteria_key,
+                m.MarketEstimate.captured_at,
+                m.MarketEstimate.n,
+            ).where(m.MarketEstimate.team_id == team_id)
+        )
+    ).all()
+
+    def _acumulado(ht_player_id: int, criterios: str, cuando: datetime) -> int:
+        total = sum(
+            int(fila.n or 0)
+            for fila in semanales
+            if fila.ht_player_id == ht_player_id
+            and fila.criteria_key == criterios
+            and fila.captured_at <= cuando
+        )
+        return min(total, OBJETIVO_DE_DATOS)
+
     async def _lecturas_hasta(momento: datetime) -> dict[int, Lectura]:
         """La última lectura de CADA jugador anterior a `momento`.
 
@@ -1405,7 +1434,7 @@ async def _movimientos_de_valor(
                 nombre=jugadores.get(f.ht_player_id, ""),
                 valor=_en_moneda(f.mean_price),
                 criterios=f.criteria_key,
-                n=f.n,
+                n=_acumulado(f.ht_player_id, f.criteria_key, f.captured_at),
                 cuando=f.captured_at,
             )
             for f in filas
