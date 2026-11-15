@@ -34,9 +34,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.weekly import (
+    season_at_offset,
     season_for_datetime,
     season_week_for_datetime,
     season_week_label,
+    season_week_offset_for,
 )
 from app.domain.engines import timeseries as ts
 from app.domain.engines.economy_engine import (
@@ -602,6 +604,28 @@ def weekly_closes(rows: list[m.EconomySnapshot]) -> list[_WeeklyClose]:
     return salida
 
 
+def offset_de_la_semana_en_curso(
+    world: m.WorldContext | None,
+    closes: list[_WeeklyClose],
+    latest: m.EconomySnapshot,
+) -> int:
+    """Semanas entre la semana económica EN CURSO y la de `world` (0 = la misma).
+
+    La semana en curso es la SIGUIENTE a la última cerrada, y nunca anterior a
+    la de la última lectura. 2026-11-14, reportado por el usuario: «Dice 84-01
+    dos veces». Hattrick cerró la semana el sábado; la cerrada se etiqueta con
+    la semana en que cerró (84-01) y la en curso tomaba la de la lectura, que
+    hasta el lunes es la misma. Pero la que corre cierra el sábado siguiente:
+    es la 84-02. El «nunca anterior» cubre el cierre mal fechado de quien pasó
+    semanas sin sincronizar.
+    """
+    de_la_lectura = season_week_offset_for(world, latest.captured_at)
+    if not closes:
+        return de_la_lectura
+    tras_el_cierre = season_week_offset_for(world, closes[-1].closed_at) + 1
+    return max(de_la_lectura, tras_el_cierre)
+
+
 class EconomyQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
@@ -926,9 +950,13 @@ class EconomyQueryService:
 
         live_income_total = conv(latest.income_sum)
         live_costs_total = conv(latest.costs_sum)
+        # La semana en curso y todo lo que viene detrás (proyección, total de
+        # la temporada) cuentan desde aquí, no desde la fecha de la lectura.
+        en_curso = offset_de_la_semana_en_curso(world, closes, latest)
+        etiqueta_en_curso = season_week_label(world, weeks_offset=en_curso)
         current_week = SeriesPoint(
             date=_iso(latest.captured_at),
-            season_week=season_week_for_datetime(world, latest.captured_at),
+            season_week=etiqueta_en_curso,
             # `expected_cash`, no la caja cruda: cada punto de la serie es la
             # caja AL CIERRE de su semana (la lectura de una semana cerrada se
             # tomó ya cerrada), así que la semana en curso tiene que decir con
@@ -982,7 +1010,7 @@ class EconomyQueryService:
             p50=[int(v) for v in base.p50],
             p90=[int(v) for v in base.p90],
             model="bottom_up",
-            week_labels=[season_week_label(world, weeks_offset=w) for w in base.weeks],
+            week_labels=[season_week_label(world, weeks_offset=en_curso + w) for w in base.weeks],
         )
 
         # ── Ruta de series de tiempo ───────────────────────────────────────
@@ -1000,7 +1028,9 @@ class EconomyQueryService:
                 model=f.model,
                 backtest_mae=f.backtest_mae,
                 candidates=f.candidates,
-                week_labels=[season_week_label(world, weeks_offset=w) for w in forecast_weeks],
+                week_labels=[
+                    season_week_label(world, weeks_offset=en_curso + w) for w in forecast_weeks
+                ],
             )
 
         # La frase dice TRES cosas y ninguna más: qué ruta ganó, con qué
@@ -1061,13 +1091,13 @@ class EconomyQueryService:
         weekly_rows.append(
             (
                 WeeklyBreakdownRow(
-                    season_week=season_week_for_datetime(world, latest.captured_at),
+                    season_week=etiqueta_en_curso,
                     date=_iso(latest.captured_at),
                     is_current=True,
                     income=_income_breakdown_live(latest, conv),
                     costs=_costs_breakdown_live(latest, conv),
                 ),
-                season_for_datetime(world, latest.captured_at),
+                season_at_offset(world, weeks_offset=en_curso),
             )
         )
         weekly_rows.reverse()
