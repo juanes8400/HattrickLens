@@ -142,13 +142,18 @@ export function ApoyarPage() {
         </ul>
       </Panel>
 
-      <p className="prosa text-sm text-[var(--muted)]">
-        {tx("Y si prefieres no poner dinero, escribe en el")}{" "}
-        <a href="/libro" className="text-[var(--accent)] hover:underline">
-          {tx("libro de visitas")}
-        </a>
-        {tx(": saber qué te falta vale tanto como un café.")}
-      </p>
+      {/* SÓLO CON CLUB (2026-11-15, revisión de QA). El libro está detrás
+          del guardián: a quien llegaba aquí desde la bienvenida, sin club
+          conectado, el enlace lo devolvía a la bienvenida. */}
+      {conClub && (
+        <p className="prosa text-sm text-[var(--muted)]">
+          {tx("Y si prefieres no poner dinero, escribe en el")}{" "}
+          <a href="/libro" className="text-[var(--accent)] hover:underline">
+            {tx("libro de visitas")}
+          </a>
+          {tx(": saber qué te falta vale tanto como un café.")}
+        </p>
+      )}
     </div>
   );
 }

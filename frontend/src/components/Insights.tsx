@@ -59,6 +59,10 @@ const MODULE_ROUTES: Record<string, string> = {
   academia: "/academy",
   estadio: "/arena",
   staff: "/club",
+  // El backend las manda así (insights.py); sin estas dos, la alerta salía
+  // sin enlace (2026-11-15, revisión de QA).
+  "cuerpo técnico": "/club",
+  uso: "/uso",
   transferencias: "/transfers/balance",
   partidos: "/matches",
   general: "/sync",

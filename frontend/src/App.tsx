@@ -158,7 +158,18 @@ export function App() {
             --o el rastreador de anuncios, que nunca inicia sesion-- puede
             leer sin conectar su club. `/wiki`, la de dentro, se queda como
             estaba: misma materia, dos publicos. */}
-        <Route path="guia" element={<GuiaPage />} />
+        {/* CON SU ESPERA, como todas las diferidas (2026-11-15, revisión de
+            QA): sin ella, llegar aquí con un enlace interno --y no con una
+            recarga-- tumbaba la aplicación entera («A component suspended
+            while responding to synchronous input»). */}
+        <Route
+          path="guia"
+          element={
+            <Espera>
+              <GuiaPage />
+            </Espera>
+          }
+        />
         <Route path="privacidad" element={<PrivacidadPage />} />
         <Route path="cookies" element={<PrivacidadPage />} />
         {/* FUERA del guardián a propósito. La bienvenida invita a apoyar, y

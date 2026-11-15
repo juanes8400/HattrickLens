@@ -36,14 +36,14 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | Ruta | Página | Líneas | Leer | Endpoints | Dominio | Tests |
 | --- | --- | --: | --: | --- | --: | --: |
 | `/connected` | [ConnectedPage.tsx](../frontend/src/pages/ConnectedPage.tsx) | 59 | - | - | 0 | 0 |
-| `/welcome` | [WelcomePage.tsx](../frontend/src/pages/WelcomePage.tsx) | 260 | 2008 | auth_chpp | 0 | 0 |
+| `/welcome` | [WelcomePage.tsx](../frontend/src/pages/WelcomePage.tsx) | 268 | 2016 | auth_chpp | 0 | 0 |
 | `/guia` | [GuiaPage.tsx](../frontend/src/pages/GuiaPage.tsx) | 52 | - | - | 0 | 0 |
 | `/privacidad` | [PrivacidadPage.tsx](../frontend/src/pages/PrivacidadPage.tsx) | 194 | - | - | 0 | 0 |
 | `/cookies` | [PrivacidadPage.tsx](../frontend/src/pages/PrivacidadPage.tsx) | 194 | - | - | 0 | 0 |
-| `/apoyar` | [ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) | 154 | 9093 | dashboard | 10 | 38 |
+| `/apoyar` | [ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) | 159 | 9098 | dashboard | 10 | 38 |
 | `/setup` | [SetupPage.tsx](../frontend/src/pages/SetupPage.tsx) | 428 | 9634 | auth_chpp, dashboard | 10 | 38 |
-| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 878 | 34443 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard | 28 | 111 |
-| `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 29154 | alertas, alineacion, league, dashboard | 25 | 99 |
+| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 878 | 34447 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard | 28 | 111 |
+| `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 29158 | alertas, alineacion, league, dashboard | 25 | 99 |
 | `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 601 | 6172 | club | 4 | 8 |
 | `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 254 | 5875 | resumen | 5 | 19 |
 | `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 503 | 4644 | plantilla | 3 | 14 |
@@ -62,12 +62,12 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1374 | 22016 | rivals, dashboard | 17 | 81 |
 | `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1394 | 14443 | economy, precio_comparable | 11 | 37 |
 | `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3829 | arena | 3 | 11 |
-| `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 20654 | alertas | 19 | 87 |
+| `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 20658 | alertas | 19 | 87 |
 | `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 207 | 9187 | dashboard | 10 | 38 |
 | `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 873 | 15148 | player_balance, cambios, partidos, plantilla | 12 | 42 |
-| `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 1015 | 16094 | entrenamiento, modelos, modelos | 14 | 32 |
+| `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 1022 | 16101 | entrenamiento, modelos, modelos | 14 | 32 |
 | `/wiki` | [WikiPage.tsx](../frontend/src/pages/WikiPage.tsx) | 171 | - | - | 0 | 0 |
-| `/uso` | [UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) | 1604 | 4700 | uso | 1 | 6 |
+| `/uso` | [UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) | 1636 | 4798 | uso | 1 | 6 |
 | `/autor` | [AutorPage.tsx](../frontend/src/pages/AutorPage.tsx) | 331 | - | - | 0 | 0 |
 | `/*` | [frontend/src/components/Consentimiento.tsx](../frontend/src/components/Consentimiento.tsx) | 77 | - | - | 0 | 0 |
 
@@ -83,7 +83,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/welcome`
 
-- **Página:** [frontend/src/pages/WelcomePage.tsx](../frontend/src/pages/WelcomePage.tsx) (260 líneas)
+- **Página:** [frontend/src/pages/WelcomePage.tsx](../frontend/src/pages/WelcomePage.tsx) (268 líneas)
 - **Componentes y hooks suyos (12):**
   - [frontend/src/components/Anuncio.tsx](../frontend/src/components/Anuncio.tsx)
   - [frontend/src/components/Consentimiento.tsx](../frontend/src/components/Consentimiento.tsx)
@@ -145,7 +145,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/apoyar`
 
-- **Página:** [frontend/src/pages/ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) (154 líneas)
+- **Página:** [frontend/src/pages/ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) (159 líneas)
 - **Componentes y hooks suyos (8):**
   - [frontend/src/components/ApoyarProyecto.tsx](../frontend/src/components/ApoyarProyecto.tsx)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -841,7 +841,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/transparency`
 
-- **Página:** [frontend/src/pages/TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) (1015 líneas)
+- **Página:** [frontend/src/pages/TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) (1022 líneas)
 - **Componentes y hooks suyos (15):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
@@ -877,8 +877,8 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/uso`
 
-- **Página:** [frontend/src/pages/UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) (1604 líneas)
-- **Componentes y hooks suyos (11):**
+- **Página:** [frontend/src/pages/UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) (1636 líneas)
+- **Componentes y hooks suyos (12):**
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/CountryFlag.tsx](../frontend/src/components/CountryFlag.tsx)
   - [frontend/src/components/Insights.tsx](../frontend/src/components/Insights.tsx)
@@ -890,6 +890,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/countryCodes.ts](../frontend/src/utils/countryCodes.ts)
+  - [frontend/src/utils/etiquetasDeUso.ts](../frontend/src/utils/etiquetasDeUso.ts)
 - **Pide a `api.`:** `atenderReporte`, `avisos`, `publicarAviso`, `reportes`, `retirarAviso`, `usage`, `usageLog`
 - **Donde se escriben esas llamadas:** [frontend/src/services/api/uso.ts](../frontend/src/services/api/uso.ts)
 - **Rutas HTTP:** `/avisos`, `/avisos/:x/retirar`, `/feedback`, `/feedback/:x/atendido`, `/usage`, `/usage/log`

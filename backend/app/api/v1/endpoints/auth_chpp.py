@@ -103,7 +103,7 @@ async def connect() -> dict[str, str]:
             502,
             "Hattrick rechazó la petición de conexión. Lo habitual es que las "
             "claves de la aplicación no sean válidas o que la URL de retorno "
-            f"registrada en CHPP no coincida con {settings.chpp_callback_url} "
+            f"registrada en Hattrick no coincida con {settings.chpp_callback_url} "
             f"({exc.__class__.__name__}).",
         ) from exc
 

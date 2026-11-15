@@ -58,7 +58,7 @@ export function PrivacidadPage() {
       <Seccion titulo={tx("Qué es Hattrick Lens")}>
         <p>
           {tx(
-            "Hattrick Lens es una herramienta independiente para managers de Hattrick. Lee los datos de tu propio club a través de CHPP, la interfaz oficial de Hattrick, y los presenta en forma de cuadro de mando: entrenamiento, plantilla, alineación, finanzas y precios de mercado.",
+            "Hattrick Lens es una herramienta independiente para managers de Hattrick. Lee los datos de tu propio club a través de la interfaz oficial de Hattrick para aplicaciones, y los presenta en forma de cuadro de mando: entrenamiento, plantilla, alineación, finanzas y precios de mercado.",
           )}
         </p>
         <p>
@@ -76,7 +76,7 @@ export function PrivacidadPage() {
         </p>
         <p>
           {tx(
-            "Con ese permiso se leen los ficheros que publica CHPP sobre tu club: plantilla, entrenamiento, partidos, economía y mercado. Se guardan para poder enseñarte cómo cambian con el tiempo, que es justamente lo que Hattrick no conserva.",
+            "Con ese permiso se leen los datos que Hattrick publica sobre tu club: plantilla, entrenamiento, partidos, economía y mercado. Se guardan para poder enseñarte cómo cambian con el tiempo, que es justamente lo que Hattrick no conserva.",
           )}
         </p>
         <p>
@@ -177,7 +177,7 @@ export function PrivacidadPage() {
       <Seccion titulo={tx("Qué NO se hace")}>
         <p>
           {tx(
-            "No se venden ni se ceden tus datos. No hay analítica de terceros. No se lee nada de tu cuenta de Hattrick que no sean los ficheros que CHPP publica sobre tu propio club.",
+            "No se venden ni se ceden tus datos. No hay analítica de terceros. No se lee nada de tu cuenta de Hattrick que no sean los datos que Hattrick publica sobre tu propio club.",
           )}
         </p>
       </Seccion>

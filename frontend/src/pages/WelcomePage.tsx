@@ -14,6 +14,14 @@ import { tx } from "../i18n/tx";
 function messageFor(error: unknown): string {
   if (error instanceof ApiError) {
     if (typeof error.detail === "string") return error.detail;
+    // FastAPI lo manda envuelto, `{detail: "..."}`. Sin desenvolverlo, el 502
+    // de «Hattrick rechazó la petición…» se leía como «no se pudo contactar
+    // el servicio local», que era falso (2026-11-15, revisión de QA).
+    const dentro =
+      error.detail && typeof error.detail === "object"
+        ? (error.detail as { detail?: unknown }).detail
+        : undefined;
+    if (typeof dentro === "string") return dentro;
     if (error.status === 0 || error.status === 502) {
       return i18n.t(
         "bienvenida.errorServicio",

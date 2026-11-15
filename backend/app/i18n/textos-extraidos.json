@@ -415,7 +415,7 @@
  "Hattrick no permite esta operación: {}",
  "Hattrick no publica los ratings de un partido que todavía no se ha jugado. Nadie los conoce: dependen de la alineación que se envíe, de la forma del día y de las órdenes. Así que el primer problema no es predecir, es DESCRIBIR: hay que resumir en nueve números cómo suele salir cada equipo.",
  "Hattrick no responde: {}",
- "Hattrick rechazó la petición de conexión. Lo habitual es que las claves de la aplicación no sean válidas o que la URL de retorno registrada en CHPP no coincida con {} ({}).",
+ "Hattrick rechazó la petición de conexión. Lo habitual es que las claves de la aplicación no sean válidas o que la URL de retorno registrada en Hattrick no coincida con {} ({}).",
  "Hattrick rechazó la última búsqueda: {}",
  "Hattrick revocó el acceso: reconecta tu cuenta",
  "Hattrick tardó demasiado en responder. Suele ser pasajero: espera un momento y vuelve a intentarlo.",

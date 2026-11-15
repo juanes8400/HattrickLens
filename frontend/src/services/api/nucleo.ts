@@ -5,6 +5,7 @@
  *  `import { ... } from "../services/api"` sigue valiendo igual.
  */
 import i18n from "../../i18n";
+import { tx } from "../../i18n/tx";
 
 export const BASE = import.meta.env.VITE_API_URL ?? "/api/v1";
 
@@ -33,7 +34,7 @@ export function errorMessage(error: unknown): string {
     }
     return error.message;
   }
-  return error instanceof Error ? error.message : "Error desconocido.";
+  return error instanceof Error ? error.message : tx("Error desconocido.");
 }
 
 // La cookie de acceso dura pocos minutos (`jwt_access_ttl_minutes`) a

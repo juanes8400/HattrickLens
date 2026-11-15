@@ -19,6 +19,36 @@ import type { AvisoDelAutor, UsageSummary, UsageUser } from "../services/api";
 import { usePersistido } from "../hooks/usePersistido";
 
 import { tx } from "../i18n/tx";
+import {
+  type Pulsado,
+  type Textos,
+  fusionarPulsados,
+  inversoDe,
+} from "../utils/etiquetasDeUso";
+
+/** Los cuatro diccionarios, para devolver cada etiqueta a su texto en
+ *  español (ver `utils/etiquetasDeUso.ts`). Son los mismos trozos que carga
+ *  el cambio de idioma; esta pantalla sólo la abre el autor. */
+async function cargarInverso(): Promise<Map<string, string>> {
+  const d = await Promise.all([
+    import("../i18n/textos/en.json"),
+    import("../i18n/textos/de.json"),
+    import("../i18n/textos/it.json"),
+    import("../i18n/textos/pl.json"),
+  ]);
+  return inversoDe(d.map((m) => m.default as Textos));
+}
+
+/** Los pulsados, uno por botón y en el idioma de la app. Mientras llegan los
+ *  diccionarios se juntan sólo los que ya se enseñan igual. */
+function usePulsados(): (lista: Pulsado[]) => Pulsado[] {
+  const { data: inverso } = useQuery({
+    queryKey: ["uso", "inverso-de-etiquetas"],
+    queryFn: cargarInverso,
+    staleTime: Infinity,
+  });
+  return (lista) => fusionarPulsados(lista, inverso ?? new Map(), tx);
+}
 /** Qué usa la gente. Sólo la abre el administrador, la comprobación de verdad
  *  está en el servidor, en `require_admin`; esconder el enlace no protege nada.
  *
@@ -290,6 +320,7 @@ export function UsagePage() {
 // ── Resumen ────────────────────────────────────────────────────────────────
 
 function Resumen({ data }: { data: UsageSummary }) {
+  const pulsados = usePulsados();
   const maxMinutos = Math.max(...data.modules.map((m) => m.minutes), 1);
   const maxHora = Math.max(...Object.values(data.byHour), 1);
 
@@ -397,7 +428,7 @@ function Resumen({ data }: { data: UsageSummary }) {
             </p>
           ) : (
             <ul className="divide-y divide-[var(--border)]">
-              {data.topControls.map((c) => (
+              {pulsados(data.topControls).map((c) => (
                 <li
                   key={c.label}
                   className="flex items-baseline justify-between gap-3 px-4 py-2 text-sm"
@@ -805,6 +836,7 @@ function FilaDePersona({
 // ── Adopción ───────────────────────────────────────────────────────────────
 
 function Adopcion({ data }: { data: UsageSummary }) {
+  const pulsados = usePulsados();
   return (
     <>
       <Panel
@@ -901,9 +933,9 @@ function Adopcion({ data }: { data: UsageSummary }) {
           <ul className="divide-y divide-[var(--border)]">
             {data.insideEach.map((s) => (
               <li key={s.module} className="px-4 py-3">
-                <div className="text-sm font-medium">{s.module}</div>
+                <div className="text-sm font-medium">{tx(s.module)}</div>
                 <ul className="mt-1 space-y-0.5">
-                  {s.controls.map((c) => (
+                  {pulsados(s.controls).map((c) => (
                     <li
                       key={c.label}
                       className="flex items-baseline justify-between gap-3 text-sm text-[var(--muted)]"
