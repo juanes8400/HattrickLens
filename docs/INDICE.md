@@ -44,7 +44,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/setup` | [SetupPage.tsx](../frontend/src/pages/SetupPage.tsx) | 428 | 9634 | auth_chpp, dashboard | 10 | 38 |
 | `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 878 | 34443 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard | 28 | 111 |
 | `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 29154 | alertas, alineacion, league, dashboard | 25 | 99 |
-| `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 595 | 6086 | club | 4 | 8 |
+| `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 601 | 6172 | club | 4 | 8 |
 | `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 254 | 5875 | resumen | 5 | 19 |
 | `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 503 | 4644 | plantilla | 3 | 14 |
 | `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1079 | 9498 | resumen, skills | 9 | 34 |
@@ -253,8 +253,8 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/club`
 
-- **Página:** [frontend/src/pages/ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) (595 líneas)
-- **Componentes y hooks suyos (18):**
+- **Página:** [frontend/src/pages/ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) (601 líneas)
+- **Componentes y hooks suyos (19):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -270,6 +270,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
   - [frontend/src/i18n/glosario.ts](../frontend/src/i18n/glosario.ts)
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
+  - [frontend/src/services/api/club.ts](../frontend/src/services/api/club.ts)
   - [frontend/src/utils/skillLevels.ts](../frontend/src/utils/skillLevels.ts)
   - [frontend/src/utils/staffEffects.ts](../frontend/src/utils/staffEffects.ts)
   - [frontend/src/utils/ventanaDeGraficas.ts](../frontend/src/utils/ventanaDeGraficas.ts)
