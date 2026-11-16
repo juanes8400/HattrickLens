@@ -191,7 +191,6 @@ export function LeaguePage() {
   const own = data.ownOutlook;
   // Mismo umbral que `SHRINKAGE_K` en el motor: por debajo de eso, el prior
   // de "equipo medio" pesa más que la evidencia propia de este equipo.
-  const lowConfidence = data.roundsPlayed < data.model.shrinkageK;
   const gap = leaderGap(data);
 
   return (
@@ -300,7 +299,10 @@ export function LeaguePage() {
             {/* SIN SERIE NO SE REPITE: el aviso de arriba ya lo dijo, y
                 mejor. Dos cuadros amarillos seguidos diciendo casi lo mismo
                 hacen que no se lea ninguno. */}
-            {sinSerieTodavia(data) ? null : sinEmpezar(data) ? (
+            {/* SIN «CONFIANZA TODAVÍA BAJA» (2026-11-15, «Quitar este
+                mensaje»): con una jornada jugada el aviso decía lo que los
+                propios números ya cuentan, y en jerga («el prior»). */}
+            {!sinSerieTodavia(data) && sinEmpezar(data) && (
               <div
                 role="alert"
                 className="rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-4 py-3 text-sm text-[var(--warning)]"
@@ -309,18 +311,6 @@ export function LeaguePage() {
                   "La temporada no ha empezado: sin un solo partido jugado ni calendario publicado, los ocho equipos son idénticos para el modelo y estos números son el reparto a partes iguales (1 de 8 el título, 4 de 8 el Top 4), no un pronóstico.",
                 )}
               </div>
-            ) : (
-              lowConfidence && (
-                <div
-                  role="alert"
-                  className="rounded-lg border border-[var(--warning)]/30 bg-[var(--warning)]/10 px-4 py-3 text-sm text-[var(--warning)]"
-                >
-                  {tx("Confianza todavía baja:")} {data.roundsPlayed}{" "}
-                  {tx(
-                    "jornada(s) jugada(s); el prior pesa más que los resultados observados.",
-                  )}
-                </div>
-              )
             )}
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
