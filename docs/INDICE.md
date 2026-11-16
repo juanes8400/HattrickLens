@@ -48,19 +48,19 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 254 | 5942 | resumen | 5 | 19 |
 | `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 503 | 4644 | plantilla | 3 | 14 |
 | `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1079 | 9498 | resumen, skills | 9 | 34 |
-| `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1533 | 18564 | jugadores, player_balance, precio_comparable, jugadores | 15 | 47 |
+| `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1533 | 18562 | jugadores, player_balance, precio_comparable, jugadores | 15 | 47 |
 | `/positions` | [PositionsPage.tsx](../frontend/src/pages/PositionsPage.tsx) | 355 | 4199 | plantilla | 3 | 14 |
 | `/lineup` | [LineupPage.tsx](../frontend/src/pages/LineupPage.tsx) | 1019 | 9292 | alineacion, plantilla | 10 | 23 |
 | `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 2157 | 14361 | entrenamiento, jugadores, club | 10 | 38 |
-| `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3674 | 16722 | player_balance, precio_comparable, jugadores, plantilla | 10 | 33 |
+| `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3674 | 16720 | player_balance, precio_comparable, jugadores, plantilla | 10 | 33 |
 | `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1215 | libro | 0 | 1 |
 | `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4039 | 16135 | academy | 13 | 31 |
 | `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 684 | 6292 | matches | 4 | 16 |
-| `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1763 | 17537 | league | 13 | 69 |
+| `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1753 | 17527 | league | 13 | 69 |
 | `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1063 | 14588 | cup | 16 | 76 |
 | `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 343 | 16865 | cup, league | 18 | 80 |
 | `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1374 | 22083 | rivals, dashboard | 17 | 81 |
-| `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1394 | 14623 | economy, precio_comparable | 11 | 37 |
+| `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1394 | 14621 | economy, precio_comparable | 11 | 37 |
 | `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3829 | arena | 3 | 11 |
 | `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 20658 | alertas | 19 | 87 |
 | `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 207 | 9187 | dashboard | 10 | 38 |
@@ -597,7 +597,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/league`
 
-- **Página:** [frontend/src/pages/LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) (1763 líneas)
+- **Página:** [frontend/src/pages/LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) (1753 líneas)
 - **Componentes y hooks suyos (21):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
