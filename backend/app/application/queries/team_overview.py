@@ -807,11 +807,14 @@ class TeamOverviewQueryService:
             ),
         )
 
+        # CLASES DE JUGADOR (2026-11-16): la pestaña pide lo suyo a
+        # `/player-classes`. No va aquí porque este resumen se guarda una vez
+        # por sincronización, y la etapa confirmada a mano y los grupos
+        # propios cambian sin sincronizar.
         player_classes = OverviewGroup(
             key="player_classes",
             label="Clases de Jugador",
-            chart="pending",
-            note="Todavía no hay nada definido aquí.",
+            chart="classes",
         )
 
         return TeamOverview(

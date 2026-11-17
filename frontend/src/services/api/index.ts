@@ -18,6 +18,17 @@ export type {
 } from "./alineacion";
 export type { SessionProfile, SessionTeam } from "./auth";
 export type {
+  CasillaDeOnce,
+  ClasesDeJugador,
+  EtapaDeCarrera,
+  GrupoDePotencial,
+  GrupoPropio,
+  JugadorDeClases,
+  OnceDeFormacion,
+  ReglasDeEtapa,
+  Titularidad,
+} from "./clases";
+export type {
   Club,
   ClubStaffRole,
   ClubStaffRoleEffect,
@@ -227,6 +238,7 @@ import { apiModelos } from "./modelos";
 import { apiPartidos } from "./partidos";
 import { apiPlantilla } from "./plantilla";
 import { apiResumen } from "./resumen";
+import { apiClases } from "./clases";
 import { apiRivales } from "./rivales";
 import { apiSincronizacion } from "./sincronizacion";
 import { apiTransferencias } from "./transferencias";
@@ -237,6 +249,7 @@ export const api = {
   ...apiAlertas,
   ...apiAlineacion,
   ...apiAuth,
+  ...apiClases,
   ...apiClub,
   ...apiComun,
   ...apiCopa,

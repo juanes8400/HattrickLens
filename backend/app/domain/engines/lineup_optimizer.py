@@ -242,6 +242,9 @@ class Lineup:
     assignments: list[Assignment]
     total_rating: float
     bench: list[BenchPick] = field(default_factory=list)
+    #: Las casillas que nadie ocupa, sólo con `con_huecos=True` y menos de
+    #: once disponibles. Cada una es (índice de casilla, casilla sin orden).
+    holes: list[tuple[int, str]] = field(default_factory=list)
 
     @property
     def manual_share(self) -> float:
@@ -348,8 +351,14 @@ def best_lineup(
     inner_midfielders: int | None = None,
     orders: dict[int, str] | None = None,
     optimize_orders: bool = True,
+    con_huecos: bool = False,
 ) -> Lineup:
     """Mejor once posible para una formación. HL-121.
+
+    `con_huecos` (2026-11-16, Clases de Jugador): con menos de once
+    disponibles, en vez de negarse, coloca a los que hay en sus mejores
+    casillas y deja las demás en `holes`. Es la Suplencia de una plantilla
+    corta: «los pone en sus mejores puestos y deja huecos».
 
     `exclude` son ht_player_id a dejar fuera (lesionados, sancionados, vendidos).
 
@@ -377,12 +386,11 @@ def best_lineup(
     available = [
         p for p in players if p.get("ht_player_id") not in exclude and p.get("injury_level", -1) < 1
     ]
-    if len(available) < len(slots):
+    if len(available) < len(slots) and not con_huecos:
         raise ValueError(
             f"hacen falta {len(slots)} jugadores disponibles y solo hay {len(available)}"
         )
 
-    overcrowd = _overcrowd_multipliers(slots)
     fijadas = dict(orders or {})
     # Una orden fijada tiene que caber en SU casilla. Sin esto, pedir un
     # "lateral ofensivo" en la casilla de un central se aceptaba en silencio y
@@ -397,33 +405,51 @@ def best_lineup(
                 f"las de esa casilla son {', '.join(permitidas)}"
             )
 
-    def _elegir(player: dict[str, Any], j: int) -> tuple[str, float]:
-        slot = slots[j]
-        pinned = fijadas.get(j)
-        if pinned is None and not optimize_orders:
-            pinned = slot
-        return _best_variant(player, slot, overcrowd, pinned, variantes_de_casilla(slots, j))
-
     n = len(available)
-    # Matriz cuadrada n×n: las columnas sobrantes son "banquillo" con coste 0.
-    # Cada celda ya lleva la MEJOR orden de ese jugador en esa casilla, así que
-    # el húngaro sigue resolviendo una asignación normal y el resultado sigue
-    # siendo el óptimo exacto.
-    big = max(len(slots), n)
-    cost = [[0.0] * big for _ in range(big)]
-    elegido: dict[tuple[int, int], tuple[str, float]] = {}
-    for i, player in enumerate(available):
-        for j in range(len(slots)):
-            variante, valor = _elegir(player, j)
-            elegido[(i, j)] = (variante, valor)
-            cost[i][j] = -valor  # minimizar = maximizar
 
-    matching = _hungarian(cost)
+    def _asignar(
+        overcrowd: dict[str, float],
+    ) -> tuple[list[int], dict[tuple[int, int], tuple[str, float]]]:
+        # Matriz cuadrada: las columnas sobrantes son "banquillo" con coste 0.
+        # Cada celda ya lleva la MEJOR orden de ese jugador en esa casilla, así
+        # que el húngaro sigue resolviendo una asignación normal y el resultado
+        # sigue siendo el óptimo exacto.
+        big = max(len(slots), n)
+        cost = [[0.0] * big for _ in range(big)]
+        elegido: dict[tuple[int, int], tuple[str, float]] = {}
+        for i, player in enumerate(available):
+            for j in range(len(slots)):
+                pinned = fijadas.get(j)
+                if pinned is None and not optimize_orders:
+                    pinned = slots[j]
+                variante, valor = _best_variant(
+                    player, slots[j], overcrowd, pinned, variantes_de_casilla(slots, j)
+                )
+                elegido[(i, j)] = (variante, valor)
+                cost[i][j] = -valor  # minimizar = maximizar
+        return _hungarian(cost), elegido
+
+    def _ocupadas(matching: list[int]) -> list[str]:
+        return [slots[j] for i, j in enumerate(matching) if i < n and j < len(slots)]
+
+    matching, elegido = _asignar(_overcrowd_multipliers(slots))
+    # CON HUECOS, EL CASTIGO POR AMONTONAR SE CUENTA CON LOS QUE JUEGAN
+    # (2026-11-16). Tres casillas de mediocentro con uno solo dentro no son
+    # tres mediocentros estorbándose: Hattrick castiga a los que están, no a
+    # los que la formación habría puesto. Se recalcula con las casillas
+    # ocupadas hasta que el reparto no cambie (dos o tres vueltas a lo sumo).
+    if n < len(slots):
+        for _ in range(4):
+            antes = sorted(_ocupadas(matching))
+            matching, elegido = _asignar(_overcrowd_multipliers(antes))
+            if sorted(_ocupadas(matching)) == antes:
+                break
 
     assignments: list[Assignment] = []
     used: set[int] = set()
     for i, j in enumerate(matching):
-        if j < len(slots):
+        # Con huecos la matriz tiene filas de relleno (i ≥ n): no son nadie.
+        if i < n and j < len(slots):
             pos, value = elegido[(i, j)]
             assignments.append(
                 Assignment(
@@ -441,12 +467,14 @@ def best_lineup(
 
     assignments.sort(key=lambda a: a.slot)
     restantes = [p for i, p in enumerate(available) if i not in used]
+    ocupadas = {a.slot for a in assignments}
 
     return Lineup(
         formation=formation,
         assignments=assignments,
         total_rating=round(sum(a.rating for a in assignments), 2),
         bench=_banquillo(restantes),
+        holes=[(j, s) for j, s in enumerate(slots) if j not in ocupadas],
     )
 
 

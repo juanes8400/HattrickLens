@@ -77,8 +77,8 @@ export interface TeamOverviewSpecialRole {
 export interface TeamOverviewGroup {
   key: string;
   label: string;
-  /** `pending` = la pestaña existe pero su contenido está por definir. */
-  chart: "line" | "bars" | "pitch" | "pending";
+  /** `classes` = Clases de Jugador, que pide lo suyo a `/player-classes`. */
+  chart: "line" | "bars" | "pitch" | "classes";
   pitch: TeamOverviewPitchSlot[];
   specialRoles: TeamOverviewSpecialRole[];
   note: string;

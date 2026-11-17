@@ -1403,7 +1403,6 @@
   "Todas las temporadas": "Tutte le stagioni",
   "Todavía no hay dos snapshots reales en fechas distintas para comparar tendencia de habilidades, se necesita al menos una sincronización más, en otra semana, para clasificar con algo de base.": "Non ci sono ancora due snapshot reali in date diverse per confrontare l'andamento delle abilità; serve almeno un'altra sincronizzazione, in un'altra settimana, per classificare con una base.",
   "Todavía no hay dos subidas consecutivas en la habilidad entrenada, así que no se puede contrastar la fórmula con pops confirmados. Cada sincronización con nuevas subidas la habilita.": "Non ci sono ancora due aumenti consecutivi nell'abilità allenata, quindi non si può verificare la formula con aumenti confermati. Ogni sincronizzazione con nuovi aumenti lo abilita.",
-  "Todavía no hay nada definido aquí.": "Qui non è ancora definito niente.",
   "Todavía no hay partidos de Copa sincronizados.": "Non ci sono ancora partite di Coppa sincronizzate.",
   "Todavía no hay subidas confirmadas de esta habilidad para este jugador.": "Non ci sono ancora aumenti confermati di questa abilità per questo giocatore.",
   "Todo caduca, también el dato idéntico. Hubo una regla que lo declaraba inmune, con el argumento de que un comparable exacto es el mejor dato posible y nada más fresco puede mejorarlo. Se retiró porque el relevo ya protege contra quedarse sin datos: sin la lista llena no sale nadie, así que la inmunidad no evitaba ningún daño y sí mantenía precios viejos presentándolos como recientes.": "Tutto scade, anche il dato identico. C'era una regola che lo dichiarava immune, con l'argomento che un comparabile esatto è il miglior dato possibile e nulla di più fresco può migliorarlo. Si è ritirata perché il ricambio già protegge dal restare senza dati: senza lista piena non esce nessuno, quindi l'immunità non evitava alcun danno e sì manteneva prezzi vecchi presentandoli come recenti.",
@@ -1963,5 +1962,8 @@
   "λ tuya = 0,902 + 0,666 = 1,567 goles esperados.": "La tua λ = 0,902 + 0,666 = 1,567 gol attesi.",
   "λ tuya = 1,633 y λ suya = 2,641, del paso anterior.": "La tua λ = 1,633 e la loro λ = 2,641, dal passo precedente.",
   "λ_local   = ataque_i · defensa_j · media_liga · ventaja_local\nλ_visita  = ataque_j · defensa_i · media_liga\n\nfuerza_i  = (goles_i + K · media) ÷ (partidos_i + K)\n\nP(puesto) ≈ Monte Carlo sobre las jornadas que faltan": "λ_casa      = attacco_i · difesa_j · media_campionato · vantaggio_casa\nλ_trasferta = attacco_j · difesa_i · media_campionato\n\nforza_i  = (gol_i + K · media) ÷ (partite_i + K)\n\nP(posizione) ≈ Monte Carlo sulle giornate che restano",
-  "← el que se usa": "← quello in uso"
+  "← el que se usa": "← quello in uso",
+  "color desconocido: {}, válidos: {}": "colore sconosciuto: {}, validi: {}",
+  "como mucho {} grupos": "al massimo {} gruppi",
+  "grupo {} no existe en este equipo": "il gruppo {} non esiste in questa squadra"
 }

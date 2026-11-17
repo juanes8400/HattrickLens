@@ -91,6 +91,9 @@ CAMPOS_INTOCABLES = frozenset(
         "home",
         "away",
         "email",
+        # El nombre de un grupo propio de Clases de Jugador (2026-11-16): lo
+        # escribe el usuario, y uno llamado «Delantero» saldría «Forward».
+        "groupName",
     }
 )
 

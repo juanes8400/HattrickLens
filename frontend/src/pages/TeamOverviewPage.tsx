@@ -15,6 +15,7 @@ import {
   Panel,
   SinDatos,
 } from "../components/Panels";
+import { ClasesDeJugador } from "../components/clases/ClasesDeJugador";
 import { useTeamOverview } from "../hooks/useTeam";
 import { decimal, money, number } from "../hooks/useFormat";
 import type { TeamOverviewGroup, TeamOverviewMetric } from "../services/api";
@@ -220,8 +221,8 @@ export function TeamOverviewPage() {
       <Panel
         title={active.label}
         meta={
-          active.chart === "pending"
-            ? t("equipo.porDefinir", "por definir")
+          active.chart === "classes"
+            ? undefined
             : active.chart === "line"
               ? t(
                   "equipo.semanasJugadores",
@@ -233,13 +234,8 @@ export function TeamOverviewPage() {
                 })
         }
       >
-        {active.chart === "pending" ? (
-          <Empty>
-            {t(
-              "equipo.sinContenido",
-              "Esta pestaña todavía no tiene contenido.",
-            )}
-          </Empty>
+        {active.chart === "classes" ? (
+          <ClasesDeJugador />
         ) : active.chart === "line" ? (
           <GroupLines group={active} />
         ) : active.metrics.length === 0 ? (

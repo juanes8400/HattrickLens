@@ -10,6 +10,7 @@ señales crudas (`signals`) para que la UI pueda mostrar el porqué, no solo
 la etiqueta.
 """
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,6 +20,42 @@ from app.domain.engines.pricing_engine import age_factor
 # valor ~22-27 años, cae fuerte desde los 28).
 YOUNG_MAX_AGE = 21
 PEAK_MAX_AGE = 27
+#: Entre 22 y 27, por debajo de este percentil es «Pieza de rotación»; por
+#: encima de `PEAK_PERCENTILE` es «En su pico» con confianza alta, y en medio
+#: también «En su pico», con confianza moderada.
+ROTATION_BELOW_PERCENTILE = 40
+PEAK_PERCENTILE = 60
+
+
+@dataclass(frozen=True)
+class Tendencia:
+    rising: int
+    falling: int
+    stable: int
+    has_sufficient_history: bool
+
+
+def tendencia_de_habilidades(
+    historial: Sequence[Mapping[str, int]], columnas: Sequence[str]
+) -> Tendencia:
+    """Cuántas de `columnas` subieron, bajaron o se quedaron igual entre el
+    snapshot más antiguo y el más reciente. Con menos de dos no hay tendencia.
+
+    Vivía dentro de la ficha del jugador; Clases de Jugador necesita la misma
+    etapa para toda la plantilla, y dos copias acabarían contando distinto."""
+    if len(historial) < 2:
+        return Tendencia(0, 0, 0, False)
+    antes, ahora = historial[0], historial[-1]
+    subir = bajar = igual = 0
+    for c in columnas:
+        o, n = antes.get(c, 0), ahora.get(c, 0)
+        if n > o:
+            subir += 1
+        elif n < o:
+            bajar += 1
+        else:
+            igual += 1
+    return Tendencia(subir, bajar, igual, True)
 
 
 @dataclass
@@ -95,7 +132,7 @@ def classify_career_stage(
         )
 
     if age_years <= PEAK_MAX_AGE:
-        if squad_percentile is not None and squad_percentile >= 60:
+        if squad_percentile is not None and squad_percentile >= PEAK_PERCENTILE:
             return CareerStage(
                 stage="pico",
                 label="En su pico",
@@ -107,7 +144,7 @@ def classify_career_stage(
                 confidence="alta",
                 signals=signals,
             )
-        if squad_percentile is not None and squad_percentile < 40:
+        if squad_percentile is not None and squad_percentile < ROTATION_BELOW_PERCENTILE:
             return CareerStage(
                 stage="rotacion",
                 label="Pieza de rotación",

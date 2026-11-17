@@ -308,16 +308,14 @@ class PlayerHistoryQueryService:
         own_snap = latest.get(ht_player_id)
         if own_snap is None:
             return None
-        own_skills = {c: getattr(own_snap, c) or 0 for c in SKILL_COLS}
-        dominant = max(own_skills, key=lambda s: own_skills[s])
-        own_value = float(own_skills[dominant])
-        peers = [float(getattr(s, dominant) or 0) for s in latest.values()]
-        return {
-            "skill": dominant,
-            "value": own_value,
-            "percentile": round(percentile_rank(peers, own_value), 1),
-            "squadSize": len(peers),
-        }
+        return _percentil_dominante(own_snap, latest)
+
+    async def dominant_skill_percentiles(self, team_id: int) -> dict[int, dict[str, Any]]:
+        """Lo mismo que `dominant_skill_percentile` para toda la plantilla,
+        leyendo las fotos una sola vez (Clases de Jugador, 2026-11-16: pedirlo
+        jugador a jugador releía la plantilla entera diecinueve veces)."""
+        latest = await self._latest_snapshots_by_ht_id(team_id)
+        return {pid: _percentil_dominante(snap, latest) for pid, snap in latest.items()}
 
     async def experience_progress(self, ht_player_id: int) -> exp.ExperienceProgress | None:
         """% real hacia la próxima subida de experiencia, HL-15x #11, fórmula
@@ -586,3 +584,19 @@ class PlayerHistoryQueryService:
             if prev is None or snap.captured_at > prev.captured_at:
                 latest[player.ht_player_id] = snap
         return latest
+
+
+def _percentil_dominante(
+    own_snap: m.PlayerSnapshot, latest: dict[int, m.PlayerSnapshot]
+) -> dict[str, Any]:
+    """Percentil de un jugador en SU habilidad dominante dentro de `latest`."""
+    own_skills = {c: getattr(own_snap, c) or 0 for c in SKILL_COLS}
+    dominant = max(own_skills, key=lambda s: own_skills[s])
+    own_value = float(own_skills[dominant])
+    peers = [float(getattr(s, dominant) or 0) for s in latest.values()]
+    return {
+        "skill": dominant,
+        "value": own_value,
+        "percentile": round(percentile_rank(peers, own_value), 1),
+        "squadSize": len(peers),
+    }

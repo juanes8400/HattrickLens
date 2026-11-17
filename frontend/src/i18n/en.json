@@ -641,9 +641,7 @@
     "canchaAria": "Each player's best position on the pitch",
     "sincronizaMedias": "Sync to calculate the squad averages.",
     "intro": "Average of the {{n}} players at {{club}}, week by week.",
-    "porDefinir": "to be defined",
-    "semanasJugadores": "{{semanas}} week(s) · {{n}} players",
-    "sinContenido": "This tab has no content yet."
+    "semanasJugadores": "{{semanas}} week(s) · {{n}} players"
   },
   "posiciones": {
     "familia": {

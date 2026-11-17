@@ -641,9 +641,7 @@
     "canchaAria": "Beste Position jedes Spielers auf dem Feld",
     "sincronizaMedias": "Synchronisier, um die Durchschnitte des Kaders zu berechnen.",
     "intro": "Durchschnitt der {{n}} Spieler von {{club}}, Woche für Woche.",
-    "porDefinir": "noch offen",
-    "semanasJugadores": "{{semanas}} Woche(n) · {{n}} Spieler",
-    "sinContenido": "Dieser Reiter hat noch keinen Inhalt."
+    "semanasJugadores": "{{semanas}} Woche(n) · {{n}} Spieler"
   },
   "posiciones": {
     "familia": {
