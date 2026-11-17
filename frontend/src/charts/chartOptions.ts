@@ -529,6 +529,19 @@ export function bandBetween(
   ];
 }
 
+/** El número de un tooltip, con sus decimales cuando importan.
+ *
+ *  6.9.1 (2026-11-17, pedido del usuario: «recupera los decimales»). Este
+ *  tooltip redondeaba todo a entero, y con «Mirar a» pasó a ser el de TODAS
+ *  las gráficas de Habilidades: un Lateral medio de 3,67 salía como 4 y el
+ *  coste por punto de TSI, 0,27, como 0. Por debajo de 100 --niveles, edad,
+ *  coste por punto-- los decimales son el dato; por encima --sueldo, TSI,
+ *  HTMS-- se queda como estaba, entero con separador de miles. */
+export function valorDelTooltip(v: number): string {
+  if (Math.abs(v) >= 100) return number(v);
+  return String(Math.round(v * 10000) / 10000);
+}
+
 /** Quita del tooltip los puntos de las series auxiliares de `bandBetween` y
  *  de `lineasDeUnGrupo`. */
 export function withoutBandInTooltip(): EChartsOption["tooltip"] {
@@ -555,7 +568,7 @@ export function withoutBandInTooltip(): EChartsOption["tooltip"] {
       const rows = real.map(
         (p) =>
           `${p.marker ?? ""}${p.seriesName ?? ""}: <b>${
-            p.value == null ? "-" : number(Number(p.value))
+            p.value == null ? "-" : valorDelTooltip(Number(p.value))
           }</b>`,
       );
       return [head, ...rows].join("<br/>");
