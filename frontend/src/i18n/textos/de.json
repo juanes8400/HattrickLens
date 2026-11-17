@@ -2304,5 +2304,12 @@
   "Lo que cobra cada jugador frente a lo que valdrá a los 28. Cortes en la mediana de la plantilla: HTMS28 {{f}} y un sueldo de {{s}} por semana. Quien cae justo en una mediana cuenta arriba.": "Was jeder Spieler verdient, gegenüber dem, was er mit 28 wert sein wird. Schnitt am Median des Kaders: HTMS28 {{f}} und ein Gehalt von {{s}} pro Woche. Wer genau auf einem Median liegt, zählt als darüber.",
   "HTMS a los 28 frente al sueldo semanal de cada jugador": "HTMS mit 28 gegenüber dem Wochengehalt jedes Spielers",
   "Sueldo semanal ({{moneda}}, escala logarítmica)": "Wochengehalt ({{moneda}}, logarithmische Skala)",
-  "Fuera del gráfico, con HTMS28 negativo o sin sueldo: {{v}}.": "Außerhalb des Diagramms, mit negativem HTMS28 oder ohne Gehalt: {{v}}."
+  "Fuera del gráfico, con HTMS28 negativo o sin sueldo: {{v}}.": "Außerhalb des Diagramms, mit negativem HTMS28 oder ohne Gehalt: {{v}}.",
+  "Mirar a": "Fokus auf",
+  "Plantilla entera": "Ganzer Kader",
+  "grupos de Rentabilidad deportiva": "Gruppen der Sportlichen Rendite",
+  "Bajo cada semana, cuántos jugadores del grupo entran en la media. Punteado: entre esas dos semanas cambió quién entra, así que ese salto no es entrenamiento.": "Unter jeder Woche, wie viele Spieler der Gruppe im Durchschnitt sind. Gestrichelt: zwischen diesen zwei Wochen hat sich geändert, wer dazugehört, also ist dieser Sprung kein Training.",
+  "{{titulo}}, media del grupo por semana": "{{titulo}}, Gruppendurchschnitt pro Woche",
+  "{{grupo}} de {{club}}: media de sus {{n}} jugadores de hoy, semana a semana.": "{{grupo}} von {{club}}: Durchschnitt der {{n}} heutigen Spieler, Woche für Woche.",
+  "Hoy: {{nombres}}. Cada semana cuentan los que ya estaban en el club.": "Heute: {{nombres}}. Jede Woche zählen die, die schon im Verein waren."
 }

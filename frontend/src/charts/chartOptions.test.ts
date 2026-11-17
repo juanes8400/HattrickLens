@@ -3,10 +3,12 @@ import {
   anchoDeKernel,
   bandBetween,
   histogramaDeErrorOption,
+  lineasDeUnGrupo,
   puentes,
   semanasEntre,
   serieDePuntosOption,
   tiraDePuntosOption,
+  tramosPorConteo,
 } from "./chartOptions";
 
 /** La banda son dos series apiladas: una base invisible y encima el hueco,
@@ -469,5 +471,65 @@ describe("histogramaDeErrorOption", () => {
     expect(anchoDeKernel([0.3, 0.3, 0.3])).toBeCloseTo(0.2, 6);
     // Y con dispersión de verdad, lo supera.
     expect(anchoDeKernel([-3, -1, 0, 1, 3])).toBeGreaterThan(0.2);
+  });
+});
+
+/** «Mirar a» (2026-11-17): la media de un grupo se puntea donde cambia cuántos
+ *  jugadores entran en ella, porque ese salto lo trae quien llega. */
+describe("tramosPorConteo", () => {
+  it("con el mismo conteo todo es un tramo continuo, sin punteado", () => {
+    const { continuos, puentes } = tramosPorConteo([1, 2, 3], [2, 2, 2]);
+    expect(continuos[0]).toEqual([1, 2, 3]);
+    expect(continuos[1]).toEqual([null, null, null]);
+    expect(puentes).toEqual([]);
+  });
+
+  it("puntea justo donde cambia el conteo, y los tramos alternan de serie", () => {
+    const { continuos, puentes } = tramosPorConteo(
+      [4, 4, 6, 6, 5],
+      [1, 1, 2, 2, 3],
+    );
+    expect(puentes).toEqual([[1, 4], [2, 6], null, [3, 6], [4, 5], null]);
+    // Dos tramos seguidos nunca en la misma serie: si no, la línea continua
+    // los uniría por encima del punteado.
+    expect(continuos[0]).toEqual([4, 4, null, null, 5]);
+    expect(continuos[1]).toEqual([null, null, 6, 6, null]);
+  });
+
+  it("desde una semana sin nadie no se salta: no hay de dónde", () => {
+    const { puentes } = tramosPorConteo([null, null, 8], [0, 0, 1]);
+    expect(puentes).toEqual([]);
+  });
+});
+
+describe("lineasDeUnGrupo", () => {
+  const opcion = lineasDeUnGrupo(
+    ["83-10", "83-11", "83-12"],
+    [
+      { name: "Gangas", values: [5, 6, 7] },
+      { name: "Plantilla completa", values: [9, 9, 9], reference: true },
+    ],
+    [1, 2, 2],
+  );
+  const series = opcion.series as Record<string, unknown>[];
+
+  it("los tramos llevan el nombre de su serie y quedan fuera del tooltip", () => {
+    const deGangas = series.filter((s) => s.name === "Gangas");
+    expect(deGangas).toHaveLength(4);
+    expect(deGangas.filter((s) => s.id).every((s) => s.silent)).toBe(true);
+  });
+
+  it("la referencia va entera, en gris y sin punteado", () => {
+    const referencia = series.filter((s) => s.name === "Plantilla completa");
+    expect(referencia).toHaveLength(1);
+    expect(referencia[0]?.data).toEqual([9, 9, 9]);
+    expect(referencia[0]?.color).toBe("#94a3b8");
+  });
+
+  it("bajo cada semana, cuántos entran en la media", () => {
+    const eje = opcion.xAxis as {
+      axisLabel: { formatter: (v: string, i: number) => string };
+    };
+    expect(eje.axisLabel.formatter("83-10", 0)).toBe("83-10\n{n|1}");
   });
 });

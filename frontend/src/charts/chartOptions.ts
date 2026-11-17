@@ -260,6 +260,140 @@ export function timelineOption(
  * datos: van fuera de la leyenda y fuera del tooltip. */
 const BAND_PREFIX = "__banda";
 
+/** Marca, en el `id`, de las series que sólo dibujan los tramos de una línea
+ *  de «Mirar a». Llevan el MISMO nombre que su serie para que ECharts les dé
+ *  su mismo color y la leyenda las encienda y apague juntas; por eso se
+ *  reconocen por el id y no por el nombre. */
+const TRAMO_PREFIX = "__tramo";
+
+/** Por dónde se parte la línea de un grupo cuyo número de jugadores cambia.
+ *
+ *  `continuos` reparte los tramos de conteo fijo en dos series alternas: así
+ *  dos tramos seguidos nunca están en la misma y la línea no los une. `puentes`
+ *  son los saltos entre ellos, `[x, y]` del último punto de un tramo y del
+ *  primero del siguiente, cerrados con `null`. Un salto desde una semana sin
+ *  nadie no se dibuja: no hay de dónde saltar. */
+export function tramosPorConteo(
+  valores: (number | null)[],
+  conteos: number[],
+): {
+  continuos: [(number | null)[], (number | null)[]];
+  puentes: ([number, number] | null)[];
+} {
+  const pares: (number | null)[] = [];
+  const nones: (number | null)[] = [];
+  const saltos: ([number, number] | null)[] = [];
+  let tramo = 0;
+  valores.forEach((v, i) => {
+    if (i > 0 && conteos[i] !== conteos[i - 1]) {
+      tramo += 1;
+      const antes = valores[i - 1];
+      if (antes != null && v != null) saltos.push([i - 1, antes], [i, v], null);
+    }
+    pares.push(tramo % 2 === 0 ? v : null);
+    nones.push(tramo % 2 === 1 ? v : null);
+  });
+  return { continuos: [pares, nones], puentes: saltos };
+}
+
+/** «Mirar a» (2026-11-17, decisión del usuario): las series de un grupo cuyo
+ *  número de jugadores cambia de semana a semana.
+ *
+ *  Cuando llega alguien la media salta, y ese salto lo trae el fichaje, no el
+ *  entrenamiento. Se dibuja punteado. Bajo cada semana, en el eje, cuántos
+ *  jugadores entran en su media.
+ *
+ *  ECharts no estila una línea por tramos, así que cada serie va en cuatro:
+ *  la de verdad, con sus puntos y su tooltip pero sin línea; dos que dibujan
+ *  los tramos continuos alternos, y una con los puentes punteados. La
+ *  referencia (`reference`, la plantilla entera) va entera y en gris. */
+export function lineasDeUnGrupo(
+  semanas: string[],
+  series: {
+    name: string;
+    values: (number | null)[];
+    reference?: boolean;
+    /** Explícito para la línea del grupo: sin él, ECharts reparte la paleta
+     *  por orden y el sombreado, que va delante, le quitaba su color. */
+    color?: string;
+  }[],
+  conteos: number[],
+): EChartsOption {
+  const auxiliar = {
+    type: "line" as const,
+    symbol: "none" as const,
+    silent: true,
+    connectNulls: false,
+    emphasis: { disabled: true },
+    tooltip: { show: false },
+  };
+  return {
+    legend: {
+      bottom: 0,
+      type: "scroll",
+      data: series.map((s) => s.name),
+    },
+    grid: { left: 48, right: 16, top: 24, bottom: 40, containLabel: true },
+    xAxis: {
+      type: "category",
+      data: semanas,
+      boundaryGap: false,
+      axisLabel: {
+        formatter: (valor: string, i: number) =>
+          `${valor}\n{n|${conteos[i] ? conteos[i] : "–"}}`,
+        rich: { n: { fontWeight: "bold", lineHeight: 18 } },
+      },
+    },
+    yAxis: { type: "value", splitLine: { lineStyle: { opacity: 0.15 } } },
+    dataZoom: [{ type: "inside" }],
+    tooltip: withoutBandInTooltip(),
+    series: series.flatMap((s, k): Record<string, unknown>[] => {
+      if (s.reference) {
+        return [
+          {
+            name: s.name,
+            type: "line" as const,
+            data: s.values,
+            symbol: "circle",
+            symbolSize: 4,
+            color: "#94a3b8",
+            lineStyle: { width: 2 },
+          },
+        ];
+      }
+      const { continuos, puentes } = tramosPorConteo(s.values, conteos);
+      const color = s.color ? { color: s.color } : {};
+      return [
+        {
+          ...color,
+          name: s.name,
+          type: "line" as const,
+          data: s.values,
+          symbol: "circle",
+          symbolSize: 5,
+          lineStyle: { width: 2, opacity: 0 },
+        },
+        ...continuos.map((data, j) => ({
+          ...auxiliar,
+          ...color,
+          id: `${TRAMO_PREFIX}-${k}-${j}`,
+          name: s.name,
+          data,
+          lineStyle: { width: 2 },
+        })),
+        {
+          ...auxiliar,
+          ...color,
+          id: `${TRAMO_PREFIX}-${k}-puente`,
+          name: s.name,
+          data: puentes,
+          lineStyle: { width: 2, type: "dashed" as const, opacity: 0.75 },
+        },
+      ];
+    }),
+  };
+}
+
 /** Los colores del comparador de transferencias, compartidos por sus DOS
  *  graficas (2026-10-09).
  *
@@ -395,7 +529,8 @@ export function bandBetween(
   ];
 }
 
-/** Quita del tooltip los puntos de las series auxiliares de `bandBetween`. */
+/** Quita del tooltip los puntos de las series auxiliares de `bandBetween` y
+ *  de `lineasDeUnGrupo`. */
 export function withoutBandInTooltip(): EChartsOption["tooltip"] {
   return {
     trigger: "axis",
@@ -404,11 +539,17 @@ export function withoutBandInTooltip(): EChartsOption["tooltip"] {
     formatter: (params: unknown) => {
       const points = (Array.isArray(params) ? params : [params]) as {
         seriesName?: string;
+        seriesId?: string;
         marker?: string;
         value?: unknown;
         axisValueLabel?: string;
       }[];
-      const real = points.filter((p) => !p.seriesName?.startsWith(BAND_PREFIX));
+      // Y los tramos de «Mirar a», que repiten el punto de su serie.
+      const real = points.filter(
+        (p) =>
+          !p.seriesName?.startsWith(BAND_PREFIX) &&
+          !String(p.seriesId ?? "").startsWith(TRAMO_PREFIX),
+      );
       if (real.length === 0) return "";
       const head = real[0]?.axisValueLabel ?? "";
       const rows = real.map(

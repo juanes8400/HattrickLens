@@ -2304,5 +2304,12 @@
   "Lo que cobra cada jugador frente a lo que valdrá a los 28. Cortes en la mediana de la plantilla: HTMS28 {{f}} y un sueldo de {{s}} por semana. Quien cae justo en una mediana cuenta arriba.": "What each player earns against what he will be worth at 28. Cut at the squad median: HTMS28 {{f}} and wages of {{s}} a week. Anyone exactly on a median counts as above.",
   "HTMS a los 28 frente al sueldo semanal de cada jugador": "Each player's HTMS at 28 against his weekly wages",
   "Sueldo semanal ({{moneda}}, escala logarítmica)": "Weekly wages ({{moneda}}, log scale)",
-  "Fuera del gráfico, con HTMS28 negativo o sin sueldo: {{v}}.": "Off the chart, with negative HTMS28 or no wages: {{v}}."
+  "Fuera del gráfico, con HTMS28 negativo o sin sueldo: {{v}}.": "Off the chart, with negative HTMS28 or no wages: {{v}}.",
+  "Mirar a": "Focus on",
+  "Plantilla entera": "Whole squad",
+  "grupos de Rentabilidad deportiva": "Sporting return groups",
+  "Bajo cada semana, cuántos jugadores del grupo entran en la media. Punteado: entre esas dos semanas cambió quién entra, así que ese salto no es entrenamiento.": "Under each week, how many players of the group are in the average. Dashed: between those two weeks who is in it changed, so that jump is not training.",
+  "{{titulo}}, media del grupo por semana": "{{titulo}}, group average per week",
+  "{{grupo}} de {{club}}: media de sus {{n}} jugadores de hoy, semana a semana.": "{{grupo}} at {{club}}: average of today's {{n}} players, week by week.",
+  "Hoy: {{nombres}}. Cada semana cuentan los que ya estaban en el club.": "Today: {{nombres}}. Each week counts those who were already at the club."
 }
