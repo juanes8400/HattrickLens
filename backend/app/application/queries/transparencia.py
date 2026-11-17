@@ -3064,8 +3064,8 @@ def catalogo() -> list[Seccion]:
                     name="Rentabilidad deportiva y «Mirar a»",
                     answers=(
                         "En qué grupo cae cada jugador según lo que cobra y lo que valdrá "
-                        "a los 28, y qué medias enseña Habilidades al mirar a uno de esos "
-                        "grupos."
+                        "a los 28, y qué medias enseña Habilidades al mirar a uno o varios "
+                        "grupos de Clases de Jugador."
                     ),
                     sources=[
                         Fuente("HTMS28 de cada jugador", "El cálculo de la sección HTMS"),
@@ -3096,6 +3096,10 @@ def catalogo() -> list[Seccion]:
                         (
                             "Cuando cambia «en la media», el salto de la línea lo trae quien "
                             "llegó, no el entrenamiento: por eso ese tramo va punteado."
+                        ),
+                        (
+                            "Con varios grupos marcados, cada uno puntea sus propios saltos "
+                            "y lleva su propia fila de «en la media», en su color."
                         ),
                         (
                             "Las medianas son las de tu plantilla: un jugador puede cambiar "

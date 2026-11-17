@@ -722,12 +722,17 @@ def test_mirar_a_un_grupo_solo_promedia_a_sus_miembros_de_hoy() -> None:
             await s.flush()
             ids = []
             # El primero está desde la primera semana con Lateral 4; el
-            # segundo llega la segunda con Lateral 8.
+            # segundo llega la segunda con Lateral 8. El primero trae además
+            # una venta de 2022, anterior a sus lecturas: volvió, y cuenta.
             for i, (llega, lateral) in enumerate(
                 ((datetime(2026, 8, 10, 12), 4), (datetime(2026, 8, 17, 12), 8)), start=1
             ):
                 jugador = m.Player(
-                    team_id=equipo.id, ht_player_id=100 + i, first_name=f"J{i}", last_name="P"
+                    team_id=equipo.id,
+                    ht_player_id=100 + i,
+                    first_name=f"J{i}",
+                    last_name="P",
+                    sold_at=datetime(2022, 7, 17) if i == 1 else None,
                 )
                 s.add(jugador)
                 await s.flush()
@@ -777,40 +782,37 @@ def test_mirar_a_un_grupo_solo_promedia_a_sus_miembros_de_hoy() -> None:
     asyncio.run(corre())
 
 
-def test_mirar_a_un_grupo_por_la_ruta(seeded: tuple[TestClient, int]) -> None:
+def test_la_serie_de_un_grupo_por_la_ruta(seeded: tuple[TestClient, int]) -> None:
+    """La pantalla manda los jugadores del grupo y recibe sus medias, en las
+    mismas semanas que la plantilla y con cuántos entran en cada una."""
     client, team_id = seeded
     todo = client.get(f"/api/v1/teams/{team_id}/overview").json()
-    assert todo["mirar"]["selected"] is None
-    assert [o["key"] for o in todo["mirar"]["options"]] == [
-        "estrellas",
-        "gangas",
-        "caros",
-        "economicos",
-    ]
-    assert sum(o["count"] for o in todo["mirar"]["options"]) == todo["playerCount"]
-    # Sin grupo, todo como antes: sin conteo y sin línea de referencia.
-    for g in todo["groups"]:
-        assert g["counts"] is None
-        for ch in g["charts"]:
-            assert not any(sr["reference"] for sr in ch["series"])
+    clases = client.get(f"/api/v1/teams/{team_id}/player-classes").json()
+    ids = [p["htPlayerId"] for p in clases["players"]]
+    semanas = todo["groups"][0]["weeks"]
 
-    for opcion in todo["mirar"]["options"]:
-        body = client.get(f"/api/v1/teams/{team_id}/overview?mirar={opcion['key']}").json()
-        # Cada grupo con su respuesta: la caché por sync lleva el grupo en la clave.
-        assert body["mirar"]["selected"] == opcion["key"]
-        assert len(body["mirar"]["members"]) == opcion["count"]
-        lineas = [g for g in body["groups"] if g["chart"] == "line"]
-        assert lineas
-        for g in lineas:
-            assert len(g["counts"]) == len(g["weeks"])
-            assert max(g["counts"]) <= opcion["count"]
-        mercado = next(g for g in body["groups"] if g["key"] == "market")
-        mercado_todo = next(g for g in todo["groups"] if g["key"] == "market")
-        for ch, ch_todo in zip(mercado["charts"], mercado_todo["charts"], strict=True):
-            grupo, referencia = ch["series"]
-            assert not grupo["reference"]
-            assert referencia["reference"]
-            # La referencia es la plantilla entera, la misma de sin grupo.
-            assert referencia["values"] == ch_todo["series"][0]["values"]
+    entera = client.get(
+        f"/api/v1/teams/{team_id}/overview/series", params={"ids": ",".join(map(str, ids))}
+    ).json()
+    assert entera["weeks"] == semanas
+    # Con todos los de hoy, la media de Lateral es la de la plantilla en la
+    # última semana: los que se fueron ya no cuentan ahí.
+    lateral = next(
+        sr for ch in todo["groups"][0]["charts"] for sr in ch["series"] if sr["key"] == "winger"
+    )
+    assert entera["fields"]["winger"][-1] == lateral["values"][-1]
+    assert entera["counts"][-1] == len(ids)
 
-    assert client.get(f"/api/v1/teams/{team_id}/overview?mirar=otro").status_code == 422
+    uno = client.get(
+        f"/api/v1/teams/{team_id}/overview/series", params={"ids": f"{ids[0]},999999999"}
+    ).json()
+    # El que no es del equipo se ignora, y cada grupo tiene su respuesta: la
+    # caché por sync lleva los miembros en la clave.
+    assert max(uno["counts"]) == 1
+    assert uno["weeks"] == semanas
+    assert set(uno["fields"]) >= {"winger", "salary", "htms28", "avg_age", "tsi_total"}
+
+    assert (
+        client.get(f"/api/v1/teams/{team_id}/overview/series", params={"ids": "a,b"}).status_code
+        == 422
+    )

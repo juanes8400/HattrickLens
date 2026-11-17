@@ -2305,11 +2305,20 @@
   "HTMS a los 28 frente al sueldo semanal de cada jugador": "HTMS a 28 anni rispetto allo stipendio settimanale di ogni giocatore",
   "Sueldo semanal ({{moneda}}, escala logarítmica)": "Stipendio settimanale ({{moneda}}, scala logaritmica)",
   "Fuera del gráfico, con HTMS28 negativo o sin sueldo: {{v}}.": "Fuori dal grafico, con HTMS28 negativo o senza stipendio: {{v}}.",
-  "Mirar a": "Focus su",
   "Plantilla entera": "Rosa intera",
-  "grupos de Rentabilidad deportiva": "gruppi di Rendimento sportivo",
   "Bajo cada semana, cuántos jugadores del grupo entran en la media. Punteado: entre esas dos semanas cambió quién entra, así que ese salto no es entrenamiento.": "Sotto ogni settimana, quanti giocatori del gruppo entrano nella media. Tratteggiato: tra quelle due settimane è cambiato chi ne fa parte, quindi quel salto non è allenamento.",
   "{{titulo}}, media del grupo por semana": "{{titulo}}, media del gruppo per settimana",
   "{{grupo}} de {{club}}: media de sus {{n}} jugadores de hoy, semana a semana.": "{{grupo}} di {{club}}: media dei {{n}} giocatori di oggi, settimana per settimana.",
-  "Hoy: {{nombres}}. Cada semana cuentan los que ya estaban en el club.": "Oggi: {{nombres}}. Ogni settimana contano quelli che erano già nel club."
+  "Hoy: {{nombres}}. Cada semana cuentan los que ya estaban en el club.": "Oggi: {{nombres}}. Ogni settimana contano quelli che erano già nel club.",
+  "Grupos": "Gruppi",
+  "Dato": "Dato",
+  "Mis grupos": "I miei gruppi",
+  "Aún no has creado ningún grupo.": "Non hai ancora creato nessun gruppo.",
+  "Puedes marcar varios. Con uno solo, las gráficas son las de hoy; con dos o más, una línea por grupo.": "Puoi selezionarne più di uno. Con uno solo, i grafici sono quelli di sempre; con due o più, una linea per gruppo.",
+  "HTMS sumado del grupo": "HTMS sommato del gruppo",
+  "HTMS sumado": "HTMS sommato",
+  "Cuatro unidades distintas, dinero, un índice, su suma y el coste de cada punto, así que ninguna comparte eje con las otras. La plantilla entera va en gris, como referencia. Los de TSI 0 se ignoran SOLO en el coste por punto: sin índice no hay cociente que calcular.": "Quattro unità diverse: denaro, un indice, la sua somma e il costo di ogni punto, quindi nessuna condivide l'asse con le altre. La rosa intera va in grigio, come riferimento. Quelli con TSI 0 si ignorano SOLO nel costo per punto: senza indice non c'è rapporto da calcolare.",
+  "Bajo cada semana, cuántos jugadores de cada grupo entran en su media, en su color. Punteado: ese grupo cambió quién entra, así que ese salto no es entrenamiento.": "Sotto ogni settimana, quanti giocatori di ogni gruppo entrano nella sua media, nel suo colore. Tratteggiato: in quel gruppo è cambiato chi ne fa parte, quindi quel salto non è allenamento.",
+  "{{grupos}}: una línea por grupo, semana a semana.": "{{grupos}}: una linea per gruppo, settimana per settimana.",
+  "{{semanas}} semana(s) · {{n}} grupos": "{{semanas}} settimana/e · {{n}} gruppi"
 }

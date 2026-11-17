@@ -5,7 +5,7 @@ entera para tocar cualquiera de sus rutas. El `__init__.py` del paquete
 monta `router` con todos estos, asi que las URL no cambian.
 """
 
-from typing import Any, Literal, cast
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,10 +24,6 @@ router = APIRouter()
 )
 async def team_overview(
     team_id: int,
-    mirar: Literal["estrellas", "gangas", "caros", "economicos"] | None = Query(
-        None,
-        description="Un grupo de Rentabilidad deportiva en vez de la plantilla entera.",
-    ),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """Promedios de plantilla agrupados para leer al equipo de un vistazo.
@@ -41,37 +37,58 @@ async def team_overview(
     # cuando llegan datos nuevos, y se pagaban en cada visita a Habilidades.
     from app.api.cache_por_sync import por_sync
 
-    # El grupo de «Mirar a» va en la clave: Rentabilidad deportiva sólo
-    # cambia al sincronizar, así que también se guarda una vez por sync.
     respuesta = await por_sync(
-        session,
-        team_id,
-        "habilidades",
-        (mirar,),
-        lambda: _team_overview_sin_cache(session, team_id, mirar),
+        session, team_id, "habilidades", (), lambda: _team_overview_sin_cache(session, team_id)
     )
     if respuesta is None:
         raise HTTPException(404, f"team {team_id} sin plantilla sincronizada")
     return cast(dict[str, Any], respuesta)
 
 
-async def _team_overview_sin_cache(
-    session: AsyncSession, team_id: int, mirar: str | None = None
-) -> dict[str, Any] | None:
-    data = await TeamOverviewQueryService(session).get(team_id, mirar)
+@router.get(
+    "/teams/{team_id}/overview/series",
+    summary="Habilidades: las medias semanales de un grupo de jugadores",
+    dependencies=[Depends(require_team_owner)],
+)
+async def team_overview_series(
+    team_id: int,
+    ids: str = Query(
+        ..., description="Ids de Hattrick de los jugadores del grupo, separados por comas."
+    ),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """«Mirar a» (2026-11-17): las mismas medias que el resumen, de un grupo.
+
+    Quién está en cada grupo lo sabe la pantalla, que ya tiene Clases de
+    Jugador; aquí sólo se promedia. Los miembros van en la clave de la caché:
+    si la etapa confirmada a mano o un grupo propio cambian a alguien de
+    sitio, la clave cambia con él.
+    """
+    from app.api.cache_por_sync import por_sync
+
+    try:
+        miembros = frozenset(int(x) for x in ids.split(",") if x.strip())
+    except ValueError as exc:
+        raise HTTPException(422, "ids: números separados por comas") from exc
+
+    async def calcular() -> dict[str, Any]:
+        serie = await TeamOverviewQueryService(session).serie_de_un_grupo(team_id, miembros)
+        return {"weeks": serie.weeks, "counts": serie.counts, "fields": serie.fields}
+
+    return cast(
+        dict[str, Any],
+        await por_sync(session, team_id, "habilidades-grupo", (tuple(sorted(miembros)),), calcular),
+    )
+
+
+async def _team_overview_sin_cache(session: AsyncSession, team_id: int) -> dict[str, Any] | None:
+    data = await TeamOverviewQueryService(session).get(team_id)
     if data is None:
         return None
     return {
         "teamName": data.team_name,
         "playerCount": data.player_count,
         "currency": data.currency,
-        "mirar": {
-            "selected": data.mirar.selected,
-            "options": [
-                {"key": o.key, "label": o.label, "count": o.count} for o in data.mirar.options
-            ],
-            "members": data.mirar.members,
-        },
         "groups": [
             {
                 "key": g.key,
@@ -79,7 +96,6 @@ async def _team_overview_sin_cache(
                 "chart": g.chart,
                 "note": g.note,
                 "weeks": g.weeks,
-                "counts": g.counts,
                 "charts": [
                     {
                         "key": ch.key,
@@ -93,7 +109,6 @@ async def _team_overview_sin_cache(
                                 "label": sr.label,
                                 "values": sr.values,
                                 "display": sr.display,
-                                "reference": sr.reference,
                             }
                             for sr in ch.series
                         ],

@@ -306,7 +306,11 @@ export function tramosPorConteo(
  *  ECharts no estila una línea por tramos, así que cada serie va en cuatro:
  *  la de verdad, con sus puntos y su tooltip pero sin línea; dos que dibujan
  *  los tramos continuos alternos, y una con los puentes punteados. La
- *  referencia (`reference`, la plantilla entera) va entera y en gris. */
+ *  referencia (`reference`, la plantilla entera) va entera y en gris.
+ *
+ *  6.10.0: varios grupos a la vez. Cada serie puede llevar sus `conteos`, y
+ *  `filas` son las del eje, una por grupo y en su color. Con una sola fila,
+ *  las series sin conteos propios usan el de esa fila. */
 export function lineasDeUnGrupo(
   semanas: string[],
   series: {
@@ -316,8 +320,10 @@ export function lineasDeUnGrupo(
     /** Explícito para la línea del grupo: sin él, ECharts reparte la paleta
      *  por orden y el sombreado, que va delante, le quitaba su color. */
     color?: string;
+    /** Cuántos entran en la media de esta serie cada semana. */
+    conteos?: number[];
   }[],
-  conteos: number[],
+  filas: { conteos: number[]; color?: string }[],
 ): EChartsOption {
   const auxiliar = {
     type: "line" as const,
@@ -340,8 +346,20 @@ export function lineasDeUnGrupo(
       boundaryGap: false,
       axisLabel: {
         formatter: (valor: string, i: number) =>
-          `${valor}\n{n|${conteos[i] ? conteos[i] : "–"}}`,
-        rich: { n: { fontWeight: "bold", lineHeight: 18 } },
+          valor +
+          filas
+            .map((f, r) => `\n{f${r}|${f.conteos[i] ? f.conteos[i] : "–"}}`)
+            .join(""),
+        rich: Object.fromEntries(
+          filas.map((f, r) => [
+            `f${r}`,
+            {
+              fontWeight: "bold",
+              lineHeight: 16,
+              ...(f.color ? { color: f.color } : {}),
+            },
+          ]),
+        ),
       },
     },
     yAxis: { type: "value", splitLine: { lineStyle: { opacity: 0.15 } } },
@@ -361,7 +379,12 @@ export function lineasDeUnGrupo(
           },
         ];
       }
-      const { continuos, puentes } = tramosPorConteo(s.values, conteos);
+      const conteos =
+        s.conteos ?? (filas.length === 1 ? filas[0]?.conteos : undefined);
+      const { continuos, puentes } = tramosPorConteo(
+        s.values,
+        conteos ?? s.values.map(() => 0),
+      );
       const color = s.color ? { color: s.color } : {};
       return [
         {
