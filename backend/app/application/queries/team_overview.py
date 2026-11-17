@@ -30,6 +30,16 @@ snapshot incompleto, ver `INCOMPLETE_WITHOUT_LEADERSHIP`.
 La media de cada semana se calcula sobre la ÚLTIMA lectura de cada jugador en
 esa semana. Sin eso, un jugador sincronizado tres veces pesaría el triple que
 otro sincronizado una.
+
+«MIRAR A» (2026-11-17, pedido del usuario). Las tres pestañas con series pueden
+mirar a uno de los cuatro grupos de Rentabilidad deportiva en vez de a la
+plantilla entera. El grupo son los jugadores que HOY están en él, con toda su
+historia en el club: cada semana entra en la media quien ya había llegado y
+seguía. Por eso cada grupo lleva `counts`, cuántos entran cada semana; la
+pantalla puntea el tramo en que ese número cambia, porque ese salto lo trae un
+fichaje, no el entrenamiento. En Salario y TSI la segunda línea pasa a ser la
+plantilla entera, como referencia: «los 11 de más TSI» de un grupo de cuatro
+son esos mismos cuatro.
 """
 
 from collections import defaultdict
@@ -40,9 +50,11 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.queries.clases_de_jugador import cuentas_de_rentabilidad
 from app.application.queries.squad import SKILL_COLS, SquadQueryService
 from app.application.queries.weekly import backfill_leading_gaps, season_week_for_datetime
 from app.domain.engines import htms as htms_motor
+from app.domain.engines.clases_de_jugador import CAROS, ECONOMICOS, ESTRELLAS, GANGAS
 from app.domain.engines.position_engine import rate_all
 from app.domain.value_objects.ht_constants import skill_name
 from app.infrastructure.db import models as m
@@ -100,6 +112,16 @@ TOP_SQUAD_SIZE = 11
 SQUAD_SERIES_LABEL = "Plantilla completa"
 TOP_SERIES_LABEL = f"{TOP_SQUAD_SIZE} mejores TSI"
 TOP_SUFFIX = "_top"
+#: La plantilla entera como referencia cuando se mira a un grupo.
+REFERENCE_SUFFIX = "_plantilla"
+
+#: Los grupos que se pueden elegir en «Mirar a», en el orden del selector.
+GRUPOS_DE_RENTABILIDAD: dict[str, str] = {
+    ESTRELLAS: "Estrellas",
+    GANGAS: "Gangas",
+    CAROS: "Caros",
+    ECONOMICOS: "Económicos",
+}
 
 # Fidelidad no se persistía al principio: los snapshots del 26-27 de julio de
 # 2026 la tienen en 0. Comprobado en la base, `loyalty` y `leadership` valen
@@ -198,6 +220,9 @@ class OverviewSeries:
     # tiene lectura: nunca se rellena con ceros ni se interpola.
     values: list[float | None]
     display: str
+    #: La plantilla entera dibujada al lado del grupo elegido en «Mirar a»:
+    #: va en gris y sin punteado, no es de los que llegan y se van.
+    reference: bool = False
 
 
 @dataclass
@@ -266,6 +291,25 @@ class OverviewGroup:
     pitch: list[PitchSlot] = field(default_factory=list)
     special_roles: list[SpecialRole] = field(default_factory=list)
     note: str = ""
+    #: Sólo mirando a un grupo: cuántos de sus jugadores entran en la media de
+    #: cada semana, alineado con `weeks`.
+    counts: list[int] | None = None
+
+
+@dataclass
+class OpcionDeMirar:
+    key: str
+    label: str
+    count: int
+
+
+@dataclass
+class MirarA:
+    #: El grupo elegido, o None para la plantilla entera.
+    selected: str | None
+    options: list[OpcionDeMirar]
+    #: Los jugadores de hoy del grupo elegido, por HTMS28 de mayor a menor.
+    members: list[str]
 
 
 @dataclass
@@ -274,12 +318,15 @@ class TeamOverview:
     player_count: int
     currency: str
     groups: list[OverviewGroup]
+    mirar: MirarA
 
 
 @dataclass
 class _WeeklyAverages:
     weeks: list[str]
     by_field: dict[str, list[float | None]]
+    #: Cuántos jugadores entran en la media de cada semana.
+    counts: list[int]
 
 
 def _mean(values: list[float]) -> float:
@@ -302,7 +349,12 @@ class TeamOverviewQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
 
-    async def _weekly_averages(self, team_id: int) -> _WeeklyAverages:
+    async def _weekly_averages(
+        self, team_id: int, miembros: frozenset[int] | None = None
+    ) -> _WeeklyAverages:
+        """Medias de cada semana. Con `miembros` (ids internos de `Player`),
+        sólo de ellos: el resto no se cuenta, pero las semanas son las mismas
+        que las de la plantilla, para que las dos líneas compartan eje."""
         columns = [getattr(m.PlayerSnapshot, name) for name in self._TIMELINE_FIELDS]
         rows = (
             await self._s.execute(
@@ -318,7 +370,7 @@ class TeamOverviewQueryService:
             )
         ).all()
         if not rows:
-            return _WeeklyAverages(weeks=[], by_field={})
+            return _WeeklyAverages(weeks=[], by_field={}, counts=[])
 
         team = await self._s.get(m.Team, team_id)
         # La liga en una variable y comprobada ANTES de la consulta: asi no se
@@ -354,6 +406,7 @@ class TeamOverviewQueryService:
         tsi_index = self._TIMELINE_FIELDS.index("tsi")
 
         weeks: list[str] = []
+        counts: list[int] = []
         market_fields = ("tsi", "salary", COST_PER_TSI_FIELD, TSI_TOTAL_FIELD)
         by_field: dict[str, list[float | None]] = {
             name: []
@@ -392,8 +445,10 @@ class TeamOverviewQueryService:
             readings = [
                 lectura
                 for pid, lectura in vigentes.items()
-                if (salida := salidas.get(pid)) is None or salida > newest
+                if ((salida := salidas.get(pid)) is None or salida > newest)
+                and (miembros is None or pid in miembros)
             ]
+            counts.append(len(readings))
             label = season_week_for_datetime(world, newest)
             weeks.append(label or newest.date().isoformat())
             # Fidelidad no se persistía al principio y esos snapshots
@@ -478,14 +533,32 @@ class TeamOverviewQueryService:
                 round(_mean(top_salary) / rate, 2) if top_salary else None
             )
             _market(top, TOP_SUFFIX)
-        return _WeeklyAverages(weeks=weeks, by_field=by_field)
+        return _WeeklyAverages(weeks=weeks, by_field=by_field, counts=counts)
 
-    async def get(self, team_id: int) -> TeamOverview | None:
+    async def get(self, team_id: int, mirar: str | None = None) -> TeamOverview | None:
         squad = await SquadQueryService(self._s).get(team_id)
         if squad is None or not squad.players:
             return None
         players = squad.players
-        weekly = await self._weekly_averages(team_id)
+        filas = await SquadQueryService(self._s)._latest(team_id)
+
+        # «MIRAR A»: los grupos de Rentabilidad deportiva de hoy, con la misma
+        # cuenta que Clases de Jugador.
+        equipo = await self._s.get(m.Team, team_id)
+        cuentas = cuentas_de_rentabilidad(filas, (equipo.currency_rate if equipo else None) or 1.0)
+        de_hoy = cuentas.corte.grupos if cuentas.corte else {}
+        if mirar not in GRUPOS_DE_RENTABILIDAD:
+            mirar = None
+        elegidos = [
+            ident
+            for _, ident in filas
+            if mirar is not None and de_hoy.get(ident.ht_player_id) == mirar
+        ]
+        miembros = frozenset(ident.id for ident in elegidos) if mirar is not None else None
+        plantilla = await self._weekly_averages(team_id)
+        weekly = plantilla if miembros is None else await self._weekly_averages(team_id, miembros)
+        nombre_del_grupo = GRUPOS_DE_RENTABILIDAD[mirar] if mirar is not None else ""
+        en_la_media = weekly.counts if miembros is not None else None
 
         def _series(col: str, label: str, display: str = "level") -> OverviewSeries:
             values = weekly.by_field.get(col, [])
@@ -493,8 +566,13 @@ class TeamOverviewQueryService:
             # después del primer sync). El tramo inicial se estira con la
             # primera lectura conocida SOLO para que la línea no salga
             # cortada, ver `backfill_leading_gaps`.
+            #
+            # Mirando a un grupo, sólo desde que llega su primer jugador: antes
+            # no hay nadie a quien estirarle la lectura.
             if col == "loyalty":
-                values = backfill_leading_gaps(values)
+                desde = next((i for i, n in enumerate(weekly.counts) if n), len(values))
+                desde = desde if miembros is not None else 0
+                values = values[:desde] + backfill_leading_gaps(values[desde:])
             return OverviewSeries(key=col, label=label, values=values, display=display)
 
         skills = OverviewGroup(
@@ -502,6 +580,7 @@ class TeamOverviewQueryService:
             label="Habilidades",
             chart="line",
             weeks=weekly.weeks,
+            counts=en_la_media,
             charts=[
                 OverviewChart(
                     key="offensive",
@@ -588,7 +667,32 @@ class TeamOverviewQueryService:
         def _market_chart(key: str, display: str) -> OverviewChart:
             """Cada rubro con sus dos líneas: plantilla entera y el once de
             más TSI. Comparten eje porque son la MISMA medida sobre dos
-            conjuntos distintos, eso es justo lo que se quiere comparar."""
+            conjuntos distintos, eso es justo lo que se quiere comparar.
+
+            Mirando a un grupo, el grupo y la plantilla entera. La suma de TSI
+            no se sombrea: entre la suma de cuatro y la de veinte el hueco es
+            el resto de la plantilla, no una brecha."""
+            if miembros is not None:
+                return OverviewChart(
+                    key=key,
+                    title=MARKET_LABELS[key],
+                    band=key in BANDED_MARKET_CHARTS and key != TSI_TOTAL_FIELD,
+                    series=[
+                        OverviewSeries(
+                            key=key,
+                            label=nombre_del_grupo,
+                            values=weekly.by_field.get(key, []),
+                            display=display,
+                        ),
+                        OverviewSeries(
+                            key=f"{key}{REFERENCE_SUFFIX}",
+                            label=SQUAD_SERIES_LABEL,
+                            values=plantilla.by_field.get(key, []),
+                            display=display,
+                            reference=True,
+                        ),
+                    ],
+                )
             return OverviewChart(
                 key=key,
                 title=MARKET_LABELS[key],
@@ -614,6 +718,7 @@ class TeamOverviewQueryService:
             label="Salario y TSI",
             chart="line",
             weeks=weekly.weeks,
+            counts=en_la_media,
             charts=[
                 _market_chart("salary", "money"),
                 _market_chart("tsi", "number"),
@@ -621,6 +726,14 @@ class TeamOverviewQueryService:
                 _market_chart(COST_PER_TSI_FIELD, "ratio"),
             ],
             note=(
+                "Cuatro unidades distintas, dinero, un índice, su suma y el coste "
+                "de cada punto, así que ninguna comparte eje con las otras. "
+                "Dentro de cada una, el grupo elegido contra la plantilla entera, en "
+                "gris, como referencia. Los de TSI 0 se ignoran SOLO en el coste por "
+                "punto: sin índice no hay cociente que calcular."
+            )
+            if miembros is not None
+            else (
                 "Cuatro unidades distintas, dinero, un índice, su suma y el coste "
                 "de cada punto, así que ninguna comparte eje con las otras. "
                 f"Dentro de cada una, la plantilla entera contra sus {TOP_SQUAD_SIZE} "
@@ -636,6 +749,7 @@ class TeamOverviewQueryService:
             label="HTMS",
             chart="line",
             weeks=weekly.weeks,
+            counts=en_la_media,
             charts=[
                 OverviewChart(
                     key="htms_avg",
@@ -658,11 +772,13 @@ class TeamOverviewQueryService:
                 ),
                 OverviewChart(
                     key="htms_total",
-                    title="HTMS sumado de la plantilla",
+                    title="HTMS sumado del grupo"
+                    if miembros is not None
+                    else "HTMS sumado de la plantilla",
                     series=[
                         OverviewSeries(
                             key=HTMS_TOTAL_FIELD,
-                            label="Plantilla entera",
+                            label=nombre_del_grupo if miembros is not None else "Plantilla entera",
                             values=weekly.by_field.get(HTMS_TOTAL_FIELD, []),
                             display="number",
                         ),
@@ -705,7 +821,7 @@ class TeamOverviewQueryService:
                 "leadership": snap.leadership,
                 "skills": {c: getattr(snap, c) or 0 for c in SKILL_COLS},
             }
-            for snap, ident in await SquadQueryService(self._s)._latest(team_id)
+            for snap, ident in filas
         ]
         best_of_line: dict[str, tuple[float, str, str]] = {}
         best_role: dict[str, tuple[float, str, str]] = {}
@@ -822,4 +938,19 @@ class TeamOverviewQueryService:
             player_count=len(players),
             currency=squad.currency,
             groups=[skills, market, htms_grupo, best_position, player_classes],
+            mirar=MirarA(
+                selected=mirar,
+                options=[
+                    OpcionDeMirar(
+                        key=clave,
+                        label=nombre,
+                        count=sum(1 for g in de_hoy.values() if g == clave),
+                    )
+                    for clave, nombre in GRUPOS_DE_RENTABILIDAD.items()
+                ],
+                members=[
+                    ident.last_name or ident.first_name
+                    for ident in sorted(elegidos, key=lambda i: -cuentas.htms[i.ht_player_id][1])
+                ],
+            ),
         )

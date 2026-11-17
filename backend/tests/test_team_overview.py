@@ -681,3 +681,136 @@ def test_la_suma_semanal_no_pierde_a_quien_no_cambio_esa_semana() -> None:
         await engine.dispose()
 
     asyncio.run(corre())
+
+
+# «MIRAR A» (2026-11-17): las series de un grupo de Rentabilidad deportiva.
+
+
+def test_mirar_a_un_grupo_solo_promedia_a_sus_miembros_de_hoy() -> None:
+    """El grupo son los de HOY con su historia: la semana en que aún no había
+    llegado nadie del grupo queda vacía, y `counts` dice cuántos entran."""
+    import asyncio
+    from datetime import datetime
+
+    from app.application.queries.team_overview import TeamOverviewQueryService
+
+    async def corre() -> None:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+
+        async with factory() as s:
+            equipo = m.Team(ht_team_id=1, name="Pulgas", currency_rate=1.0)
+            s.add(equipo)
+            await s.flush()
+            usuario = m.User(ht_user_id=1, login_name="yo")
+            s.add(usuario)
+            await s.flush()
+            sync = m.Sync(
+                user_id=usuario.id,
+                team_id=equipo.id,
+                kind="players",
+                status="completed",
+                started_at=datetime(2026, 8, 10),
+            )
+            s.add(sync)
+            await s.flush()
+            ids = []
+            # El primero está desde la primera semana con Lateral 4; el
+            # segundo llega la segunda con Lateral 8.
+            for i, (llega, lateral) in enumerate(
+                ((datetime(2026, 8, 10, 12), 4), (datetime(2026, 8, 17, 12), 8)), start=1
+            ):
+                jugador = m.Player(
+                    team_id=equipo.id, ht_player_id=100 + i, first_name=f"J{i}", last_name="P"
+                )
+                s.add(jugador)
+                await s.flush()
+                ids.append(jugador.id)
+                s.add(
+                    m.PlayerSnapshot(
+                        sync_id=sync.id,
+                        player_id=jugador.id,
+                        captured_at=llega,
+                        age_years=25,
+                        age_days=0,
+                        tsi=1000,
+                        form=5,
+                        stamina=7,
+                        experience=5,
+                        salary=1000,
+                        leadership=4,
+                        loyalty=1,
+                        keeper=1,
+                        defending=5,
+                        playmaking=5,
+                        winger=lateral,
+                        passing=5,
+                        scoring=5,
+                        set_pieces=5,
+                        content_hash=bytes([i]) * 32,
+                    )
+                )
+            await s.commit()
+            team_id = equipo.id
+
+        async with factory() as s:
+            servicio = TeamOverviewQueryService(s)
+            todos = await servicio._weekly_averages(team_id)
+            los_dos = await servicio._weekly_averages(team_id, frozenset(ids))
+            el_nuevo = await servicio._weekly_averages(team_id, frozenset(ids[1:]))
+
+        assert todos.counts == [1, 2]
+        assert los_dos.counts == [1, 2]
+        assert los_dos.by_field["winger"] == todos.by_field["winger"] == [4.0, 6.0]
+        assert el_nuevo.weeks == todos.weeks, "las mismas semanas que la plantilla"
+        assert el_nuevo.counts == [0, 1]
+        assert el_nuevo.by_field["winger"] == [None, 8.0], "sin nadie, vacío; nunca un cero"
+        assert el_nuevo.by_field["htms_total"][0] is None
+        await engine.dispose()
+
+    asyncio.run(corre())
+
+
+def test_mirar_a_un_grupo_por_la_ruta(seeded: tuple[TestClient, int]) -> None:
+    client, team_id = seeded
+    todo = client.get(f"/api/v1/teams/{team_id}/overview").json()
+    assert todo["mirar"]["selected"] is None
+    assert [o["key"] for o in todo["mirar"]["options"]] == [
+        "estrellas",
+        "gangas",
+        "caros",
+        "economicos",
+    ]
+    assert sum(o["count"] for o in todo["mirar"]["options"]) == todo["playerCount"]
+    # Sin grupo, todo como antes: sin conteo y sin línea de referencia.
+    for g in todo["groups"]:
+        assert g["counts"] is None
+        for ch in g["charts"]:
+            assert not any(sr["reference"] for sr in ch["series"])
+
+    for opcion in todo["mirar"]["options"]:
+        body = client.get(f"/api/v1/teams/{team_id}/overview?mirar={opcion['key']}").json()
+        # Cada grupo con su respuesta: la caché por sync lleva el grupo en la clave.
+        assert body["mirar"]["selected"] == opcion["key"]
+        assert len(body["mirar"]["members"]) == opcion["count"]
+        lineas = [g for g in body["groups"] if g["chart"] == "line"]
+        assert lineas
+        for g in lineas:
+            assert len(g["counts"]) == len(g["weeks"])
+            assert max(g["counts"]) <= opcion["count"]
+        mercado = next(g for g in body["groups"] if g["key"] == "market")
+        mercado_todo = next(g for g in todo["groups"] if g["key"] == "market")
+        for ch, ch_todo in zip(mercado["charts"], mercado_todo["charts"], strict=True):
+            grupo, referencia = ch["series"]
+            assert not grupo["reference"]
+            assert referencia["reference"]
+            # La referencia es la plantilla entera, la misma de sin grupo.
+            assert referencia["values"] == ch_todo["series"][0]["values"]
+
+    assert client.get(f"/api/v1/teams/{team_id}/overview?mirar=otro").status_code == 422

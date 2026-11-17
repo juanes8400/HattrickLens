@@ -4,6 +4,7 @@ import i18n from "../i18n";
 import { Chart } from "../charts/Chart";
 import {
   bandBetween,
+  lineasDeUnGrupo,
   timelineOption,
   withoutBandInTooltip,
 } from "../charts/chartOptions";
@@ -16,9 +17,19 @@ import {
   SinDatos,
 } from "../components/Panels";
 import { ClasesDeJugador } from "../components/clases/ClasesDeJugador";
+import { COLOR } from "../components/clases/colores";
+import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
+import { Tabs } from "../components/Tabs";
 import { useTeamOverview } from "../hooks/useTeam";
 import { decimal, money, number } from "../hooks/useFormat";
-import type { TeamOverviewGroup, TeamOverviewMetric } from "../services/api";
+import { usePersistido } from "../hooks/usePersistido";
+import { tx } from "../i18n/tx";
+import type {
+  GrupoDeRentabilidad,
+  MirarA,
+  TeamOverviewGroup,
+  TeamOverviewMetric,
+} from "../services/api";
 
 /**
  * Equipo, la plantilla promediada, semana a semana.
@@ -31,6 +42,79 @@ import type { TeamOverviewGroup, TeamOverviewMetric } from "../services/api";
  */
 //: El grupo que ya no se pinta aquí, sino en Equipo (ver MejorPosicion).
 const GRUPO_EN_EQUIPO = "best_position";
+
+/** «Mirar a» (2026-11-17, pedido del usuario): las pestañas con series pueden
+ *  mirar a uno de los cuatro grupos de Rentabilidad deportiva en vez de a la
+ *  plantilla entera. Con los colores de Clases de Jugador. */
+type Mirada = "plantilla" | GrupoDeRentabilidad;
+const COLOR_DEL_GRUPO: Record<GrupoDeRentabilidad, string> = {
+  estrellas: COLOR.azul,
+  gangas: COLOR.verde,
+  caros: COLOR.rojo,
+  economicos: COLOR.gris,
+};
+const GRUPOS = Object.keys(COLOR_DEL_GRUPO) as GrupoDeRentabilidad[];
+
+/** El color con que se dibuja la línea del grupo en las gráficas. Las
+ *  gráficas pintan en un lienzo, que no entiende `var(--…)`: se lee el valor
+ *  del tema activo. Económicos no va en gris, que es el de la plantilla
+ *  entera de referencia, sino en el color del texto. */
+function colorDeLaLinea(grupo: GrupoDeRentabilidad): string | undefined {
+  const css = grupo === "economicos" ? "var(--text)" : COLOR_DEL_GRUPO[grupo];
+  const variable = /^var\((--[^)]+)\)$/.exec(css)?.[1];
+  if (!variable || typeof document === "undefined") return undefined;
+  return (
+    getComputedStyle(document.documentElement)
+      .getPropertyValue(variable)
+      .trim() || undefined
+  );
+}
+
+/** Sólo las pestañas con series en el tiempo. Clases de Jugador ya parte la
+ *  plantilla por su cuenta. */
+export function conMirarA(chart: TeamOverviewGroup["chart"]): boolean {
+  return chart === "line";
+}
+
+export function SelectorMirarA({
+  mirar,
+  activa,
+  onChange,
+}: {
+  mirar: MirarA;
+  activa: Mirada;
+  onChange: (m: Mirada) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <span className="text-sm text-[var(--muted)]">{tx("Mirar a")}</span>
+      <Tabs<Mirada>
+        modo="filtro"
+        label={tx("Mirar a")}
+        active={activa}
+        onChange={onChange}
+        tabs={[
+          { key: "plantilla", label: tx("Plantilla entera") },
+          ...mirar.options.map((o) => ({
+            key: o.key,
+            label: `${o.label} · ${o.count}`,
+            disabled: o.count === 0,
+            icon: (
+              <span
+                aria-hidden
+                className="inline-block h-2 w-2 rounded-full"
+                style={{ background: COLOR_DEL_GRUPO[o.key] }}
+              />
+            ),
+          })),
+        ]}
+      />
+      <span className="text-xs text-[var(--muted)]">
+        {tx("grupos de Rentabilidad deportiva")}
+      </span>
+    </div>
+  );
+}
 
 function formatValue(metric: TeamOverviewMetric, currency: string): string {
   switch (metric.display) {
@@ -90,7 +174,14 @@ function MetricBars({
   );
 }
 
-function GroupLines({ group }: { group: TeamOverviewGroup }) {
+function GroupLines({
+  group,
+  linea,
+}: {
+  group: TeamOverviewGroup;
+  /** Mirando a un grupo: su nombre, tal como rotula su serie, y su color. */
+  linea?: { nombre: string; color: string | undefined };
+}) {
   const { t } = useTranslation();
   if (group.weeks.length === 0) {
     return (
@@ -103,13 +194,38 @@ function GroupLines({ group }: { group: TeamOverviewGroup }) {
     );
   }
 
+  // Mirando a un grupo: punteado donde cambia cuántos entran en la media, y
+  // ese número bajo cada semana.
+  const conteos = group.counts;
   return (
     <div className="space-y-4 p-4">
+      {conteos && (
+        <p className="text-xs text-[var(--muted)]">
+          {tx(
+            "Bajo cada semana, cuántos jugadores del grupo entran en la media. Punteado: entre esas dos semanas cambió quién entra, así que ese salto no es entrenamiento.",
+          )}{" "}
+          <EnlaceATransparencia seccion="clases" calculo="rentabilidad" />
+        </p>
+      )}
       {group.charts.map((chart) => {
-        const base = timelineOption(
-          group.weeks,
-          chart.series.map((s) => ({ name: s.label, values: s.values })),
-        );
+        const base = conteos
+          ? lineasDeUnGrupo(
+              group.weeks,
+              chart.series.map((s) => ({
+                name: s.label,
+                values: s.values,
+                reference: s.reference,
+                color:
+                  !s.reference && s.label === linea?.nombre
+                    ? linea.color
+                    : undefined,
+              })),
+              conteos,
+            )
+          : timelineOption(
+              group.weeks,
+              chart.series.map((s) => ({ name: s.label, values: s.values })),
+            );
         // El backend marca con `band` las gráficas cuyas dos líneas miden lo
         // mismo sobre poblaciones distintas: ahí el hueco entre ellas es una
         // cantidad y se sombrea. Las auxiliares se quedan fuera de la leyenda
@@ -138,11 +254,17 @@ function GroupLines({ group }: { group: TeamOverviewGroup }) {
               </div>
             )}
             <Chart
-              ariaLabel={t(
-                "equipo.graficaAria",
-                "{{titulo}}, media de la plantilla por semana",
-                { titulo: chart.title || group.label },
-              )}
+              ariaLabel={
+                conteos
+                  ? tx("{{titulo}}, media del grupo por semana", {
+                      titulo: chart.title || group.label,
+                    })
+                  : t(
+                      "equipo.graficaAria",
+                      "{{titulo}}, media de la plantilla por semana",
+                      { titulo: chart.title || group.label },
+                    )
+              }
               height={group.charts.length > 1 ? 260 : 340}
               option={{
                 ...base,
@@ -168,7 +290,13 @@ function GroupLines({ group }: { group: TeamOverviewGroup }) {
 
 export function TeamOverviewPage() {
   const { t } = useTranslation();
-  const { data, isLoading, isError, error } = useTeamOverview();
+  const [mirada, setMirada] = usePersistido<Mirada>(
+    "habilidades.mirar-a",
+    "plantilla",
+  );
+  // Lo guardado puede ser de una versión con otros grupos: se valida.
+  const grupo = GRUPOS.find((g) => g === mirada) ?? null;
+  const { data, isLoading, isError, error } = useTeamOverview(grupo);
   const [activeKey, setActiveKey] = useState<string | null>(null);
 
   if (isLoading) return <Loading />;
@@ -186,6 +314,12 @@ export function TeamOverviewPage() {
   const grupos = data.groups.filter((g) => g.key !== GRUPO_EN_EQUIPO);
   const active = grupos.find((g) => g.key === activeKey) ?? grupos[0];
   if (!active) return <Empty>{sincronizaMedias}</Empty>;
+  // En Clases de Jugador no se mira a ningún grupo: el subtítulo vuelve a
+  // ser el de la plantilla entera.
+  const elegido = conMirarA(active.chart)
+    ? data.mirar.options.find((o) => o.key === data.mirar.selected)
+    : undefined;
+  const jugadores = elegido ? elegido.count : data.playerCount;
 
   return (
     <div className="space-y-4">
@@ -194,11 +328,16 @@ export function TeamOverviewPage() {
           {t("nav.equipo", "Habilidades")}
         </h1>
         <p className="text-sm text-[var(--muted)]">
-          {t(
-            "equipo.intro",
-            "Media de los {{n}} jugadores de {{club}}, semana a semana.",
-            { n: data.playerCount, club: data.teamName },
-          )}
+          {elegido
+            ? tx(
+                "{{grupo}} de {{club}}: media de sus {{n}} jugadores de hoy, semana a semana.",
+                { grupo: elegido.label, club: data.teamName, n: elegido.count },
+              )
+            : t(
+                "equipo.intro",
+                "Media de los {{n}} jugadores de {{club}}, semana a semana.",
+                { n: data.playerCount, club: data.teamName },
+              )}
         </p>
       </header>
 
@@ -218,6 +357,24 @@ export function TeamOverviewPage() {
         ))}
       </div>
 
+      {conMirarA(active.chart) && (
+        <div className="space-y-1">
+          <SelectorMirarA
+            mirar={data.mirar}
+            activa={grupo ?? "plantilla"}
+            onChange={setMirada}
+          />
+          {elegido && data.mirar.members.length > 0 && (
+            <p className="text-xs text-[var(--muted)]">
+              {tx(
+                "Hoy: {{nombres}}. Cada semana cuentan los que ya estaban en el club.",
+                { nombres: data.mirar.members.join(", ") },
+              )}
+            </p>
+          )}
+        </div>
+      )}
+
       <Panel
         title={active.label}
         meta={
@@ -227,17 +384,25 @@ export function TeamOverviewPage() {
               ? t(
                   "equipo.semanasJugadores",
                   "{{semanas}} semana(s) · {{n}} jugadores",
-                  { semanas: active.weeks.length, n: data.playerCount },
+                  { semanas: active.weeks.length, n: jugadores },
                 )
               : t("comun.nJugadores", "{{n}} jugadores", {
-                  n: data.playerCount,
+                  n: jugadores,
                 })
         }
       >
         {active.chart === "classes" ? (
           <ClasesDeJugador />
         ) : active.chart === "line" ? (
-          <GroupLines group={active} />
+          <GroupLines
+            group={active}
+            linea={
+              elegido && {
+                nombre: elegido.label,
+                color: colorDeLaLinea(elegido.key),
+              }
+            }
+          />
         ) : active.metrics.length === 0 ? (
           <Empty>{sincronizaMedias}</Empty>
         ) : (

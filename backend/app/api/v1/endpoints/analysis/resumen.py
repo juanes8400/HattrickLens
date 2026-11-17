@@ -5,9 +5,9 @@ entera para tocar cualquiera de sus rutas. El `__init__.py` del paquete
 monta `router` con todos estos, asi que las URL no cambian.
 """
 
-from typing import Any, cast
+from typing import Any, Literal, cast
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_team_owner
@@ -24,6 +24,10 @@ router = APIRouter()
 )
 async def team_overview(
     team_id: int,
+    mirar: Literal["estrellas", "gangas", "caros", "economicos"] | None = Query(
+        None,
+        description="Un grupo de Rentabilidad deportiva en vez de la plantilla entera.",
+    ),
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
     """Promedios de plantilla agrupados para leer al equipo de un vistazo.
@@ -37,22 +41,37 @@ async def team_overview(
     # cuando llegan datos nuevos, y se pagaban en cada visita a Habilidades.
     from app.api.cache_por_sync import por_sync
 
+    # El grupo de «Mirar a» va en la clave: Rentabilidad deportiva sólo
+    # cambia al sincronizar, así que también se guarda una vez por sync.
     respuesta = await por_sync(
-        session, team_id, "habilidades", (), lambda: _team_overview_sin_cache(session, team_id)
+        session,
+        team_id,
+        "habilidades",
+        (mirar,),
+        lambda: _team_overview_sin_cache(session, team_id, mirar),
     )
     if respuesta is None:
         raise HTTPException(404, f"team {team_id} sin plantilla sincronizada")
     return cast(dict[str, Any], respuesta)
 
 
-async def _team_overview_sin_cache(session: AsyncSession, team_id: int) -> dict[str, Any] | None:
-    data = await TeamOverviewQueryService(session).get(team_id)
+async def _team_overview_sin_cache(
+    session: AsyncSession, team_id: int, mirar: str | None = None
+) -> dict[str, Any] | None:
+    data = await TeamOverviewQueryService(session).get(team_id, mirar)
     if data is None:
         return None
     return {
         "teamName": data.team_name,
         "playerCount": data.player_count,
         "currency": data.currency,
+        "mirar": {
+            "selected": data.mirar.selected,
+            "options": [
+                {"key": o.key, "label": o.label, "count": o.count} for o in data.mirar.options
+            ],
+            "members": data.mirar.members,
+        },
         "groups": [
             {
                 "key": g.key,
@@ -60,6 +79,7 @@ async def _team_overview_sin_cache(session: AsyncSession, team_id: int) -> dict[
                 "chart": g.chart,
                 "note": g.note,
                 "weeks": g.weeks,
+                "counts": g.counts,
                 "charts": [
                     {
                         "key": ch.key,
@@ -73,6 +93,7 @@ async def _team_overview_sin_cache(session: AsyncSession, team_id: int) -> dict[
                                 "label": sr.label,
                                 "values": sr.values,
                                 "display": sr.display,
+                                "reference": sr.reference,
                             }
                             for sr in ch.series
                         ],

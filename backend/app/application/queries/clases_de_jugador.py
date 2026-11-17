@@ -10,6 +10,7 @@ y los grupos propios cambian sin sincronizar, y se verían viejos.
 """
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from sqlalchemy import select
@@ -85,6 +86,39 @@ class ClasesDeJugador:
     groups: tuple[GrupoPropio, ...]
 
 
+@dataclass(frozen=True)
+class CuentasDeRentabilidad:
+    #: ht_player_id → (HTMS de hoy, HTMS28).
+    htms: dict[int, tuple[int, int]]
+    #: ht_player_id → sueldo semanal en la moneda del equipo.
+    sueldos: dict[int, int]
+    corte: CorteDeRentabilidad | None
+
+
+def cuentas_de_rentabilidad(
+    filas: Sequence[tuple[m.PlayerSnapshot, m.Player]], tasa: float
+) -> CuentasDeRentabilidad:
+    """Rentabilidad deportiva sin lo pesado de Clases de Jugador (2026-11-17).
+
+    La usan Clases de Jugador y el «Mirar a» de Habilidades. Sale de aquí
+    para los dos, así que un jugador no puede caer en un grupo en una
+    pantalla y en otro en la otra. `filas` son las últimas fotos de
+    `SquadQueryService._latest`.
+    """
+    htms: dict[int, tuple[int, int]] = {}
+    sueldos: dict[int, int] = {}
+    for snap, ident in filas:
+        h = htms_motor.de_habilidades(
+            snap.age_years, snap.age_days, **{c: getattr(snap, c) or 0 for c in SKILL_COLS}
+        )
+        htms[ident.ht_player_id] = (h.ability, h.potential)
+        sueldos[ident.ht_player_id] = int(round((snap.salary or 0) / tasa))
+    # En la moneda del equipo, la misma que lee la pantalla: así la mediana
+    # que se ve es exactamente la que corta.
+    corte = rentabilidad({pid: (htms[pid][1], sueldos[pid]) for pid in htms})
+    return CuentasDeRentabilidad(htms=htms, sueldos=sueldos, corte=corte)
+
+
 async def grupos_del_equipo(session: AsyncSession, team_id: int) -> list[m.PlayerGroup]:
     return list(
         (
@@ -126,17 +160,8 @@ class ClasesDeJugadorQueryService:
             [jugador_para_el_motor(snap, ident) for snap, ident in filas], experiencia
         )
 
-        valores = {}
-        sueldos: dict[int, int] = {}
-        for snap, ident in filas:
-            h = htms_motor.de_habilidades(
-                snap.age_years, snap.age_days, **{c: getattr(snap, c) or 0 for c in SKILL_COLS}
-            )
-            valores[ident.ht_player_id] = (h.ability, h.potential)
-            sueldos[ident.ht_player_id] = int(round((snap.salary or 0) / tasa))
-        # En la moneda del equipo, la misma que lee la pantalla: así la
-        # mediana que se ve es exactamente la que corta.
-        corte = rentabilidad({pid: (valores[pid][1], sueldos[pid]) for pid in valores})
+        cuentas = cuentas_de_rentabilidad(filas, tasa)
+        valores, sueldos, corte = cuentas.htms, cuentas.sueldos, cuentas.corte
 
         # LA ETAPA, IGUAL QUE EN LA FICHA: historial real, percentil en la
         # plantilla y, si el usuario la confirmó a mano, la suya.

@@ -3053,6 +3053,63 @@ def catalogo() -> list[Seccion]:
                 ),
             ],
         ),
+        # 2026-11-17: Rentabilidad deportiva y el «Mirar a» de Habilidades, que
+        # promedia a uno de sus grupos.
+        Seccion(
+            id="clases",
+            name="Clases de Jugador",
+            calcs=[
+                Calculo(
+                    id="rentabilidad",
+                    name="Rentabilidad deportiva y «Mirar a»",
+                    answers=(
+                        "En qué grupo cae cada jugador según lo que cobra y lo que valdrá "
+                        "a los 28, y qué medias enseña Habilidades al mirar a uno de esos "
+                        "grupos."
+                    ),
+                    sources=[
+                        Fuente("HTMS28 de cada jugador", "El cálculo de la sección HTMS"),
+                        Fuente("Sueldo semanal", "Su ficha"),
+                        Fuente(
+                            "Lo que tenía cada jugador cada semana",
+                            "Las lecturas guardadas en cada sincronización",
+                        ),
+                    ],
+                    formula=(
+                        "cortes: mediana de HTMS28 y mediana del sueldo de la plantilla\n"
+                        "\n"
+                        "Estrellas   HTMS28 ≥ mediana   sueldo ≥ mediana\n"
+                        "Gangas      HTMS28 ≥ mediana   sueldo < mediana\n"
+                        "Caros       HTMS28 < mediana   sueldo ≥ mediana\n"
+                        "Económicos  HTMS28 < mediana   sueldo < mediana\n"
+                        "\n"
+                        "mirando a un grupo, en la semana s:\n"
+                        "  media(s) = promedio de la última lectura de cada jugador\n"
+                        "             de hoy del grupo que ya estaba en el club en s\n"
+                        "  en la media(s) = cuántos entran en ese promedio"
+                    ),
+                    limits=[
+                        (
+                            "El grupo son los jugadores que están en él hoy. Su historia "
+                            "entra entera, aunque entonces hubieran caído en otro grupo."
+                        ),
+                        (
+                            "Cuando cambia «en la media», el salto de la línea lo trae quien "
+                            "llegó, no el entrenamiento: por eso ese tramo va punteado."
+                        ),
+                        (
+                            "Las medianas son las de tu plantilla: un jugador puede cambiar "
+                            "de grupo sin cambiar él, porque cambió el resto."
+                        ),
+                        (
+                            "En Salario y TSI, con un grupo elegido, la segunda línea es la "
+                            "plantilla entera y no los 11 de más TSI: los de más TSI de un "
+                            "grupo pequeño son el grupo entero."
+                        ),
+                    ],
+                ),
+            ],
+        ),
         Seccion(
             id="transferencias",
             name="Transferencias",
