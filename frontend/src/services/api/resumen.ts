@@ -4,7 +4,6 @@
  *  en cada cambio del frontend. La fachada `index.ts` lo reexporta, asi que
  *  `import { ... } from "../services/api"` sigue valiendo igual.
  */
-import type { GrupoDeRentabilidad } from "./clases";
 import { request } from "./nucleo";
 
 /**
@@ -30,9 +29,6 @@ export interface TeamOverviewSeries {
   /** "decimal" es un número con decimales que no es dinero ni un nivel de 0 a
    *  20: la edad media de la plantilla, por ejemplo. */
   display: "level" | "money" | "number" | "count" | "ratio" | "decimal";
-  /** La plantilla entera dibujada como referencia al mirar a un grupo: va en
-   *  gris y sin punteado. */
-  reference: boolean;
 }
 
 /** Una gráfica dentro de un grupo. Un grupo lleva varias cuando sus series no
@@ -87,33 +83,32 @@ export interface TeamOverviewGroup {
   specialRoles: TeamOverviewSpecialRole[];
   note: string;
   weeks: string[];
-  /** Sólo mirando a un grupo: cuántos de sus jugadores entran en la media de
-   *  cada semana, alineado con `weeks`. */
-  counts: number[] | null;
   charts: TeamOverviewChart[];
   metrics: TeamOverviewMetric[];
-}
-
-/** «Mirar a»: los grupos de Rentabilidad deportiva que se pueden elegir. */
-export interface MirarA {
-  /** `null` = la plantilla entera. */
-  selected: GrupoDeRentabilidad | null;
-  options: { key: GrupoDeRentabilidad; label: string; count: number }[];
-  /** Los jugadores de hoy del grupo elegido. */
-  members: string[];
 }
 
 export interface TeamOverview {
   teamName: string;
   playerCount: number;
   currency: string;
-  mirar: MirarA;
   groups: TeamOverviewGroup[];
 }
 
+/** «Mirar a» (2026-11-17): las medias semanales de un grupo de jugadores, en
+ *  las mismas semanas que el resumen. `fields` lleva una serie por clave de
+ *  las series del resumen (`winger`, `salary`, `htms28`…). */
+export interface SerieDeUnGrupo {
+  weeks: string[];
+  /** Cuántos jugadores del grupo entran en la media de cada semana. */
+  counts: number[];
+  fields: Record<string, (number | null)[]>;
+}
+
 export const apiResumen = {
-  teamOverview: (teamId: number, mirar?: GrupoDeRentabilidad | null) =>
-    request<TeamOverview>(
-      `/teams/${teamId}/overview${mirar ? `?mirar=${mirar}` : ""}`,
+  teamOverview: (teamId: number) =>
+    request<TeamOverview>(`/teams/${teamId}/overview`),
+  teamOverviewSeries: (teamId: number, htPlayerIds: number[]) =>
+    request<SerieDeUnGrupo>(
+      `/teams/${teamId}/overview/series?ids=${htPlayerIds.join(",")}`,
     ),
 };

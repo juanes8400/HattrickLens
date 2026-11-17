@@ -3,23 +3,13 @@
 import { tx } from "../../i18n/tx";
 import type {
   ClasesDeJugador,
-  EtapaDeCarrera,
   JugadorDeClases,
   ReglasDeEtapa,
 } from "../../services/api";
-import { ETAPAS_DE_CARRERA, nombreDeEtapa } from "../../utils/etapasDeCarrera";
+import { nombreDeEtapa } from "../../utils/etapasDeCarrera";
+import { COLOR_DE_ETAPA, gruposDeEtapa } from "./clasificaciones";
 import { COLOR, type Grupo } from "./colores";
 import { ListaDeGrupos, Punto } from "./comun";
-
-/** El color de cada etapa; los nombres salen de `utils/etapasDeCarrera`. */
-const COLOR_DE_ETAPA: Record<EtapaDeCarrera, string> = {
-  promesa: COLOR.verde,
-  pico: COLOR.azul,
-  rotacion: COLOR.morado,
-  veterano: COLOR.naranja,
-  declive: COLOR.rojo,
-  sin_historial: COLOR.gris,
-};
 
 /** Las tres franjas de edad, con los cortes que usa el motor (los manda el
  *  servidor: una copia escrita aquí se quedaría vieja si cambiaran). */
@@ -77,35 +67,7 @@ export function Etapa({ datos }: { datos: ClasesDeJugador }) {
   );
 
   // Las columnas de abajo: una por etapa, o dos si la etapa se partió.
-  const grupos: Grupo[] = ETAPAS_DE_CARRERA.flatMap((e) => {
-    const de = datos.players
-      .filter((j) => j.etapa.stage === e.clave)
-      .sort((a, b) => a.ageYears - b.ageYears || a.ageDays - b.ageDays);
-    const partida = de.some((j) => j.etapa.side != null);
-    if (!partida)
-      return [
-        {
-          clave: e.clave,
-          nombre: e.nombre(),
-          color: COLOR_DE_ETAPA[e.clave],
-          jugadores: de,
-        },
-      ];
-    return [
-      {
-        clave: `${e.clave}-t`,
-        nombre: tx("{{etapa}} · titulares", { etapa: e.nombre() }),
-        color: COLOR_DE_ETAPA[e.clave],
-        jugadores: de.filter((j) => j.etapa.side === "titular"),
-      },
-      {
-        clave: `${e.clave}-s`,
-        nombre: tx("{{etapa}} · suplentes", { etapa: e.nombre() }),
-        color: COLOR_DE_ETAPA[e.clave],
-        jugadores: de.filter((j) => j.etapa.side === "suplente"),
-      },
-    ];
-  });
+  const grupos: Grupo[] = gruposDeEtapa(datos);
 
   return (
     <div className="space-y-4">

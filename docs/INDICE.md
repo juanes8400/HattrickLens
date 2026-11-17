@@ -36,36 +36,36 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | Ruta | Página | Líneas | Leer | Endpoints | Dominio | Tests |
 | --- | --- | --: | --: | --- | --: | --: |
 | `/connected` | [ConnectedPage.tsx](../frontend/src/pages/ConnectedPage.tsx) | 59 | - | - | 0 | 0 |
-| `/welcome` | [WelcomePage.tsx](../frontend/src/pages/WelcomePage.tsx) | 268 | 2016 | auth_chpp | 0 | 0 |
+| `/welcome` | [WelcomePage.tsx](../frontend/src/pages/WelcomePage.tsx) | 268 | 2020 | auth_chpp | 0 | 0 |
 | `/guia` | [GuiaPage.tsx](../frontend/src/pages/GuiaPage.tsx) | 52 | - | - | 0 | 0 |
 | `/privacidad` | [PrivacidadPage.tsx](../frontend/src/pages/PrivacidadPage.tsx) | 194 | - | - | 0 | 0 |
 | `/cookies` | [PrivacidadPage.tsx](../frontend/src/pages/PrivacidadPage.tsx) | 194 | - | - | 0 | 0 |
-| `/apoyar` | [ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) | 159 | 9149 | dashboard | 10 | 38 |
-| `/setup` | [SetupPage.tsx](../frontend/src/pages/SetupPage.tsx) | 428 | 9685 | auth_chpp, dashboard | 10 | 38 |
-| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 878 | 34526 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard | 28 | 112 |
-| `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 29458 | alertas, alineacion, league, dashboard | 25 | 100 |
-| `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 601 | 6393 | club | 4 | 8 |
-| `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 415 | 11187 | clases, resumen | 12 | 35 |
-| `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 503 | 4681 | plantilla | 3 | 14 |
-| `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1079 | 10201 | resumen, skills | 10 | 35 |
-| `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1533 | 18834 | jugadores, player_balance, precio_comparable, jugadores | 15 | 47 |
-| `/positions` | [PositionsPage.tsx](../frontend/src/pages/PositionsPage.tsx) | 355 | 4236 | plantilla | 3 | 14 |
-| `/lineup` | [LineupPage.tsx](../frontend/src/pages/LineupPage.tsx) | 1019 | 9511 | alineacion, plantilla | 10 | 24 |
-| `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 2157 | 14558 | entrenamiento, jugadores, club | 10 | 38 |
-| `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3674 | 16757 | player_balance, precio_comparable, jugadores, plantilla | 10 | 33 |
+| `/apoyar` | [ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) | 159 | 9153 | dashboard | 10 | 38 |
+| `/setup` | [SetupPage.tsx](../frontend/src/pages/SetupPage.tsx) | 428 | 9689 | auth_chpp, dashboard | 10 | 38 |
+| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 878 | 34530 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard | 28 | 112 |
+| `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 29485 | alertas, alineacion, league, dashboard | 25 | 100 |
+| `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 601 | 6420 | club | 4 | 8 |
+| `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 458 | 11660 | clases, resumen | 12 | 35 |
+| `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 503 | 4685 | plantilla | 3 | 14 |
+| `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1079 | 9691 | resumen, skills | 9 | 34 |
+| `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1533 | 18861 | jugadores, player_balance, precio_comparable, jugadores | 15 | 47 |
+| `/positions` | [PositionsPage.tsx](../frontend/src/pages/PositionsPage.tsx) | 355 | 4240 | plantilla | 3 | 14 |
+| `/lineup` | [LineupPage.tsx](../frontend/src/pages/LineupPage.tsx) | 1019 | 9538 | alineacion, plantilla | 10 | 24 |
+| `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 2157 | 14585 | entrenamiento, jugadores, club | 10 | 38 |
+| `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3674 | 16761 | player_balance, precio_comparable, jugadores, plantilla | 10 | 33 |
 | `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1215 | libro | 0 | 1 |
-| `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4039 | 16269 | academy | 13 | 31 |
-| `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 684 | 6446 | matches | 4 | 16 |
-| `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1753 | 17592 | league | 13 | 70 |
-| `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1063 | 14653 | cup | 16 | 77 |
-| `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 343 | 16930 | cup, league | 18 | 81 |
-| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1374 | 22316 | rivals, dashboard | 17 | 82 |
-| `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1394 | 14840 | economy, precio_comparable | 11 | 38 |
-| `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3829 | arena | 3 | 11 |
-| `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 20723 | alertas | 19 | 88 |
-| `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 207 | 9238 | dashboard | 10 | 38 |
-| `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 873 | 15265 | player_balance, cambios, partidos, plantilla | 12 | 42 |
-| `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 1022 | 16432 | entrenamiento, modelos, modelos | 14 | 32 |
+| `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4039 | 16218 | academy | 13 | 31 |
+| `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 684 | 6473 | matches | 4 | 16 |
+| `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1753 | 17596 | league | 13 | 70 |
+| `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1063 | 14657 | cup | 16 | 77 |
+| `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 343 | 16934 | cup, league | 18 | 81 |
+| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1374 | 22343 | rivals, dashboard | 17 | 82 |
+| `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1394 | 14867 | economy, precio_comparable | 11 | 38 |
+| `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3833 | arena | 3 | 11 |
+| `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 20727 | alertas | 19 | 88 |
+| `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 207 | 9242 | dashboard | 10 | 38 |
+| `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 873 | 15269 | player_balance, cambios, partidos, plantilla | 12 | 42 |
+| `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 1022 | 16463 | entrenamiento, modelos, modelos | 14 | 32 |
 | `/wiki` | [WikiPage.tsx](../frontend/src/pages/WikiPage.tsx) | 171 | - | - | 0 | 0 |
 | `/uso` | [UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) | 1637 | 4813 | uso | 1 | 6 |
 | `/autor` | [AutorPage.tsx](../frontend/src/pages/AutorPage.tsx) | 331 | - | - | 0 | 0 |
@@ -284,8 +284,8 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/overview`
 
-- **Página:** [frontend/src/pages/TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) (415 líneas)
-- **Componentes y hooks suyos (23):**
+- **Página:** [frontend/src/pages/TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) (458 líneas)
+- **Componentes y hooks suyos (26):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -299,8 +299,11 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
   - [frontend/src/components/clases/Personalizar.tsx](../frontend/src/components/clases/Personalizar.tsx)
   - [frontend/src/components/clases/Rentabilidad.tsx](../frontend/src/components/clases/Rentabilidad.tsx)
   - [frontend/src/components/clases/Titularidad.tsx](../frontend/src/components/clases/Titularidad.tsx)
+  - [frontend/src/components/clases/clasificaciones.ts](../frontend/src/components/clases/clasificaciones.ts)
   - [frontend/src/components/clases/colores.ts](../frontend/src/components/clases/colores.ts)
   - [frontend/src/components/clases/comun.tsx](../frontend/src/components/clases/comun.tsx)
+  - [frontend/src/components/habilidades/MirarA.tsx](../frontend/src/components/habilidades/MirarA.tsx)
+  - [frontend/src/components/habilidades/graficasPorGrupo.ts](../frontend/src/components/habilidades/graficasPorGrupo.ts)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
   - [frontend/src/hooks/usePersistido.ts](../frontend/src/hooks/usePersistido.ts)
   - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
@@ -309,9 +312,9 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/etapasDeCarrera.ts](../frontend/src/utils/etapasDeCarrera.ts)
-- **Pide a `api.`:** `createPlayerGroup`, `deletePlayerGroup`, `playerClasses`, `setPlayerGroup`, `teamOverview`, `updatePlayerGroup`
+- **Pide a `api.`:** `createPlayerGroup`, `deletePlayerGroup`, `playerClasses`, `setPlayerGroup`, `teamOverview`, `teamOverviewSeries`, `updatePlayerGroup`
 - **Donde se escriben esas llamadas:** [frontend/src/services/api/clases.ts](../frontend/src/services/api/clases.ts), [frontend/src/services/api/resumen.ts](../frontend/src/services/api/resumen.ts)
-- **Rutas HTTP:** `/teams/:x/overview`, `/teams/:x/player-classes`, `/teams/:x/player-groups`, `/teams/:x/player-groups/:x`, `/teams/:x/player-groups/members/:x`
+- **Rutas HTTP:** `/teams/:x/overview`, `/teams/:x/overview/series`, `/teams/:x/player-classes`, `/teams/:x/player-groups`, `/teams/:x/player-groups/:x`, `/teams/:x/player-groups/members/:x`
 - **Endpoints:** [backend/app/api/v1/endpoints/analysis/clases.py](../backend/app/api/v1/endpoints/analysis/clases.py), [backend/app/api/v1/endpoints/analysis/resumen.py](../backend/app/api/v1/endpoints/analysis/resumen.py)
 - **Aplicación:** `app.application.dto.dashboard` (21 rutas), `app.application.dto.squad` (21 rutas), `app.application.queries.clases_de_jugador`, `app.application.queries.player_history` (10 rutas), `app.application.queries.squad` (21 rutas), `app.application.queries.team_overview`, `app.application.queries.weekly` (25 rutas)
 - **Dominio:** `app.domain.engines` (24 rutas), `app.domain.engines.asignacion_optima` (12 rutas), `app.domain.engines.career_stage_engine`, `app.domain.engines.clases_de_jugador`, `app.domain.engines.economy_engine` (21 rutas), `app.domain.engines.lineup_optimizer` (10 rutas), `app.domain.engines.position_engine` (22 rutas), `app.domain.engines.pricing_engine`, `app.domain.engines.stats` (13 rutas), `app.domain.value_objects.formations` (12 rutas), `app.domain.value_objects.formatting` (17 rutas), `app.domain.value_objects.ht_constants` (25 rutas)
@@ -369,9 +372,9 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 - **Donde se escriben esas llamadas:** [frontend/src/services/api/habilidades.ts](../frontend/src/services/api/habilidades.ts), [frontend/src/services/api/resumen.ts](../frontend/src/services/api/resumen.ts)
 - **Rutas HTTP:** `/teams/:x/overview`, `/teams/:x/skills`
 - **Endpoints:** [backend/app/api/v1/endpoints/analysis/resumen.py](../backend/app/api/v1/endpoints/analysis/resumen.py), [backend/app/api/v1/endpoints/skills.py](../backend/app/api/v1/endpoints/skills.py)
-- **Aplicación:** `app.application.dto.dashboard` (21 rutas), `app.application.dto.squad` (21 rutas), `app.application.queries.clases_de_jugador`, `app.application.queries.flor_de_fuerza`, `app.application.queries.habilidades`, `app.application.queries.squad` (21 rutas), `app.application.queries.team_overview`, `app.application.queries.weekly` (25 rutas)
-- **Dominio:** `app.domain.engines` (24 rutas), `app.domain.engines.asignacion_optima` (12 rutas), `app.domain.engines.clases_de_jugador`, `app.domain.engines.economy_engine` (21 rutas), `app.domain.engines.position_engine` (22 rutas), `app.domain.engines.prediccion` (9 rutas), `app.domain.engines.team_rating_engine`, `app.domain.value_objects.formations` (12 rutas), `app.domain.value_objects.formatting` (17 rutas), `app.domain.value_objects.ht_constants` (25 rutas)
-- **Tests (35):** `tests/test_alineacion_para_descubrir.py`, `tests/test_anuncio_sin_pujas.py`, `tests/test_asignacion_optima.py`, `tests/test_aviso_del_amistoso.py`, `tests/test_cache_por_sync.py`, `tests/test_camel_helper.py`, `tests/test_changes_history.py`, `tests/test_clases_de_jugador.py`, `tests/test_economy_engine.py`, `tests/test_flor_de_fuerza.py`, `tests/test_formato_numeros.py`, `tests/test_habilidades.py`, `tests/test_ht_constants.py`, `tests/test_htms.py`, `tests/test_lados_del_carril.py`, `tests/test_league_matches_academy_queries.py`, `tests/test_lineup_optimizer.py`, `tests/test_lo_dicho_de_la_promocion.py`, `tests/test_match_type_helpers.py`, `tests/test_once_del_ultimo_partido.py`, `tests/test_parte_del_partido.py`, `tests/test_paso_del_mercado.py`, `tests/test_player_balance.py`, `tests/test_plazas_de_entrenamiento.py`, `tests/test_position_engine.py`, `tests/test_prediccion_engine.py`, `tests/test_rival_de_promocion.py`, `tests/test_squad_last_match_recency.py`, `tests/test_team_overview.py`, `tests/test_team_rating_engine.py`, `tests/test_transparencia.py`, `tests/test_ventanas_de_comparacion.py`, `tests/test_veteranos_y_deficit.py`, `tests/test_weekly.py`, `tests/test_youth_htms.py`
+- **Aplicación:** `app.application.dto.dashboard` (21 rutas), `app.application.dto.squad` (21 rutas), `app.application.queries.flor_de_fuerza`, `app.application.queries.habilidades`, `app.application.queries.squad` (21 rutas), `app.application.queries.team_overview`, `app.application.queries.weekly` (25 rutas)
+- **Dominio:** `app.domain.engines` (24 rutas), `app.domain.engines.asignacion_optima` (12 rutas), `app.domain.engines.economy_engine` (21 rutas), `app.domain.engines.position_engine` (22 rutas), `app.domain.engines.prediccion` (9 rutas), `app.domain.engines.team_rating_engine`, `app.domain.value_objects.formations` (12 rutas), `app.domain.value_objects.formatting` (17 rutas), `app.domain.value_objects.ht_constants` (25 rutas)
+- **Tests (34):** `tests/test_alineacion_para_descubrir.py`, `tests/test_anuncio_sin_pujas.py`, `tests/test_asignacion_optima.py`, `tests/test_aviso_del_amistoso.py`, `tests/test_cache_por_sync.py`, `tests/test_camel_helper.py`, `tests/test_changes_history.py`, `tests/test_economy_engine.py`, `tests/test_flor_de_fuerza.py`, `tests/test_formato_numeros.py`, `tests/test_habilidades.py`, `tests/test_ht_constants.py`, `tests/test_htms.py`, `tests/test_lados_del_carril.py`, `tests/test_league_matches_academy_queries.py`, `tests/test_lineup_optimizer.py`, `tests/test_lo_dicho_de_la_promocion.py`, `tests/test_match_type_helpers.py`, `tests/test_once_del_ultimo_partido.py`, `tests/test_parte_del_partido.py`, `tests/test_paso_del_mercado.py`, `tests/test_player_balance.py`, `tests/test_plazas_de_entrenamiento.py`, `tests/test_position_engine.py`, `tests/test_prediccion_engine.py`, `tests/test_rival_de_promocion.py`, `tests/test_squad_last_match_recency.py`, `tests/test_team_overview.py`, `tests/test_team_rating_engine.py`, `tests/test_transparencia.py`, `tests/test_ventanas_de_comparacion.py`, `tests/test_veteranos_y_deficit.py`, `tests/test_weekly.py`, `tests/test_youth_htms.py`
 
 ### `/players/:htPlayerId`
 
@@ -960,7 +963,7 @@ pantalla no estorba; uno mediano que leen veintiséis, sí.
 
 | Coste | Líneas | Pantallas | Fichero |
 | --: | --: | --: | --- |
-| 15070 | 1507 | 10 | [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts) |
+| 15300 | 1530 | 10 | [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts) |
 | 13000 | 520 | 25 | [backend/app/domain/value_objects/ht_constants.py](../backend/app/domain/value_objects/ht_constants.py) |
 | 12789 | 1827 | 7 | [backend/app/infrastructure/chpp/parsers/__init__.py](../backend/app/infrastructure/chpp/parsers/__init__.py) |
 | 12608 | 1576 | 8 | [backend/app/application/queries/economy.py](../backend/app/application/queries/economy.py) |

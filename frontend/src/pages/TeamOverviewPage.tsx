@@ -17,19 +17,32 @@ import {
   SinDatos,
 } from "../components/Panels";
 import { ClasesDeJugador } from "../components/clases/ClasesDeJugador";
+import {
+  clasificaciones,
+  type ClaveDeClasificacion,
+} from "../components/clases/clasificaciones";
 import { COLOR } from "../components/clases/colores";
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
-import { Tabs } from "../components/Tabs";
-import { useTeamOverview } from "../hooks/useTeam";
+import {
+  datosDeHabilidades,
+  pestanaComparada,
+  pestanaDeLaPlantilla,
+  pestanaDeUnGrupo,
+  PLANTILLA,
+  seriesDeLaPlantilla,
+  type PestanaDibujada,
+  type Poblacion,
+} from "../components/habilidades/graficasPorGrupo";
+import { SelectorMirarA } from "../components/habilidades/MirarA";
+import {
+  usePlayerClasses,
+  useSeriesDeGrupos,
+  useTeamOverview,
+} from "../hooks/useTeam";
 import { decimal, money, number } from "../hooks/useFormat";
 import { usePersistido } from "../hooks/usePersistido";
 import { tx } from "../i18n/tx";
-import type {
-  GrupoDeRentabilidad,
-  MirarA,
-  TeamOverviewGroup,
-  TeamOverviewMetric,
-} from "../services/api";
+import type { TeamOverviewGroup, TeamOverviewMetric } from "../services/api";
 
 /**
  * Equipo, la plantilla promediada, semana a semana.
@@ -39,80 +52,26 @@ import type {
  * mide de 0 a 20 arriba, y Resistencia y Forma, escalas mucho más cortas
  * aparte. TSI y Salario también, por ser un índice y dinero. Juntarlas en un
  * eje daría a entender que se comparan.
+ *
+ * «MIRAR A» (6.9.0 y 6.10.0): las pestañas con series pueden mirar a uno o
+ * varios grupos de Clases de Jugador; ver `components/habilidades`.
  */
 //: El grupo que ya no se pinta aquí, sino en Equipo (ver MejorPosicion).
 const GRUPO_EN_EQUIPO = "best_position";
 
-/** «Mirar a» (2026-11-17, pedido del usuario): las pestañas con series pueden
- *  mirar a uno de los cuatro grupos de Rentabilidad deportiva en vez de a la
- *  plantilla entera. Con los colores de Clases de Jugador. */
-type Mirada = "plantilla" | GrupoDeRentabilidad;
-const COLOR_DEL_GRUPO: Record<GrupoDeRentabilidad, string> = {
-  estrellas: COLOR.azul,
-  gangas: COLOR.verde,
-  caros: COLOR.rojo,
-  economicos: COLOR.gris,
-};
-const GRUPOS = Object.keys(COLOR_DEL_GRUPO) as GrupoDeRentabilidad[];
-
-/** El color con que se dibuja la línea del grupo en las gráficas. Las
- *  gráficas pintan en un lienzo, que no entiende `var(--…)`: se lee el valor
- *  del tema activo. Económicos no va en gris, que es el de la plantilla
- *  entera de referencia, sino en el color del texto. */
-function colorDeLaLinea(grupo: GrupoDeRentabilidad): string | undefined {
-  const css = grupo === "economicos" ? "var(--text)" : COLOR_DEL_GRUPO[grupo];
-  const variable = /^var\((--[^)]+)\)$/.exec(css)?.[1];
-  if (!variable || typeof document === "undefined") return undefined;
+/** El color de un grupo en el lienzo de la gráfica, que no entiende
+ *  `var(--…)`: se lee el valor del tema activo. Un grupo gris va en el color
+ *  del texto, porque el gris es el de la plantilla entera de referencia. */
+function colorDeLaLinea(css: string): string | undefined {
+  const variable = /^var\((--[^)]+)\)$/.exec(
+    css === COLOR.gris ? "var(--text)" : css,
+  )?.[1];
+  if (!variable) return css;
+  if (typeof document === "undefined") return undefined;
   return (
     getComputedStyle(document.documentElement)
       .getPropertyValue(variable)
       .trim() || undefined
-  );
-}
-
-/** Sólo las pestañas con series en el tiempo. Clases de Jugador ya parte la
- *  plantilla por su cuenta. */
-export function conMirarA(chart: TeamOverviewGroup["chart"]): boolean {
-  return chart === "line";
-}
-
-export function SelectorMirarA({
-  mirar,
-  activa,
-  onChange,
-}: {
-  mirar: MirarA;
-  activa: Mirada;
-  onChange: (m: Mirada) => void;
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <span className="text-sm text-[var(--muted)]">{tx("Mirar a")}</span>
-      <Tabs<Mirada>
-        modo="filtro"
-        label={tx("Mirar a")}
-        active={activa}
-        onChange={onChange}
-        tabs={[
-          { key: "plantilla", label: tx("Plantilla entera") },
-          ...mirar.options.map((o) => ({
-            key: o.key,
-            label: `${o.label} · ${o.count}`,
-            disabled: o.count === 0,
-            icon: (
-              <span
-                aria-hidden
-                className="inline-block h-2 w-2 rounded-full"
-                style={{ background: COLOR_DEL_GRUPO[o.key] }}
-              />
-            ),
-          })),
-        ]}
-      />
-      <span className="text-xs text-[var(--muted)]">
-        {tx("grupos de Rentabilidad deportiva")}
-      </span>
-    </div>
   );
 }
 
@@ -175,15 +134,14 @@ function MetricBars({
 }
 
 function GroupLines({
-  group,
-  linea,
+  weeks,
+  pestana,
 }: {
-  group: TeamOverviewGroup;
-  /** Mirando a un grupo: su nombre, tal como rotula su serie, y su color. */
-  linea?: { nombre: string; color: string | undefined };
+  weeks: string[];
+  pestana: PestanaDibujada;
 }) {
   const { t } = useTranslation();
-  if (group.weeks.length === 0) {
+  if (weeks.length === 0) {
     return (
       <Empty>
         {t(
@@ -194,42 +152,29 @@ function GroupLines({
     );
   }
 
-  // Mirando a un grupo: punteado donde cambia cuántos entran en la media, y
-  // ese número bajo cada semana.
-  const conteos = group.counts;
+  const { filas } = pestana;
   return (
     <div className="space-y-4 p-4">
-      {conteos && (
+      {filas.length > 0 && (
         <p className="text-xs text-[var(--muted)]">
-          {tx(
-            "Bajo cada semana, cuántos jugadores del grupo entran en la media. Punteado: entre esas dos semanas cambió quién entra, así que ese salto no es entrenamiento.",
-          )}{" "}
+          {filas.length === 1
+            ? tx(
+                "Bajo cada semana, cuántos jugadores del grupo entran en la media. Punteado: entre esas dos semanas cambió quién entra, así que ese salto no es entrenamiento.",
+              )
+            : tx(
+                "Bajo cada semana, cuántos jugadores de cada grupo entran en su media, en su color. Punteado: ese grupo cambió quién entra, así que ese salto no es entrenamiento.",
+              )}{" "}
           <EnlaceATransparencia seccion="clases" calculo="rentabilidad" />
         </p>
       )}
-      {group.charts.map((chart) => {
-        const base = conteos
-          ? lineasDeUnGrupo(
-              group.weeks,
-              chart.series.map((s) => ({
-                name: s.label,
-                values: s.values,
-                reference: s.reference,
-                color:
-                  !s.reference && s.label === linea?.nombre
-                    ? linea.color
-                    : undefined,
-              })),
-              conteos,
-            )
-          : timelineOption(
-              group.weeks,
-              chart.series.map((s) => ({ name: s.label, values: s.values })),
-            );
-        // El backend marca con `band` las gráficas cuyas dos líneas miden lo
-        // mismo sobre poblaciones distintas: ahí el hueco entre ellas es una
-        // cantidad y se sombrea. Las auxiliares se quedan fuera de la leyenda
-        // (`data`) y del tooltip.
+      {pestana.charts.map((chart) => {
+        const base =
+          filas.length > 0
+            ? lineasDeUnGrupo(weeks, chart.series, filas)
+            : timelineOption(weeks, chart.series);
+        // Las gráficas cuyas dos líneas miden lo mismo sobre poblaciones
+        // distintas llevan `band`: el hueco entre ellas es una cantidad y se
+        // sombrea. Las auxiliares se quedan fuera de la leyenda y del tooltip.
         const [first, second] = chart.series;
         const banded =
           chart.band && first && second
@@ -241,7 +186,7 @@ function GroupLines({
                 legend: {
                   bottom: 0,
                   type: "scroll" as const,
-                  data: chart.series.map((s) => s.label),
+                  data: chart.series.map((s) => s.name),
                 },
                 tooltip: withoutBandInTooltip(),
               }
@@ -255,17 +200,17 @@ function GroupLines({
             )}
             <Chart
               ariaLabel={
-                conteos
+                filas.length > 0
                   ? tx("{{titulo}}, media del grupo por semana", {
-                      titulo: chart.title || group.label,
+                      titulo: chart.title,
                     })
                   : t(
                       "equipo.graficaAria",
                       "{{titulo}}, media de la plantilla por semana",
-                      { titulo: chart.title || group.label },
+                      { titulo: chart.title },
                     )
               }
-              height={group.charts.length > 1 ? 260 : 340}
+              height={pestana.charts.length > 1 ? 260 + 16 * filas.length : 340}
               option={{
                 ...base,
                 ...banded,
@@ -290,14 +235,43 @@ function GroupLines({
 
 export function TeamOverviewPage() {
   const { t } = useTranslation();
-  const [mirada, setMirada] = usePersistido<Mirada>(
-    "habilidades.mirar-a",
-    "plantilla",
-  );
-  // Lo guardado puede ser de una versión con otros grupos: se valida.
-  const grupo = GRUPOS.find((g) => g === mirada) ?? null;
-  const { data, isLoading, isError, error } = useTeamOverview(grupo);
+  const { data, isLoading, isError, error } = useTeamOverview();
+  const clases = usePlayerClasses();
   const [activeKey, setActiveKey] = useState<string | null>(null);
+
+  // «Mirar a». Cada clasificación recuerda lo que tenía marcado. La 6.9.0
+  // guardaba un solo grupo de Rentabilidad deportiva: si lo hay, es lo que
+  // sale marcado la primera vez.
+  const [clave, setClave] = usePersistido<ClaveDeClasificacion>(
+    "habilidades.clasificacion",
+    "rentabilidad",
+  );
+  const [marcadosPor, setMarcadosPor] = usePersistido<Record<string, string[]>>(
+    "habilidades.marcados",
+    {},
+  );
+  const [deLa690] = usePersistido<string>("habilidades.mirar-a", PLANTILLA);
+  const [dato, setDato] = usePersistido<string>("habilidades.dato", "passing");
+
+  const lista = clases.data ? clasificaciones(clases.data) : [];
+  const activa =
+    lista.find((c) => c.clave === clave && c.grupos.length > 0) ?? lista[0];
+  const guardados = activa
+    ? (marcadosPor[activa.clave] ??
+      (activa.clave === "rentabilidad" ? [deLa690] : [PLANTILLA]))
+    : [PLANTILLA];
+  const validos = guardados.filter(
+    (k) =>
+      k === PLANTILLA ||
+      activa?.grupos.some((g) => g.clave === k && g.jugadores.length > 0),
+  );
+  const marcados = validos.length > 0 ? validos : [PLANTILLA];
+  const gruposMarcados = (activa?.grupos ?? []).filter((g) =>
+    marcados.includes(g.clave),
+  );
+  const series = useSeriesDeGrupos(
+    gruposMarcados.map((g) => g.jugadores.map((j) => j.htPlayerId)),
+  );
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
@@ -314,12 +288,49 @@ export function TeamOverviewPage() {
   const grupos = data.groups.filter((g) => g.key !== GRUPO_EN_EQUIPO);
   const active = grupos.find((g) => g.key === activeKey) ?? grupos[0];
   if (!active) return <Empty>{sincronizaMedias}</Empty>;
-  // En Clases de Jugador no se mira a ningún grupo: el subtítulo vuelve a
-  // ser el de la plantilla entera.
-  const elegido = conMirarA(active.chart)
-    ? data.mirar.options.find((o) => o.key === data.mirar.selected)
-    : undefined;
-  const jugadores = elegido ? elegido.count : data.playerCount;
+
+  const conSelector = active.chart === "line" && activa != null;
+  const marcar = (k: string) => {
+    if (!activa) return;
+    const siguiente = marcados.includes(k)
+      ? marcados.filter((x) => x !== k)
+      : [...marcados, k];
+    // Siempre queda algo marcado: sin nada no hay gráfica que enseñar.
+    if (siguiente.length === 0) return;
+    setMarcadosPor({ ...marcadosPor, [activa.clave]: siguiente });
+  };
+
+  // Lo marcado, en el orden de la clasificación y con la plantilla primero.
+  const cargando = series.some((s) => !s.data);
+  const fallo = series.find((s) => s.isError);
+  const poblaciones: Poblacion[] = [
+    ...(marcados.includes(PLANTILLA)
+      ? [{ clave: PLANTILLA, nombre: tx("Plantilla entera"), serie: null }]
+      : []),
+    ...gruposMarcados.map((g, i) => ({
+      clave: g.clave,
+      nombre: g.nombre,
+      color: colorDeLaLinea(g.color),
+      serie: series[i]?.data ?? null,
+    })),
+  ];
+  const unGrupo =
+    conSelector && poblaciones.length === 1 && gruposMarcados.length === 1;
+  const comparando = conSelector && poblaciones.length > 1;
+  const plantilla = seriesDeLaPlantilla(data);
+  const datos = datosDeHabilidades(active);
+
+  let pestana: PestanaDibujada = pestanaDeLaPlantilla(active);
+  if (!cargando && unGrupo && poblaciones[0]?.serie) {
+    pestana = pestanaDeUnGrupo(
+      active,
+      { ...poblaciones[0], serie: poblaciones[0].serie },
+      plantilla,
+    );
+  } else if (!cargando && comparando) {
+    pestana = pestanaComparada(active, poblaciones, plantilla, dato);
+  }
+  const elegido = unGrupo ? gruposMarcados[0] : undefined;
 
   return (
     <div className="space-y-4">
@@ -331,13 +342,21 @@ export function TeamOverviewPage() {
           {elegido
             ? tx(
                 "{{grupo}} de {{club}}: media de sus {{n}} jugadores de hoy, semana a semana.",
-                { grupo: elegido.label, club: data.teamName, n: elegido.count },
+                {
+                  grupo: elegido.nombre,
+                  club: data.teamName,
+                  n: elegido.jugadores.length,
+                },
               )
-            : t(
-                "equipo.intro",
-                "Media de los {{n}} jugadores de {{club}}, semana a semana.",
-                { n: data.playerCount, club: data.teamName },
-              )}
+            : comparando
+              ? tx("{{grupos}}: una línea por grupo, semana a semana.", {
+                  grupos: poblaciones.map((p) => p.nombre).join(" · "),
+                })
+              : t(
+                  "equipo.intro",
+                  "Media de los {{n}} jugadores de {{club}}, semana a semana.",
+                  { n: data.playerCount, club: data.teamName },
+                )}
         </p>
       </header>
 
@@ -357,18 +376,34 @@ export function TeamOverviewPage() {
         ))}
       </div>
 
-      {conMirarA(active.chart) && (
+      {/* Clases de Jugador ya parte la plantilla por su cuenta. */}
+      {conSelector && activa && (
         <div className="space-y-1">
           <SelectorMirarA
-            mirar={data.mirar}
-            activa={grupo ?? "plantilla"}
-            onChange={setMirada}
+            clasificaciones={lista}
+            activa={activa}
+            onClasificacion={setClave}
+            marcados={marcados}
+            onMarcar={marcar}
+            dato={
+              comparando && active.key === "skills"
+                ? {
+                    opciones: datos,
+                    activo: datos.some((d) => d.key === dato)
+                      ? dato
+                      : (datos[0]?.key ?? dato),
+                    onChange: setDato,
+                  }
+                : undefined
+            }
           />
-          {elegido && data.mirar.members.length > 0 && (
+          {elegido && (
             <p className="text-xs text-[var(--muted)]">
               {tx(
                 "Hoy: {{nombres}}. Cada semana cuentan los que ya estaban en el club.",
-                { nombres: data.mirar.members.join(", ") },
+                {
+                  nombres: elegido.jugadores.map((j) => j.shortName).join(", "),
+                },
               )}
             </p>
           )}
@@ -381,34 +416,42 @@ export function TeamOverviewPage() {
           active.chart === "classes"
             ? undefined
             : active.chart === "line"
-              ? t(
-                  "equipo.semanasJugadores",
-                  "{{semanas}} semana(s) · {{n}} jugadores",
-                  { semanas: active.weeks.length, n: jugadores },
-                )
+              ? comparando
+                ? tx("{{semanas}} semana(s) · {{n}} grupos", {
+                    semanas: active.weeks.length,
+                    n: poblaciones.length,
+                  })
+                : t(
+                    "equipo.semanasJugadores",
+                    "{{semanas}} semana(s) · {{n}} jugadores",
+                    {
+                      semanas: active.weeks.length,
+                      n: elegido ? elegido.jugadores.length : data.playerCount,
+                    },
+                  )
               : t("comun.nJugadores", "{{n}} jugadores", {
-                  n: jugadores,
+                  n: data.playerCount,
                 })
         }
       >
         {active.chart === "classes" ? (
           <ClasesDeJugador />
         ) : active.chart === "line" ? (
-          <GroupLines
-            group={active}
-            linea={
-              elegido && {
-                nombre: elegido.label,
-                color: colorDeLaLinea(elegido.key),
-              }
-            }
-          />
+          fallo && conSelector ? (
+            <ErrorState error={fallo.error} />
+          ) : cargando && conSelector ? (
+            <Loading />
+          ) : (
+            <GroupLines weeks={active.weeks} pestana={pestana} />
+          )
         ) : active.metrics.length === 0 ? (
           <Empty>{sincronizaMedias}</Empty>
         ) : (
           <MetricBars group={active} currency={data.currency} />
         )}
-        {active.note && <Note>{active.note}</Note>}
+        {active.chart === "line"
+          ? pestana.note && <Note>{pestana.note}</Note>
+          : active.note && <Note>{active.note}</Note>}
       </Panel>
     </div>
   );

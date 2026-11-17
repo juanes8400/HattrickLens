@@ -511,7 +511,7 @@ describe("lineasDeUnGrupo", () => {
       { name: "Gangas", values: [5, 6, 7] },
       { name: "Plantilla completa", values: [9, 9, 9], reference: true },
     ],
-    [1, 2, 2],
+    [{ conteos: [1, 2, 2] }],
   );
   const series = opcion.series as Record<string, unknown>[];
 
@@ -532,7 +532,7 @@ describe("lineasDeUnGrupo", () => {
     const eje = opcion.xAxis as {
       axisLabel: { formatter: (v: string, i: number) => string };
     };
-    expect(eje.axisLabel.formatter("83-10", 0)).toBe("83-10\n{n|1}");
+    expect(eje.axisLabel.formatter("83-10", 0)).toBe("83-10\n{f0|1}");
   });
 });
 
@@ -548,5 +548,43 @@ describe("valorDelTooltip", () => {
 
   it("el sueldo y el TSI siguen enteros", () => {
     expect(valorDelTooltip(5094.5)).toBe(number(5095));
+  });
+});
+
+describe("lineasDeUnGrupo con varios grupos", () => {
+  const opcion = lineasDeUnGrupo(
+    ["83-10", "83-11", "83-12"],
+    [
+      {
+        name: "Estrellas",
+        values: [9, 10, 11],
+        conteos: [6, 6, 6],
+        color: "#00f",
+      },
+      { name: "Gangas", values: [3, 5, 6], conteos: [1, 2, 2], color: "#0f0" },
+    ],
+    [
+      { conteos: [6, 6, 6], color: "#00f" },
+      { conteos: [1, 2, 2], color: "#0f0" },
+    ],
+  );
+  const series = opcion.series as Record<string, unknown>[];
+  const puente = (nombre: string) =>
+    series.find((s) => s.name === nombre && String(s.id).endsWith("puente"));
+
+  it("cada grupo puntea sólo sus propios saltos", () => {
+    expect(puente("Estrellas")?.data).toEqual([]);
+    expect(puente("Gangas")?.data).toEqual([[0, 3], [1, 5], null]);
+  });
+
+  it("una fila por grupo bajo cada semana, en su color", () => {
+    const eje = opcion.xAxis as {
+      axisLabel: {
+        formatter: (v: string, i: number) => string;
+        rich: Record<string, { color?: string }>;
+      };
+    };
+    expect(eje.axisLabel.formatter("83-10", 0)).toBe("83-10\n{f0|6}\n{f1|1}");
+    expect(eje.axisLabel.rich.f1?.color).toBe("#0f0");
   });
 });

@@ -151,7 +151,7 @@ export type {
 } from "./partidos";
 export type { Squad, VentanaDeComparacion } from "./plantilla";
 export type {
-  MirarA,
+  SerieDeUnGrupo,
   TeamOverview,
   TeamOverviewChart,
   TeamOverviewGroup,
