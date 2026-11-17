@@ -1,7 +1,15 @@
-/** Titularidad: las canchas de las formaciones con más experiencia, con su
+/** Titularidad: la cancha de cada formación con más experiencia, con su
  *  mejor once (Titular) o el de los que quedan (Suplencia). */
 import { useState } from "react";
+import { usePersistido } from "../../hooks/usePersistido";
 import { Tabs } from "../Tabs";
+import {
+  OrientacionDeLaCancha,
+  PITCH_CARD_CLASS,
+  PitchField,
+  PitchGrid,
+} from "../PitchField";
+import { PlayerLink } from "../PlayerLink";
 import { tx } from "../../i18n/tx";
 import type {
   CasillaDeOnce,
@@ -12,129 +20,92 @@ import type {
 import { COLOR, type Grupo } from "./colores";
 import { ListaDeGrupos } from "./comun";
 
-const LINEA: Record<string, "portero" | "defensa" | "medio" | "ataque"> = {
-  keeper: "portero",
-  wingback: "defensa",
-  central_defender: "defensa",
-  winger: "medio",
-  inner_midfield: "medio",
-  forward: "ataque",
-};
-
-/** Altura de cada línea en la cancha, del ataque (arriba) al portero. */
-const ALTURA = { ataque: 13, medio: 38, defensa: 64, portero: 88 };
-
-/** La orden, corta, debajo del nombre. Sin orden (la normal), nada. */
-function orden(posicion: string | null): string {
-  if (!posicion) return "";
-  if (posicion.endsWith("_defensive")) return tx("def.");
-  if (posicion.endsWith("_offensive")) return tx("of.");
-  if (posicion.endsWith("_towards_wing")) return tx("hacia lat.");
-  if (posicion.endsWith("_towards_middle")) return tx("hacia medio");
-  return "";
-}
-
-/** Los de cada línea, de izquierda a derecha: los de banda en los bordes. */
-function porLineas(casillas: CasillaDeOnce[]) {
-  const lineas = { ataque: [], medio: [], defensa: [], portero: [] } as Record<
-    keyof typeof ALTURA,
-    CasillaDeOnce[]
-  >;
-  for (const c of [...casillas].sort((a, b) => a.slot - b.slot)) {
-    lineas[LINEA[c.base] ?? "medio"].push(c);
+/** El nombre de la casilla, para un hueco: no tiene orden ni jugador, sólo
+ *  el puesto que queda libre. Los mismos nombres que la página de Posiciones. */
+function puesto(base: string): string {
+  switch (base) {
+    case "keeper":
+      return tx("Portero");
+    case "central_defender":
+      return tx("Defensa Central");
+    case "wingback":
+      return tx("Defensa Lateral");
+    case "inner_midfield":
+      return tx("Mediocentro");
+    case "winger":
+      return tx("Extremo");
+    default:
+      return tx("Delantero");
   }
-  const bordes = (l: CasillaDeOnce[], banda: string) => {
-    const deBanda = l.filter((c) => c.base === banda);
-    const centro = l.filter((c) => c.base !== banda);
-    return [...deBanda.slice(0, 1), ...centro, ...deBanda.slice(1)];
-  };
-  lineas.medio = bordes(lineas.medio, "winger");
-  lineas.defensa = bordes(lineas.defensa, "wingback");
-  return lineas;
 }
 
+/** Las cuatro filas que pide `PitchGrid`, con el portero al final. */
+function filas(casillas: CasillaDeOnce[]): CasillaDeOnce[][] {
+  const orden = [...casillas].sort((a, b) => a.slot - b.slot);
+  const de = (...bases: string[]) =>
+    orden.filter((c) => bases.includes(c.base));
+  return [
+    de("forward"),
+    de("winger", "inner_midfield"),
+    de("wingback", "central_defender"),
+    de("keeper"),
+  ];
+}
+
+/** La misma cancha que Alineación, Equipo y la Comparativa de liga
+ *  (2026-11-17, pedido del usuario): verde, tarjetas de vidrio y el portero
+ *  donde cada uno lo haya puesto. */
 function Cancha({
   once,
-  experiencia,
   jugadores,
-  color,
 }: {
   once: OnceDeFormacion;
-  experiencia: number;
   jugadores: Map<number, JugadorDeClases>;
-  color: string;
 }) {
-  const lineas = porLineas(once.slots);
   return (
-    <figure className="mx-auto w-full min-w-0 max-w-[20rem]">
-      <figcaption className="mb-1.5 flex items-baseline justify-between gap-2">
-        <span className="text-base font-semibold">{once.formation}</span>
-        <span className="text-xs text-[var(--muted)]">
-          {tx("experiencia {{v}}", { v: experiencia })}
-        </span>
-      </figcaption>
-      <div
-        className="relative w-full overflow-hidden rounded-lg border"
-        style={{
-          aspectRatio: "3 / 4",
-          background: "color-mix(in srgb, var(--positive) 10%, var(--surface))",
-          borderColor: "color-mix(in srgb, var(--positive) 25%, var(--border))",
-        }}
-      >
-        <div
-          aria-hidden
-          className="absolute inset-x-0 top-1/2 border-t"
-          style={{
-            borderColor: "color-mix(in srgb, var(--positive) 25%, transparent)",
-          }}
-        />
-        {(Object.keys(ALTURA) as (keyof typeof ALTURA)[]).flatMap((linea) =>
-          lineas[linea].map((c, i, todos) => {
-            const j =
-              c.htPlayerId != null ? jugadores.get(c.htPlayerId) : undefined;
-            const izquierda = ((i + 1) / (todos.length + 1)) * 100;
+    <PitchField
+      ariaLabel={tx("Mejor once en formación {{formacion}}", {
+        formacion: once.formation,
+      })}
+      className="rounded-lg"
+    >
+      <PitchGrid
+        rows={filas(once.slots)}
+        isFlank={(c) => c.base === "winger" || c.base === "wingback"}
+        render={(c) => {
+          const j =
+            c.htPlayerId != null ? jugadores.get(c.htPlayerId) : undefined;
+          if (!j) {
             return (
               <div
                 key={c.slot}
-                className="absolute flex w-[22%] -translate-x-1/2 -translate-y-1/2 flex-col items-center text-center"
-                style={{ left: `${izquierda}%`, top: `${ALTURA[linea]}%` }}
-                title={
-                  j
-                    ? `${j.name} · ${c.label ?? ""} · ${c.rating ?? ""}`
-                    : undefined
-                }
+                className={`${PITCH_CARD_CLASS} border-dashed !bg-black/10`}
               >
-                {j ? (
-                  <>
-                    <span
-                      className="flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-white"
-                      style={{ background: color }}
-                    >
-                      {c.rating != null ? Math.round(c.rating) : ""}
-                    </span>
-                    <span className="mt-0.5 w-full truncate text-[11px] leading-tight">
-                      {j.shortName}
-                    </span>
-                    {orden(c.position) && (
-                      <span className="text-[10px] leading-tight text-[var(--muted)]">
-                        {orden(c.position)}
-                      </span>
-                    )}
-                  </>
-                ) : (
-                  <>
-                    <span className="h-6 w-6 rounded-full border border-dashed border-[var(--muted)] bg-[var(--surface)]" />
-                    <span className="mt-0.5 text-[11px] italic text-[var(--muted)]">
-                      {tx("hueco")}
-                    </span>
-                  </>
-                )}
+                <div className="truncate text-[9px] uppercase tracking-wide text-white/60">
+                  {puesto(c.base)}
+                </div>
+                <div className="truncate text-[11px] italic text-white/60">
+                  {tx("hueco")}
+                </div>
               </div>
             );
-          }),
-        )}
-      </div>
-    </figure>
+          }
+          return (
+            <div key={c.slot} className={PITCH_CARD_CLASS}>
+              <div className="truncate text-[9px] uppercase tracking-wide text-white/70">
+                {c.label}
+              </div>
+              <div className="truncate text-[11px] font-semibold text-white">
+                <PlayerLink htPlayerId={j.htPlayerId} name={j.name} onDark />
+              </div>
+              <div className="tabular-nums text-sm font-semibold text-amber-300">
+                {c.rating != null ? c.rating.toFixed(2) : ""}
+              </div>
+            </div>
+          );
+        }}
+      />
+    </PitchField>
   );
 }
 
@@ -142,7 +113,11 @@ export function Titularidad({ datos }: { datos: ClasesDeJugador }) {
   const [equipo, setEquipo] = useState<"titular" | "suplencia">("titular");
   const jugadores = new Map(datos.players.map((j) => [j.htPlayerId, j]));
   const onces = equipo === "titular" ? datos.starters : datos.substitutes;
-  const color = equipo === "titular" ? COLOR.azul : COLOR.verde;
+  const [formacion, setFormacion] = usePersistido(
+    "clases-de-jugador.formacion",
+    "",
+  );
+  const once = onces.find((o) => o.formation === formacion) ?? onces[0];
 
   /** En cuántas de las formaciones entra cada uno. */
   const veces = new Map<number, number>();
@@ -212,20 +187,24 @@ export function Titularidad({ datos }: { datos: ClasesDeJugador }) {
         active={equipo}
         onChange={setEquipo}
       />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {onces.map((o) => (
-          <Cancha
-            key={o.formation}
-            once={o}
-            experiencia={datos.experience[o.formation] ?? 0}
-            jugadores={jugadores}
-            color={color}
-          />
-        ))}
+      {/* Una cancha a la vez y a tamaño completo, como en el resto de la app:
+          tres en fila las dejaba en tarjetas de tres letras. */}
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <Tabs
+          modo="filtro"
+          label={tx("Formación")}
+          tabs={onces.map((o) => ({
+            key: o.formation,
+            label: `${o.formation} · ${tx("experiencia {{v}}", {
+              v: datos.experience[o.formation] ?? 0,
+            })}`,
+          }))}
+          active={once?.formation ?? ""}
+          onChange={setFormacion}
+        />
+        <OrientacionDeLaCancha />
       </div>
-      <p className="text-xs text-[var(--muted)]">
-        {tx("El número del círculo es su valoración en ese puesto.")}
-      </p>
+      {once && <Cancha once={once} jugadores={jugadores} />}
       <ListaDeGrupos
         grupos={grupos}
         detalle={(j) =>
