@@ -24,10 +24,10 @@ from app.domain.engines.career_stage_engine import (
 )
 from app.domain.engines.clases_de_jugador import (
     TITULAR,
-    CortePotencial,
+    CorteDeRentabilidad,
     Once,
     partir_etapas,
-    potencial,
+    rentabilidad,
     repartir,
 )
 from app.infrastructure.db import models as m
@@ -56,8 +56,10 @@ class JugadorDeClases:
     age_days: int
     htms: int
     htms28: int
+    #: Sueldo semanal en la moneda del equipo.
+    salary: int
     titularidad: str
-    potencial: str
+    rentabilidad: str
     etapa: EtapaDelJugador
     group_id: int | None
 
@@ -76,7 +78,9 @@ class ClasesDeJugador:
     experience: dict[str, int]
     onces_titular: tuple[Once, ...]
     onces_suplencia: tuple[Once, ...]
-    corte: CortePotencial | None
+    corte: CorteDeRentabilidad | None
+    #: La moneda en que va `salary` («US$», «€»…).
+    currency: str
     players: tuple[JugadorDeClases, ...]
     groups: tuple[GrupoPropio, ...]
 
@@ -113,6 +117,9 @@ class ClasesDeJugadorQueryService:
         return {str(k): int(v) for k, v in crudo.items()}
 
     async def get(self, team_id: int) -> ClasesDeJugador:
+        equipo = await self._s.get(m.Team, team_id)
+        tasa = (equipo.currency_rate if equipo else None) or 1.0
+        moneda = (equipo.currency_name if equipo else None) or ""
         filas = await SquadQueryService(self._s)._latest(team_id)
         experiencia = await self._experiencia(team_id)
         reparto = repartir(
@@ -120,12 +127,16 @@ class ClasesDeJugadorQueryService:
         )
 
         valores = {}
+        sueldos: dict[int, int] = {}
         for snap, ident in filas:
             h = htms_motor.de_habilidades(
                 snap.age_years, snap.age_days, **{c: getattr(snap, c) or 0 for c in SKILL_COLS}
             )
             valores[ident.ht_player_id] = (h.ability, h.potential)
-        corte = potencial(valores)
+            sueldos[ident.ht_player_id] = int(round((snap.salary or 0) / tasa))
+        # En la moneda del equipo, la misma que lee la pantalla: así la
+        # mediana que se ve es exactamente la que corta.
+        corte = rentabilidad({pid: (valores[pid][1], sueldos[pid]) for pid in valores})
 
         # LA ETAPA, IGUAL QUE EN LA FICHA: historial real, percentil en la
         # plantilla y, si el usuario la confirmó a mano, la suya.
@@ -177,8 +188,9 @@ class ClasesDeJugadorQueryService:
                     age_days=snap.age_days,
                     htms=valores[pid][0],
                     htms28=valores[pid][1],
+                    salary=sueldos[pid],
                     titularidad=reparto.titularidad[pid],
-                    potencial=corte.grupos[pid] if corte else "",
+                    rentabilidad=corte.grupos[pid] if corte else "",
                     etapa=EtapaDelJugador(
                         stage=stage,
                         confirmed=confirmada_,
@@ -204,6 +216,7 @@ class ClasesDeJugadorQueryService:
             onces_titular=reparto.onces_titular,
             onces_suplencia=reparto.onces_suplencia,
             corte=corte,
+            currency=moneda,
             players=tuple(jugadores),
             groups=tuple(GrupoPropio(id=g.id, name=g.name, color=g.color) for g in grupos),
         )

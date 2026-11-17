@@ -56,7 +56,7 @@ def _once(o: Once) -> dict[str, Any]:
 
 @router.get(
     "/teams/{team_id}/player-classes",
-    summary="Clases de Jugador: titularidad, potencial, etapa y grupos propios",
+    summary="Clases de Jugador: titularidad, rentabilidad deportiva, etapa y grupos propios",
     dependencies=[Depends(require_team_owner)],
 )
 async def player_classes(
@@ -72,8 +72,11 @@ async def player_classes(
         "starters": [_once(o) for o in c.onces_titular],
         "substitutes": [_once(o) for o in c.onces_suplencia],
         "medians": (
-            {"htms": c.corte.mediana_htms, "htms28": c.corte.mediana_htms28} if c.corte else None
+            {"htms28": c.corte.mediana_htms28, "salary": c.corte.mediana_sueldo}
+            if c.corte
+            else None
         ),
+        "currency": c.currency,
         "groups": [{"id": g.id, "groupName": g.name, "color": g.color} for g in c.groups],
         # Los cortes de la Etapa de carrera, para que la pantalla los explique
         # con los números del motor y no con una copia que se quede vieja.
@@ -92,8 +95,9 @@ async def player_classes(
                 "ageDays": j.age_days,
                 "htms": j.htms,
                 "htms28": j.htms28,
+                "salary": j.salary,
                 "titularidad": j.titularidad,
-                "potencial": j.potencial,
+                "rentabilidad": j.rentabilidad,
                 "etapa": {
                     "stage": j.etapa.stage,
                     "confirmed": j.etapa.confirmed,

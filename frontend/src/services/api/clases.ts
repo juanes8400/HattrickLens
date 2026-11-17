@@ -4,8 +4,8 @@
 import { request } from "./nucleo";
 
 export type Titularidad = "titular" | "suplencia" | "reserva";
-export type GrupoDePotencial =
-  "consolidados" | "veteranos" | "promesas" | "relleno";
+export type GrupoDeRentabilidad =
+  "estrellas" | "gangas" | "caros" | "economicos";
 export type EtapaDeCarrera =
   "promesa" | "pico" | "rotacion" | "veterano" | "declive" | "sin_historial";
 
@@ -34,8 +34,10 @@ export interface JugadorDeClases {
   ageDays: number;
   htms: number;
   htms28: number;
+  /** Sueldo semanal, en la moneda del equipo (`currency`). */
+  salary: number;
   titularidad: Titularidad;
-  potencial: GrupoDePotencial;
+  rentabilidad: GrupoDeRentabilidad;
   etapa: {
     stage: EtapaDeCarrera;
     /** La confirmó el usuario a mano en la ficha. */
@@ -71,7 +73,9 @@ export interface ClasesDeJugador {
   experience: Record<string, number>;
   starters: OnceDeFormacion[];
   substitutes: OnceDeFormacion[];
-  medians: { htms: number; htms28: number } | null;
+  /** Las medianas de la Rentabilidad deportiva; el sueldo, en `currency`. */
+  medians: { htms28: number; salary: number } | null;
+  currency: string;
   groups: GrupoPropio[];
   stageRules: ReglasDeEtapa;
   players: JugadorDeClases[];

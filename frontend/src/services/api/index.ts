@@ -21,7 +21,7 @@ export type {
   CasillaDeOnce,
   ClasesDeJugador,
   EtapaDeCarrera,
-  GrupoDePotencial,
+  GrupoDeRentabilidad,
   GrupoPropio,
   JugadorDeClases,
   OnceDeFormacion,

@@ -45,7 +45,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 878 | 34526 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard | 28 | 112 |
 | `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 29304 | alertas, alineacion, league, dashboard | 25 | 100 |
 | `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 601 | 6239 | club | 4 | 8 |
-| `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 250 | 10312 | clases, resumen | 12 | 35 |
+| `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 250 | 10610 | clases, resumen | 12 | 35 |
 | `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 503 | 4681 | plantilla | 3 | 14 |
 | `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1079 | 9546 | resumen, skills | 9 | 34 |
 | `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1533 | 18680 | jugadores, player_balance, precio_comparable, jugadores | 15 | 47 |
@@ -285,17 +285,18 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 ### `/overview`
 
 - **Página:** [frontend/src/pages/TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) (250 líneas)
-- **Componentes y hooks suyos (21):**
+- **Componentes y hooks suyos (22):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
+  - [frontend/src/components/PitchField.tsx](../frontend/src/components/PitchField.tsx)
   - [frontend/src/components/PlayerLink.tsx](../frontend/src/components/PlayerLink.tsx)
   - [frontend/src/components/Tabs.tsx](../frontend/src/components/Tabs.tsx)
   - [frontend/src/components/clases/ClasesDeJugador.tsx](../frontend/src/components/clases/ClasesDeJugador.tsx)
   - [frontend/src/components/clases/Etapa.tsx](../frontend/src/components/clases/Etapa.tsx)
   - [frontend/src/components/clases/Personalizar.tsx](../frontend/src/components/clases/Personalizar.tsx)
-  - [frontend/src/components/clases/Potencial.tsx](../frontend/src/components/clases/Potencial.tsx)
+  - [frontend/src/components/clases/Rentabilidad.tsx](../frontend/src/components/clases/Rentabilidad.tsx)
   - [frontend/src/components/clases/Titularidad.tsx](../frontend/src/components/clases/Titularidad.tsx)
   - [frontend/src/components/clases/colores.ts](../frontend/src/components/clases/colores.ts)
   - [frontend/src/components/clases/comun.tsx](../frontend/src/components/clases/comun.tsx)
