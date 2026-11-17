@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { number } from "../hooks/useFormat";
 import {
   anchoDeKernel,
   bandBetween,
@@ -9,6 +10,7 @@ import {
   serieDePuntosOption,
   tiraDePuntosOption,
   tramosPorConteo,
+  valorDelTooltip,
 } from "./chartOptions";
 
 /** La banda son dos series apiladas: una base invisible y encima el hueco,
@@ -531,5 +533,20 @@ describe("lineasDeUnGrupo", () => {
       axisLabel: { formatter: (v: string, i: number) => string };
     };
     expect(eje.axisLabel.formatter("83-10", 0)).toBe("83-10\n{n|1}");
+  });
+});
+
+/** 6.9.1: con «Mirar a» todas las gráficas de Habilidades usan este tooltip,
+ *  y redondeaba los niveles medios a entero. */
+describe("valorDelTooltip", () => {
+  it("los niveles, la edad y el coste por punto conservan sus decimales", () => {
+    expect(valorDelTooltip(3.67)).toBe("3.67");
+    expect(valorDelTooltip(26.5)).toBe("26.5");
+    expect(valorDelTooltip(0.2731)).toBe("0.2731");
+    expect(valorDelTooltip(4)).toBe("4");
+  });
+
+  it("el sueldo y el TSI siguen enteros", () => {
+    expect(valorDelTooltip(5094.5)).toBe(number(5095));
   });
 });
