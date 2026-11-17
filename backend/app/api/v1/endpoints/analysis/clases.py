@@ -17,7 +17,12 @@ from app.application.queries.clases_de_jugador import (
     ClasesDeJugadorQueryService,
     grupos_del_equipo,
 )
-from app.domain.engines.clases_de_jugador import Once
+from app.domain.engines.career_stage_engine import (
+    PEAK_MAX_AGE,
+    ROTATION_BELOW_PERCENTILE,
+    YOUNG_MAX_AGE,
+)
+from app.domain.engines.clases_de_jugador import TOPE_DE_UNA_ETAPA, Once
 from app.domain.engines.lineup_optimizer import _positions
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
@@ -69,7 +74,15 @@ async def player_classes(
         "medians": (
             {"htms": c.corte.mediana_htms, "htms28": c.corte.mediana_htms28} if c.corte else None
         ),
-        "groups": [{"id": g.id, "name": g.name, "color": g.color} for g in c.groups],
+        "groups": [{"id": g.id, "groupName": g.name, "color": g.color} for g in c.groups],
+        # Los cortes de la Etapa de carrera, para que la pantalla los explique
+        # con los números del motor y no con una copia que se quede vieja.
+        "stageRules": {
+            "youngMaxAge": YOUNG_MAX_AGE,
+            "peakMaxAge": PEAK_MAX_AGE,
+            "rotationBelowPercentile": ROTATION_BELOW_PERCENTILE,
+            "splitAbove": TOPE_DE_UNA_ETAPA,
+        },
         "players": [
             {
                 "htPlayerId": j.ht_player_id,
@@ -141,7 +154,7 @@ async def crear_grupo(
     )
     session.add(grupo)
     await session.commit()
-    return {"id": grupo.id, "name": grupo.name, "color": grupo.color}
+    return {"id": grupo.id, "groupName": grupo.name, "color": grupo.color}
 
 
 @router.patch(
@@ -159,7 +172,7 @@ async def cambiar_grupo(
         _color_valido(body.color)
         grupo.color = body.color
     await session.commit()
-    return {"id": grupo.id, "name": grupo.name, "color": grupo.color}
+    return {"id": grupo.id, "groupName": grupo.name, "color": grupo.color}
 
 
 @router.delete(

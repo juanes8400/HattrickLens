@@ -25,6 +25,7 @@ export type {
   GrupoPropio,
   JugadorDeClases,
   OnceDeFormacion,
+  ReglasDeEtapa,
   Titularidad,
 } from "./clases";
 export type {

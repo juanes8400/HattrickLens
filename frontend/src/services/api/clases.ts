@@ -52,8 +52,18 @@ export interface JugadorDeClases {
 
 export interface GrupoPropio {
   id: number;
-  name: string;
+  /** Se llama así, y no `name`, para que el servidor no lo traduzca. */
+  groupName: string;
   color: string;
+}
+
+/** Los cortes de la Etapa de carrera, tal como los usa el motor. */
+export interface ReglasDeEtapa {
+  youngMaxAge: number;
+  peakMaxAge: number;
+  rotationBelowPercentile: number;
+  /** Una etapa con más jugadores que esto se parte en titulares y suplentes. */
+  splitAbove: number;
 }
 
 export interface ClasesDeJugador {
@@ -63,6 +73,7 @@ export interface ClasesDeJugador {
   substitutes: OnceDeFormacion[];
   medians: { htms: number; htms28: number } | null;
   groups: GrupoPropio[];
+  stageRules: ReglasDeEtapa;
   players: JugadorDeClases[];
 }
 

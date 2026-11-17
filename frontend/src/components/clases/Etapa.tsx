@@ -5,106 +5,103 @@ import type {
   ClasesDeJugador,
   EtapaDeCarrera,
   JugadorDeClases,
+  ReglasDeEtapa,
 } from "../../services/api";
+import { ETAPAS_DE_CARRERA, nombreDeEtapa } from "../../utils/etapasDeCarrera";
 import { COLOR, type Grupo } from "./colores";
 import { ListaDeGrupos, Punto } from "./comun";
 
-const ETAPAS: { clave: EtapaDeCarrera; nombre: () => string; color: string }[] =
-  [
-    {
-      clave: "promesa",
-      nombre: () => tx("Promesa en desarrollo"),
-      color: COLOR.verde,
-    },
-    { clave: "pico", nombre: () => tx("En su pico"), color: COLOR.azul },
-    {
-      clave: "rotacion",
-      nombre: () => tx("Pieza de rotación"),
-      color: COLOR.morado,
-    },
-    {
-      clave: "veterano",
-      nombre: () => tx("Veterano estable"),
-      color: COLOR.naranja,
-    },
-    { clave: "declive", nombre: () => tx("En declive"), color: COLOR.rojo },
-    {
-      clave: "sin_historial",
-      nombre: () => tx("Sin historial suficiente"),
-      color: COLOR.gris,
-    },
-  ];
+/** El color de cada etapa; los nombres salen de `utils/etapasDeCarrera`. */
+const COLOR_DE_ETAPA: Record<EtapaDeCarrera, string> = {
+  promesa: COLOR.verde,
+  pico: COLOR.azul,
+  rotacion: COLOR.morado,
+  veterano: COLOR.naranja,
+  declive: COLOR.rojo,
+  sin_historial: COLOR.gris,
+};
 
-const FRANJAS: {
-  titulo: () => string;
-  regla: () => string;
-  color: string;
-  entra: (edad: number) => boolean;
-}[] = [
-  {
-    titulo: () => tx("Hasta 21 años"),
-    regla: () =>
-      tx("Promesa en desarrollo, o Sin historial si sólo hay un snapshot."),
-    color: COLOR.verde,
-    entra: (e) => e <= 21,
-  },
-  {
-    titulo: () => tx("De 22 a 27 años"),
-    regla: () =>
-      tx(
-        "En su pico con percentil 60 o más; Pieza de rotación con menos de 40.",
+/** Las tres franjas de edad, con los cortes que usa el motor (los manda el
+ *  servidor: una copia escrita aquí se quedaría vieja si cambiaran). */
+function franjas(r: ReglasDeEtapa) {
+  return [
+    {
+      titulo: tx("Hasta {{a}} años", { a: r.youngMaxAge }),
+      regla: tx("Promesa en desarrollo."),
+      color: COLOR.verde,
+      entra: (e: number) => e <= r.youngMaxAge,
+    },
+    {
+      titulo: tx("De {{a}} a {{b}} años", {
+        a: r.youngMaxAge + 1,
+        b: r.peakMaxAge,
+      }),
+      regla: tx(
+        "En su pico; Pieza de rotación si su percentil está por debajo de {{p}}.",
+        { p: r.rotationBelowPercentile },
       ),
-    color: COLOR.azul,
-    entra: (e) => e >= 22 && e <= 27,
-  },
-  {
-    titulo: () => tx("28 años o más"),
-    regla: () =>
-      tx(
+      color: COLOR.azul,
+      entra: (e: number) => e > r.youngMaxAge && e <= r.peakMaxAge,
+    },
+    {
+      titulo: tx("{{a}} años o más", { a: r.peakMaxAge + 1 }),
+      regla: tx(
         "Veterano estable; En declive si le bajan más habilidades de las que le suben.",
       ),
-    color: COLOR.naranja,
-    entra: (e) => e >= 28,
-  },
-];
+      color: COLOR.naranja,
+      entra: (e: number) => e > r.peakMaxAge,
+    },
+  ];
+}
 
 /** Lo que decidió su etapa, junto a su nombre. */
-function dato(j: JugadorDeClases): string {
+function dato(j: JugadorDeClases, r: ReglasDeEtapa): string {
   if (j.etapa.confirmed) return tx("confirmada a mano");
   if (!j.etapa.hasSufficientHistory) return tx("un snapshot");
-  if (j.ageYears >= 22 && j.ageYears <= 27 && j.etapa.percentile != null)
+  if (
+    j.ageYears > r.youngMaxAge &&
+    j.ageYears <= r.peakMaxAge &&
+    j.etapa.percentile != null
+  )
     return tx("percentil {{v}}", { v: Math.round(j.etapa.percentile) });
-  if (j.ageYears >= 28) return `↑${j.etapa.rising} ↓${j.etapa.falling}`;
+  if (j.ageYears > r.peakMaxAge)
+    return `↑${j.etapa.rising} ↓${j.etapa.falling}`;
   return "";
 }
 
 export function Etapa({ datos }: { datos: ClasesDeJugador }) {
-  const color = Object.fromEntries(ETAPAS.map((e) => [e.clave, e.color]));
+  const reglas = datos.stageRules;
+  const color: Record<string, string> = COLOR_DE_ETAPA;
   const edades = [...new Set(datos.players.map((j) => j.ageYears))].sort(
     (a, b) => a - b,
   );
 
   // Las columnas de abajo: una por etapa, o dos si la etapa se partió.
-  const grupos: Grupo[] = ETAPAS.flatMap((e) => {
+  const grupos: Grupo[] = ETAPAS_DE_CARRERA.flatMap((e) => {
     const de = datos.players
       .filter((j) => j.etapa.stage === e.clave)
       .sort((a, b) => a.ageYears - b.ageYears || a.ageDays - b.ageDays);
     const partida = de.some((j) => j.etapa.side != null);
     if (!partida)
       return [
-        { clave: e.clave, nombre: e.nombre(), color: e.color, jugadores: de },
+        {
+          clave: e.clave,
+          nombre: e.nombre(),
+          color: COLOR_DE_ETAPA[e.clave],
+          jugadores: de,
+        },
       ];
     return [
       {
         clave: `${e.clave}-t`,
         nombre: tx("{{etapa}} · titulares", { etapa: e.nombre() }),
-        color: e.color,
+        color: COLOR_DE_ETAPA[e.clave],
         jugadores: de.filter((j) => j.etapa.side === "titular"),
       },
       {
         clave: `${e.clave}-s`,
         nombre: tx("{{etapa}} · suplentes", { etapa: e.nombre() }),
-        color: e.color,
+        color: COLOR_DE_ETAPA[e.clave],
         jugadores: de.filter((j) => j.etapa.side === "suplente"),
       },
     ];
@@ -114,16 +111,17 @@ export function Etapa({ datos }: { datos: ClasesDeJugador }) {
     <div className="space-y-4">
       <p className="text-sm text-[var(--muted)]">
         {tx(
-          "La misma etapa de la ficha de cada jugador; si la corriges a mano allí, manda también aquí. Una etapa con más de 11 jugadores se parte en titulares y suplentes.",
+          "La misma etapa de la ficha de cada jugador; si la corriges a mano allí, manda también aquí. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.",
+          { n: reglas.splitAbove },
         )}
       </p>
       <div className="space-y-3">
-        {FRANJAS.map((f) => {
+        {franjas(reglas).map((f) => {
           const filas = edades.filter(f.entra);
           if (filas.length === 0) return null;
           return (
             <section
-              key={f.titulo()}
+              key={f.titulo}
               className="grid gap-x-4 gap-y-2 rounded-lg p-3 md:grid-cols-[14rem_1fr]"
               style={{
                 background: `color-mix(in srgb, ${f.color} 7%, transparent)`,
@@ -134,9 +132,9 @@ export function Etapa({ datos }: { datos: ClasesDeJugador }) {
                   className="text-sm font-semibold"
                   style={{ color: f.color }}
                 >
-                  {f.titulo()}
+                  {f.titulo}
                 </h3>
-                <p className="text-xs text-[var(--muted)]">{f.regla()}</p>
+                <p className="text-xs text-[var(--muted)]">{f.regla}</p>
               </div>
               <div className="space-y-1.5">
                 {filas.map((edad) => (
@@ -153,13 +151,13 @@ export function Etapa({ datos }: { datos: ClasesDeJugador }) {
                             key={j.htPlayerId}
                             className="inline-flex items-center gap-1.5 rounded-full border bg-[var(--surface)] px-2.5 py-1 text-sm"
                             style={{ borderColor: color[j.etapa.stage] }}
-                            title={`${j.name} · ${ETAPAS.find((e) => e.clave === j.etapa.stage)?.nombre() ?? ""}`}
+                            title={`${j.name} · ${nombreDeEtapa(j.etapa.stage)}`}
                           >
                             <Punto color={color[j.etapa.stage] ?? COLOR.gris} />
                             {j.shortName}
-                            {dato(j) && (
+                            {dato(j, reglas) && (
                               <span className="text-xs text-[var(--muted)]">
-                                {dato(j)}
+                                {dato(j, reglas)}
                               </span>
                             )}
                           </span>
@@ -175,6 +173,9 @@ export function Etapa({ datos }: { datos: ClasesDeJugador }) {
       <p className="text-xs text-[var(--muted)]">
         {tx(
           "↑ y ↓: de sus habilidades principales, cuántas subieron y cuántas bajaron desde el primer snapshot guardado.",
+        )}{" "}
+        {tx(
+          "A cualquier edad, con un solo snapshot no hay tendencia que mirar y la etapa es Sin historial suficiente.",
         )}
       </p>
       <ListaDeGrupos grupos={grupos} />

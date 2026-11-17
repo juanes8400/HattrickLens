@@ -200,3 +200,18 @@ def test_si_un_lado_queda_vacio_no_se_parte():
     """El caso de su plantilla el 2026-11-16: 12 veteranos, los 12 titulares."""
     lados = partir_etapas({i: "veterano" for i in range(12)}, titulares=set(range(12)))
     assert set(lados.values()) == {None}
+
+
+def test_con_huecos_el_castigo_por_amontonar_cuenta_solo_a_los_que_juegan():
+    """Un mediocentro solo en una línea de tres casillas no se estorba con
+    nadie: su valoración es la de un mediocentro sin compañía, no la de uno
+    de tres (caso Granada en la Suplencia del 2026-11-16)."""
+    from app.domain.engines.lineup_optimizer import _player_rating
+
+    medio = _de_campo(1, 3)
+    medio["skills"] = {**medio["skills"], "playmaking": 15}
+    lu = best_lineup([medio], "5-5-0", con_huecos=True)
+    (a,) = lu.assignments
+    assert a.base_position == "inner_midfield"
+    assert a.rating == round(_player_rating(medio, a.position, {}), 2)
+    assert a.rating > round(_player_rating(medio, a.position, {"inner_midfield": 0.825}), 2)

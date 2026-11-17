@@ -33,6 +33,7 @@ import type { ActivePlayerDetail, ExPlayerDetail } from "../services/api";
 import { skillLevelLabel } from "../utils/skillLevels";
 
 import { tx } from "../i18n/tx";
+import { ETAPAS_DE_CARRERA } from "../utils/etapasDeCarrera";
 import { nivelOficial, terminoOficial } from "../i18n/glosario";
 /** El nombre de cada habilidad sale del glosario oficial de Hattrick, no del
  *  diccionario: «Defensa» es la habilidad Defending y también el sector
@@ -107,13 +108,12 @@ const RADAR_GROUPS: { title: string; axes: string[] }[] = [
   },
 ];
 
-const CAREER_STAGE_OPTIONS: { value: string; label: string }[] = [
-  { value: "promesa", label: tx("Promesa en desarrollo") },
-  { value: "pico", label: tx("En su pico") },
-  { value: "veterano", label: tx("Veterano estable") },
-  { value: "rotacion", label: tx("Pieza de rotación") },
-  { value: "declive", label: tx("En declive") },
-];
+/** Las mismas etapas que Clases de Jugador, de `utils/etapasDeCarrera`. */
+const CAREER_STAGE_OPTIONS: { value: string; label: string }[] =
+  ETAPAS_DE_CARRERA.filter((e) => e.confirmable).map((e) => ({
+    value: e.clave,
+    label: e.nombre(),
+  }));
 
 interface PositionRow {
   position: string;

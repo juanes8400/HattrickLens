@@ -91,7 +91,7 @@ function Tarjeta({
           <option value={SIN_GRUPO}>{tx("Sin grupo")}</option>
           {grupos.map((g) => (
             <option key={g.id} value={g.id}>
-              {g.name}
+              {g.groupName}
             </option>
           ))}
         </select>
@@ -177,7 +177,7 @@ function CabeceraDeGrupo({
   onBorrar: () => void;
 }) {
   const [editando, setEditando] = useState(false);
-  const [nombre, setNombre] = useState(grupo.name);
+  const [nombre, setNombre] = useState(grupo.groupName);
   const [color, setColor] = useState(grupo.color);
   if (editando) {
     return (
@@ -321,7 +321,7 @@ export function Personalizar({ datos }: { datos: ClasesDeJugador }) {
         {datos.groups.map((g) => (
           <div key={g.id} className="relative">
             <Columna
-              titulo={g.name}
+              titulo={g.groupName}
               color={COLORES_DE_GRUPO[g.color] ?? COLOR.gris}
               jugadores={porNombre.filter((j) => j.groupId === g.id)}
               grupos={datos.groups}

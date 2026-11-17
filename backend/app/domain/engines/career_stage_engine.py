@@ -20,6 +20,11 @@ from app.domain.engines.pricing_engine import age_factor
 # valor ~22-27 años, cae fuerte desde los 28).
 YOUNG_MAX_AGE = 21
 PEAK_MAX_AGE = 27
+#: Entre 22 y 27, por debajo de este percentil es «Pieza de rotación»; por
+#: encima de `PEAK_PERCENTILE` es «En su pico» con confianza alta, y en medio
+#: también «En su pico», con confianza moderada.
+ROTATION_BELOW_PERCENTILE = 40
+PEAK_PERCENTILE = 60
 
 
 @dataclass(frozen=True)
@@ -127,7 +132,7 @@ def classify_career_stage(
         )
 
     if age_years <= PEAK_MAX_AGE:
-        if squad_percentile is not None and squad_percentile >= 60:
+        if squad_percentile is not None and squad_percentile >= PEAK_PERCENTILE:
             return CareerStage(
                 stage="pico",
                 label="En su pico",
@@ -139,7 +144,7 @@ def classify_career_stage(
                 confidence="alta",
                 signals=signals,
             )
-        if squad_percentile is not None and squad_percentile < 40:
+        if squad_percentile is not None and squad_percentile < ROTATION_BELOW_PERCENTILE:
             return CareerStage(
                 stage="rotacion",
                 label="Pieza de rotación",

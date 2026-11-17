@@ -537,6 +537,12 @@ def test_player_classes_splits_the_whole_squad_four_ways(
     assert {s["htPlayerId"] for s in once["slots"]} == {j["htPlayerId"] for j in titulares}
     assert all(s["label"] for s in once["slots"])
     assert body["groups"] == []
+    assert body["stageRules"] == {
+        "youngMaxAge": 21,
+        "peakMaxAge": 27,
+        "rotationBelowPercentile": 40,
+        "splitAbove": 11,
+    }
     assert all(j["groupId"] is None for j in jugadores)
 
 
@@ -554,7 +560,7 @@ def test_own_groups_can_be_created_filled_renamed_and_deleted(
     )
     a = client.post(f"{base}/player-groups", json={"name": " Intocables ", "color": "blue"}).json()
     b = client.post(f"{base}/player-groups", json={"name": "Para vender", "color": "red"}).json()
-    assert a["name"] == "Intocables"
+    assert a["groupName"] == "Intocables"
 
     assert (
         client.put(f"{base}/player-groups/members/{pid}", json={"groupId": a["id"]}).status_code
@@ -565,15 +571,15 @@ def test_own_groups_can_be_created_filled_renamed_and_deleted(
         == 200
     )
     body = client.get(f"{base}/player-classes").json()
-    assert [g["name"] for g in body["groups"]] == ["Intocables", "Para vender"]
+    assert [g["groupName"] for g in body["groups"]] == ["Intocables", "Para vender"]
     assert next(j for j in body["players"] if j["htPlayerId"] == pid)["groupId"] == b["id"]
 
     renombrado = client.patch(f"{base}/player-groups/{b['id']}", json={"name": "Vender"}).json()
-    assert renombrado == {"id": b["id"], "name": "Vender", "color": "red"}
+    assert renombrado == {"id": b["id"], "groupName": "Vender", "color": "red"}
 
     assert client.delete(f"{base}/player-groups/{b['id']}").status_code == 200
     body = client.get(f"{base}/player-classes").json()
-    assert [g["name"] for g in body["groups"]] == ["Intocables"]
+    assert [g["groupName"] for g in body["groups"]] == ["Intocables"]
     assert next(j for j in body["players"] if j["htPlayerId"] == pid)["groupId"] is None
     assert (
         client.put(f"{base}/player-groups/members/{pid}", json={"groupId": 999}).status_code == 404
