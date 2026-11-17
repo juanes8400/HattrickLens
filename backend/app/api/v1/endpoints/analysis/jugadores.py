@@ -20,7 +20,10 @@ from app.application.queries.training_context import TrainingContextService
 from app.application.queries.training_squad import TrainingSquadQueryService
 from app.application.queries.weekly import season_week_for_datetime, season_week_label
 from app.domain.engines import htms as htms_motor
-from app.domain.engines.career_stage_engine import classify_career_stage
+from app.domain.engines.career_stage_engine import (
+    classify_career_stage,
+    tendencia_de_habilidades,
+)
 from app.domain.engines.loyalty_engine import loyalty_decimal as calculate_loyalty_decimal
 from app.domain.engines.position_engine import rate_all
 from app.domain.engines.pricing_engine import (
@@ -267,25 +270,14 @@ async def player_detail(
 
     # HL-15x #87: preclasificación de "en qué momento de su vida está", motor
     # puro, aquí solo se ensamblan las señales reales que necesita.
-    has_sufficient_history = len(snapshot_history) >= 2
-    skills_rising = skills_falling = skills_stable = 0
-    if has_sufficient_history:
-        oldest_skills, latest_skills = snapshot_history[0].skills, snapshot_history[-1].skills
-        for col in SKILL_COLS:
-            o, n = oldest_skills.get(col, 0), latest_skills.get(col, 0)
-            if n > o:
-                skills_rising += 1
-            elif n < o:
-                skills_falling += 1
-            else:
-                skills_stable += 1
+    tendencia = tendencia_de_habilidades([s.skills for s in snapshot_history], SKILL_COLS)
     career_stage = classify_career_stage(
         age_years=p["age_years"],
         age_days=p["age_days"],
-        skills_rising=skills_rising,
-        skills_falling=skills_falling,
-        skills_stable=skills_stable,
-        has_sufficient_history=has_sufficient_history,
+        skills_rising=tendencia.rising,
+        skills_falling=tendencia.falling,
+        skills_stable=tendencia.stable,
+        has_sufficient_history=tendencia.has_sufficient_history,
         squad_percentile=percentile["percentile"] if percentile else None,
         leadership=p["leadership"],
         loyalty=squad_player.loyalty if squad_player is not None else 0,

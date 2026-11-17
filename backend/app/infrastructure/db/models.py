@@ -388,6 +388,10 @@ class Player(Base):
     # todavía, se muestra la sugerencia.
     confirmed_career_stage: Mapped[str | None] = mapped_column(String(32))
     confirmed_career_stage_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
+    #: El grupo propio en que el usuario lo puso (Clases de Jugador →
+    #: Personalizar, 2026-11-16). Uno solo por jugador («No» a estar en
+    #: varios); nulo es «Sin grupo». Ver `PlayerGroup`.
+    player_group_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
     # HL-161, 2026-08-14, pedido explícitamente ("guardar los transferID de
     # todos los jugadores para que, si hacemos backfilling, no se confunda"):
     # los TransferID exactos de transfersplayer.xml que delimitan ESTE stint
@@ -1947,3 +1951,21 @@ class MarketSale(Base):
     #: anteriores a esta columna: esas no pueden llevar el sello del juego, y
     #: se miden con nuestra escalera como siempre.
     skills_json: Mapped[str | None] = mapped_column(String(512), nullable=True)
+
+
+class PlayerGroup(Base):
+    """Un grupo que el usuario crea en Clases de Jugador → Personalizar.
+
+    2026-11-16: «Creas grupos y pones a cada jugador donde quieras». Él les
+    pone nombre y color; quién va en cada uno lo guarda `Player.player_group_id`,
+    porque un jugador está en un solo grupo. Borrar un grupo devuelve a sus
+    jugadores a «Sin grupo».
+    """
+
+    __tablename__ = "player_groups"
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(40))
+    #: Uno de los colores de la paleta de la pantalla («blue», «red»…).
+    color: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime())

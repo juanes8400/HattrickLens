@@ -487,28 +487,97 @@ def test_a_goalkeeper_is_never_recommended_to_take_free_kicks(
     assert roles["set_piece_taker"] not in porteros
 
 
-def test_player_classes_is_only_a_tab_with_nothing_behind_it_yet(
+def test_player_classes_is_a_tab_that_fetches_its_own_data(
     seeded: tuple[TestClient, int],
 ) -> None:
-    """2026-08-16, pedido explícito: "por ahora solo el Toggle Segment".
-
-    Viaja sin series, sin cancha y sin métricas para que la interfaz no pueda
-    dibujar nada, el `chart="pending"` es lo que la hace decir "por definir"
-    en vez de rellenar el hueco con una métrica inventada.
+    """2026-11-16: la pestaña deja de estar «por definir». Lo que pinta lo pide
+    a `/player-classes`, que no va en la caché por sincronización del resumen
+    (la etapa confirmada a mano y los grupos propios cambian sin sincronizar).
     """
     client, team_id = seeded
-    classes = next(
-        g
-        for g in client.get(f"/api/v1/teams/{team_id}/overview").json()["groups"]
-        if g["key"] == "player_classes"
-    )
+    body = client.get(f"/api/v1/teams/{team_id}/overview").json()
+    classes = next(g for g in body["groups"] if g["key"] == "player_classes")
 
     assert classes["label"] == "Clases de Jugador"
-    assert classes["chart"] == "pending"
-    assert classes["charts"] == []
-    assert classes["pitch"] == []
+    assert classes["chart"] == "classes"
     assert classes["metrics"] == []
-    assert classes["specialRoles"] == []
+
+
+def test_player_classes_splits_the_whole_squad_four_ways(
+    seeded: tuple[TestClient, int],
+) -> None:
+    """Las reglas, en `test_clases_de_jugador.py`; aquí, que cada jugador sale
+    una vez con sus cuatro clases. El entrenamiento de prueba tiene 5-5-0 a 10
+    y las demás empatadas a 3: sólo cuenta 5-5-0."""
+    client, team_id = seeded
+    resp = client.get(f"/api/v1/teams/{team_id}/player-classes")
+    assert resp.status_code == 200
+    body = resp.json()
+    player_count = client.get(f"/api/v1/teams/{team_id}/overview").json()["playerCount"]
+
+    assert body["formations"] == ["5-5-0"]
+    assert body["experience"] == {"5-5-0": 10}
+    jugadores = body["players"]
+    assert len(jugadores) == player_count
+    assert len({j["htPlayerId"] for j in jugadores}) == player_count
+    titulares = [j for j in jugadores if j["titularidad"] == "titular"]
+    assert len(titulares) == 11
+    assert {j["titularidad"] for j in jugadores} <= {"titular", "suplencia", "reserva"}
+    assert {j["potencial"] for j in jugadores} <= {
+        "consolidados",
+        "veteranos",
+        "promesas",
+        "relleno",
+    }
+    assert body["medians"]["htms"] > 0
+
+    once = body["starters"][0]
+    assert once["formation"] == "5-5-0"
+    assert len(once["slots"]) == 11
+    assert {s["htPlayerId"] for s in once["slots"]} == {j["htPlayerId"] for j in titulares}
+    assert all(s["label"] for s in once["slots"])
+    assert body["groups"] == []
+    assert all(j["groupId"] is None for j in jugadores)
+
+
+def test_own_groups_can_be_created_filled_renamed_and_deleted(
+    seeded: tuple[TestClient, int],
+) -> None:
+    """Personalizar: un jugador en un solo grupo; borrar el grupo lo devuelve
+    a «Sin grupo»."""
+    client, team_id = seeded
+    base = f"/api/v1/teams/{team_id}"
+    pid = client.get(f"{base}/player-classes").json()["players"][0]["htPlayerId"]
+
+    assert (
+        client.post(f"{base}/player-groups", json={"name": "X", "color": "pink"}).status_code == 400
+    )
+    a = client.post(f"{base}/player-groups", json={"name": " Intocables ", "color": "blue"}).json()
+    b = client.post(f"{base}/player-groups", json={"name": "Para vender", "color": "red"}).json()
+    assert a["name"] == "Intocables"
+
+    assert (
+        client.put(f"{base}/player-groups/members/{pid}", json={"groupId": a["id"]}).status_code
+        == 200
+    )
+    assert (
+        client.put(f"{base}/player-groups/members/{pid}", json={"groupId": b["id"]}).status_code
+        == 200
+    )
+    body = client.get(f"{base}/player-classes").json()
+    assert [g["name"] for g in body["groups"]] == ["Intocables", "Para vender"]
+    assert next(j for j in body["players"] if j["htPlayerId"] == pid)["groupId"] == b["id"]
+
+    renombrado = client.patch(f"{base}/player-groups/{b['id']}", json={"name": "Vender"}).json()
+    assert renombrado == {"id": b["id"], "name": "Vender", "color": "red"}
+
+    assert client.delete(f"{base}/player-groups/{b['id']}").status_code == 200
+    body = client.get(f"{base}/player-classes").json()
+    assert [g["name"] for g in body["groups"]] == ["Intocables"]
+    assert next(j for j in body["players"] if j["htPlayerId"] == pid)["groupId"] is None
+    assert (
+        client.put(f"{base}/player-groups/members/{pid}", json={"groupId": 999}).status_code == 404
+    )
 
 
 def test_la_suma_semanal_no_pierde_a_quien_no_cambio_esa_semana() -> None:

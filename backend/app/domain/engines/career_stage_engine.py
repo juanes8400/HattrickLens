@@ -10,6 +10,7 @@ señales crudas (`signals`) para que la UI pueda mostrar el porqué, no solo
 la etiqueta.
 """
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -19,6 +20,37 @@ from app.domain.engines.pricing_engine import age_factor
 # valor ~22-27 años, cae fuerte desde los 28).
 YOUNG_MAX_AGE = 21
 PEAK_MAX_AGE = 27
+
+
+@dataclass(frozen=True)
+class Tendencia:
+    rising: int
+    falling: int
+    stable: int
+    has_sufficient_history: bool
+
+
+def tendencia_de_habilidades(
+    historial: Sequence[Mapping[str, int]], columnas: Sequence[str]
+) -> Tendencia:
+    """Cuántas de `columnas` subieron, bajaron o se quedaron igual entre el
+    snapshot más antiguo y el más reciente. Con menos de dos no hay tendencia.
+
+    Vivía dentro de la ficha del jugador; Clases de Jugador necesita la misma
+    etapa para toda la plantilla, y dos copias acabarían contando distinto."""
+    if len(historial) < 2:
+        return Tendencia(0, 0, 0, False)
+    antes, ahora = historial[0], historial[-1]
+    subir = bajar = igual = 0
+    for c in columnas:
+        o, n = antes.get(c, 0), ahora.get(c, 0)
+        if n > o:
+            subir += 1
+        elif n < o:
+            bajar += 1
+        else:
+            igual += 1
+    return Tendencia(subir, bajar, igual, True)
 
 
 @dataclass

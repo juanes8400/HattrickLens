@@ -61,7 +61,7 @@ export {
   usePreciosComparables,
   useSquad,
 } from "./plantilla";
-export { useTeamOverview } from "./resumen";
+export { usePlayerClasses, useTeamOverview } from "./resumen";
 export { useRivalScouting } from "./rivales";
 export { useChangesHistory, useSyncChanges } from "./sincronizacion";
 export { usePlayerBalance } from "./transferencias";

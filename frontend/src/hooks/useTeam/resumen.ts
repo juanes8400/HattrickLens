@@ -13,3 +13,11 @@ export const useTeamOverview = () =>
     queryKey: ["team-overview", TEAM_ID],
     queryFn: () => api.teamOverview(TEAM_ID),
   });
+
+/** Clases de Jugador. Sin caché por sincronización en el servidor: la etapa
+ *  confirmada a mano y los grupos propios cambian sin sincronizar. */
+export const usePlayerClasses = () =>
+  useQuery({
+    queryKey: ["player-classes", TEAM_ID],
+    queryFn: () => api.playerClasses(TEAM_ID),
+  });

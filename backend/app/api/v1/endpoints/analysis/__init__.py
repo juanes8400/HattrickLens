@@ -14,6 +14,7 @@ from fastapi import APIRouter
 from app.api.v1.endpoints.analysis import (
     alertas,
     alineacion,
+    clases,
     entrenamiento,
     jugadores,
     modelos,
@@ -45,3 +46,4 @@ router.include_router(entrenamiento.router)
 router.include_router(alertas.router)
 router.include_router(modelos.router)
 router.include_router(resumen.router)
+router.include_router(clases.router)

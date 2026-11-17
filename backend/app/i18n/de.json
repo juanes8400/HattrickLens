@@ -1963,5 +1963,8 @@
   "λ tuya = 0,902 + 0,666 = 1,567 goles esperados.": "dein λ = 0,902 + 0,666 = 1,567 erwartete Tore.",
   "λ tuya = 1,633 y λ suya = 2,641, del paso anterior.": "dein λ = 1,633 und sein λ = 2,641, aus dem vorherigen Schritt.",
   "λ_local   = ataque_i · defensa_j · media_liga · ventaja_local\nλ_visita  = ataque_j · defensa_i · media_liga\n\nfuerza_i  = (goles_i + K · media) ÷ (partidos_i + K)\n\nP(puesto) ≈ Monte Carlo sobre las jornadas que faltan": "λ_heim     = Angriff_i · Abwehr_j · Ligamittel · Heimvorteil\nλ_auswärts = Angriff_j · Abwehr_i · Ligamittel\n\nStärke_i  = (Tore_i + K · Mittel) ÷ (Spiele_i + K)\n\nP(Platz) ≈ Monte Carlo über die verbleibenden Spieltage",
-  "← el que se usa": "← der, der genutzt wird"
+  "← el que se usa": "← der, der genutzt wird",
+  "color desconocido: {}, válidos: {}": "unbekannte Farbe: {}, gültig: {}",
+  "como mucho {} grupos": "höchstens {} Gruppen",
+  "grupo {} no existe en este equipo": "Gruppe {} gibt es in diesem Team nicht"
 }

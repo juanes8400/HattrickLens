@@ -1,6 +1,7 @@
 """SquadQueryService, plantilla con ratings de posición. HL-021 y HL-022."""
 
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -550,3 +551,39 @@ class SquadQueryService:
         if ahora.potential != antes.potential:
             deltas["htms28"] = ahora.potential - antes.potential
         return deltas
+
+
+def jugador_para_el_motor(snap: m.PlayerSnapshot, ident: m.Player) -> dict[str, Any]:
+    """Un jugador tal como lo piden los motores de puestos y de Alineación.
+
+    Vivía dentro de `roster()`, en la capa de la API; el Resumen del equipo
+    lo necesita también (Equipo A / Equipo B) y una segunda copia acabaría
+    olvidando algún campo: sin `form` o `stamina` el motor da 0 en silencio."""
+    return {
+        "ht_player_id": ident.ht_player_id,
+        "first_name": ident.first_name,
+        "last_name": ident.last_name,
+        "name": f"{ident.first_name} {ident.last_name}",
+        "age_years": snap.age_years,
+        "age_days": snap.age_days,
+        "tsi": snap.tsi,
+        "form": snap.form,
+        "stamina": snap.stamina,
+        "experience": snap.experience,
+        "salary": snap.salary,
+        # HL-15x: specialty/leadership ya vienen reales de players.xml
+        # antes se ponían a 0 a mano porque no se persistían todavía.
+        "specialty": snap.specialty,
+        "leadership": snap.leadership,
+        # 2026-08-09: bug real corregido de paso, sin esto,
+        # _loyalty_bonus() en position_engine.py siempre daba 0 (ningún
+        # llamador pasaba "loyalty"), pese a que positions.yaml ya
+        # declara la fidelidad como ajuste del Manual.
+        "loyalty": snap.loyalty,
+        "injury_level": snap.injury_level,
+        "is_transfer_listed": snap.is_transfer_listed,
+        "skills": {c: getattr(snap, c) or 0 for c in SKILL_COLS},
+        # Cuándo jugó por última vez. Lo usa la alerta de forma para no
+        # avisar de quien no juega (ver `_quienes_juegan`).
+        "last_match_played_at": snap.last_match_played_at,
+    }
