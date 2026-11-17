@@ -1,4 +1,5 @@
-/** Potencial: HTMS de hoy contra HTMS a los 28, cortado en las medianas. */
+/** Rentabilidad deportiva: HTMS a los 28 contra sueldo semanal, cortado en
+ *  las medianas (2026-11-17; sustituye a Potencial, HTMS hoy × HTMS28). */
 import { tx } from "../../i18n/tx";
 import { number } from "../../hooks/useFormat";
 import type { ClasesDeJugador } from "../../services/api";
@@ -7,7 +8,7 @@ import { ListaDeGrupos } from "./comun";
 
 const W = 1000;
 const H = 520;
-const M = { izquierda: 64, derecha: 24, arriba: 16, abajo: 44 };
+const M = { izquierda: 76, derecha: 24, arriba: 16, abajo: 44 };
 
 /** Un eje con margen y marcas redondas. */
 function escala(min: number, max: number, paso: number) {
@@ -18,69 +19,100 @@ function escala(min: number, max: number, paso: number) {
   return { a, b, marcas };
 }
 
-export function Potencial({ datos }: { datos: ClasesDeJugador }) {
+/** Marcas «redondas» de un eje logarítmico: 1, 2 y 5 por cada potencia de
+ *  diez que caiga dentro. */
+function marcasLog(min: number, max: number): number[] {
+  const marcas: number[] = [];
+  for (
+    let p = Math.floor(Math.log10(min));
+    p <= Math.ceil(Math.log10(max));
+    p++
+  ) {
+    for (const f of [1, 2, 5]) {
+      const v = f * 10 ** p;
+      if (v >= min && v <= max) marcas.push(v);
+    }
+  }
+  return marcas;
+}
+
+/** «23 mil» en vez de «23.508»: en el eje sólo importa el orden de magnitud. */
+function corto(v: number): string {
+  return v >= 1000
+    ? tx("{{v}} mil", { v: number(Math.round(v / 1000)) })
+    : number(v);
+}
+
+export function Rentabilidad({ datos }: { datos: ClasesDeJugador }) {
   const grupos: Grupo[] = [
     {
-      clave: "consolidados",
-      nombre: tx("Consolidados"),
+      clave: "estrellas",
+      nombre: tx("Estrellas"),
       color: COLOR.azul,
       jugadores: [],
     },
     {
-      clave: "veteranos",
-      nombre: tx("Veteranos"),
-      color: COLOR.naranja,
-      jugadores: [],
-    },
-    {
-      clave: "promesas",
-      nombre: tx("Promesas"),
+      clave: "gangas",
+      nombre: tx("Gangas"),
       color: COLOR.verde,
       jugadores: [],
     },
     {
-      clave: "relleno",
-      nombre: tx("Relleno"),
+      clave: "caros",
+      nombre: tx("Caros"),
+      color: COLOR.rojo,
+      jugadores: [],
+    },
+    {
+      clave: "economicos",
+      nombre: tx("Económicos"),
       color: COLOR.gris,
       jugadores: [],
     },
   ];
   const color = Object.fromEntries(grupos.map((g) => [g.clave, g.color]));
-  for (const j of [...datos.players].sort((a, b) => b.htms - a.htms)) {
-    grupos.find((g) => g.clave === j.potencial)?.jugadores.push(j);
+  for (const j of [...datos.players].sort((a, b) => b.salary - a.salary)) {
+    grupos.find((g) => g.clave === j.rentabilidad)?.jugadores.push(j);
   }
   const m = datos.medians;
   if (!m || datos.players.length === 0) return null;
+  const moneda = datos.currency;
+  const dinero = (v: number) => `${number(v)} ${moneda}`.trim();
 
-  // El HTMS28 negativo de un veterano aplastaría a todos los demás contra el
-  // techo: se nombra debajo en vez de pintarlo.
-  const dentro = datos.players.filter((j) => j.htms28 >= 0);
-  const fuera = datos.players.filter((j) => j.htms28 < 0);
+  // El HTMS28 negativo de un veterano aplastaría a todos los demás contra la
+  // derecha, y un sueldo de cero no cabe en un eje logarítmico: los dos se
+  // nombran debajo en vez de pintarlos.
+  const dentro = datos.players.filter((j) => j.htms28 >= 0 && j.salary > 0);
+  const fuera = datos.players.filter((j) => !(j.htms28 >= 0 && j.salary > 0));
+  if (dentro.length === 0) return null;
   const ex = escala(
-    Math.min(...dentro.map((j) => j.htms), m.htms),
-    Math.max(...dentro.map((j) => j.htms), m.htms),
-    250,
-  );
-  const ey = escala(
     Math.min(...dentro.map((j) => j.htms28), m.htms28),
     Math.max(...dentro.map((j) => j.htms28), m.htms28),
-    100,
+    200,
   );
+  // EL SUELDO EN ESCALA LOGARÍTMICA. Va de unos cientos a decenas de miles:
+  // en escala normal los jóvenes quedarían aplastados contra el suelo.
+  const sMin = Math.min(...dentro.map((j) => j.salary), m.salary) * 0.8;
+  const sMax = Math.max(...dentro.map((j) => j.salary), m.salary) * 1.25;
   const X = (v: number) =>
     M.izquierda +
     ((v - ex.a) / (ex.b - ex.a || 1)) * (W - M.izquierda - M.derecha);
   const Y = (v: number) =>
-    H - M.abajo - ((v - ey.a) / (ey.b - ey.a || 1)) * (H - M.arriba - M.abajo);
+    H -
+    M.abajo -
+    ((Math.log10(v) - Math.log10(sMin)) /
+      (Math.log10(sMax) - Math.log10(sMin) || 1)) *
+      (H - M.arriba - M.abajo);
 
   const puntos = [...dentro]
-    .sort((a, b) => b.htms - a.htms)
-    .map((j) => ({ j, x: X(j.htms), y: Y(j.htms28), texto: j.shortName }));
+    .sort((a, b) => b.salary - a.salary)
+    .map((j) => ({ j, x: X(j.htms28), y: Y(j.salary), texto: j.shortName }));
   const etiquetas = colocarEtiquetas(puntos, {
     izquierda: M.izquierda,
     derecha: W - M.derecha,
   });
-  const px = X(m.htms);
-  const py = Y(m.htms28);
+  const px = X(m.htms28);
+  const py = Y(m.salary);
   const esquina = (
     texto: string,
     clave: string,
@@ -104,16 +136,20 @@ export function Potencial({ datos }: { datos: ClasesDeJugador }) {
     <div className="space-y-4">
       <p className="text-sm text-[var(--muted)]">
         {tx(
-          "Cortes en la mediana de la plantilla: HTMS {{h}} y HTMS28 {{f}}. Quien cae justo en la mediana cuenta arriba.",
-          { h: number(m.htms), f: number(m.htms28) },
+          "Lo que cobra cada jugador frente a lo que valdrá a los 28. Cortes en la mediana de la plantilla: HTMS28 {{f}} y un sueldo de {{s}} por semana. Quien cae justo en una mediana cuenta arriba.",
+          { f: number(m.htms28), s: dinero(m.salary) },
         )}
       </p>
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="h-auto w-full"
         role="img"
-        aria-label={tx("HTMS de hoy frente a HTMS a los 28 de cada jugador")}
+        aria-label={tx(
+          "HTMS a los 28 frente al sueldo semanal de cada jugador",
+        )}
       >
+        {/* Estrellas arriba a la derecha, Gangas abajo a la derecha, Caros
+            arriba a la izquierda, Económicos abajo a la izquierda. */}
         <rect
           x={px}
           y={M.arriba}
@@ -123,19 +159,19 @@ export function Potencial({ datos }: { datos: ClasesDeJugador }) {
           opacity={0.06}
         />
         <rect
-          x={M.izquierda}
-          y={M.arriba}
-          width={px - M.izquierda}
-          height={py - M.arriba}
-          fill={COLOR.verde}
-          opacity={0.06}
-        />
-        <rect
           x={px}
           y={py}
           width={W - M.derecha - px}
           height={H - M.abajo - py}
-          fill={COLOR.naranja}
+          fill={COLOR.verde}
+          opacity={0.06}
+        />
+        <rect
+          x={M.izquierda}
+          y={M.arriba}
+          width={px - M.izquierda}
+          height={py - M.arriba}
+          fill={COLOR.rojo}
           opacity={0.06}
         />
         <rect
@@ -166,7 +202,7 @@ export function Potencial({ datos }: { datos: ClasesDeJugador }) {
             </text>
           </g>
         ))}
-        {ey.marcas.map((v) => (
+        {marcasLog(sMin, sMax).map((v) => (
           <g key={`y${v}`}>
             <line
               x1={M.izquierda}
@@ -182,7 +218,7 @@ export function Potencial({ datos }: { datos: ClasesDeJugador }) {
               fontSize={11}
               fill="var(--muted)"
             >
-              {number(v)}
+              {corto(v)}
             </text>
           </g>
         ))}
@@ -193,7 +229,7 @@ export function Potencial({ datos }: { datos: ClasesDeJugador }) {
           fontSize={12}
           fill="var(--muted)"
         >
-          {tx("HTMS hoy")}
+          {tx("HTMS a los 28")}
         </text>
         <text
           x={14}
@@ -203,7 +239,9 @@ export function Potencial({ datos }: { datos: ClasesDeJugador }) {
           fill="var(--muted)"
           transform={`rotate(-90 14 ${(M.arriba + H - M.abajo) / 2})`}
         >
-          {tx("HTMS a los 28")}
+          {tx("Sueldo semanal ({{moneda}}, escala logarítmica)", {
+            moneda,
+          })}
         </text>
         <line
           x1={px}
@@ -221,32 +259,20 @@ export function Potencial({ datos }: { datos: ClasesDeJugador }) {
           stroke="var(--muted)"
           strokeDasharray="5 4"
         />
+        {esquina(tx("Estrellas"), "estrellas", px + 8, M.arriba + 16, "start")}
         {esquina(
-          tx("Consolidados"),
-          "consolidados",
-          W - M.derecha - 8,
-          M.arriba + 16,
-          "end",
-        )}
-        {esquina(
-          tx("Promesas"),
-          "promesas",
-          M.izquierda + 8,
-          M.arriba + 16,
-          "start",
-        )}
-        {esquina(
-          tx("Veteranos"),
-          "veteranos",
+          tx("Gangas"),
+          "gangas",
           W - M.derecha - 8,
           H - M.abajo - 10,
           "end",
         )}
+        {esquina(tx("Caros"), "caros", M.izquierda + 8, M.arriba + 16, "start")}
         {esquina(
-          tx("Relleno"),
-          "relleno",
+          tx("Económicos"),
+          "economicos",
           M.izquierda + 8,
-          H - M.abajo - 10,
+          py + 18,
           "start",
         )}
         {puntos.map((p, i) => (
@@ -255,12 +281,12 @@ export function Potencial({ datos }: { datos: ClasesDeJugador }) {
               cx={p.x}
               cy={p.y}
               r={7}
-              fill={color[p.j.potencial]}
+              fill={color[p.j.rentabilidad]}
               stroke="var(--surface)"
               strokeWidth={2}
             >
               <title>
-                {`${p.j.name} · ${p.j.ageYears} · HTMS ${number(p.j.htms)} · HTMS28 ${number(p.j.htms28)}`}
+                {`${p.j.name} · ${p.j.ageYears} · HTMS28 ${number(p.j.htms28)} · ${dinero(p.j.salary)}`}
               </title>
             </circle>
             <text
@@ -277,17 +303,17 @@ export function Potencial({ datos }: { datos: ClasesDeJugador }) {
       </svg>
       {fuera.length > 0 && (
         <p className="text-xs text-[var(--muted)]">
-          {tx("Fuera del gráfico, con HTMS28 negativo: {{v}}.", {
+          {tx("Fuera del gráfico, con HTMS28 negativo o sin sueldo: {{v}}.", {
             v: fuera
               .map(
                 (j) =>
-                  `${j.shortName} (HTMS ${number(j.htms)}, HTMS28 ${number(j.htms28)})`,
+                  `${j.shortName} (HTMS28 ${number(j.htms28)}, ${dinero(j.salary)})`,
               )
               .join(" · "),
           })}
         </p>
       )}
-      <ListaDeGrupos grupos={grupos} />
+      <ListaDeGrupos grupos={grupos} detalle={(j) => dinero(j.salary)} />
     </div>
   );
 }

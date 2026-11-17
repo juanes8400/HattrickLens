@@ -20,10 +20,14 @@ así ninguna se elige por el orden de una lista. Los lesionados cuentan como
 sanos («Como si estuviera sano»): una lesión dice quién no juega este sábado,
 no a qué grupo pertenece.
 
-POTENCIAL (HTMS hoy × HTMS a los 28). Cortes en la mediana de la plantilla
-entera, con los veteranos de HTMS28 negativo dentro («Si»). Quien cae justo en
-la mediana cuenta arriba («Arriba»). Consolidados: alto y alto. Veteranos: alto
-hoy, bajo a los 28. Promesas: bajo hoy, alto a los 28. Relleno: bajo y bajo.
+RENTABILIDAD DEPORTIVA (HTMS a los 28 × sueldo). Sustituye el 2026-11-17 a
+«Potencial» (HTMS hoy × HTMS28): con su plantilla, sueldo y HTMS de hoy caían
+del mismo lado de la mediana en 17 de 19, así que las dos repartían casi igual,
+y el usuario se quedó con la que habla de lo que cuesta. Cortes en la mediana
+de la plantilla entera, con los veteranos de HTMS28 negativo dentro («Si»).
+Quien cae justo en una mediana cuenta arriba («Arriba»): en HTMS28, alto; en
+sueldo, caro. Estrellas: futuro alto, sueldo alto. Gangas: futuro alto, sueldo
+bajo. Caros: futuro bajo, sueldo alto. Económicos: futuro bajo, sueldo bajo.
 
 ETAPA DE CARRERA. La de la ficha de cada jugador (`career_stage_engine`); la
 que el usuario confirme a mano allí manda. Cualquier etapa puede partirse en
@@ -47,10 +51,10 @@ TITULAR = "titular"
 SUPLENCIA = "suplencia"
 RESERVA = "reserva"
 
-CONSOLIDADOS = "consolidados"
-VETERANOS = "veteranos"
-PROMESAS = "promesas"
-RELLENO = "relleno"
+ESTRELLAS = "estrellas"
+GANGAS = "gangas"
+CAROS = "caros"
+ECONOMICOS = "economicos"
 
 #: Los dos lados de una etapa partida.
 LADO_TITULAR = "titular"
@@ -86,10 +90,10 @@ class Reparto:
 
 
 @dataclass(frozen=True)
-class CortePotencial:
-    mediana_htms: float
+class CorteDeRentabilidad:
     mediana_htms28: float
-    #: ht_player_id → CONSOLIDADOS, VETERANOS, PROMESAS o RELLENO.
+    mediana_sueldo: float
+    #: ht_player_id → ESTRELLAS, GANGAS, CAROS o ECONOMICOS.
     grupos: Mapping[int, str]
 
 
@@ -183,27 +187,30 @@ def repartir(
     )
 
 
-def potencial(valores: Mapping[int, tuple[int, int]]) -> CortePotencial | None:
-    """`valores`: ht_player_id → (HTMS hoy, HTMS28). None sin jugadores."""
+def rentabilidad(valores: Mapping[int, tuple[int, int]]) -> CorteDeRentabilidad | None:
+    """`valores`: ht_player_id → (HTMS28, sueldo semanal). None sin jugadores.
+
+    El sueldo puede ir en cualquier moneda: la mediana y el corte no cambian
+    al dividirlo por una tasa."""
     if not valores:
         return None
-    mh = float(statistics.median(h for h, _ in valores.values()))
-    mf = float(statistics.median(f for _, f in valores.values()))
+    mf = float(statistics.median(f for f, _ in valores.values()))
+    ms = float(statistics.median(s for _, s in valores.values()))
 
-    def grupo(h: int, f: int) -> str:
-        alto_hoy, alto_28 = h >= mh, f >= mf
-        if alto_hoy and alto_28:
-            return CONSOLIDADOS
-        if alto_hoy:
-            return VETERANOS
+    def grupo(f: int, s: int) -> str:
+        alto_28, caro = f >= mf, s >= ms
+        if alto_28 and caro:
+            return ESTRELLAS
         if alto_28:
-            return PROMESAS
-        return RELLENO
+            return GANGAS
+        if caro:
+            return CAROS
+        return ECONOMICOS
 
-    return CortePotencial(
-        mediana_htms=mh,
+    return CorteDeRentabilidad(
         mediana_htms28=mf,
-        grupos={pid: grupo(h, f) for pid, (h, f) in valores.items()},
+        mediana_sueldo=ms,
+        grupos={pid: grupo(f, s) for pid, (f, s) in valores.items()},
     )
 
 

@@ -523,13 +523,15 @@ def test_player_classes_splits_the_whole_squad_four_ways(
     titulares = [j for j in jugadores if j["titularidad"] == "titular"]
     assert len(titulares) == 11
     assert {j["titularidad"] for j in jugadores} <= {"titular", "suplencia", "reserva"}
-    assert {j["potencial"] for j in jugadores} <= {
-        "consolidados",
-        "veteranos",
-        "promesas",
-        "relleno",
+    assert {j["rentabilidad"] for j in jugadores} <= {
+        "estrellas",
+        "gangas",
+        "caros",
+        "economicos",
     }
-    assert body["medians"]["htms"] > 0
+    assert body["medians"]["salary"] > 0
+    assert all(j["salary"] > 0 for j in jugadores)
+    assert isinstance(body["currency"], str)
 
     once = body["starters"][0]
     assert once["formation"] == "5-5-0"

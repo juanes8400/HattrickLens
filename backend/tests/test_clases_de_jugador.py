@@ -3,18 +3,18 @@
 from typing import Any
 
 from app.domain.engines.clases_de_jugador import (
-    CONSOLIDADOS,
+    CAROS,
+    ECONOMICOS,
+    ESTRELLAS,
+    GANGAS,
     LADO_SUPLENTE,
     LADO_TITULAR,
-    PROMESAS,
-    RELLENO,
     RESERVA,
     SUPLENCIA,
     TITULAR,
-    VETERANOS,
     formaciones_mas_entrenadas,
     partir_etapas,
-    potencial,
+    rentabilidad,
     repartir,
 )
 from app.domain.engines.lineup_optimizer import Assignment, Lineup, best_lineup
@@ -154,30 +154,37 @@ def test_alineacion_sin_huecos_sigue_negandose_si_no_llegan():
         best_lineup([_de_campo(i, 8) for i in range(7)], "4-4-2")
 
 
-# ---------------------------------------------------------------- potencial
+# ---------------------------------------------------------------- rentabilidad
 
 
-def test_potencial_corta_en_la_mediana_y_la_mediana_cuenta_arriba():
-    valores = {1: (2000, 1700), 2: (1500, 1500), 3: (800, 1650), 4: (900, 1000), 5: (1900, 1200)}
-    corte = potencial(valores)
+def test_rentabilidad_corta_en_la_mediana_y_la_mediana_cuenta_arriba():
+    # (HTMS28, sueldo)
+    valores = {
+        1: (1700, 40000),
+        2: (1500, 20000),
+        3: (1650, 5000),
+        4: (1000, 3000),
+        5: (1200, 60000),
+    }
+    corte = rentabilidad(valores)
     assert corte is not None
-    assert (corte.mediana_htms, corte.mediana_htms28) == (1500, 1500)
+    assert (corte.mediana_htms28, corte.mediana_sueldo) == (1500, 20000)
     assert corte.grupos == {
-        1: CONSOLIDADOS,
-        2: CONSOLIDADOS,  # justo en las dos medianas: arriba
-        3: PROMESAS,
-        4: RELLENO,
-        5: VETERANOS,
+        1: ESTRELLAS,
+        2: ESTRELLAS,  # justo en las dos medianas: futuro alto y caro
+        3: GANGAS,
+        4: ECONOMICOS,
+        5: CAROS,
     }
 
 
 def test_el_htms28_negativo_cuenta_para_la_mediana():
-    con = potencial({1: (100, 1600), 2: (100, 1500), 3: (100, -1500)})
+    con = rentabilidad({1: (1600, 100), 2: (1500, 100), 3: (-1500, 100)})
     assert con is not None and con.mediana_htms28 == 1500
 
 
 def test_sin_jugadores_no_hay_corte():
-    assert potencial({}) is None
+    assert rentabilidad({}) is None
 
 
 # ---------------------------------------------------------------- etapas

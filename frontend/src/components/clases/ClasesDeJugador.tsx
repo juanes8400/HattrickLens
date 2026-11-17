@@ -4,7 +4,8 @@
  * los ejes que explican por qué cada jugador cae en su grupo:
  *
  *  - Titularidad: las canchas de las formaciones con más experiencia.
- *  - Potencial: HTMS de hoy contra HTMS a los 28, cortado en las medianas.
+ *  - Rentabilidad deportiva: HTMS a los 28 contra sueldo, cortado en las
+ *    medianas (2026-11-17; sustituye a Potencial, HTMS hoy × HTMS28).
  *  - Etapa de carrera: una fila por edad, con el dato que decide la etapa.
  *  - Personalizar: un tablero con los grupos que crea el usuario.
  *
@@ -17,11 +18,16 @@ import { usePersistido } from "../../hooks/usePersistido";
 import { tx } from "../../i18n/tx";
 import { Etapa } from "./Etapa";
 import { Personalizar } from "./Personalizar";
-import { Potencial } from "./Potencial";
+import { Rentabilidad } from "./Rentabilidad";
 import { Titularidad } from "./Titularidad";
 
-type Vista = "titularidad" | "potencial" | "etapa" | "personalizar";
-const VISTAS: Vista[] = ["titularidad", "potencial", "etapa", "personalizar"];
+type Vista = "titularidad" | "rentabilidad" | "etapa" | "personalizar";
+const VISTAS: Vista[] = [
+  "titularidad",
+  "rentabilidad",
+  "etapa",
+  "personalizar",
+];
 
 export function ClasesDeJugador() {
   const { data, isLoading, isError, error } = usePlayerClasses();
@@ -43,7 +49,7 @@ export function ClasesDeJugador() {
           label={tx("Agrupar por")}
           tabs={[
             { key: "titularidad", label: tx("Titularidad") },
-            { key: "potencial", label: tx("Potencial") },
+            { key: "rentabilidad", label: tx("Rentabilidad deportiva") },
             { key: "etapa", label: tx("Etapa de carrera") },
             { key: "personalizar", label: tx("Personalizar") },
           ]}
@@ -54,8 +60,8 @@ export function ClasesDeJugador() {
       <PanelDePestanas grupo="clases-de-jugador" activa={vista}>
         {vista === "titularidad" ? (
           <Titularidad datos={data} />
-        ) : vista === "potencial" ? (
-          <Potencial datos={data} />
+        ) : vista === "rentabilidad" ? (
+          <Rentabilidad datos={data} />
         ) : vista === "etapa" ? (
           <Etapa datos={data} />
         ) : (
