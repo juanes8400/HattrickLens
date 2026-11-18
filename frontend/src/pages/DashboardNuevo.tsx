@@ -10,6 +10,7 @@ import {
   useLeague,
   useLineup,
   useMatches,
+  useNextOfficialMatch,
 } from "../hooks/useTeam";
 import {
   Empty,
@@ -22,11 +23,12 @@ import { BarraDePrediccion } from "../components/BarraDePrediccion";
 import { SplitSelector } from "../components/SplitSelector";
 import { FORMATIONS } from "../services/api";
 import type { Dashboard } from "../services/api";
-import { money, percent } from "../hooks/useFormat";
+import { date, money, percent } from "../hooks/useFormat";
 import { skillLevelLabel } from "../utils/skillLevels";
 import { FlorDeFuerza } from "../components/FlorDeFuerza";
 import { AlertsBand, BestElevenPitch, TrainingPanel } from "./DashboardPage";
 import { nivelOficial } from "../i18n/glosario";
+import { tx } from "../i18n/tx";
 
 /**
  * El Dashboard de la propuesta del 2026-09-13, reordenado el 2026-09-15:
@@ -181,11 +183,20 @@ export function DashboardNuevo() {
  *  petición para los tres paneles que leen la liga. */
 const RUNS_DEL_DASHBOARD = 2_000;
 
+/** El próximo partido OFICIAL: liga, copa (también las Desafío), promoción o
+ *  Masters (2026-11-18, pedido del usuario). Antes salía del modelo de liga, y
+ *  un cruce de copa el mismo día no aparecía.
+ *
+ *  La predicción, siempre («todos los partidos oficiales deben tener
+ *  predicción», 2026-11-14): la de liga, del modelo de la serie; la de copa,
+ *  promoción y Masters, de la ficha del rival, la misma de Copa y Rivales,
+ *  que el servidor manda con el partido. */
 function ProximoPartido() {
   const { t } = useTranslation();
+  const proximo = useNextOfficialMatch();
   const league = useLeague(RUNS_DEL_DASHBOARD);
   const titulo = t("dashboard.proximoPartido", "Próximo partido");
-  if (league.isLoading) {
+  if (proximo.isLoading) {
     return (
       <Panel title={titulo}>
         <div className="p-4">
@@ -194,80 +205,110 @@ function ProximoPartido() {
       </Panel>
     );
   }
-  const nm = league.data?.nextMatch;
-  if (!league.data || !nm) {
+  const p = proximo.data;
+  if (!p) {
     return (
       <Panel title={titulo}>
-        <Empty>
-          {t("dashboard.sinPartidoLiga", "No hay partido de liga pendiente.")}
-        </Empty>
+        <Empty>{tx("No tienes ningún partido oficial pendiente.")}</Empty>
       </Panel>
     );
   }
-  const fecha = league.data.fixtures.find(
-    (f) =>
-      f.matchRound === nm.round &&
-      f.home === nm.home &&
-      f.away === nm.away &&
-      !f.played,
-  )?.date;
-  const tuNombre = nm.isHome ? nm.home : nm.away;
-  const suNombre = nm.isHome ? nm.away : nm.home;
-  // Hecho del servidor, no deducción del pronóstico (2026-11-14): sin ratings
-  // el pronóstico sale de los goles y eso no dice nada de tus órdenes.
-  const ordenesEnviadas = nm.ordersSent ?? nm.sources?.own.kind === "submitted";
+  const nm = league.data?.nextMatch;
+  const deLiga =
+    p.matchType === 1 && nm && nm.home === p.home && nm.away === p.away
+      ? nm
+      : null;
+  const deCopa = p.matchType !== 1 ? p.prediction : null;
+  const tuNombre = p.isHome ? p.home : p.away;
+  const suNombre = p.isHome ? p.away : p.home;
+  const sede = p.isHome
+    ? t("comun.enCasa", "en casa")
+    : t("comun.fuera", "fuera");
+  // Lo que dice Hattrick del partido; en liga, si no lo dijo, lo que ya
+  // sabía el pronóstico (2026-11-14).
+  const ordenesEnviadas =
+    p.ordersGiven ??
+    (deLiga
+      ? (deLiga.ordersSent ?? deLiga.sources?.own.kind === "submitted")
+      : null);
 
   return (
     <Panel
       title={titulo}
-      meta={`${fecha ? `${fecha} · ` : ""}${t(
-        "dashboard.metaPartido",
-        "Liga, jornada {{jornada}} · {{sede}}",
-        {
-          jornada: nm.round,
-          sede: nm.isHome
-            ? t("comun.enCasa", "en casa")
-            : t("comun.fuera", "fuera"),
-        },
-      )}`}
+      meta={`${date(p.date)} · ${
+        p.matchType === 1 && p.round != null
+          ? t("dashboard.metaPartido", "Liga, jornada {{jornada}} · {{sede}}", {
+              jornada: p.round,
+              sede,
+            })
+          : tx("{{torneo}} · {{sede}}", { torneo: p.tournament, sede })
+      }`}
     >
       <div className="space-y-3 p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <span className="text-lg">
-            <span className={nm.isHome ? "font-semibold" : ""}>{nm.home}</span>
+            <span className={p.isHome ? "font-semibold" : ""}>{p.home}</span>
             <span className="mx-2 text-sm text-[var(--muted)]">vs</span>
-            <span className={!nm.isHome ? "font-semibold" : ""}>{nm.away}</span>
+            <span className={!p.isHome ? "font-semibold" : ""}>{p.away}</span>
           </span>
-          <span className="text-xs text-[var(--muted)]">
-            {t("dashboard.masProbable", "resultado más probable {{marcador}}", {
-              marcador: nm.mostLikelyScore,
-            })}
-          </span>
+          {(deLiga || deCopa) && (
+            <span className="text-xs text-[var(--muted)]">
+              {t(
+                "dashboard.masProbable",
+                "resultado más probable {{marcador}}",
+                {
+                  marcador: (deLiga ?? deCopa)?.mostLikelyScore,
+                },
+              )}
+            </span>
+          )}
         </div>
-        <BarraDePrediccion
-          tuLabel={tuNombre}
-          tuValor={nm.isHome ? nm.homeWin : nm.awayWin}
-          rivalLabel={suNombre}
-          rivalValor={nm.isHome ? nm.awayWin : nm.homeWin}
-          empate={nm.draw}
-        />
+        {deLiga ? (
+          <BarraDePrediccion
+            tuLabel={tuNombre}
+            tuValor={deLiga.isHome ? deLiga.homeWin : deLiga.awayWin}
+            rivalLabel={suNombre}
+            rivalValor={deLiga.isHome ? deLiga.awayWin : deLiga.homeWin}
+            empate={deLiga.draw}
+          />
+        ) : deCopa ? (
+          <BarraDePrediccion
+            tuLabel={tuNombre}
+            tuValor={deCopa.ownProbability}
+            rivalLabel={suNombre}
+            rivalValor={deCopa.rivalProbability}
+          />
+        ) : (
+          <p className="text-xs text-[var(--muted)]">
+            {p.matchType === 1 && league.isLoading
+              ? tx("Calculando la predicción…")
+              : tx("Sin predicción para este partido.")}
+          </p>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span
-            className={`rounded px-2 py-0.5 text-xs ${
-              ordenesEnviadas
-                ? "bg-[var(--positive)]/15 text-[var(--positive)]"
-                : "bg-[var(--warning)]/15 text-[var(--warning)]"
-            }`}
-          >
-            {ordenesEnviadas
-              ? t("dashboard.ordenesEnviadas", "Órdenes enviadas")
-              : t("dashboard.ordenesSinEnviar", "Órdenes sin enviar")}
-          </span>
+          {ordenesEnviadas != null ? (
+            <span
+              className={`rounded px-2 py-0.5 text-xs ${
+                ordenesEnviadas
+                  ? "bg-[var(--positive)]/15 text-[var(--positive)]"
+                  : "bg-[var(--warning)]/15 text-[var(--warning)]"
+              }`}
+            >
+              {ordenesEnviadas
+                ? t("dashboard.ordenesEnviadas", "Órdenes enviadas")
+                : t("dashboard.ordenesSinEnviar", "Órdenes sin enviar")}
+            </span>
+          ) : (
+            <span />
+          )}
           <span className="flex gap-4 text-xs">
             <Link to="/lineup" className="text-[var(--accent)] hover:underline">
               {t("dashboard.irAlineacion", "Alineación →")}
             </Link>
-            <Link to="/rivals" className="text-[var(--accent)] hover:underline">
+            <Link
+              to={`/rivals/${p.rivalHtId}`}
+              className="text-[var(--accent)] hover:underline"
+            >
               {t("dashboard.estudiarRival", "Estudiar al rival →")}
             </Link>
           </span>

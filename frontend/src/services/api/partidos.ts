@@ -185,6 +185,33 @@ export interface MatchDetail {
 
 // ── Liga y predicciones ─────────────────────────────────────────────────────
 
+/** El próximo partido oficial (2026-11-18): liga, copa, promoción o Masters.
+ *  Lo encabeza el Dashboard. */
+export interface ProximoPartidoOficial {
+  htMatchId: number;
+  /** 1 liga, 2 promoción, 3 copa (también las Desafío), 7 Masters. */
+  matchType: number;
+  /** «Liga», «Copa Colombia», «Hattrick Masters»… */
+  tournament: string;
+  date: string;
+  home: string;
+  away: string;
+  isHome: boolean;
+  rivalHtId: number;
+  /** Lo que dice Hattrick; null si no lo dijo. */
+  ordersGiven: boolean | null;
+  /** Jornada, sólo en liga. */
+  round: number | null;
+  /** Fuera de liga: la predicción de la ficha del rival, la misma de Copa y
+   *  Rivales. En liga va `null`: la pinta el modelo de la serie. También
+   *  `null` si no hay con qué (sin ratings o sin Hattrick). */
+  prediction: {
+    ownProbability: number;
+    rivalProbability: number;
+    mostLikelyScore: string;
+  } | null;
+}
+
 export const apiPartidos = {
   matches: (
     teamId: number,
@@ -201,6 +228,10 @@ export const apiPartidos = {
     request<MatchDetail>(`/teams/${teamId}/matches/${htMatchId}`),
   lastMatchReport: (teamId: number) =>
     request<LastMatchReport | null>(`/teams/${teamId}/last-match-report`),
+  nextOfficialMatch: (teamId: number) =>
+    request<ProximoPartidoOficial | null>(
+      `/teams/${teamId}/next-official-match`,
+    ),
   syncMatchDetails: (teamId: number) =>
     request<MatchDetailsSyncResult>(`/teams/${teamId}/matches/details/sync`, {
       method: "POST",

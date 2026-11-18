@@ -145,6 +145,7 @@ export type {
   ConversionSummary,
   HomeAwayRow,
   LastMatchReport,
+  ProximoPartidoOficial,
   MatchDetail,
   MatchDetailsSyncResult,
   MatchRow,

@@ -1146,7 +1146,6 @@
   "Próximo partido": "Nächstes Spiel",
   "Próximo partido con su pronóstico.": "Nächstes Spiel mit seiner Prognose.",
   "Próximo partido, su ingreso esperado y la economía observada de la copa.": "Nächstes Spiel, seine erwarteten Einnahmen und die beobachteten Finanzen des Pokals.",
-  "Próximo partido: rival, fecha, competición y el pronóstico con victoria, empate y derrota.": "Nächstes Spiel: Gegner, Datum, Wettbewerb und die Prognose mit Sieg, Unentschieden und Niederlage.",
   "Pts": "Pkt",
   "Publicaciones científicas": "Wissenschaftliche Veröffentlichungen",
   "Publicidad": "Werbung",
@@ -2391,5 +2390,10 @@
   "Puedes marcar varios: cada uno es una línea en todas las gráficas.": "Du kannst mehrere markieren: Jede ist eine Linie in allen Grafiken.",
   "Grupos: subidas y bajadas de la última sincronización dentro de cada grupo de la Clasificación de jugadores (titulares que bajan, suplentes que superan a un titular, promesas estancadas o que suben, veteranos que empiezan a bajar, estrellas y caros que caen, gangas que suben, un grupo que baja tres semanas seguidas y tus propios grupos).": "Gruppen: Anstiege und Rückgänge der letzten Synchronisierung in jeder Gruppe der Spielerklassifizierung (Stammspieler, die sinken, Ersatzspieler, die einen Stammspieler überholen, Talente, die stocken oder steigen, Veteranen, die zu sinken beginnen, Stars und teure Spieler, die nachlassen, Schnäppchen, die steigen, eine Gruppe, die drei Wochen in Folge sinkt, und deine eigenen Gruppen).",
   "Mercado y once: un titular en venta, un titular sin experiencia o que no juega los dos últimos oficiales, una venta que ya dejaría ganancia, un precio que sube un 15 % en una semana, un ex jugador tuyo en venta del que cobrarías comisión, la resistencia baja para la edad y un juvenil listo para subir.": "Markt und Elf: ein Stammspieler auf dem Transfermarkt, ein Stammspieler mit wenig Erfahrung oder ohne Einsatz in den letzten zwei Pflichtspielen, ein Verkauf, der schon Gewinn brächte, ein Preis, der in einer Woche um 15 % steigt, ein ehemaliger Spieler von dir auf dem Markt, an dem du Provision verdienen würdest, wenig Kondition für das Alter und ein Jugendspieler, der hochgezogen werden kann.",
-  "La misma etapa de la ficha de cada jugador. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "Dieselbe Phase wie auf der Seite jedes Spielers. Eine Phase mit mehr als {{n}} Spielern wird in Stamm- und Ersatzspieler geteilt."
+  "La misma etapa de la ficha de cada jugador. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "Dieselbe Phase wie auf der Seite jedes Spielers. Eine Phase mit mehr als {{n}} Spielern wird in Stamm- und Ersatzspieler geteilt.",
+  "No tienes ningún partido oficial pendiente.": "Du hast kein offenes Pflichtspiel.",
+  "{{torneo}} · {{sede}}": "{{torneo}} · {{sede}}",
+  "Calculando la predicción…": "Prognose wird berechnet…",
+  "Sin predicción para este partido.": "Keine Prognose für dieses Spiel.",
+  "Próximo partido oficial, sea de liga, copa, promoción o Masters: rival, fecha, competición y su pronóstico.": "Nächstes Pflichtspiel, ob Liga, Pokal, Relegation oder Masters: Gegner, Datum, Wettbewerb und seine Prognose."
 }

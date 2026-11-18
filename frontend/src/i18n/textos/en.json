@@ -1146,7 +1146,6 @@
   "Próximo partido": "Next match",
   "Próximo partido con su pronóstico.": "Next match with its forecast.",
   "Próximo partido, su ingreso esperado y la economía observada de la copa.": "Next match, its expected income and the cup's observed finances.",
-  "Próximo partido: rival, fecha, competición y el pronóstico con victoria, empate y derrota.": "Next match: opponent, date, competition and the forecast with win, draw and loss.",
   "Pts": "Pts",
   "Publicaciones científicas": "Scientific publications",
   "Publicidad": "Advertising",
@@ -2391,5 +2390,10 @@
   "Puedes marcar varios: cada uno es una línea en todas las gráficas.": "You can tick several: each one is a line in every chart.",
   "Grupos: subidas y bajadas de la última sincronización dentro de cada grupo de la Clasificación de jugadores (titulares que bajan, suplentes que superan a un titular, promesas estancadas o que suben, veteranos que empiezan a bajar, estrellas y caros que caen, gangas que suben, un grupo que baja tres semanas seguidas y tus propios grupos).": "Groups: increases and drops from the last sync within each Player classification group (starters who drop, substitutes who overtake a starter, prospects who stall or improve, veterans who start to drop, stars and expensive players who decline, bargains who improve, a group that drops three weeks in a row, and your own groups).",
   "Mercado y once: un titular en venta, un titular sin experiencia o que no juega los dos últimos oficiales, una venta que ya dejaría ganancia, un precio que sube un 15 % en una semana, un ex jugador tuyo en venta del que cobrarías comisión, la resistencia baja para la edad y un juvenil listo para subir.": "Market and eleven: a starter on the market, a starter with little experience or who hasn't played the last two official matches, a sale that would already make a profit, a price that rises 15% in a week, a former player of yours on the market you'd earn a commission from, low stamina for the age, and a youth player ready to be promoted.",
-  "La misma etapa de la ficha de cada jugador. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "The same stage as on each player's page. A stage with more than {{n}} players is split into starters and substitutes."
+  "La misma etapa de la ficha de cada jugador. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "The same stage as on each player's page. A stage with more than {{n}} players is split into starters and substitutes.",
+  "No tienes ningún partido oficial pendiente.": "You have no official match pending.",
+  "{{torneo}} · {{sede}}": "{{torneo}} · {{sede}}",
+  "Calculando la predicción…": "Calculating the prediction…",
+  "Sin predicción para este partido.": "No prediction for this match.",
+  "Próximo partido oficial, sea de liga, copa, promoción o Masters: rival, fecha, competición y su pronóstico.": "Next official match, whether league, cup, promotion or Masters: opponent, date, competition and its prediction."
 }

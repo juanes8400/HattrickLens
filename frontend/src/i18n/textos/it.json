@@ -1146,7 +1146,6 @@
   "Próximo partido": "Prossima partita",
   "Próximo partido con su pronóstico.": "Prossima partita con la sua previsione.",
   "Próximo partido, su ingreso esperado y la economía observada de la copa.": "Prossima partita, la sua entrata attesa e le finanze osservate della coppa.",
-  "Próximo partido: rival, fecha, competición y el pronóstico con victoria, empate y derrota.": "Prossima partita: avversario, data, competizione e la previsione con vittoria, pareggio e sconfitta.",
   "Pts": "Pti",
   "Publicaciones científicas": "Pubblicazioni scientifiche",
   "Publicidad": "Pubblicità",
@@ -2391,5 +2390,10 @@
   "Puedes marcar varios: cada uno es una línea en todas las gráficas.": "Puoi selezionarne diversi: ognuno è una linea in tutti i grafici.",
   "Grupos: subidas y bajadas de la última sincronización dentro de cada grupo de la Clasificación de jugadores (titulares que bajan, suplentes que superan a un titular, promesas estancadas o que suben, veteranos que empiezan a bajar, estrellas y caros que caen, gangas que suben, un grupo que baja tres semanas seguidas y tus propios grupos).": "Gruppi: aumenti e cali dell'ultima sincronizzazione all'interno di ogni gruppo della Classificazione dei giocatori (titolari che calano, riserve che superano un titolare, promesse ferme o che salgono, veterani che iniziano a calare, stelle e cari che calano, affari che salgono, un gruppo che cala tre settimane di fila e i tuoi gruppi).",
   "Mercado y once: un titular en venta, un titular sin experiencia o que no juega los dos últimos oficiales, una venta que ya dejaría ganancia, un precio que sube un 15 % en una semana, un ex jugador tuyo en venta del que cobrarías comisión, la resistencia baja para la edad y un juvenil listo para subir.": "Mercato e undici: un titolare in vendita, un titolare con poca esperienza o che non ha giocato le ultime due ufficiali, una vendita che porterebbe già un guadagno, un prezzo che sale del 15% in una settimana, un tuo ex giocatore in vendita da cui incasseresti una commissione, la resistenza bassa per l'età e un giovane pronto a salire.",
-  "La misma etapa de la ficha de cada jugador. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "La stessa fase della scheda di ogni giocatore. Una fase con più di {{n}} giocatori si divide in titolari e riserve."
+  "La misma etapa de la ficha de cada jugador. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "La stessa fase della scheda di ogni giocatore. Una fase con più di {{n}} giocatori si divide in titolari e riserve.",
+  "No tienes ningún partido oficial pendiente.": "Non hai nessuna partita ufficiale in programma.",
+  "{{torneo}} · {{sede}}": "{{torneo}} · {{sede}}",
+  "Calculando la predicción…": "Calcolo della previsione…",
+  "Sin predicción para este partido.": "Nessuna previsione per questa partita.",
+  "Próximo partido oficial, sea de liga, copa, promoción o Masters: rival, fecha, competición y su pronóstico.": "Prossima partita ufficiale, di campionato, coppa, spareggio o Masters: avversario, data, competizione e la sua previsione."
 }

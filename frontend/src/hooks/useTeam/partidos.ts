@@ -28,3 +28,10 @@ export const useLastMatchReport = () =>
     queryKey: ["last-match-report", TEAM_ID],
     queryFn: () => api.lastMatchReport(TEAM_ID),
   });
+
+/** El próximo partido oficial, de cualquier competición (2026-11-18). */
+export const useNextOfficialMatch = () =>
+  useQuery({
+    queryKey: ["next-official-match", TEAM_ID],
+    queryFn: () => api.nextOfficialMatch(TEAM_ID),
+  });

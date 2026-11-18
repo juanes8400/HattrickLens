@@ -1146,7 +1146,6 @@
   "Próximo partido": "Następny mecz",
   "Próximo partido con su pronóstico.": "Następny mecz wraz z prognozą.",
   "Próximo partido, su ingreso esperado y la economía observada de la copa.": "Następny mecz, jego oczekiwany wpływ i zaobserwowane finanse pucharu.",
-  "Próximo partido: rival, fecha, competición y el pronóstico con victoria, empate y derrota.": "Następny mecz: przeciwnik, data, rozgrywki i prognoza ze zwycięstwem, remisem i porażką.",
   "Pts": "Pkt",
   "Publicaciones científicas": "Publikacje naukowe",
   "Publicidad": "Reklama",
@@ -2391,5 +2390,10 @@
   "Puedes marcar varios: cada uno es una línea en todas las gráficas.": "Możesz zaznaczyć kilka: każdy jest linią na wszystkich wykresach.",
   "Grupos: subidas y bajadas de la última sincronización dentro de cada grupo de la Clasificación de jugadores (titulares que bajan, suplentes que superan a un titular, promesas estancadas o que suben, veteranos que empiezan a bajar, estrellas y caros que caen, gangas que suben, un grupo que baja tres semanas seguidas y tus propios grupos).": "Grupy: wzrosty i spadki z ostatniej synchronizacji w każdej grupie Klasyfikacji zawodników (podstawowi, którym spada, rezerwowi, którzy przewyższają podstawowego, talenty, które stoją w miejscu lub rosną, weterani, którym zaczyna spadać, gwiazdy i drodzy, którzy słabną, okazje, które rosną, grupa spadająca trzy tygodnie z rzędu i twoje własne grupy).",
   "Mercado y once: un titular en venta, un titular sin experiencia o que no juega los dos últimos oficiales, una venta que ya dejaría ganancia, un precio que sube un 15 % en una semana, un ex jugador tuyo en venta del que cobrarías comisión, la resistencia baja para la edad y un juvenil listo para subir.": "Rynek i jedenastka: podstawowy na sprzedaż, podstawowy z małym doświadczeniem lub bez gry w dwóch ostatnich meczach oficjalnych, sprzedaż, która już dałaby zysk, cena rosnąca o 15% w tydzień, twój były zawodnik na sprzedaż, z którego dostałbyś prowizję, niska kondycja jak na wiek i junior gotowy do awansu.",
-  "La misma etapa de la ficha de cada jugador. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "Ten sam etap co na stronie każdego zawodnika. Etap z więcej niż {{n}} zawodnikami dzieli się na podstawowych i rezerwowych."
+  "La misma etapa de la ficha de cada jugador. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "Ten sam etap co na stronie każdego zawodnika. Etap z więcej niż {{n}} zawodnikami dzieli się na podstawowych i rezerwowych.",
+  "No tienes ningún partido oficial pendiente.": "Nie masz zaplanowanego żadnego meczu oficjalnego.",
+  "{{torneo}} · {{sede}}": "{{torneo}} · {{sede}}",
+  "Calculando la predicción…": "Obliczanie prognozy…",
+  "Sin predicción para este partido.": "Brak prognozy dla tego meczu.",
+  "Próximo partido oficial, sea de liga, copa, promoción o Masters: rival, fecha, competición y su pronóstico.": "Następny mecz oficjalny, ligowy, pucharowy, barażowy lub Masters: rywal, data, rozgrywki i jego prognoza."
 }

@@ -55,7 +55,12 @@ export {
   hasActiveTeam,
   setActiveTeamId,
 } from "./nucleo";
-export { useLastMatchReport, useMatchDetail, useMatches } from "./partidos";
+export {
+  useLastMatchReport,
+  useMatchDetail,
+  useMatches,
+  useNextOfficialMatch,
+} from "./partidos";
 export {
   usePrecioComparable,
   usePreciosComparables,
