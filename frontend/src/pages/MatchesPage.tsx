@@ -18,7 +18,14 @@ import {
   Panel,
   SinDatos,
 } from "../components/Panels";
-import { useMatchDetail, useMatches } from "../hooks/useTeam";
+import {
+  useLastMatchReport,
+  useMatchDetail,
+  useMatches,
+} from "../hooks/useTeam";
+import { usePersistido } from "../hooks/usePersistido";
+import { PanelDePestanas, Tabs } from "../components/Tabs";
+import { ParteDelPartido } from "../components/ParteDelPartido";
 import type {
   BestRating,
   HomeAwayRow,
@@ -49,8 +56,62 @@ function renderStatOrDash(v: number | null) {
  * lugar de la herramienta, no son partidos oficiales y no hay botón que los
  * reactive (2026-08-12, pedido explícito). El botón que antes los mostraba
  * ahora controla los Amistosos, que sí son partidos reales.
+ *
+ * DOS PESTAÑAS desde el 2026-11-18, pedido del usuario: «Historial», lo de
+ * siempre, y «Último partido», el mismo parte que encabeza Cambios --el
+ * resultado contra lo que dijimos antes de jugarlo--. Está en los dos
+ * sitios a propósito («que esté en ambas partes»).
  */
 export function MatchesPage() {
+  const [vista, setVista] = usePersistido<"historial" | "ultimo">(
+    "partidos.vista",
+    "historial",
+  );
+  return (
+    <div className="space-y-4">
+      <header>
+        <h1 className="text-xl font-semibold">{tx("Partidos")}</h1>
+        <p className="text-sm text-[var(--muted)]">
+          {tx("Por qué se ganó o se perdió")}
+        </p>
+        <EnlaceATransparencia seccion="partidos" calculo="hatstats" />
+      </header>
+      <Tabs
+        grupo="partidos"
+        label={tx("Qué partidos se miran")}
+        tabs={[
+          { key: "historial", label: tx("Historial") },
+          { key: "ultimo", label: tx("Último partido") },
+        ]}
+        active={vista}
+        onChange={setVista}
+      />
+      <PanelDePestanas grupo="partidos" activa={vista} className="space-y-4">
+        {vista === "ultimo" ? <UltimoPartido /> : <HistorialDePartidos />}
+      </PanelDePestanas>
+    </div>
+  );
+}
+
+/** El parte del último partido jugado, el mismo componente que en Cambios. */
+function UltimoPartido() {
+  const parte = useLastMatchReport();
+  if (parte.isLoading) return <Loading />;
+  if (parte.isError) return <ErrorState error={parte.error} />;
+  if (parte.data == null)
+    return (
+      <Panel title={tx("Último partido")}>
+        <Empty>
+          {tx(
+            "Todavía no hay ningún partido jugado. Aparece aquí en cuanto se juegue el primero y sincronices.",
+          )}
+        </Empty>
+      </Panel>
+    );
+  return <ParteDelPartido parte={parte.data} />;
+}
+
+function HistorialDePartidos() {
   const [includeFriendlies, setIncludeFriendlies] = useState(false);
   const [season, setSeason] = useState<number | null>(null);
   const { data, isLoading, isError, error } = useMatches(
@@ -93,14 +154,9 @@ export function MatchesPage() {
       {/* La cabecera envuelve en pantalla estrecha. Antes los controles
           llevaban `shrink-0` dentro de una fila que no envolvía: en un móvil
           sobresalían 110 px y arrastraban la página de lado (2026-08-31). */}
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">{tx("Partidos")}</h1>
-          <p className="text-sm text-[var(--muted)]">
-            {tx("Por qué se ganó o se perdió")}
-          </p>
-          <EnlaceATransparencia seccion="partidos" calculo="hatstats" />
-        </div>
+      {/* El título y el enlace a Transparencia subieron a MatchesPage, por
+          encima de las pestañas; aquí quedan los controles del historial. */}
+      <header className="flex flex-wrap items-start justify-end gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <select
             aria-label={tx("Filtrar los partidos por temporada")}

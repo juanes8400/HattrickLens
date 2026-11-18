@@ -1010,6 +1010,9 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: tx("Qué hay en pantalla"),
         puntos: [
+          tx(
+            "Último partido: su parte, contra lo que dijimos antes de jugarlo. Es el mismo que encabeza Cambios.",
+          ),
           tx("Resumen: ganados, empatados y perdidos, goles y HatStats medio."),
           tx(
             "Conversión: ocasiones propias y del rival, goles y porcentaje de conversión, por zona.",

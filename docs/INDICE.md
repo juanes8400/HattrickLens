@@ -56,7 +56,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3703 | 20319 | clases, player_balance, precio_comparable, jugadores, plantilla | 17 | 49 |
 | `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1215 | libro | 0 | 1 |
 | `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4039 | 16231 | academy | 13 | 31 |
-| `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 684 | 6493 | matches | 4 | 16 |
+| `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 740 | 7282 | matches, partidos | 4 | 17 |
 | `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1753 | 17616 | league | 13 | 70 |
 | `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1063 | 14677 | cup | 16 | 77 |
 | `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 343 | 16954 | cup, league | 18 | 81 |
@@ -641,8 +641,8 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/matches`
 
-- **Página:** [frontend/src/pages/MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) (684 líneas)
-- **Componentes y hooks suyos (15):**
+- **Página:** [frontend/src/pages/MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) (740 líneas)
+- **Componentes y hooks suyos (18):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -650,7 +650,10 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
   - [frontend/src/components/EnlaceATransparencia.tsx](../frontend/src/components/EnlaceATransparencia.tsx)
   - [frontend/src/components/MatchSectorMap.tsx](../frontend/src/components/MatchSectorMap.tsx)
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
+  - [frontend/src/components/ParteDelPartido.tsx](../frontend/src/components/ParteDelPartido.tsx)
+  - [frontend/src/components/Tabs.tsx](../frontend/src/components/Tabs.tsx)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
+  - [frontend/src/hooks/usePersistido.ts](../frontend/src/hooks/usePersistido.ts)
   - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
   - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)
   - [frontend/src/hooks/useTeam/partidos.ts](../frontend/src/hooks/useTeam/partidos.ts)
@@ -658,13 +661,13 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
-- **Pide a `api.`:** `matchDetail`, `matches`
+- **Pide a `api.`:** `lastMatchReport`, `matchDetail`, `matches`
 - **Donde se escriben esas llamadas:** [frontend/src/services/api/partidos.ts](../frontend/src/services/api/partidos.ts)
-- **Rutas HTTP:** `/teams/:x/matches`, `/teams/:x/matches/:x`
-- **Endpoints:** [backend/app/api/v1/endpoints/matches.py](../backend/app/api/v1/endpoints/matches.py)
-- **Aplicación:** `app.application.queries.matches`, `app.application.queries.nombre_del_torneo` (6 rutas), `app.application.queries.weekly` (26 rutas)
+- **Rutas HTTP:** `/teams/:x/last-match-report`, `/teams/:x/matches`, `/teams/:x/matches/:x`
+- **Endpoints:** [backend/app/api/v1/endpoints/matches.py](../backend/app/api/v1/endpoints/matches.py), [backend/app/api/v1/endpoints/teams/partidos.py](../backend/app/api/v1/endpoints/teams/partidos.py)
+- **Aplicación:** `app.application.queries.matches`, `app.application.queries.nombre_del_torneo` (6 rutas), `app.application.queries.parte_del_partido`, `app.application.queries.weekly` (26 rutas)
 - **Dominio:** `app.domain.engines.economy_engine` (21 rutas), `app.domain.engines.match_analysis`, `app.domain.value_objects.formatting` (17 rutas), `app.domain.value_objects.ht_constants` (26 rutas)
-- **Tests (16):** `tests/test_anuncio_sin_pujas.py`, `tests/test_aviso_del_amistoso.py`, `tests/test_cache_por_sync.py`, `tests/test_camel_helper.py`, `tests/test_economy_engine.py`, `tests/test_formato_numeros.py`, `tests/test_league_matches_academy_queries.py`, `tests/test_lo_dicho_de_la_promocion.py`, `tests/test_match_analysis.py`, `tests/test_match_parsers.py`, `tests/test_match_type_helpers.py`, `tests/test_paso_del_mercado.py`, `tests/test_player_balance.py`, `tests/test_prediccion_engine.py`, `tests/test_transparencia.py`, `tests/test_weekly.py`
+- **Tests (17):** `tests/test_anuncio_sin_pujas.py`, `tests/test_aviso_del_amistoso.py`, `tests/test_cache_por_sync.py`, `tests/test_camel_helper.py`, `tests/test_economy_engine.py`, `tests/test_formato_numeros.py`, `tests/test_league_matches_academy_queries.py`, `tests/test_lo_dicho_de_la_promocion.py`, `tests/test_match_analysis.py`, `tests/test_match_parsers.py`, `tests/test_match_type_helpers.py`, `tests/test_parte_del_partido.py`, `tests/test_paso_del_mercado.py`, `tests/test_player_balance.py`, `tests/test_prediccion_engine.py`, `tests/test_transparencia.py`, `tests/test_weekly.py`
 
 ### `/league`
 
