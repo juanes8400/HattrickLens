@@ -51,6 +51,9 @@ export interface PestanaDibujada {
   /** Las filas de «en la media» bajo el eje, una por grupo. */
   filas: { conteos: number[]; color?: string }[];
   note: string;
+  /** Gráficas pequeñas en rejilla, con una sola leyenda arriba
+   *  (`HABILIDADES_EN_REJILLA`). */
+  rejilla?: boolean;
 }
 
 const NOTA_DE_MERCADO = () =>
@@ -210,5 +213,30 @@ export function pestanaComparada(
     }),
     filas,
     note: tab.key === "market" ? NOTA_DE_MERCADO() : "",
+  };
+}
+
+/** La forma fija (`HABILIDADES_EN_REJILLA`, 2026-11-18): una gráfica por
+ *  dato --en Habilidades, todos los datos a la vez-- y en cada una una línea
+ *  por cosa marcada, la plantilla en gris. Marcar otro grupo añade una línea
+ *  en todas; nunca cambia la forma. */
+export function pestanaEnRejilla(
+  tab: TeamOverviewGroup,
+  poblaciones: Poblacion[],
+  plantilla: Record<string, (number | null)[]>,
+): PestanaDibujada {
+  if (tab.key !== "skills")
+    return {
+      ...pestanaComparada(tab, poblaciones, plantilla, ""),
+      rejilla: true,
+    };
+  const una = (dato: string) =>
+    pestanaComparada(tab, poblaciones, plantilla, dato);
+  const datos = datosDeHabilidades(tab);
+  return {
+    charts: datos.flatMap((d) => una(d.key).charts),
+    filas: una(datos[0]?.key ?? "").filas,
+    note: "",
+    rejilla: true,
   };
 }
