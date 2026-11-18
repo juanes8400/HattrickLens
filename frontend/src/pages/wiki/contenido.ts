@@ -411,6 +411,9 @@ export const ARTICULOS: Articulo[] = [
           tx(
             "Todos los jugadores con sus habilidades, edad, TSI, salario, forma, resistencia, experiencia, especialidad, lesiones y estado en el mercado. Se ordena por cualquier columna y cada nombre abre su ficha. Sirve como punto de partida para cualquier pregunta sobre un jugador concreto.",
           ),
+          tx(
+            "Las columnas Titularidad, Rentabilidad deportiva y Etapa de carrera dicen en qué grupo de la Clasificación de jugadores cae cada uno, y «Ver sólo» deja la tabla con un grupo.",
+          ),
         ],
       },
       {

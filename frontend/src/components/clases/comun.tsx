@@ -14,6 +14,20 @@ export function Punto({ color }: { color: string }) {
   );
 }
 
+/** El grupo de un jugador en una celda: borde y punto del color del grupo,
+ *  texto en tinta normal (el color nunca va solo). */
+export function Pastilla({ texto, color }: { texto: string; color: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border bg-[var(--surface)] px-2 py-0.5 text-xs"
+      style={{ borderColor: color }}
+    >
+      <Punto color={color} />
+      {texto}
+    </span>
+  );
+}
+
 /** Debajo de cada gráfica: quién va en cada grupo, para quien prefiera leer. */
 export function ListaDeGrupos({
   grupos,

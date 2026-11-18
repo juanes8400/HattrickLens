@@ -2360,5 +2360,11 @@
   "En tu grupo «{{g}}».": "W twojej grupie „{{g}}”.",
   "No está en ninguno de tus grupos.": "Nie jest w żadnej z twoich grup.",
   "Sus clases": "Jego klasy",
-  "Ver en Clasificación de jugadores": "Zobacz w Klasyfikacji zawodników"
+  "Ver en Clasificación de jugadores": "Zobacz w Klasyfikacji zawodników",
+  "Ver sólo": "Pokaż tylko",
+  "Todos los jugadores": "Wszyscy zawodnicy",
+  "Grupo de {{clasificacion}}": "Grupa: {{clasificacion}}",
+  "Cualquier grupo": "Dowolna grupa",
+  "Quitar filtro": "Usuń filtr",
+  "Las columnas Titularidad, Rentabilidad deportiva y Etapa de carrera dicen en qué grupo de la Clasificación de jugadores cae cada uno, y «Ver sólo» deja la tabla con un grupo.": "Kolumny Skład, Opłacalność sportowa i Etap kariery pokazują, do której grupy Klasyfikacji zawodników trafia każdy, a „Pokaż tylko” zawęża tabelę do jednej grupy."
 }

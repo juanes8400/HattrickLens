@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import clsx from "clsx";
 import { number } from "../hooks/useFormat";
@@ -30,6 +30,16 @@ export interface Column<T> {
    *  Un identificador de Hattrick, no: «474.426.586» no es un número que
    *  nadie sume, es un nombre escrito con dígitos (2026-09-04). */
   raw?: boolean;
+}
+
+/** Se exige un ancho POSITIVO antes de concluir que la pantalla es estrecha.
+ *  Un cero no es un móvil: es "todavía no se sabe" -- pasa con la pestaña
+ *  oculta, en una captura de miniatura o al pintar en el servidor -- y
+ *  tomarlo por móvil escondía doce columnas en un escritorio. Ante la duda se
+ *  enseñan todas, que es lo que pidió el usuario. */
+function pantallaEstrecha(): boolean {
+  const ancho = typeof window === "undefined" ? 0 : window.innerWidth;
+  return ancho > 0 && ancho < 768;
 }
 
 /** Lo que se pinta en una celda que no trae `render` propio.
@@ -131,18 +141,27 @@ export function DataTable<T>({
   //
   // Se decide UNA VEZ, al montar: una tabla que se reordena sola al girar el
   // teléfono sorprende más de lo que ayuda.
-  const [hidden, setHidden] = useState<Set<string>>(() => {
-    // Se exige un ancho POSITIVO antes de concluir que la pantalla es
-    // estrecha. Un cero no es un móvil: es "todavía no se sabe" -- pasa con la
-    // pestaña oculta, en una captura de miniatura o al pintar en el servidor
-    // -- y tomarlo por móvil escondía doce columnas en un escritorio. Ante la
-    // duda se enseñan todas, que es lo que pidió el usuario.
-    const ancho = typeof window === "undefined" ? 0 : window.innerWidth;
-    const estrecha = ancho > 0 && ancho < 768;
-    return estrecha
+  const [hidden, setHidden] = useState<Set<string>>(() =>
+    pantallaEstrecha()
       ? new Set(columns.filter((c) => c.optional).map((c) => c.key))
-      : new Set();
-  });
+      : new Set(),
+  );
+  // LAS COLUMNAS QUE LLEGAN DESPUÉS (2026-11-18). Las de las clasificaciones
+  // propias del usuario aparecen cuando responde su petición, con la tabla
+  // ya montada: sin esto se saltaban la regla de arriba y en un móvil salían
+  // siempre. Se les aplica la misma regla, una vez, al aparecer.
+  const conocidas = useRef(new Set(columns.map((c) => c.key)));
+  const claves = columns.map((c) => c.key).join("|");
+  useEffect(() => {
+    const nuevas = columns.filter((c) => !conocidas.current.has(c.key));
+    if (nuevas.length === 0) return;
+    for (const c of nuevas) conocidas.current.add(c.key);
+    const ocultar = nuevas.filter((c) => c.optional).map((c) => c.key);
+    if (pantallaEstrecha() && ocultar.length > 0)
+      setHidden((h) => new Set([...h, ...ocultar]));
+    // `columns` es otra lista en cada render; lo que cuenta son sus claves.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claves]);
   const [showPicker, setShowPicker] = useState(false);
 
   // El selector de columnas sólo se cerraba volviendo a pulsar «Columnas»:
