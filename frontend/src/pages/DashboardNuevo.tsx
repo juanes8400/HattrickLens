@@ -187,14 +187,14 @@ const RUNS_DEL_DASHBOARD = 2_000;
  *  Masters (2026-11-18, pedido del usuario). Antes salía del modelo de liga, y
  *  un cruce de copa el mismo día no aparecía.
  *
- *  La predicción, de donde ya existe: la de liga del modelo de la serie y la
- *  de copa de la pantalla de Copa (la misma de Rivales). Promoción y Masters
- *  no tienen modelo propio: se dice y se enlaza al rival. */
+ *  La predicción, siempre («todos los partidos oficiales deben tener
+ *  predicción», 2026-11-14): la de liga, del modelo de la serie; la de copa,
+ *  promoción y Masters, de la ficha del rival, la misma de Copa y Rivales,
+ *  que el servidor manda con el partido. */
 function ProximoPartido() {
   const { t } = useTranslation();
   const proximo = useNextOfficialMatch();
   const league = useLeague(RUNS_DEL_DASHBOARD);
-  const cup = useCup();
   const titulo = t("dashboard.proximoPartido", "Próximo partido");
   if (proximo.isLoading) {
     return (
@@ -218,7 +218,7 @@ function ProximoPartido() {
     p.matchType === 1 && nm && nm.home === p.home && nm.away === p.away
       ? nm
       : null;
-  const deCopa = p.matchType === 3 ? (cup.data?.prediction ?? null) : null;
+  const deCopa = p.matchType !== 1 ? p.prediction : null;
   const tuNombre = p.isHome ? p.home : p.away;
   const suNombre = p.isHome ? p.away : p.home;
   const sede = p.isHome
@@ -280,8 +280,7 @@ function ProximoPartido() {
           />
         ) : (
           <p className="text-xs text-[var(--muted)]">
-            {(p.matchType === 1 && league.isLoading) ||
-            (p.matchType === 3 && cup.isLoading)
+            {p.matchType === 1 && league.isLoading
               ? tx("Calculando la predicción…")
               : tx("Sin predicción para este partido.")}
           </p>

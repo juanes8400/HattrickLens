@@ -82,3 +82,46 @@ def test_un_amistoso_no_cuenta_ni_un_partido_ya_jugado() -> None:
 
 def test_sin_oficiales_pendientes_no_hay_nada() -> None:
     assert _con([_partido(1, MATCH_TYPE_FRIENDLY, 3)]) is None
+
+
+def test_fuera_de_liga_trae_la_prediccion_de_la_ficha_del_rival(monkeypatch: object) -> None:
+    """«Todos los partidos oficiales deben tener predicción» (2026-11-14): copa,
+    promoción y Masters la toman de la ficha del rival, como Copa y Rivales."""
+    from app.api.cache_por_sync import limpiar
+    from app.api.v1.endpoints import cup
+    from app.api.v1.endpoints.teams.partidos import next_official_match
+    from app.domain.value_objects.ht_constants import MATCH_TYPE_QUALIFICATION
+
+    pedidos: list[int] = []
+
+    async def ficha(_s: object, _t: object, rival: int, *a: object, **k: object) -> dict:
+        pedidos.append(rival)
+        return {"own_probability": 0.62, "rival_probability": 0.38, "most_likely_score": "2-1"}
+
+    monkeypatch.setattr(cup, "_prediccion_de_rivales", ficha)  # type: ignore[attr-defined]
+    limpiar()
+
+    async def correr() -> object:
+        engine = create_async_engine(
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
+            connect_args={"check_same_thread": False},
+        )
+        async with engine.begin() as conn:
+            await conn.run_sync(m.Base.metadata.create_all)
+        async with AsyncSession(engine, expire_on_commit=False) as s:
+            team = m.Team(ht_team_id=NOSOTROS, name="Pulgas")
+            s.add(team)
+            s.add(_partido(7, MATCH_TYPE_QUALIFICATION, 24 * 365))
+            await s.commit()
+            out = await next_official_match(team.id, s)
+        await engine.dispose()
+        return out
+
+    out = asyncio.run(correr())
+    assert pedidos == [999]
+    assert out["prediction"] == {  # type: ignore[index]
+        "ownProbability": 0.62,
+        "rivalProbability": 0.38,
+        "mostLikelyScore": "2-1",
+    }

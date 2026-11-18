@@ -202,6 +202,14 @@ export interface ProximoPartidoOficial {
   ordersGiven: boolean | null;
   /** Jornada, sólo en liga. */
   round: number | null;
+  /** Fuera de liga: la predicción de la ficha del rival, la misma de Copa y
+   *  Rivales. En liga va `null`: la pinta el modelo de la serie. También
+   *  `null` si no hay con qué (sin ratings o sin Hattrick). */
+  prediction: {
+    ownProbability: number;
+    rivalProbability: number;
+    mostLikelyScore: string;
+  } | null;
 }
 
 export const apiPartidos = {

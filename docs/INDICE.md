@@ -42,7 +42,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/cookies` | [PrivacidadPage.tsx](../frontend/src/pages/PrivacidadPage.tsx) | 202 | - | - | 0 | 0 |
 | `/apoyar` | [ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) | 159 | 9173 | dashboard | 10 | 39 |
 | `/setup` | [SetupPage.tsx](../frontend/src/pages/SetupPage.tsx) | 428 | 9709 | auth_chpp, dashboard | 10 | 39 |
-| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 920 | 42480 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard, partidos | 35 | 122 |
+| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 919 | 42518 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard, partidos | 35 | 122 |
 | `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 37199 | alertas, alineacion, league, dashboard | 32 | 111 |
 | `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 601 | 6426 | club | 4 | 8 |
 | `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 509 | 10655 | clases, resumen | 12 | 36 |
@@ -56,7 +56,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3703 | 20360 | clases, player_balance, precio_comparable, jugadores, plantilla | 17 | 50 |
 | `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1215 | libro | 0 | 1 |
 | `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4039 | 16250 | academy | 13 | 31 |
-| `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 740 | 7347 | matches, partidos | 4 | 18 |
+| `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 740 | 7386 | matches, partidos | 4 | 18 |
 | `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1753 | 17635 | league | 13 | 71 |
 | `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1063 | 14696 | cup | 16 | 78 |
 | `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 343 | 16973 | cup, league | 18 | 82 |
@@ -65,7 +65,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3839 | arena | 3 | 12 |
 | `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 29228 | alertas | 28 | 102 |
 | `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 207 | 9262 | dashboard | 10 | 39 |
-| `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 878 | 19235 | clases, player_balance, cambios, partidos, plantilla | 19 | 57 |
+| `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 878 | 19274 | clases, player_balance, cambios, partidos, plantilla | 19 | 57 |
 | `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 1022 | 16485 | entrenamiento, modelos, modelos | 14 | 33 |
 | `/wiki` | [WikiPage.tsx](../frontend/src/pages/WikiPage.tsx) | 171 | - | - | 0 | 0 |
 | `/uso` | [UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) | 1637 | 4818 | uso | 1 | 6 |
@@ -185,7 +185,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/dashboard`
 
-- **Página:** [frontend/src/pages/DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) (920 líneas)
+- **Página:** [frontend/src/pages/DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) (919 líneas)
 - **Componentes y hooks suyos (25):**
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/BarraDePrediccion.tsx](../frontend/src/components/BarraDePrediccion.tsx)
