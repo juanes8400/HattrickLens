@@ -28,7 +28,9 @@ export const INTENTOS_DE_TRANSFERENCIA_VISIBLES = false;
  *  cambiaba la gráfica entera en vez de añadir una línea.
  *
  *  El usuario pidió estar listo para volver: `false` devuelve la forma
- *  anterior tal cual, cuyo código sigue entero. Sólo con la plantilla entera
- *  marcada no cambia nada: siguen las gráficas de siempre, con la línea de
- *  los 11 de más TSI. */
+ *  anterior tal cual, cuyo código sigue entero.
+ *
+ *  6.21.0: también con sólo la plantilla entera marcada («que conserve
+ *  incluso ahí el formato grilla»). Los 11 de más TSI siguen en Salario y
+ *  TSI siempre que la plantilla esté marcada. */
 export const HABILIDADES_EN_REJILLA = true;

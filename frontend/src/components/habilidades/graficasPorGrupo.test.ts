@@ -154,6 +154,25 @@ describe("la rejilla: una forma fija (2026-11-18)", () => {
     expect(tres.charts[0]?.series[0]?.reference).toBe(true);
   });
 
+  it("con sólo la plantilla, la misma rejilla con su línea gris", () => {
+    const p = pestanaEnRejilla(habilidades, [todos], plantilla);
+    expect(p.rejilla).toBe(true);
+    expect(p.charts.map((c) => c.title)).toEqual(["WINGER", "PASSING"]);
+    expect(p.charts.every((c) => c.series.length === 1)).toBe(true);
+  });
+
+  it("con la plantilla marcada, Salario y TSI llevan también los 11 mejores", () => {
+    const sola = pestanaEnRejilla(mercado, [todos], plantilla);
+    expect(sola.charts[0]?.series.map((s) => s.name)).toEqual([
+      "Plantilla entera",
+      "SALARY_TOP",
+    ]);
+    const sinPlantilla = pestanaEnRejilla(mercado, [estrellas], plantilla);
+    expect(
+      sinPlantilla.charts[0]?.series.some((s) => s.name === "SALARY_TOP"),
+    ).toBe(false);
+  });
+
   it("en Salario y TSI, una gráfica por medida, igual con uno que con dos", () => {
     const uno = pestanaEnRejilla(mercado, [estrellas], plantilla);
     const dos = pestanaEnRejilla(mercado, [estrellas, gangas], plantilla);

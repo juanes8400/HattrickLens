@@ -179,8 +179,10 @@ function GroupLines({
         }
       >
         {pestana.charts.map((chart) => {
+          // En la rejilla siempre la misma función: es la que respeta el gris
+          // de la plantilla y los colores que lleva la leyenda única.
           const base =
-            filas.length > 0
+            filas.length > 0 || pestana.rejilla
               ? lineasDeUnGrupo(weeks, chart.series, filas)
               : timelineOption(weeks, chart.series);
           // Las gráficas cuyas dos líneas miden lo mismo sobre poblaciones
@@ -369,9 +371,9 @@ export function TeamOverviewPage() {
   const plantilla = seriesDeLaPlantilla(data);
   const datos = datosDeHabilidades(active);
 
-  // Con un grupo o más marcado y la rejilla encendida, una sola forma.
-  const enRejilla =
-    HABILIDADES_EN_REJILLA && conSelector && gruposMarcados.length > 0;
+  // Con la rejilla encendida, una sola forma marque lo que se marque,
+  // también sólo la plantilla entera (2026-11-18, pedido del usuario).
+  const enRejilla = HABILIDADES_EN_REJILLA && conSelector;
   let pestana: PestanaDibujada = pestanaDeLaPlantilla(active);
   if (!cargando && enRejilla) {
     pestana = pestanaEnRejilla(active, poblaciones, plantilla);
