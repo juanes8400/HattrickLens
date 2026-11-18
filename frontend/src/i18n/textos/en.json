@@ -235,7 +235,6 @@
   "Club": "Club",
   "Club anterior": "Previous club",
   "Club y cuerpo técnico": "Club and staff",
-  "Club: el equipo y su gente (Dashboard, Club y cuerpo técnico, Habilidades, Jugadores, Equipo, Posiciones y Alineación).": "Club: the team and its people (Dashboard, Club and staff, Skills, Players, Team, Positions and Lineup).",
   "Coge a alguien que sigue en tu plantilla, ponle un precio y mira qué dejaría: la comisión, lo que entra en caja y el ROI sobre lo que ya llevas gastado en él. Es la misma cuenta que hace el libro de transferencias con una venta de verdad; lo único inventado es el precio, que lo pones tú.": "Take someone still in your squad, put a price on them and see what it would leave: the commission, what lands in the bank and the ROI on what you have already spent on him. It is the same sum the transfer book does for a real sale; the only invented part is the price, and that one is yours.",
   "Coincidencia entre escenarios": "Agreement between scenarios",
   "Colores y estados": "Colours and states",
@@ -2322,5 +2321,15 @@
   "Además, para mejorar las herramientas, los datos de todos los clubes pueden analizarse juntos, de forma agregada y anónima: de cada plantilla sólo se sacan resúmenes estadísticos, sin nombres ni identificadores, y nadie ve los datos de un club que no sea el suyo.": "In addition, to improve the tools, the data of all clubs may be analysed together, in aggregate and anonymously: only statistical summaries are drawn from each squad, with no names or identifiers, and nobody sees the data of a club other than their own.",
   "provisional": "provisional",
   "· provisional": "· provisional",
-  "Con un solo snapshot no hay tendencia que mirar: la etapa sale de la edad y del percentil, y es provisional. En declive no puede salir hasta que haya historial.": "With a single snapshot there is no trend to look at: the stage comes from age and percentile, and it is provisional. Declining cannot appear until there is history."
+  "Con un solo snapshot no hay tendencia que mirar: la etapa sale de la edad y del percentil, y es provisional. En declive no puede salir hasta que haya historial.": "With a single snapshot there is no trend to look at: the stage comes from age and percentile, and it is provisional. Declining cannot appear until there is history.",
+  "Club: el equipo y su gente (Dashboard, Club y cuerpo técnico, Habilidades, Jugadores, Clasificación de jugadores, Profundidad de plantilla, Posiciones y Alineación).": "Club: the team and its people (Dashboard, Club and staff, Skills, Players, Player classification, Squad depth, Positions and Lineup).",
+  "Cuatro formas de partir la plantilla: quién juega, quién rinde lo que cobra, en qué momento de su carrera está cada uno y los grupos que tú decidas.": "Four ways to split the squad: who plays, who is worth what they earn, where each player is in their career, and the groups you decide.",
+  "Clasificación de jugadores": "Player classification",
+  "La plantilla partida de cuatro formas, cada una con la gráfica que explica por qué cada jugador cae donde cae.": "The squad split four ways, each with the chart that explains why every player lands where they do.",
+  "Las cuatro pestañas": "The four tabs",
+  "Titularidad: quién sale en el mejor once de las formaciones con más experiencia del equipo (Titular), quién sale cuando se quita a los titulares (Suplencia) y el resto (Reserva).": "Starting status: who makes the best eleven in the team's most experienced formations (Starters), who makes it once the starters are taken out (Substitutes), and everyone else (Reserves).",
+  "Rentabilidad deportiva: su HTMS a los 28 frente a su sueldo, los dos cortados en la mediana de la plantilla. Salen Estrellas, Gangas, Caros y Económicos.": "Sporting return: their HTMS at 28 against their wage, both cut at the squad median. The groups are Stars, Bargains, Expensive and Cheap.",
+  "Etapa de carrera: la misma etapa de la ficha, según su edad y cómo evolucionan sus habilidades. Sin historial sale sólo de la edad y es provisional.": "Career stage: the same stage as on the player page, based on age and how their skills are developing. Without history it comes from age alone and is provisional.",
+  "Personalizar: tus propios grupos, con el nombre y el color que quieras.": "Custom: your own groups, with whatever name and colour you like.",
+  "Ninguna clase es una recomendación: cada una dice dónde cae el jugador según una regla fija, y la decisión es tuya. Cada nombre, también los de las gráficas, abre su ficha.": "No class is a recommendation: each one says where the player lands under a fixed rule, and the decision is yours. Every name, including those on the charts, opens the player page."
 }

@@ -883,19 +883,12 @@ class TeamOverviewQueryService:
             ),
         )
 
-        # CLASES DE JUGADOR (2026-11-16): la pestaña pide lo suyo a
-        # `/player-classes`. No va aquí porque este resumen se guarda una vez
-        # por sincronización, y la etapa confirmada a mano y los grupos
-        # propios cambian sin sincronizar.
-        player_classes = OverviewGroup(
-            key="player_classes",
-            label="Clases de Jugador",
-            chart="classes",
-        )
+        # CLASES DE JUGADOR salió de aquí el 2026-11-18: es su propio módulo,
+        # «Clasificación de jugadores», con su entrada en el menú.
 
         return TeamOverview(
             team_name=squad.team_name,
             player_count=len(players),
             currency=squad.currency,
-            groups=[skills, market, htms_grupo, best_position, player_classes],
+            groups=[skills, market, htms_grupo, best_position],
         )

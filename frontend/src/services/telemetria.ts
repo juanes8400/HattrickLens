@@ -14,6 +14,8 @@
 const MODULOS: [RegExp, string][] = [
   [/^\/academy/, "Juveniles"],
   [/^\/team$|^\/players\//, "Jugadores"],
+  // Hasta el 2026-11-18 era una pestaña de Habilidades y contaba allí.
+  [/^\/classes/, "Clasificación de jugadores"],
   [/^\/skills/, "Equipo"],
   [/^\/transfers/, "Transferencias"],
   [/^\/sync/, "Sincronización"],

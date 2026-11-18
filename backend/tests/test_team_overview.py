@@ -487,20 +487,17 @@ def test_a_goalkeeper_is_never_recommended_to_take_free_kicks(
     assert roles["set_piece_taker"] not in porteros
 
 
-def test_player_classes_is_a_tab_that_fetches_its_own_data(
+def test_player_classes_is_no_longer_a_tab_of_habilidades(
     seeded: tuple[TestClient, int],
 ) -> None:
-    """2026-11-16: la pestaña deja de estar «por definir». Lo que pinta lo pide
-    a `/player-classes`, que no va en la caché por sincronización del resumen
-    (la etapa confirmada a mano y los grupos propios cambian sin sincronizar).
+    """2026-11-18: Clasificación de jugadores es su propio módulo, con entrada
+    en el menú; Habilidades deja de traer la pestaña («una pantalla, un sitio»).
     """
     client, team_id = seeded
     body = client.get(f"/api/v1/teams/{team_id}/overview").json()
-    classes = next(g for g in body["groups"] if g["key"] == "player_classes")
 
-    assert classes["label"] == "Clases de Jugador"
-    assert classes["chart"] == "classes"
-    assert classes["metrics"] == []
+    assert all(g["key"] != "player_classes" for g in body["groups"])
+    assert all(g["chart"] != "classes" for g in body["groups"])
 
 
 def test_player_classes_splits_the_whole_squad_four_ways(

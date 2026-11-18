@@ -235,7 +235,6 @@
   "Club": "Klub",
   "Club anterior": "Poprzedni klub",
   "Club y cuerpo técnico": "Klub i personel",
-  "Club: el equipo y su gente (Dashboard, Club y cuerpo técnico, Habilidades, Jugadores, Equipo, Posiciones y Alineación).": "Klub: drużyna i jej ludzie (Panel, Klub i personel, Umiejętności, Zawodnicy, Drużyna, Pozycje i Skład).",
   "Coge a alguien que sigue en tu plantilla, ponle un precio y mira qué dejaría: la comisión, lo que entra en caja y el ROI sobre lo que ya llevas gastado en él. Es la misma cuenta que hace el libro de transferencias con una venta de verdad; lo único inventado es el precio, que lo pones tú.": "Weź kogoś, kto wciąż jest w twojej kadrze, ustaw mu cenę i zobacz, co by z tego zostało: prowizja, ile wpada do kasy i jaki jest ROI wobec tego, co już na niego wydałeś. To ten sam rachunek, który księga transferowa robi przy prawdziwej sprzedaży; wymyślona jest tylko cena, a tę ustawiasz ty.",
   "Coincidencia entre escenarios": "Zgodność między scenariuszami",
   "Colores y estados": "Kolory i stany",
@@ -2322,5 +2321,15 @@
   "Además, para mejorar las herramientas, los datos de todos los clubes pueden analizarse juntos, de forma agregada y anónima: de cada plantilla sólo se sacan resúmenes estadísticos, sin nombres ni identificadores, y nadie ve los datos de un club que no sea el suyo.": "Ponadto, aby ulepszać narzędzia, dane wszystkich klubów mogą być analizowane łącznie, w sposób zbiorczy i anonimowy: z każdej kadry powstają wyłącznie podsumowania statystyczne, bez nazwisk i identyfikatorów, i nikt nie widzi danych klubu innego niż własny.",
   "provisional": "tymczasowy",
   "· provisional": "· tymczasowy",
-  "Con un solo snapshot no hay tendencia que mirar: la etapa sale de la edad y del percentil, y es provisional. En declive no puede salir hasta que haya historial.": "Przy jednej migawce nie ma trendu: etap wynika z wieku i percentyla, i jest tymczasowy. W spadku nie może się pojawić, dopóki nie ma historii."
+  "Con un solo snapshot no hay tendencia que mirar: la etapa sale de la edad y del percentil, y es provisional. En declive no puede salir hasta que haya historial.": "Przy jednej migawce nie ma trendu: etap wynika z wieku i percentyla, i jest tymczasowy. W spadku nie może się pojawić, dopóki nie ma historii.",
+  "Club: el equipo y su gente (Dashboard, Club y cuerpo técnico, Habilidades, Jugadores, Clasificación de jugadores, Profundidad de plantilla, Posiciones y Alineación).": "Klub: drużyna i jej ludzie (Panel, Klub i personel, Umiejętności, Zawodnicy, Klasyfikacja zawodników, Głębia składu, Pozycje i Skład).",
+  "Cuatro formas de partir la plantilla: quién juega, quién rinde lo que cobra, en qué momento de su carrera está cada uno y los grupos que tú decidas.": "Cztery sposoby podziału kadry: kto gra, kto jest wart swojej pensji, na jakim etapie kariery jest każdy zawodnik i grupy, które sam ustalisz.",
+  "Clasificación de jugadores": "Klasyfikacja zawodników",
+  "La plantilla partida de cuatro formas, cada una con la gráfica que explica por qué cada jugador cae donde cae.": "Kadra podzielona na cztery sposoby, każdy z wykresem, który wyjaśnia, dlaczego każdy zawodnik trafia tam, gdzie trafia.",
+  "Las cuatro pestañas": "Cztery zakładki",
+  "Titularidad: quién sale en el mejor once de las formaciones con más experiencia del equipo (Titular), quién sale cuando se quita a los titulares (Suplencia) y el resto (Reserva).": "Skład: kto trafia do najlepszej jedenastki w formacjach, w których drużyna ma najwięcej doświadczenia (Podstawowi), kto trafia po wyjęciu podstawowych (Rezerwowi) i reszta (Rezerwa).",
+  "Rentabilidad deportiva: su HTMS a los 28 frente a su sueldo, los dos cortados en la mediana de la plantilla. Salen Estrellas, Gangas, Caros y Económicos.": "Opłacalność sportowa: jego HTMS w wieku 28 lat wobec pensji, oba podzielone na medianie kadry. Wychodzą z tego Gwiazdy, Okazje, Drodzy i Tani.",
+  "Etapa de carrera: la misma etapa de la ficha, según su edad y cómo evolucionan sus habilidades. Sin historial sale sólo de la edad y es provisional.": "Etap kariery: ten sam etap co na karcie zawodnika, według wieku i rozwoju umiejętności. Bez historii wynika tylko z wieku i jest tymczasowy.",
+  "Personalizar: tus propios grupos, con el nombre y el color que quieras.": "Własne: twoje własne grupy, z dowolną nazwą i kolorem.",
+  "Ninguna clase es una recomendación: cada una dice dónde cae el jugador según una regla fija, y la decisión es tuya. Cada nombre, también los de las gráficas, abre su ficha.": "Żadna klasa nie jest rekomendacją: każda mówi, gdzie trafia zawodnik według stałej reguły, a decyzja należy do ciebie. Każde nazwisko, także na wykresach, otwiera kartę zawodnika."
 }
