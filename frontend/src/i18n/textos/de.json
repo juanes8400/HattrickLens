@@ -2366,5 +2366,12 @@
   "Grupo de {{clasificacion}}": "Gruppe von {{clasificacion}}",
   "Cualquier grupo": "Jede Gruppe",
   "Quitar filtro": "Filter entfernen",
-  "Las columnas Titularidad, Rentabilidad deportiva y Etapa de carrera dicen en qué grupo de la Clasificación de jugadores cae cada uno, y «Ver sólo» deja la tabla con un grupo.": "Die Spalten Stammplatz, Sportliche Rendite und Karrierephase zeigen, in welche Gruppe der Spielerklassifizierung jeder fällt, und „Nur anzeigen“ beschränkt die Tabelle auf eine Gruppe."
+  "Las columnas Titularidad, Rentabilidad deportiva y Etapa de carrera dicen en qué grupo de la Clasificación de jugadores cae cada uno, y «Ver sólo» deja la tabla con un grupo.": "Die Spalten Stammplatz, Sportliche Rendite und Karrierephase zeigen, in welche Gruppe der Spielerklassifizierung jeder fällt, und „Nur anzeigen“ beschränkt die Tabelle auf eine Gruppe.",
+  "A quién va el salario, por clase": "An wen das Gehalt geht, nach Klasse",
+  "{{total}} por semana": "{{total}} pro Woche",
+  "Reparto del salario semanal por {{clasificacion}}": "Aufteilung des Wochengehalts nach {{clasificacion}}",
+  "{{n}} jugadores": "{{n}} Spieler",
+  "El salario semanal de cada jugador, sumado por grupo. Los grupos son los de Clasificación de jugadores.": "Das Wochengehalt jedes Spielers, nach Gruppe summiert. Die Gruppen sind die der Spielerklassifizierung.",
+  "Cómo se mira la plantilla": "Wie man den Kader betrachtet",
+  "Distribución del salario": "Gehaltsverteilung"
 }

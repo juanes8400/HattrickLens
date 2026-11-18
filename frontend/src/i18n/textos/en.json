@@ -2366,5 +2366,12 @@
   "Grupo de {{clasificacion}}": "{{clasificacion}} group",
   "Cualquier grupo": "Any group",
   "Quitar filtro": "Clear filter",
-  "Las columnas Titularidad, Rentabilidad deportiva y Etapa de carrera dicen en qué grupo de la Clasificación de jugadores cae cada uno, y «Ver sólo» deja la tabla con un grupo.": "The Starting status, Sporting return and Career stage columns show which Player classification group each player falls into, and “Show only” narrows the table to one group."
+  "Las columnas Titularidad, Rentabilidad deportiva y Etapa de carrera dicen en qué grupo de la Clasificación de jugadores cae cada uno, y «Ver sólo» deja la tabla con un grupo.": "The Starting status, Sporting return and Career stage columns show which Player classification group each player falls into, and “Show only” narrows the table to one group.",
+  "A quién va el salario, por clase": "Who the wages go to, by class",
+  "{{total}} por semana": "{{total}} per week",
+  "Reparto del salario semanal por {{clasificacion}}": "Weekly wages split by {{clasificacion}}",
+  "{{n}} jugadores": "{{n}} players",
+  "El salario semanal de cada jugador, sumado por grupo. Los grupos son los de Clasificación de jugadores.": "Each player's weekly wage, added up by group. The groups are those of Player classification.",
+  "Cómo se mira la plantilla": "How to look at the squad",
+  "Distribución del salario": "Wage distribution"
 }
