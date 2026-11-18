@@ -199,12 +199,12 @@ describe("clasificaciones", () => {
       ageDays: 0,
       titularidad: "titular",
       rentabilidad: "gangas",
-      groupId: null,
+      groupIds: {},
       etapa: { stage: "pico", side: null },
       ...extra,
     }) as JugadorDeClases;
   const datos = {
-    groups: [],
+    classifications: [],
     players: [
       jugador(1, {}),
       jugador(2, { rentabilidad: "estrellas", titularidad: "reserva" }),
@@ -213,14 +213,16 @@ describe("clasificaciones", () => {
 
   it("cada jugador cae en un solo grupo de cada clasificación", () => {
     for (const c of clasificaciones(datos)) {
-      if (c.clave === "propios") continue;
       const ids = c.grupos.flatMap((g) => g.jugadores.map((j) => j.htPlayerId));
       expect(ids.sort()).toEqual([1, 2]);
     }
   });
 
-  it("sin grupos propios, Mis grupos no tiene nada que marcar", () => {
-    const propios = clasificaciones(datos).find((c) => c.clave === "propios");
-    expect(propios?.grupos).toEqual([]);
+  it("sin clasificaciones propias, sólo están las tres de la app", () => {
+    expect(clasificaciones(datos).map((c) => c.clave)).toEqual([
+      "rentabilidad",
+      "titularidad",
+      "etapa",
+    ]);
   });
 });

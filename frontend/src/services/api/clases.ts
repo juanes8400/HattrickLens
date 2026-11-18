@@ -49,7 +49,9 @@ export interface JugadorDeClases {
     /** Sólo si su etapa tiene más de 11 y se partió. */
     side: "titular" | "suplente" | null;
   };
-  groupId: number | null;
+  /** Su grupo en cada clasificación propia: id de clasificación (en
+   *  texto, como llega en JSON) → id de grupo. Sin entrada, «Sin grupo». */
+  groupIds: Record<string, number>;
 }
 
 export interface GrupoPropio {
@@ -57,6 +59,15 @@ export interface GrupoPropio {
   /** Se llama así, y no `name`, para que el servidor no lo traduzca. */
   groupName: string;
   color: string;
+}
+
+/** Una clasificación propia, con sus grupos (2026-11-18). Dentro de cada
+ *  una, un jugador está en un solo grupo. */
+export interface ClasificacionPropia {
+  id: number;
+  /** Tampoco `name`: lo escribe el usuario y no se traduce. */
+  classificationName: string;
+  groups: GrupoPropio[];
 }
 
 /** Los cortes de la Etapa de carrera, tal como los usa el motor. */
@@ -76,7 +87,7 @@ export interface ClasesDeJugador {
   /** Las medianas de la Rentabilidad deportiva; el sueldo, en `currency`. */
   medians: { htms28: number; salary: number } | null;
   currency: string;
-  groups: GrupoPropio[];
+  classifications: ClasificacionPropia[];
   stageRules: ReglasDeEtapa;
   players: JugadorDeClases[];
 }
@@ -84,10 +95,34 @@ export interface ClasesDeJugador {
 export const apiClases = {
   playerClasses: (teamId: number) =>
     request<ClasesDeJugador>(`/teams/${teamId}/player-classes`),
-  createPlayerGroup: (teamId: number, name: string, color: string) =>
+  createPlayerClassification: (teamId: number, name: string) =>
+    request<{ id: number; classificationName: string }>(
+      `/teams/${teamId}/player-classifications`,
+      { method: "POST", body: JSON.stringify({ name }) },
+    ),
+  renamePlayerClassification: (
+    teamId: number,
+    classificationId: number,
+    name: string,
+  ) =>
+    request<{ id: number; classificationName: string }>(
+      `/teams/${teamId}/player-classifications/${classificationId}`,
+      { method: "PATCH", body: JSON.stringify({ name }) },
+    ),
+  deletePlayerClassification: (teamId: number, classificationId: number) =>
+    request<{ deleted: number }>(
+      `/teams/${teamId}/player-classifications/${classificationId}`,
+      { method: "DELETE" },
+    ),
+  createPlayerGroup: (
+    teamId: number,
+    classificationId: number,
+    name: string,
+    color: string,
+  ) =>
     request<GrupoPropio>(`/teams/${teamId}/player-groups`, {
       method: "POST",
-      body: JSON.stringify({ name, color }),
+      body: JSON.stringify({ name, color, classificationId }),
     }),
   updatePlayerGroup: (
     teamId: number,
@@ -105,10 +140,15 @@ export const apiClases = {
   setPlayerGroup: (
     teamId: number,
     htPlayerId: number,
+    classificationId: number,
     groupId: number | null,
   ) =>
-    request<{ htPlayerId: number; groupId: number | null }>(
-      `/teams/${teamId}/player-groups/members/${htPlayerId}`,
-      { method: "PUT", body: JSON.stringify({ groupId }) },
-    ),
+    request<{
+      htPlayerId: number;
+      classificationId: number;
+      groupId: number | null;
+    }>(`/teams/${teamId}/player-groups/members/${htPlayerId}`, {
+      method: "PUT",
+      body: JSON.stringify({ classificationId, groupId }),
+    }),
 };

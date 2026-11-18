@@ -26,12 +26,12 @@ function jugador(
       hasSufficientHistory: true,
       side: null,
     },
-    groupId: null,
+    groupIds: {},
     ...cambios,
   };
 }
 
-const datos = (groups: ClasesDeJugador["groups"] = []) =>
+const datos = (classifications: ClasesDeJugador["classifications"] = []) =>
   ({
     formations: ["4-4-2"],
     experience: {},
@@ -39,7 +39,7 @@ const datos = (groups: ClasesDeJugador["groups"] = []) =>
     substitutes: [],
     medians: { htms28: 1000, salary: 1000 },
     currency: "€",
-    groups,
+    classifications,
     stageRules: {
       youngMaxAge: 21,
       peakMaxAge: 27,
@@ -48,7 +48,7 @@ const datos = (groups: ClasesDeJugador["groups"] = []) =>
     },
     players: [
       jugador(1),
-      jugador(2, { rentabilidad: "caros", groupId: 9 }),
+      jugador(2, { rentabilidad: "caros", groupIds: { "3": 9 } }),
       jugador(3, { rentabilidad: "caros" }),
     ],
   }) as ClasesDeJugador;
@@ -71,18 +71,27 @@ describe("el filtro clasificación → grupo", () => {
 
   it("una elección guardada que ya no existe no vacía la tabla", () => {
     expect(
-      idsDelFiltro(datos(), { clasificacion: "propios", grupo: "9" }),
+      idsDelFiltro(datos(), { clasificacion: "propia-3", grupo: "9" }),
     ).toBeNull();
   });
 
-  it("Mis grupos sólo se ofrece si hay grupos", () => {
+  it("una clasificación propia sólo se ofrece si tiene grupos", () => {
     const claves = (d: ClasesDeJugador) =>
       clasificacionesElegibles(d).map((c) => c.clave);
-    expect(claves(datos())).not.toContain("propios");
-    const conGrupo = datos([{ id: 9, groupName: "Vender", color: "red" }]);
-    expect(claves(conGrupo)).toContain("propios");
+    const sinGrupos = datos([
+      { id: 3, classificationName: "Mercado", groups: [] },
+    ]);
+    expect(claves(sinGrupos)).not.toContain("propia-3");
+    const conGrupo = datos([
+      {
+        id: 3,
+        classificationName: "Mercado",
+        groups: [{ id: 9, groupName: "Vender", color: "red" }],
+      },
+    ]);
+    expect(claves(conGrupo)).toContain("propia-3");
     expect(
-      idsDelFiltro(conGrupo, { clasificacion: "propios", grupo: "9" }),
+      idsDelFiltro(conGrupo, { clasificacion: "propia-3", grupo: "9" }),
     ).toEqual(new Set([2]));
   });
 });

@@ -3,7 +3,7 @@ import type { ClasesDeJugador, JugadorDeClases } from "../../services/api";
 import {
   enLista,
   fraseDeEtapa,
-  fraseDeMisGrupos,
+  fraseDePropia,
   fraseDeRentabilidad,
   fraseDeTitularidad,
   pertenencias,
@@ -33,7 +33,7 @@ function jugador(cambios: Partial<JugadorDeClases> = {}): JugadorDeClases {
       hasSufficientHistory: true,
       side: null,
     },
-    groupId: null,
+    groupIds: {},
     ...cambios,
   };
 }
@@ -60,7 +60,7 @@ function datos(j: JugadorDeClases, cambios: Partial<ClasesDeJugador> = {}) {
     ],
     medians: { htms28: 1600, salary: 23500 },
     currency: "€",
-    groups: [],
+    classifications: [],
     stageRules: {
       youngMaxAge: 21,
       peakMaxAge: 27,
@@ -157,22 +157,32 @@ describe("Etapa de carrera", () => {
   });
 });
 
-describe("Mis grupos", () => {
-  it("sin grupos creados no sale la línea", () => {
-    const j = jugador();
-    expect(fraseDeMisGrupos(datos(j), j)).toBeNull();
-    expect(pertenencias(datos(j), 1)).toHaveLength(3);
+describe("Clasificaciones propias", () => {
+  const mercado = {
+    id: 7,
+    classificationName: "Mercado",
+    groups: [{ id: 5, groupName: "Vender", color: "red" }],
+  };
+
+  it("sin clasificaciones propias salen sólo las tres de la app", () => {
+    expect(pertenencias(datos(jugador()), 1)).toHaveLength(3);
   });
 
-  it("con grupos, dice en cuál está o que en ninguno", () => {
-    const grupos = [{ id: 5, groupName: "Cantera", color: "verde" }];
-    const dentro = jugador({ groupId: 5 });
-    const fuera = jugador();
-    expect(
-      fraseDeMisGrupos(datos(dentro, { groups: grupos }), dentro)?.frase,
-    ).toContain("«Cantera»");
-    expect(
-      fraseDeMisGrupos(datos(fuera, { groups: grupos }), fuera)?.frase,
-    ).toContain("ninguno");
+  it("una por clasificación, con su nombre", () => {
+    const j = jugador({ groupIds: { "7": 5 } });
+    const lista = pertenencias(datos(j, { classifications: [mercado] }), 1);
+    expect(lista).toHaveLength(4);
+    expect(lista?.[3]?.clasificacion).toBe("Mercado");
+    expect(lista?.[3]?.frase).toContain("«Vender»");
+  });
+
+  it("sin grupo en ella, lo dice", () => {
+    const p = fraseDePropia(mercado, jugador());
+    expect(p?.grupo).toBe("Sin grupo");
+    expect(p?.frase).toContain("«Mercado»");
+  });
+
+  it("una clasificación sin grupos todavía no saca línea", () => {
+    expect(fraseDePropia({ ...mercado, groups: [] }, jugador())).toBeNull();
   });
 });

@@ -466,7 +466,7 @@ export const ARTICULOS: Articulo[] = [
     ),
     secciones: [
       {
-        titulo: tx("Las cuatro pestañas"),
+        titulo: tx("Las pestañas"),
         puntos: [
           tx(
             "Titularidad: quién sale en el mejor once de las formaciones con más experiencia del equipo (Titular), quién sale cuando se quita a los titulares (Suplencia) y el resto (Reserva).",
@@ -478,7 +478,7 @@ export const ARTICULOS: Articulo[] = [
             "Etapa de carrera: la misma etapa de la ficha, según su edad y cómo evolucionan sus habilidades. Sin historial sale sólo de la edad y es provisional.",
           ),
           tx(
-            "Personalizar: tus propios grupos, con el nombre y el color que quieras.",
+            "Mis clasificaciones y Personalizar: tus propias clasificaciones (por ejemplo «Mercado» o «Rol»), cada una con sus grupos, y cada jugador en uno de cada una. Cada clasificación sale también como columna en Jugadores.",
           ),
         ],
       },

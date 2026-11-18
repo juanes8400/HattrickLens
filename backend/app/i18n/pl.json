@@ -1964,7 +1964,6 @@
   "λ_local   = ataque_i · defensa_j · media_liga · ventaja_local\nλ_visita  = ataque_j · defensa_i · media_liga\n\nfuerza_i  = (goles_i + K · media) ÷ (partidos_i + K)\n\nP(puesto) ≈ Monte Carlo sobre las jornadas que faltan": "λ_gospodarz = atak_i · obrona_j · średnia_ligi · przewaga_u_siebie\nλ_gość      = atak_j · obrona_i · średnia_ligi\n\nsiła_i  = (bramki_i + K · średnia) ÷ (mecze_i + K)\n\nP(miejsce) ≈ Monte Carlo po brakujących kolejkach",
   "← el que se usa": "← ten, który jest używany",
   "color desconocido: {}, válidos: {}": "nieznany kolor: {}, prawidłowe: {}",
-  "como mucho {} grupos": "najwyżej {} grup",
   "grupo {} no existe en este equipo": "grupa {} nie istnieje w tej drużynie",
   "Cuando cambia «en la media», el salto de la línea lo trae quien llegó, no el entrenamiento: por eso ese tramo va punteado.": "Gdy zmienia się «w średniej», skok linii wynika z tego, kto przyszedł, a nie z treningu: dlatego ten odcinek jest przerywany.",
   "El cálculo de la sección HTMS": "Obliczenie z sekcji HTMS",
@@ -1985,5 +1984,9 @@
   "{} años y percentil {} en su habilidad dominante dentro de la plantilla activa. {}": "{} lat i percentyl {} w jego dominującej umiejętności w aktywnej kadrze. {}",
   "{} años, edad de formación. {}": "{} lat, wiek formowania. {}",
   "{} años, en el tramo de mayor factor de edad. {}": "{} lat, w przedziale najwyższego współczynnika wieku. {}",
-  "{} años. Etapa provisional: falta una segunda sincronización, en otro día, para ver si sus habilidades bajan, que es lo que separa «Veterano estable» de «En declive».": "{} lat. Etap tymczasowy: potrzebna jest druga synchronizacja, innego dnia, żeby zobaczyć, czy jego umiejętności spadają — to właśnie odróżnia «Stabilny weteran» od «W spadku»."
+  "{} años. Etapa provisional: falta una segunda sincronización, en otro día, para ver si sus habilidades bajan, que es lo que separa «Veterano estable» de «En declive».": "{} lat. Etap tymczasowy: potrzebna jest druga synchronizacja, innego dnia, żeby zobaczyć, czy jego umiejętności spadają — to właśnie odróżnia «Stabilny weteran» od «W spadku».",
+  "clasificación {} no existe en este equipo": "klasyfikacja {} nie istnieje w tej drużynie",
+  "como mucho {} clasificaciones": "najwyżej {} klasyfikacji",
+  "como mucho {} grupos por clasificación": "najwyżej {} grup na klasyfikację",
+  "ese grupo es de otra clasificación": "ta grupa należy do innej klasyfikacji"
 }

@@ -23,6 +23,7 @@ export type {
   EtapaDeCarrera,
   GrupoDeRentabilidad,
   GrupoPropio,
+  ClasificacionPropia,
   JugadorDeClases,
   OnceDeFormacion,
   ReglasDeEtapa,

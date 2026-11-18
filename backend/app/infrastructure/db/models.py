@@ -388,10 +388,8 @@ class Player(Base):
     # todavía, se muestra la sugerencia.
     confirmed_career_stage: Mapped[str | None] = mapped_column(String(32))
     confirmed_career_stage_at: Mapped[datetime | None] = mapped_column(UtcDateTime())
-    #: El grupo propio en que el usuario lo puso (Clases de Jugador →
-    #: Personalizar, 2026-11-16). Uno solo por jugador («No» a estar en
-    #: varios); nulo es «Sin grupo». Ver `PlayerGroup`.
-    player_group_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
+    # Su grupo en cada clasificación propia vive en `PlayerGroupMember` desde
+    # el 2026-11-18 (antes, `player_group_id`, un solo grupo en total).
     # HL-161, 2026-08-14, pedido explícitamente ("guardar los transferID de
     # todos los jugadores para que, si hacemos backfilling, no se confunda"):
     # los TransferID exactos de transfersplayer.xml que delimitan ESTE stint
@@ -1953,19 +1951,59 @@ class MarketSale(Base):
     skills_json: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
 
+class PlayerClassification(Base):
+    """Una clasificación propia del usuario, con sus grupos (2026-11-18).
+
+    «Mercado» con Vender / Mantener / Duda, «Rol» con Capitán / Lanzador…
+    Dentro de cada una, un jugador está en un solo grupo, como en las de la
+    app; en dos clasificaciones distintas, en uno de cada una.
+    """
+
+    __tablename__ = "player_classifications"
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(40))
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime())
+
+
 class PlayerGroup(Base):
-    """Un grupo que el usuario crea en Clases de Jugador → Personalizar.
+    """Un grupo de una clasificación propia (Clasificación de jugadores →
+    Personalizar).
 
     2026-11-16: «Creas grupos y pones a cada jugador donde quieras». Él les
-    pone nombre y color; quién va en cada uno lo guarda `Player.player_group_id`,
-    porque un jugador está en un solo grupo. Borrar un grupo devuelve a sus
-    jugadores a «Sin grupo».
+    pone nombre y color. Desde el 2026-11-18 cada grupo pertenece a una
+    clasificación propia, y quién va en cada uno lo guarda
+    `PlayerGroupMember`. Borrar un grupo devuelve a sus jugadores a «Sin
+    grupo» en esa clasificación.
     """
 
     __tablename__ = "player_groups"
     id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
     team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    #: Nulo sólo en filas anteriores a la 0116, que la migración rellena.
+    classification_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
     name: Mapped[str] = mapped_column(String(40))
     #: Uno de los colores de la paleta de la pantalla («blue», «red»…).
     color: Mapped[str] = mapped_column(String(16))
     created_at: Mapped[datetime] = mapped_column(UtcDateTime())
+
+
+class PlayerGroupMember(Base):
+    """En qué grupo está un jugador dentro de una clasificación propia.
+
+    Una fila por jugador y clasificación, y la restricción única lo impone:
+    dentro de una clasificación, un jugador en un solo grupo. Sin fila es
+    «Sin grupo».
+    """
+
+    __tablename__ = "player_group_members"
+    __table_args__ = (
+        UniqueConstraint(
+            "team_id", "ht_player_id", "classification_id", name="uq_un_grupo_por_clasificacion"
+        ),
+    )
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"), index=True)
+    ht_player_id: Mapped[int] = mapped_column(BigInteger)
+    classification_id: Mapped[int] = mapped_column(BigInteger)
+    group_id: Mapped[int] = mapped_column(BigInteger)
