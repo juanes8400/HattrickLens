@@ -161,16 +161,11 @@ describe("la rejilla: una forma fija (2026-11-18)", () => {
     expect(p.charts.every((c) => c.series.length === 1)).toBe(true);
   });
 
-  it("con la plantilla marcada, Salario y TSI llevan también los 11 mejores", () => {
-    const sola = pestanaEnRejilla(mercado, [todos], plantilla);
-    expect(sola.charts[0]?.series.map((s) => s.name)).toEqual([
-      "Plantilla entera",
-      "SALARY_TOP",
-    ]);
-    const sinPlantilla = pestanaEnRejilla(mercado, [estrellas], plantilla);
+  it("los 11 de más TSI ya no salen, ni con la plantilla marcada", () => {
+    const p = pestanaEnRejilla(mercado, [todos], plantilla);
     expect(
-      sinPlantilla.charts[0]?.series.some((s) => s.name === "SALARY_TOP"),
-    ).toBe(false);
+      p.charts.every((c) => c.series.every((s) => !s.name.endsWith("_TOP"))),
+    ).toBe(true);
   });
 
   it("en Salario y TSI, una gráfica por medida, igual con uno que con dos", () => {

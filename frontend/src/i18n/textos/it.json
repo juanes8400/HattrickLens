@@ -504,11 +504,9 @@
   "En competencia": "In competizione",
   "En copa y en el Hattrick Masters sólo aparece quien ya enfrentaste o tienes programado: el cruce de una ronda no se conoce hasta que se sortea.": "In coppa e nell'Hattrick Masters compare solo chi hai già affrontato o hai in programma: l'accoppiamento di un turno non si conosce finché non si sorteggia.",
   "En declive": "In calo",
-  "En el salario por punto de TSI no hay sombreado: ahí las líneas se cruzan y el área entre ellas no significa nada. Los jugadores con TSI 0 (canteranos sin índice todavía) no cuentan en ese cociente, pero sí en las medias.": "Nello stipendio per punto di TSI non c'è ombreggiatura: lì le linee si incrociano e l'area tra loro non significa niente. I giocatori con TSI 0 (giovani ancora senza indice) non contano in quel rapporto, ma sì nelle medie.",
   "En el tiempo": "Nel tempo",
   "En la bienvenida pulsas «Conecta tu club». Hattrick te pide autorizar a Hattrick Lens con su propia pantalla de permisos; al aceptar vuelves a la app, eliges el equipo (si manejas más de uno) y empieza la primera importación. Si Hattrick no devuelve ningún club administrado, la app lo dice y te deja repetir la conexión.": "Nella schermata di benvenuto premi «Collega il tuo club». Hattrick ti chiede di autorizzare Hattrick Lens con la sua schermata di permessi; accettando torni all'app, scegli la squadra (se ne gestisci più di una) e parte la prima importazione. Se Hattrick non restituisce nessun club gestito, l'app lo dice e ti lascia ripetere la connessione.",
   "En las simulaciones terminas de media {{v0}}º": "Nelle simulazioni finisci in media {{v0}}º",
-  "En salario, TSI y suma de TSI hay dos líneas: la plantilla completa y los 11 jugadores de más TSI. La media de toda la plantilla la arrastran suplentes y canteranos; el once que juega se comporta distinto. El hueco entre las dos líneas va sombreado porque es exactamente la brecha entre titulares y resto.": "In stipendio, TSI e somma dei TSI ci sono due linee: la rosa completa e gli 11 giocatori con più TSI. La media di tutta la rosa è trascinata da riserve e giovani; l'undici che gioca si comporta diversamente. Lo spazio tra le due linee è ombreggiato perché è esattamente il divario tra titolari e resto.",
   "En su pico": "Al suo apice",
   "En una frase": "In una frase",
   "En vivo": "In diretta",
@@ -761,7 +759,6 @@
   "La idea central": "L'idea centrale",
   "La jornada": "La giornata",
   "La línea continua supone que sigues comprando y vendiendo al mismo ritmo que en las últimas semanas.": "La linea continua suppone che tu continui a comprare e vendere allo stesso ritmo delle ultime settimane.",
-  "La línea de los 11 mejores": "La linea dei migliori 11",
   "La línea discontinua es tu caja si desde hoy no compras ni vendes a nadie: sueldos, estadio, patrocinio y taquilla, semana a semana.": "La linea tratteggiata è la tua cassa se da oggi non compri né vendi nessuno: stipendi, stadio, sponsor e incasso, settimana per settimana.",
   "La matriz": "La matrice",
   "La matriz de coeficientes es comunitaria, no oficial de Hattrick. Mide el aporte posicional, no predice los ratings exactos de un partido: no incluye espíritu, confianza, táctica ni actitud.": "La matrice dei coefficienti è della comunità, non ufficiale di Hattrick. Misura il contributo posizionale, non prevede i voti esatti di una partita: non include spirito, fiducia, tattica né atteggiamento.",
@@ -1339,7 +1336,6 @@
   "Si el mismo jugador es el primer recambio de varios puestos se avisa, porque no puede tapar dos a la vez, y se dice quién entraría después.": "Se lo stesso giocatore è il primo ricambio di più posizioni si segnala, perché non può coprirne due insieme, e si dice chi entrerebbe dopo.",
   "Si estos valores se separan, el coste por nivel no es constante y la media única deja de ser la respuesta correcta.": "Se questi valori si separano, il costo per livello non è costante e la media unica smette di essere la risposta giusta.",
   "Si ganamos": "Se vinciamo",
-  "Si la suma de TSI sube pero el HTMS28 baja, estás comprando rendimiento de hoy a costa de futuro (jugadores mayores). Si el salario por punto de TSI de los 11 mejores sube semana a semana, cada punto de calidad te está costando más: es momento de revisar renovaciones y ventas.": "Se la somma dei TSI sale ma l'HTMS28 scende, stai comprando rendimento di oggi a scapito del futuro (giocatori più vecchi). Se lo stipendio per punto di TSI dei migliori 11 sale settimana dopo settimana, ogni punto di qualità ti sta costando di più: è il momento di rivedere rinnovi e vendite.",
   "Si lo buscabas por el nombre, es más seguro elegirlo en": "Se lo cercavi per nome, è più sicuro sceglierlo in",
   "Si más adelante la sesión con Hattrick vence, las pantallas lo avisan con un botón para reconectar. Los datos ya importados no se pierden.": "Se più avanti la sessione con Hattrick scade, le schermate lo segnalano con un pulsante per ricollegarsi. I dati già importati non si perdono.",
   "Si perdemos": "Se perdiamo",
@@ -2391,5 +2387,8 @@
   "Nadie cambió de clase desde la sincronización anterior.": "Nessuno ha cambiato classe dalla sincronizzazione precedente.",
   "Antes: {{grupo}}, en la sincronización anterior.": "Prima: {{grupo}}, nella sincronizzazione precedente.",
   "Todavía no hay ningún partido jugado. Aparece aquí en cuanto se juegue el primero y sincronices.": "Non è ancora stata giocata nessuna partita. Appare qui non appena si gioca la prima e sincronizzi.",
-  "Último partido: su parte, contra lo que dijimos antes de jugarlo. Es el mismo que encabeza Cambios.": "Ultima partita: il suo resoconto, rispetto a quanto detto prima di giocarla. È lo stesso che apre Cambiamenti."
+  "Último partido: su parte, contra lo que dijimos antes de jugarlo. Es el mismo que encabeza Cambios.": "Ultima partita: il suo resoconto, rispetto a quanto detto prima di giocarla. È lo stesso che apre Cambiamenti.",
+  "Si la suma de TSI sube pero el HTMS28 baja, estás comprando rendimiento de hoy a costa de futuro (jugadores mayores). Si el salario por punto de TSI sube semana a semana, cada punto de calidad te está costando más: es momento de revisar renovaciones y ventas.": "Se la somma dei TSI sale ma l'HTMS28 scende, stai comprando rendimento di oggi a scapito del futuro (giocatori più vecchi). Se lo stipendio per punto di TSI sale settimana dopo settimana, ogni punto di qualità ti sta costando di più: è il momento di rivedere rinnovi e vendite.",
+  "Los jugadores con TSI 0 (canteranos sin índice todavía) no cuentan en el salario por punto de TSI, pero sí en las medias.": "I giocatori con TSI 0 (giovani ancora senza indice) non contano nello stipendio per punto di TSI, ma sì nelle medie.",
+  "Salario y TSI": "Stipendio e TSI"
 }

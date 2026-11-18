@@ -45,7 +45,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 878 | 34531 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard | 28 | 112 |
 | `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 29486 | alertas, alineacion, league, dashboard | 25 | 100 |
 | `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 601 | 6421 | club | 4 | 8 |
-| `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 509 | 10666 | clases, resumen | 12 | 35 |
+| `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 509 | 10628 | clases, resumen | 12 | 35 |
 | `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 639 | 8757 | clases, plantilla | 10 | 30 |
 | `/classes` | [ClasificacionPage.tsx](../frontend/src/pages/ClasificacionPage.tsx) | 31 | 8507 | clases | 10 | 30 |
 | `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1088 | 13067 | clases, resumen, skills | 14 | 40 |

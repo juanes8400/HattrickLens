@@ -376,13 +376,10 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
       {
-        titulo: tx("La línea de los 11 mejores"),
+        titulo: tx("Salario y TSI"),
         texto: [
           tx(
-            "En salario, TSI y suma de TSI hay dos líneas: la plantilla completa y los 11 jugadores de más TSI. La media de toda la plantilla la arrastran suplentes y canteranos; el once que juega se comporta distinto. El hueco entre las dos líneas va sombreado porque es exactamente la brecha entre titulares y resto.",
-          ),
-          tx(
-            "En el salario por punto de TSI no hay sombreado: ahí las líneas se cruzan y el área entre ellas no significa nada. Los jugadores con TSI 0 (canteranos sin índice todavía) no cuentan en ese cociente, pero sí en las medias.",
+            "Los jugadores con TSI 0 (canteranos sin índice todavía) no cuentan en el salario por punto de TSI, pero sí en las medias.",
           ),
         ],
       },
@@ -390,7 +387,7 @@ export const ARTICULOS: Articulo[] = [
         titulo: tx("Cómo usarlo"),
         texto: [
           tx(
-            "Si la suma de TSI sube pero el HTMS28 baja, estás comprando rendimiento de hoy a costa de futuro (jugadores mayores). Si el salario por punto de TSI de los 11 mejores sube semana a semana, cada punto de calidad te está costando más: es momento de revisar renovaciones y ventas.",
+            "Si la suma de TSI sube pero el HTMS28 baja, estás comprando rendimiento de hoy a costa de futuro (jugadores mayores). Si el salario por punto de TSI sube semana a semana, cada punto de calidad te está costando más: es momento de revisar renovaciones y ventas.",
           ),
         ],
       },

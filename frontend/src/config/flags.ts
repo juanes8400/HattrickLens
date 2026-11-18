@@ -31,6 +31,6 @@ export const INTENTOS_DE_TRANSFERENCIA_VISIBLES = false;
  *  anterior tal cual, cuyo código sigue entero.
  *
  *  6.21.0: también con sólo la plantilla entera marcada («que conserve
- *  incluso ahí el formato grilla»). Los 11 de más TSI siguen en Salario y
- *  TSI siempre que la plantilla esté marcada. */
+ *  incluso ahí el formato grilla»). La línea de los 11 de más TSI no sale
+ *  en la rejilla: el usuario la dio por desaparecida. */
 export const HABILIDADES_EN_REJILLA = true;

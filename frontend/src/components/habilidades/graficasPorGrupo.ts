@@ -216,42 +216,6 @@ export function pestanaComparada(
   };
 }
 
-/** Los 11 de más TSI (pedido del usuario, 2026-08-16) van con la plantilla
- *  entera: si está marcada, cada gráfica de Salario y TSI lleva también su
- *  línea, en gris oscuro, tenga o no grupos al lado. Así la regla es una sola
- *  y la rejilla no pierde lo que daba la vista de la plantilla. */
-const GRIS_DE_LOS_ONCE = "#475569";
-
-function conLosOnceMejores(
-  tab: TeamOverviewGroup,
-  poblaciones: Poblacion[],
-  charts: GraficaDibujada[],
-): GraficaDibujada[] {
-  if (!poblaciones.some((p) => p.clave === PLANTILLA)) return charts;
-  const top = new Map(
-    tab.charts.flatMap((ch) =>
-      ch.series
-        .filter((s) => s.key.endsWith("_top"))
-        .map((s) => [s.key.slice(0, -"_top".length), s] as const),
-    ),
-  );
-  return charts.map((ch) => {
-    const s = top.get(ch.key);
-    if (!s) return ch;
-    const linea: LineaDibujada = {
-      name: s.label,
-      values: s.values,
-      color: GRIS_DE_LOS_ONCE,
-      // Sin saltos que puntear: es otra población, no un grupo.
-      conteos: s.values.map(() => 0),
-    };
-    const i = ch.series.findIndex((x) => x.reference);
-    const series = [...ch.series];
-    series.splice(i + 1, 0, linea);
-    return { ...ch, series };
-  });
-}
-
 /** La forma fija (`HABILIDADES_EN_REJILLA`, 2026-11-18): una gráfica por
  *  dato --en Habilidades, todos los datos a la vez-- y en cada una una línea
  *  por cosa marcada, la plantilla en gris. Marcar otro grupo añade una línea
@@ -263,11 +227,9 @@ export function pestanaEnRejilla(
 ): PestanaDibujada {
   if (tab.key !== "skills") {
     const p = pestanaComparada(tab, poblaciones, plantilla, "");
-    return {
-      ...p,
-      charts: conLosOnceMejores(tab, poblaciones, p.charts),
-      rejilla: true,
-    };
+    // Sin los 11 de más TSI: el usuario los dio por desaparecidos
+    // (2026-11-18). Sólo quedan en la forma anterior, tras la bandera.
+    return { ...p, rejilla: true };
   }
   const una = (dato: string) =>
     pestanaComparada(tab, poblaciones, plantilla, dato);
