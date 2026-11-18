@@ -1355,7 +1355,6 @@
   "Sin clics nuevos todavía. Con doce personas, esto pasa la mayor parte del tiempo.": "Ancora nessun clic nuovo. Con dodici persone succede quasi sempre.",
   "Sin comparativa: hacen falta partidos de los rivales.": "Nessun confronto: servono partite degli avversari.",
   "Sin compra registrada en el historial reciente del equipo.": "Nessun acquisto registrato nello storico recente della squadra.",
-  "Sin confirmar, usar sugerencia de la app": "Non confermato, usa il suggerimento dell'app",
   "Sin conteo verificable para esta etapa. El signo ? nunca significa cero: puede faltar el identificador real del jugador, la fecha inicial o un recuento pendiente.": "Nessun conteggio verificabile per questo periodo. Il segno ? non significa mai zero: può mancare l'identificativo reale del giocatore, la data iniziale o un conteggio in sospeso.",
   "Sin datos de posición.": "Nessun dato di posizione.",
   "Sin datos de saldo todavía para este jugador.": "Nessun dato di saldo per questo giocatore.",
@@ -1523,7 +1522,6 @@
   "Tu alineación contra la propuesta: qué cambia entre lo que mandaste a Hattrick y lo que recomienda el motor.": "La tua formazione contro la proposta: cosa cambia tra quello che hai inviato a Hattrick e quello che consiglia il motore.",
   "Tu alineación enviada": "La tua formazione inviata",
   "Tu campo": "La tua metà campo",
-  "Tu confirmación:": "La tua conferma:",
   "Tu decisión ahora mismo es:": "La tua decisione in questo momento è:",
   "Tu elección la gestiona el panel de consentimiento de Google, que es el que te preguntó. Desde él puedes cambiarla cuando quieras. Hasta que respondes, Google tiene prohibido usar cookies de publicidad y personalizar lo que ves.": "La tua scelta è gestita dal pannello di consenso di Google, che è quello che te l'ha chiesta. Da lì puoi cambiarla quando vuoi. Finché non rispondi, Google non può usare cookie pubblicitari né personalizzare ciò che vedi.",
   "Tu equipo": "La tua squadra",
@@ -2286,7 +2284,6 @@
   "De {{a}} a {{b}} años": "Da {{a}} a {{b}} anni",
   "En su pico; Pieza de rotación si su percentil está por debajo de {{p}}.": "Al massimo; Giocatore di rotazione se il suo percentile è sotto {{p}}.",
   "{{a}} años o más": "{{a}} anni o più",
-  "La misma etapa de la ficha de cada jugador; si la corriges a mano allí, manda también aquí. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "La stessa fase della scheda di ogni giocatore; se la correggi a mano lì, vale anche qui. Una fase con più di {{n}} giocatori si divide in titolari e riserve.",
   "Rentabilidad deportiva": "Rendimento sportivo",
   "Estrellas": "Stelle",
   "Gangas": "Affari",
@@ -2393,5 +2390,6 @@
   "Salario y TSI": "Stipendio e TSI",
   "Puedes marcar varios: cada uno es una línea en todas las gráficas.": "Puoi selezionarne diversi: ognuno è una linea in tutti i grafici.",
   "Grupos: subidas y bajadas de la última sincronización dentro de cada grupo de la Clasificación de jugadores (titulares que bajan, suplentes que superan a un titular, promesas estancadas o que suben, veteranos que empiezan a bajar, estrellas y caros que caen, gangas que suben, un grupo que baja tres semanas seguidas y tus propios grupos).": "Gruppi: aumenti e cali dell'ultima sincronizzazione all'interno di ogni gruppo della Classificazione dei giocatori (titolari che calano, riserve che superano un titolare, promesse ferme o che salgono, veterani che iniziano a calare, stelle e cari che calano, affari che salgono, un gruppo che cala tre settimane di fila e i tuoi gruppi).",
-  "Mercado y once: un titular en venta, un titular sin experiencia o que no juega los dos últimos oficiales, una venta que ya dejaría ganancia, un precio que sube un 15 % en una semana, un ex jugador tuyo en venta del que cobrarías comisión, la resistencia baja para la edad y un juvenil listo para subir.": "Mercato e undici: un titolare in vendita, un titolare con poca esperienza o che non ha giocato le ultime due ufficiali, una vendita che porterebbe già un guadagno, un prezzo che sale del 15% in una settimana, un tuo ex giocatore in vendita da cui incasseresti una commissione, la resistenza bassa per l'età e un giovane pronto a salire."
+  "Mercado y once: un titular en venta, un titular sin experiencia o que no juega los dos últimos oficiales, una venta que ya dejaría ganancia, un precio que sube un 15 % en una semana, un ex jugador tuyo en venta del que cobrarías comisión, la resistencia baja para la edad y un juvenil listo para subir.": "Mercato e undici: un titolare in vendita, un titolare con poca esperienza o che non ha giocato le ultime due ufficiali, una vendita che porterebbe già un guadagno, un prezzo che sale del 15% in una settimana, un tuo ex giocatore in vendita da cui incasseresti una commissione, la resistenza bassa per l'età e un giovane pronto a salire.",
+  "La misma etapa de la ficha de cada jugador. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "La stessa fase della scheda di ogni giocatore. Una fase con più di {{n}} giocatori si divide in titolari e riserve."
 }

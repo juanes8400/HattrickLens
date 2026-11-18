@@ -1355,7 +1355,6 @@
   "Sin clics nuevos todavía. Con doce personas, esto pasa la mayor parte del tiempo.": "No new clicks yet. With twelve people, this is the case most of the time.",
   "Sin comparativa: hacen falta partidos de los rivales.": "No comparison: opponents' matches are needed.",
   "Sin compra registrada en el historial reciente del equipo.": "No purchase recorded in the team's recent history.",
-  "Sin confirmar, usar sugerencia de la app": "Not confirmed, use the app's suggestion",
   "Sin conteo verificable para esta etapa. El signo ? nunca significa cero: puede faltar el identificador real del jugador, la fecha inicial o un recuento pendiente.": "No verifiable count for this stint. The ? sign never means zero: the player's real ID, the start date or a pending count may be missing.",
   "Sin datos de posición.": "No position data.",
   "Sin datos de saldo todavía para este jugador.": "No balance data for this player yet.",
@@ -1523,7 +1522,6 @@
   "Tu alineación contra la propuesta: qué cambia entre lo que mandaste a Hattrick y lo que recomienda el motor.": "Your lineup against the proposal: what changes between what you submitted to Hattrick and what the engine recommends.",
   "Tu alineación enviada": "Your submitted lineup",
   "Tu campo": "Your half",
-  "Tu confirmación:": "Your confirmation:",
   "Tu decisión ahora mismo es:": "Your decision right now is:",
   "Tu elección la gestiona el panel de consentimiento de Google, que es el que te preguntó. Desde él puedes cambiarla cuando quieras. Hasta que respondes, Google tiene prohibido usar cookies de publicidad y personalizar lo que ves.": "Your choice is handled by Google's consent panel, which is the one that asked you. You can change it there whenever you like. Until you answer, Google is not allowed to use advertising cookies or personalise what you see.",
   "Tu equipo": "Your team",
@@ -2286,7 +2284,6 @@
   "De {{a}} a {{b}} años": "{{a}} to {{b}}",
   "En su pico; Pieza de rotación si su percentil está por debajo de {{p}}.": "At their peak; Rotation player if their percentile is below {{p}}.",
   "{{a}} años o más": "{{a}} or older",
-  "La misma etapa de la ficha de cada jugador; si la corriges a mano allí, manda también aquí. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "The same stage as on each player's page; if you correct it there by hand, it applies here too. A stage with more than {{n}} players is split into starters and substitutes.",
   "Rentabilidad deportiva": "Sporting return",
   "Estrellas": "Stars",
   "Gangas": "Bargains",
@@ -2393,5 +2390,6 @@
   "Salario y TSI": "Wage and TSI",
   "Puedes marcar varios: cada uno es una línea en todas las gráficas.": "You can tick several: each one is a line in every chart.",
   "Grupos: subidas y bajadas de la última sincronización dentro de cada grupo de la Clasificación de jugadores (titulares que bajan, suplentes que superan a un titular, promesas estancadas o que suben, veteranos que empiezan a bajar, estrellas y caros que caen, gangas que suben, un grupo que baja tres semanas seguidas y tus propios grupos).": "Groups: increases and drops from the last sync within each Player classification group (starters who drop, substitutes who overtake a starter, prospects who stall or improve, veterans who start to drop, stars and expensive players who decline, bargains who improve, a group that drops three weeks in a row, and your own groups).",
-  "Mercado y once: un titular en venta, un titular sin experiencia o que no juega los dos últimos oficiales, una venta que ya dejaría ganancia, un precio que sube un 15 % en una semana, un ex jugador tuyo en venta del que cobrarías comisión, la resistencia baja para la edad y un juvenil listo para subir.": "Market and eleven: a starter on the market, a starter with little experience or who hasn't played the last two official matches, a sale that would already make a profit, a price that rises 15% in a week, a former player of yours on the market you'd earn a commission from, low stamina for the age, and a youth player ready to be promoted."
+  "Mercado y once: un titular en venta, un titular sin experiencia o que no juega los dos últimos oficiales, una venta que ya dejaría ganancia, un precio que sube un 15 % en una semana, un ex jugador tuyo en venta del que cobrarías comisión, la resistencia baja para la edad y un juvenil listo para subir.": "Market and eleven: a starter on the market, a starter with little experience or who hasn't played the last two official matches, a sale that would already make a profit, a price that rises 15% in a week, a former player of yours on the market you'd earn a commission from, low stamina for the age, and a youth player ready to be promoted.",
+  "La misma etapa de la ficha de cada jugador. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "The same stage as on each player's page. A stage with more than {{n}} players is split into starters and substitutes."
 }
