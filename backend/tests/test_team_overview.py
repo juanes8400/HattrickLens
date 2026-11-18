@@ -83,7 +83,6 @@ def test_the_groups_are_served_with_the_squad_average(
         "Salario y TSI",
         "HTMS",
         "Mejor posición",
-        "Clases de Jugador",
     ]
     skills = body["groups"][0]
     # Las 7 habilidades + Experiencia, Fidelidad, Resistencia y Forma.
