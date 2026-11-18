@@ -119,6 +119,7 @@ MODULOS_CONOCIDOS: frozenset[str] = frozenset(
         "Club y cuerpo técnico",
         "Habilidades",
         "Jugadores",
+        "Clasificación de jugadores",
         "Equipo",
         "Posiciones",
         "Alineación",

@@ -36,6 +36,10 @@ const TeamOverviewPage = diferida(
   "TeamOverviewPage",
 );
 const TeamPage = diferida(() => import("./pages/TeamPage"), "TeamPage");
+const ClasificacionPage = diferida(
+  () => import("./pages/ClasificacionPage"),
+  "ClasificacionPage",
+);
 const PlayerPage = diferida(() => import("./pages/PlayerPage"), "PlayerPage");
 const PositionsPage = diferida(
   () => import("./pages/PositionsPage"),
@@ -237,6 +241,14 @@ export function App() {
             element={
               <Espera>
                 <TeamPage />
+              </Espera>
+            }
+          />
+          <Route
+            path="classes"
+            element={
+              <Espera>
+                <ClasificacionPage />
               </Espera>
             }
           />

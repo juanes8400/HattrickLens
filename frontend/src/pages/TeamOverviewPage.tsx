@@ -16,7 +16,6 @@ import {
   Panel,
   SinDatos,
 } from "../components/Panels";
-import { ClasesDeJugador } from "../components/clases/ClasesDeJugador";
 import {
   clasificaciones,
   type ClaveDeClasificacion,
@@ -285,7 +284,12 @@ export function TeamOverviewPage() {
   // se mira a quién se tiene y para qué puesto, aquí cómo evoluciona la
   // plantilla. El servidor la sigue calculando y la sigue mandando; lo que
   // cambia es quién la pinta.
-  const grupos = data.groups.filter((g) => g.key !== GRUPO_EN_EQUIPO);
+  // Clasificación de jugadores salió de aquí el 2026-11-18: es su propio
+  // módulo. Se filtra también aquí porque el resumen se guarda una vez por
+  // sincronización, y uno guardado antes sigue trayendo la pestaña.
+  const grupos = data.groups.filter(
+    (g) => g.key !== GRUPO_EN_EQUIPO && g.chart !== "classes",
+  );
   const active = grupos.find((g) => g.key === activeKey) ?? grupos[0];
   if (!active) return <Empty>{sincronizaMedias}</Empty>;
 
@@ -376,7 +380,6 @@ export function TeamOverviewPage() {
         ))}
       </div>
 
-      {/* Clases de Jugador ya parte la plantilla por su cuenta. */}
       {conSelector && activa && (
         <div className="space-y-1">
           <SelectorMirarA
@@ -413,30 +416,26 @@ export function TeamOverviewPage() {
       <Panel
         title={active.label}
         meta={
-          active.chart === "classes"
-            ? undefined
-            : active.chart === "line"
-              ? comparando
-                ? tx("{{semanas}} semana(s) · {{n}} grupos", {
-                    semanas: active.weeks.length,
-                    n: poblaciones.length,
-                  })
-                : t(
-                    "equipo.semanasJugadores",
-                    "{{semanas}} semana(s) · {{n}} jugadores",
-                    {
-                      semanas: active.weeks.length,
-                      n: elegido ? elegido.jugadores.length : data.playerCount,
-                    },
-                  )
-              : t("comun.nJugadores", "{{n}} jugadores", {
-                  n: data.playerCount,
+          active.chart === "line"
+            ? comparando
+              ? tx("{{semanas}} semana(s) · {{n}} grupos", {
+                  semanas: active.weeks.length,
+                  n: poblaciones.length,
                 })
+              : t(
+                  "equipo.semanasJugadores",
+                  "{{semanas}} semana(s) · {{n}} jugadores",
+                  {
+                    semanas: active.weeks.length,
+                    n: elegido ? elegido.jugadores.length : data.playerCount,
+                  },
+                )
+            : t("comun.nJugadores", "{{n}} jugadores", {
+                n: data.playerCount,
+              })
         }
       >
-        {active.chart === "classes" ? (
-          <ClasesDeJugador />
-        ) : active.chart === "line" ? (
+        {active.chart === "line" ? (
           fallo && conSelector ? (
             <ErrorState error={fallo.error} />
           ) : cargando && conSelector ? (

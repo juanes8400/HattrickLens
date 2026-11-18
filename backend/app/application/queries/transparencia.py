@@ -3057,7 +3057,7 @@ def catalogo() -> list[Seccion]:
         # promedia a uno de sus grupos.
         Seccion(
             id="clases",
-            name="Clases de Jugador",
+            name="Clasificación de jugadores",
             calcs=[
                 Calculo(
                     id="rentabilidad",
@@ -3065,7 +3065,7 @@ def catalogo() -> list[Seccion]:
                     answers=(
                         "En qué grupo cae cada jugador según lo que cobra y lo que valdrá "
                         "a los 28, y qué medias enseña Habilidades al mirar a uno o varios "
-                        "grupos de Clases de Jugador."
+                        "grupos de la Clasificación de jugadores."
                     ),
                     sources=[
                         Fuente("HTMS28 de cada jugador", "El cálculo de la sección HTMS"),

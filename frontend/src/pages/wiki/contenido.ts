@@ -82,7 +82,7 @@ export const ARTICULOS: Articulo[] = [
         titulo: tx("Cómo está organizado el menú"),
         puntos: [
           tx(
-            "Club: el equipo y su gente (Dashboard, Club y cuerpo técnico, Habilidades, Jugadores, Equipo, Posiciones y Alineación).",
+            "Club: el equipo y su gente (Dashboard, Club y cuerpo técnico, Habilidades, Jugadores, Clasificación de jugadores, Profundidad de plantilla, Posiciones y Alineación).",
           ),
           tx(
             "Desarrollo: cómo crece la plantilla (Entrenamiento, Juveniles y Transferencias).",
@@ -448,6 +448,42 @@ export const ARTICULOS: Articulo[] = [
         texto: [
           tx(
             "Los canteranos de la academia no tienen ficha propia ni enlace: se estudian en Juveniles, donde está todo lo que se sabe de ellos.",
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "clasificacion",
+    grupo: "club",
+    titulo: tx("Clasificación de jugadores"),
+    ruta: "/classes",
+    resumen: tx(
+      "La plantilla partida de cuatro formas, cada una con la gráfica que explica por qué cada jugador cae donde cae.",
+    ),
+    secciones: [
+      {
+        titulo: tx("Las cuatro pestañas"),
+        puntos: [
+          tx(
+            "Titularidad: quién sale en el mejor once de las formaciones con más experiencia del equipo (Titular), quién sale cuando se quita a los titulares (Suplencia) y el resto (Reserva).",
+          ),
+          tx(
+            "Rentabilidad deportiva: su HTMS a los 28 frente a su sueldo, los dos cortados en la mediana de la plantilla. Salen Estrellas, Gangas, Caros y Económicos.",
+          ),
+          tx(
+            "Etapa de carrera: la misma etapa de la ficha, según su edad y cómo evolucionan sus habilidades. Sin historial sale sólo de la edad y es provisional.",
+          ),
+          tx(
+            "Personalizar: tus propios grupos, con el nombre y el color que quieras.",
+          ),
+        ],
+      },
+      {
+        titulo: tx("Cómo leerlo"),
+        texto: [
+          tx(
+            "Ninguna clase es una recomendación: cada una dice dónde cae el jugador según una regla fija, y la decisión es tuya. Cada nombre, también los de las gráficas, abre su ficha.",
           ),
         ],
       },

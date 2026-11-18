@@ -1,5 +1,6 @@
 /** Rentabilidad deportiva: HTMS a los 28 contra sueldo semanal, cortado en
  *  las medianas (2026-11-17; sustituye a Potencial, HTMS hoy × HTMS28). */
+import { useNavigate } from "react-router-dom";
 import { tx } from "../../i18n/tx";
 import { number } from "../../hooks/useFormat";
 import type { ClasesDeJugador } from "../../services/api";
@@ -44,6 +45,7 @@ function corto(v: number): string {
 }
 
 export function Rentabilidad({ datos }: { datos: ClasesDeJugador }) {
+  const navigate = useNavigate();
   const grupos: Grupo[] = [
     {
       clave: "estrellas",
@@ -275,8 +277,22 @@ export function Rentabilidad({ datos }: { datos: ClasesDeJugador }) {
           py + 18,
           "start",
         )}
+        {/* Cada punto y su nombre llevan a la ficha (2026-11-18, pedido del
+            usuario): el resto de la app enlaza todos los nombres. Es un <a> de
+            SVG, que sí abre en otra pestaña con el botón central; el clic
+            normal navega sin recargar, como un Link. */}
         {puntos.map((p, i) => (
-          <g key={p.j.htPlayerId}>
+          <a
+            key={p.j.htPlayerId}
+            href={`/players/${p.j.htPlayerId}`}
+            className="group cursor-pointer"
+            onClick={(e) => {
+              if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey)
+                return;
+              e.preventDefault();
+              navigate(`/players/${p.j.htPlayerId}`);
+            }}
+          >
             <circle
               cx={p.x}
               cy={p.y}
@@ -295,10 +311,11 @@ export function Rentabilidad({ datos }: { datos: ClasesDeJugador }) {
               textAnchor={etiquetas[i]?.anchor}
               fontSize={12}
               fill="var(--text)"
+              className="underline decoration-[var(--border)] underline-offset-2 group-hover:fill-[var(--accent)]"
             >
               {p.texto}
             </text>
-          </g>
+          </a>
         ))}
       </svg>
       {fuera.length > 0 && (
