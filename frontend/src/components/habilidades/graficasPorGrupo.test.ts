@@ -9,6 +9,7 @@ import { clasificaciones } from "../clases/clasificaciones";
 import {
   pestanaComparada,
   pestanaDeUnGrupo,
+  pestanaEnRejilla,
   seriesDeLaPlantilla,
   type Poblacion,
 } from "./graficasPorGrupo";
@@ -133,6 +134,31 @@ describe("un grupo", () => {
       [900, 950],
       [1700, 1750],
     ]);
+  });
+});
+
+describe("la rejilla: una forma fija (2026-11-18)", () => {
+  it("en Habilidades, una gráfica por dato y en todas una línea por lo marcado", () => {
+    const uno = pestanaEnRejilla(habilidades, [estrellas], plantilla);
+    const tres = pestanaEnRejilla(
+      habilidades,
+      [todos, estrellas, gangas],
+      plantilla,
+    );
+    // Marcar más grupos no cambia cuántas gráficas hay: añade líneas.
+    expect(uno.rejilla).toBe(true);
+    expect(uno.charts.map((c) => c.title)).toEqual(["WINGER", "PASSING"]);
+    expect(tres.charts.map((c) => c.title)).toEqual(["WINGER", "PASSING"]);
+    expect(uno.charts.every((c) => c.series.length === 1)).toBe(true);
+    expect(tres.charts.every((c) => c.series.length === 3)).toBe(true);
+    expect(tres.charts[0]?.series[0]?.reference).toBe(true);
+  });
+
+  it("en Salario y TSI, una gráfica por medida, igual con uno que con dos", () => {
+    const uno = pestanaEnRejilla(mercado, [estrellas], plantilla);
+    const dos = pestanaEnRejilla(mercado, [estrellas, gangas], plantilla);
+    expect(uno.charts.map((c) => c.key)).toEqual(dos.charts.map((c) => c.key));
+    expect(dos.charts.every((c) => c.series.length === 2)).toBe(true);
   });
 });
 

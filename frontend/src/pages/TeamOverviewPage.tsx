@@ -25,6 +25,7 @@ import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import {
   datosDeHabilidades,
   pestanaComparada,
+  pestanaEnRejilla,
   pestanaDeLaPlantilla,
   pestanaDeUnGrupo,
   PLANTILLA,
@@ -32,6 +33,7 @@ import {
   type PestanaDibujada,
   type Poblacion,
 } from "../components/habilidades/graficasPorGrupo";
+import { HABILIDADES_EN_REJILLA } from "../config/flags";
 import { SelectorMirarA } from "../components/habilidades/MirarA";
 import {
   usePlayerClasses,
@@ -166,69 +168,112 @@ function GroupLines({
           <EnlaceATransparencia seccion="clases" calculo="rentabilidad" />
         </p>
       )}
-      {pestana.charts.map((chart) => {
-        const base =
-          filas.length > 0
-            ? lineasDeUnGrupo(weeks, chart.series, filas)
-            : timelineOption(weeks, chart.series);
-        // Las gráficas cuyas dos líneas miden lo mismo sobre poblaciones
-        // distintas llevan `band`: el hueco entre ellas es una cantidad y se
-        // sombrea. Las auxiliares se quedan fuera de la leyenda y del tooltip.
-        const [first, second] = chart.series;
-        const banded =
-          chart.band && first && second
-            ? {
-                series: [
-                  ...bandBetween(first.values, second.values),
-                  ...(base.series as Record<string, unknown>[]),
-                ],
-                legend: {
-                  bottom: 0,
-                  type: "scroll" as const,
-                  data: chart.series.map((s) => s.name),
-                },
-                tooltip: withoutBandInTooltip(),
-              }
-            : {};
-        return (
-          <div key={chart.key}>
-            {chart.title && (
-              <div className="mb-1 text-xs font-medium text-[var(--muted)]">
-                {chart.title}
-              </div>
-            )}
-            <Chart
-              ariaLabel={
-                filas.length > 0
-                  ? tx("{{titulo}}, media del grupo por semana", {
-                      titulo: chart.title,
-                    })
-                  : t(
-                      "equipo.graficaAria",
-                      "{{titulo}}, media de la plantilla por semana",
-                      { titulo: chart.title },
-                    )
-              }
-              height={pestana.charts.length > 1 ? 260 + 16 * filas.length : 340}
-              option={{
-                ...base,
-                ...banded,
-                ...(chart.scaleMax != null
-                  ? {
-                      yAxis: {
-                        type: "value" as const,
-                        min: chart.scaleMin ?? 0,
-                        max: chart.scaleMax,
-                        splitLine: { lineStyle: { opacity: 0.15 } },
-                      },
-                    }
-                  : {}),
-              }}
-            />
-          </div>
-        );
-      })}
+      {pestana.rejilla && (
+        <LeyendaDeLaRejilla series={pestana.charts[0]?.series ?? []} />
+      )}
+      <div
+        className={
+          pestana.rejilla
+            ? "grid gap-4 sm:grid-cols-2 xl:grid-cols-3 [&>*]:min-w-0"
+            : "space-y-4"
+        }
+      >
+        {pestana.charts.map((chart) => {
+          const base =
+            filas.length > 0
+              ? lineasDeUnGrupo(weeks, chart.series, filas)
+              : timelineOption(weeks, chart.series);
+          // Las gráficas cuyas dos líneas miden lo mismo sobre poblaciones
+          // distintas llevan `band`: el hueco entre ellas es una cantidad y se
+          // sombrea. Las auxiliares se quedan fuera de la leyenda y del tooltip.
+          const [first, second] = chart.series;
+          const banded =
+            chart.band && first && second
+              ? {
+                  series: [
+                    ...bandBetween(first.values, second.values),
+                    ...(base.series as Record<string, unknown>[]),
+                  ],
+                  legend: {
+                    bottom: 0,
+                    type: "scroll" as const,
+                    data: chart.series.map((s) => s.name),
+                  },
+                  tooltip: withoutBandInTooltip(),
+                }
+              : {};
+          return (
+            <div key={chart.key}>
+              {chart.title && (
+                <div className="mb-1 text-xs font-medium text-[var(--muted)]">
+                  {chart.title}
+                </div>
+              )}
+              <Chart
+                ariaLabel={
+                  filas.length > 0
+                    ? tx("{{titulo}}, media del grupo por semana", {
+                        titulo: chart.title,
+                      })
+                    : t(
+                        "equipo.graficaAria",
+                        "{{titulo}}, media de la plantilla por semana",
+                        { titulo: chart.title },
+                      )
+                }
+                height={
+                  pestana.rejilla
+                    ? 200 + 16 * filas.length
+                    : pestana.charts.length > 1
+                      ? 260 + 16 * filas.length
+                      : 340
+                }
+                option={{
+                  ...base,
+                  ...banded,
+                  // En la rejilla la leyenda va una vez, arriba, y no en cada
+                  // gráfica pequeña.
+                  ...(pestana.rejilla ? { legend: { show: false } } : {}),
+                  ...(chart.scaleMax != null
+                    ? {
+                        yAxis: {
+                          type: "value" as const,
+                          min: chart.scaleMin ?? 0,
+                          max: chart.scaleMax,
+                          splitLine: { lineStyle: { opacity: 0.15 } },
+                        },
+                      }
+                    : {}),
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
+  );
+}
+
+/** La leyenda única de la rejilla: un punto del color de cada línea y su
+ *  nombre en tinta normal. La plantilla entera, en el gris de la gráfica. */
+function LeyendaDeLaRejilla({
+  series,
+}: {
+  series: { name: string; color?: string; reference?: boolean }[];
+}) {
+  return (
+    <ul className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      {series.map((s) => (
+        <li key={s.name} className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="inline-block h-2.5 w-2.5 rounded-full"
+            style={{ background: s.reference ? "#94a3b8" : s.color }}
+          />
+          {s.name}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -324,8 +369,13 @@ export function TeamOverviewPage() {
   const plantilla = seriesDeLaPlantilla(data);
   const datos = datosDeHabilidades(active);
 
+  // Con un grupo o más marcado y la rejilla encendida, una sola forma.
+  const enRejilla =
+    HABILIDADES_EN_REJILLA && conSelector && gruposMarcados.length > 0;
   let pestana: PestanaDibujada = pestanaDeLaPlantilla(active);
-  if (!cargando && unGrupo && poblaciones[0]?.serie) {
+  if (!cargando && enRejilla) {
+    pestana = pestanaEnRejilla(active, poblaciones, plantilla);
+  } else if (!cargando && unGrupo && poblaciones[0]?.serie) {
     pestana = pestanaDeUnGrupo(
       active,
       { ...poblaciones[0], serie: poblaciones[0].serie },
@@ -389,7 +439,7 @@ export function TeamOverviewPage() {
             marcados={marcados}
             onMarcar={marcar}
             dato={
-              comparando && active.key === "skills"
+              comparando && active.key === "skills" && !enRejilla
                 ? {
                     opciones: datos,
                     activo: datos.some((d) => d.key === dato)

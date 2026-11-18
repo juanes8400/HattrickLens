@@ -18,3 +18,17 @@
  *  borrarlo sería tirar el trabajo y los datos. Poner `true` lo devuelve.
  */
 export const INTENTOS_DE_TRANSFERENCIA_VISIBLES = false;
+
+/** Habilidades con «Mirar a»: una gráfica pequeña por dato, en rejilla, y una
+ *  línea por cada cosa marcada en todas (2026-11-18, opción B del usuario).
+ *
+ *  Antes la forma dependía de cuántos grupos se marcaban: con uno, las
+ *  gráficas de siempre con varias habilidades; con dos o más, una sola
+ *  gráfica y el selector «Dato». Funcionaba, pero marcar una casilla más
+ *  cambiaba la gráfica entera en vez de añadir una línea.
+ *
+ *  El usuario pidió estar listo para volver: `false` devuelve la forma
+ *  anterior tal cual, cuyo código sigue entero. Sólo con la plantilla entera
+ *  marcada no cambia nada: siguen las gráficas de siempre, con la línea de
+ *  los 11 de más TSI. */
+export const HABILIDADES_EN_REJILLA = true;
