@@ -36,3 +36,11 @@ export const usePlayerClasses = () =>
     queryKey: ["player-classes", TEAM_ID],
     queryFn: () => api.playerClasses(TEAM_ID),
   });
+
+/** Quién cambió de clase desde la sincronización anterior, para Cambios.
+ *  La primera petición tras sincronizar guarda la lectura de ese sync. */
+export const usePlayerClassChanges = () =>
+  useQuery({
+    queryKey: ["player-class-changes", TEAM_ID],
+    queryFn: () => api.playerClassChanges(TEAM_ID),
+  });

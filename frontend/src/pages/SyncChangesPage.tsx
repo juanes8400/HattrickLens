@@ -40,6 +40,7 @@ import {
 } from "../services/api";
 
 import { tx } from "../i18n/tx";
+import { CambiosDeClase } from "../components/clases/CambiosDeClase";
 function countPlayerPops(changes: SyncResult["changes"]): number {
   return changes.filter((c) => {
     const s = c.summary.toLowerCase();
@@ -704,6 +705,10 @@ export function SyncChangesPage() {
             onDismiss={() => darPorVista(comparacion)}
           />
         ))}
+
+      {/* Quién cambió de clase (2026-11-18): justo después de la lista de
+          cambios, porque casi siempre es su consecuencia. */}
+      <CambiosDeClase />
 
       {actions.length > 0 && (
         <Panel

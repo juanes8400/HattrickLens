@@ -4,13 +4,22 @@
  *  de Clasificación de jugadores: no hay cálculo propio aquí. */
 import { Link } from "react-router-dom";
 import { Panel } from "../Panels";
-import { usePlayerClasses } from "../../hooks/useTeam";
+import { usePlayerClassChanges, usePlayerClasses } from "../../hooks/useTeam";
 import { tx } from "../../i18n/tx";
-import { pertenencias } from "./frases";
+import { nombreDeGrupo, pertenencias } from "./frases";
 import { Punto } from "./comun";
 
 export function SusClases({ htPlayerId }: { htPlayerId: number }) {
   const { data } = usePlayerClasses();
+  // Lo que cambió desde la sincronización anterior (2026-11-18, pedido del
+  // usuario): la línea de esa clase dice de dónde venía.
+  const cambios = usePlayerClassChanges();
+  const antes = (clave: string | undefined): string | null => {
+    const c = cambios.data?.changes.find(
+      (x) => x.htPlayerId === htPlayerId && x.classification === clave,
+    );
+    return c ? nombreDeGrupo(c.classification, c.before) : null;
+  };
   // Mientras llega, o si falla, la ficha sigue entera: la tarjeta es un
   // añadido, no algo que deba tumbar la pantalla.
   const lista = data ? pertenencias(data, htPlayerId) : null;
@@ -43,7 +52,16 @@ export function SusClases({ htPlayerId }: { htPlayerId: number }) {
                 {p.grupo}
               </span>
             </div>
-            <p className="self-center">{p.frase}</p>
+            <p className="self-center">
+              {p.frase}
+              {antes(p.clave) && (
+                <span className="ml-1.5 text-xs text-[var(--muted)]">
+                  {tx("Antes: {{grupo}}, en la sincronización anterior.", {
+                    grupo: antes(p.clave),
+                  })}
+                </span>
+              )}
+            </p>
           </li>
         ))}
       </ul>

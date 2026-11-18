@@ -63,6 +63,7 @@ export {
 } from "./plantilla";
 export {
   usePlayerClasses,
+  usePlayerClassChanges,
   useSeriesDeGrupos,
   useTeamOverview,
 } from "./resumen";

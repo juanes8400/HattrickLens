@@ -4,6 +4,7 @@ import {
   enLista,
   fraseDeEtapa,
   fraseDePropia,
+  nombreDeGrupo,
   fraseDeRentabilidad,
   fraseDeTitularidad,
   pertenencias,
@@ -184,5 +185,13 @@ describe("Clasificaciones propias", () => {
 
   it("una clasificación sin grupos todavía no saca línea", () => {
     expect(fraseDePropia({ ...mercado, groups: [] }, jugador())).toBeNull();
+  });
+});
+
+describe("los nombres de grupo que usa Cambios", () => {
+  it("traduce la clave del servidor al nombre de la pantalla", () => {
+    expect(nombreDeGrupo("titularidad", "suplencia")).toBe("Suplencia");
+    expect(nombreDeGrupo("rentabilidad", "caros")).toBe("Caro");
+    expect(nombreDeGrupo("etapa", "declive")).toBe("En declive");
   });
 });

@@ -2007,3 +2007,28 @@ class PlayerGroupMember(Base):
     ht_player_id: Mapped[int] = mapped_column(BigInteger)
     classification_id: Mapped[int] = mapped_column(BigInteger)
     group_id: Mapped[int] = mapped_column(BigInteger)
+
+
+class PlayerClassReading(Base):
+    """Las clases de un jugador en una lectura (2026-11-18).
+
+    Para que Cambios diga quién cambió de clase desde la sincronización
+    anterior. Una lectura es la sincronización de la que salen las fotos de
+    la plantilla, y se escribe la primera vez que se miran las clases después
+    de ella. Sólo las tres de la app; las propias las mueve el usuario y no
+    son noticia.
+    """
+
+    __tablename__ = "player_class_readings"
+    __table_args__ = (
+        UniqueConstraint("team_id", "sync_id", "ht_player_id", name="uq_una_lectura_por_jugador"),
+        Index("ix_player_class_readings_team_sync", "team_id", "sync_id"),
+    )
+    id: Mapped[int] = mapped_column(PKBigInt, primary_key=True)
+    team_id: Mapped[int] = mapped_column(ForeignKey("teams.id", ondelete="CASCADE"))
+    sync_id: Mapped[int] = mapped_column(BigInteger)
+    ht_player_id: Mapped[int] = mapped_column(BigInteger)
+    titularidad: Mapped[str] = mapped_column(String(16))
+    rentabilidad: Mapped[str] = mapped_column(String(16))
+    etapa: Mapped[str] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(UtcDateTime())

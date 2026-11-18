@@ -2385,5 +2385,9 @@
   "Mis clasificaciones": "My classifications",
   "Sin grupo en «{{c}}».": "No group in “{{c}}”.",
   "Mis clasificaciones y Personalizar: tus propias clasificaciones (por ejemplo «Mercado» o «Rol»), cada una con sus grupos, y cada jugador en uno de cada una. Cada clasificación sale también como columna en Jugadores.": "My classifications and Custom: your own classifications (for example “Market” or “Role”), each with its groups, and each player in one group of each. Every classification also appears as a column in Players.",
-  "Las pestañas": "The tabs"
+  "Las pestañas": "The tabs",
+  "Cambios de clase": "Class changes",
+  "Las clases de hoy quedan guardadas. Desde la próxima sincronización verás aquí quién cambió de clase.": "Today's classes are saved. From the next sync on, you'll see here who changed class.",
+  "Nadie cambió de clase desde la sincronización anterior.": "Nobody changed class since the previous sync.",
+  "Antes: {{grupo}}, en la sincronización anterior.": "Before: {{grupo}}, in the previous sync."
 }

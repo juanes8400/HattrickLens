@@ -2385,5 +2385,9 @@
   "Mis clasificaciones": "Moje klasyfikacje",
   "Sin grupo en «{{c}}».": "Brak grupy w „{{c}}”.",
   "Mis clasificaciones y Personalizar: tus propias clasificaciones (por ejemplo «Mercado» o «Rol»), cada una con sus grupos, y cada jugador en uno de cada una. Cada clasificación sale también como columna en Jugadores.": "Moje klasyfikacje i Własne: twoje własne klasyfikacje (na przykład „Rynek” lub „Rola”), każda ze swoimi grupami, a każdy zawodnik w jednej grupie każdej z nich. Każda klasyfikacja pojawia się też jako kolumna w Zawodnikach.",
-  "Las pestañas": "Zakładki"
+  "Las pestañas": "Zakładki",
+  "Cambios de clase": "Zmiany klasy",
+  "Las clases de hoy quedan guardadas. Desde la próxima sincronización verás aquí quién cambió de clase.": "Dzisiejsze klasy zostały zapisane. Od następnej synchronizacji zobaczysz tutaj, kto zmienił klasę.",
+  "Nadie cambió de clase desde la sincronización anterior.": "Od poprzedniej synchronizacji nikt nie zmienił klasy.",
+  "Antes: {{grupo}}, en la sincronización anterior.": "Wcześniej: {{grupo}}, w poprzedniej synchronizacji."
 }

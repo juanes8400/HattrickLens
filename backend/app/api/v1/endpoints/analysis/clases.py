@@ -15,6 +15,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_team_owner
+from app.application.queries.cambios_de_clase import cambios_de_clase
 from app.application.queries.clases_de_jugador import (
     ClasesDeJugadorQueryService,
     clasificaciones_del_equipo,
@@ -352,4 +353,35 @@ async def poner_en_grupo(
         "htPlayerId": ht_player_id,
         "classificationId": body.classification_id,
         "groupId": body.group_id,
+    }
+
+
+@router.get(
+    "/teams/{team_id}/player-classes/changes",
+    summary="Quién cambió de clase desde la sincronización anterior",
+    dependencies=[Depends(require_team_owner)],
+)
+async def player_class_changes(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Para Cambios (2026-11-18). La primera llamada tras una sincronización
+    guarda la lectura de esa sincronización; ver `cambios_de_clase`."""
+    if await session.get(m.Team, team_id) is None:
+        raise HTTPException(404, f"team {team_id} not found")
+    c = await cambios_de_clase(session, team_id)
+    return {
+        "syncId": c.sync_id,
+        "previousSyncId": c.previous_sync_id,
+        "changes": [
+            {
+                "htPlayerId": x.ht_player_id,
+                # `playerName` y no `name`: el servidor traduce los `name`.
+                "playerName": x.name,
+                "classification": x.clasificacion,
+                "before": x.antes,
+                "after": x.ahora,
+            }
+            for x in c.changes
+        ],
     }
