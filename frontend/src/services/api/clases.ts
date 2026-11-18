@@ -95,6 +95,8 @@ export interface ClasesDeJugador {
 export const apiClases = {
   playerClasses: (teamId: number) =>
     request<ClasesDeJugador>(`/teams/${teamId}/player-classes`),
+  playerClassChanges: (teamId: number) =>
+    request<CambiosDeClase>(`/teams/${teamId}/player-classes/changes`),
   createPlayerClassification: (teamId: number, name: string) =>
     request<{ id: number; classificationName: string }>(
       `/teams/${teamId}/player-classifications`,
@@ -152,3 +154,20 @@ export const apiClases = {
       body: JSON.stringify({ classificationId, groupId }),
     }),
 };
+
+/** Quién cambió de clase desde la sincronización anterior (2026-11-18). */
+export interface CambioDeClase {
+  htPlayerId: number;
+  /** `playerName` y no `name`: el servidor traduce los `name`. */
+  playerName: string;
+  classification: "titularidad" | "rentabilidad" | "etapa";
+  before: string;
+  after: string;
+}
+
+export interface CambiosDeClase {
+  syncId: number | null;
+  /** Null si todavía no hay una lectura anterior con la que comparar. */
+  previousSyncId: number | null;
+  changes: CambioDeClase[];
+}

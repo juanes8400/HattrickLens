@@ -55,7 +55,12 @@ export interface Pertenencia {
   grupo: string;
   color: string;
   frase: string;
+  /** Sólo en las tres de la app: con qué clave las nombra el servidor en
+   *  los cambios de clase. */
+  clave?: ClaveDeLaApp;
 }
+
+export type ClaveDeLaApp = "titularidad" | "rentabilidad" | "etapa";
 
 /** Dónde sale en los onces de una lista, puesto a puesto. */
 function dondeSale(onces: OnceDeFormacion[], id: number) {
@@ -132,6 +137,27 @@ const RENTABILIDAD = {
   caros: { nombre: () => tx("Caro"), color: COLOR.rojo },
   economicos: { nombre: () => tx("Económico"), color: COLOR.gris },
 } as const;
+
+const TITULARIDAD: Record<string, () => string> = {
+  titular: () => tx("Titular"),
+  suplencia: () => tx("Suplencia"),
+  reserva: () => tx("Reserva"),
+};
+
+/** El nombre en pantalla de un grupo de las clasificaciones de la app, a
+ *  partir de la clave que guarda el servidor. Lo usa Cambios, que recibe
+ *  claves de antes y de ahora. */
+export function nombreDeGrupo(
+  clasificacion: ClaveDeLaApp,
+  clave: string,
+): string {
+  if (clasificacion === "titularidad") return TITULARIDAD[clave]?.() ?? clave;
+  if (clasificacion === "rentabilidad")
+    return clave in RENTABILIDAD
+      ? RENTABILIDAD[clave as keyof typeof RENTABILIDAD].nombre()
+      : clave;
+  return nombreDeEtapa(clave);
+}
 
 /** Por encima, en o por debajo de la mediana. Justo en la mediana cuenta
  *  arriba (regla del usuario, 2026-11-17); la frase lo dice tal cual. */
@@ -257,10 +283,12 @@ export function pertenencias(
 ): Pertenencia[] | null {
   const j = datos.players.find((p) => p.htPlayerId === htPlayerId);
   if (!j) return null;
+  const conClave = (p: Pertenencia | null, clave: ClaveDeLaApp) =>
+    p ? { ...p, clave } : null;
   return [
-    fraseDeTitularidad(datos, j),
-    fraseDeRentabilidad(datos, j),
-    fraseDeEtapa(datos, j),
+    conClave(fraseDeTitularidad(datos, j), "titularidad"),
+    conClave(fraseDeRentabilidad(datos, j), "rentabilidad"),
+    conClave(fraseDeEtapa(datos, j), "etapa"),
     ...datos.classifications.map((c) => fraseDePropia(c, j)),
   ].filter((p): p is Pertenencia => p != null);
 }

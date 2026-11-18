@@ -2385,5 +2385,9 @@
   "Mis clasificaciones": "Meine Klassifizierungen",
   "Sin grupo en «{{c}}».": "Keine Gruppe in „{{c}}“.",
   "Mis clasificaciones y Personalizar: tus propias clasificaciones (por ejemplo «Mercado» o «Rol»), cada una con sus grupos, y cada jugador en uno de cada una. Cada clasificación sale también como columna en Jugadores.": "Meine Klassifizierungen und Eigene: deine eigenen Klassifizierungen (zum Beispiel „Markt“ oder „Rolle“), jede mit ihren Gruppen, und jeder Spieler in einer Gruppe jeder Klassifizierung. Jede Klassifizierung erscheint auch als Spalte in Spieler.",
-  "Las pestañas": "Die Reiter"
+  "Las pestañas": "Die Reiter",
+  "Cambios de clase": "Klassenwechsel",
+  "Las clases de hoy quedan guardadas. Desde la próxima sincronización verás aquí quién cambió de clase.": "Die heutigen Klassen sind gespeichert. Ab der nächsten Synchronisierung siehst du hier, wer die Klasse gewechselt hat.",
+  "Nadie cambió de clase desde la sincronización anterior.": "Seit der letzten Synchronisierung hat niemand die Klasse gewechselt.",
+  "Antes: {{grupo}}, en la sincronización anterior.": "Vorher: {{grupo}}, bei der letzten Synchronisierung."
 }

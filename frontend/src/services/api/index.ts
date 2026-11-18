@@ -24,6 +24,8 @@ export type {
   GrupoDeRentabilidad,
   GrupoPropio,
   ClasificacionPropia,
+  CambioDeClase,
+  CambiosDeClase,
   JugadorDeClases,
   OnceDeFormacion,
   ReglasDeEtapa,
