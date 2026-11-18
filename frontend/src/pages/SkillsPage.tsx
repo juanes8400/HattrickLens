@@ -14,6 +14,8 @@ import {
 } from "../components/Panels";
 import { useSkills, useTeamOverview } from "../hooks/useTeam";
 import { MejorPosicion } from "../components/MejorPosicion";
+import { DistribucionDelSalario } from "../components/clases/DistribucionDelSalario";
+import { tx } from "../i18n/tx";
 import { CountryFlag } from "../components/CountryFlag";
 import { skillLevelLabel } from "../utils/skillLevels";
 import {
@@ -155,9 +157,9 @@ export function SkillsPage() {
   const [vista, setVista] = useState<Vista>("once");
   // La formación de Profundidad: vacía = la del último partido oficial.
   const [formacion, setFormacion] = useState("");
-  const [vistaDePuestos, setVistaDePuestos] = useState<"profundidad" | "mejor">(
-    "profundidad",
-  );
+  const [vistaDePuestos, setVistaDePuestos] = useState<
+    "profundidad" | "mejor" | "salario"
+  >("profundidad");
   const [centrales, setCentrales] = useState<number | undefined>(undefined);
   const [medios, setMedios] = useState<number | undefined>(undefined);
   const { data, isLoading, isError, error } = useSkills(
@@ -269,7 +271,9 @@ export function SkillsPage() {
           pantalla. */}
       <Tabs
         grupo="equipo-puestos"
-        label={t("habilidades.comoSeMiran", "Cómo se miran los puestos")}
+        // «La plantilla» y no «los puestos» desde el 2026-11-18: la tercera
+        // lectura, la del salario, no es un puesto.
+        label={tx("Cómo se mira la plantilla")}
         tabs={[
           {
             key: "profundidad",
@@ -281,6 +285,9 @@ export function SkillsPage() {
               mejorPosicion?.label ??
               t("habilidades.mejorPosicion", "Mejor posición"),
           },
+          // 2026-11-18, nombre del usuario: a qué grupo de cada
+          // clasificación se va el salario.
+          { key: "salario", label: tx("Distribución del salario") },
         ]}
         active={vistaDePuestos}
         onChange={setVistaDePuestos}
@@ -291,7 +298,9 @@ export function SkillsPage() {
         activa={vistaDePuestos}
         className="space-y-4"
       >
-        {vistaDePuestos === "mejor" ? (
+        {vistaDePuestos === "salario" ? (
+          <DistribucionDelSalario />
+        ) : vistaDePuestos === "mejor" ? (
           mejorPosicion ? (
             <Panel
               title={mejorPosicion.label}
