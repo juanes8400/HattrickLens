@@ -14,6 +14,7 @@ from app.api.deps import (
     require_team_owner,
 )
 from app.application.queries.parte_del_partido import build_parte_del_partido
+from app.application.queries.proximo_partido_oficial import proximo_partido_oficial
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()
@@ -46,3 +47,32 @@ async def last_match_report(
         (),
         lambda: build_parte_del_partido(session, team_id),
     )
+
+
+@router.get(
+    "/{team_id}/next-official-match",
+    summary="El proximo partido oficial: liga, copa, promocion o Masters",
+    dependencies=[Depends(require_team_owner)],
+)
+async def next_official_match(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any] | None:
+    """El que encabeza el Dashboard (2026-11-18). `null` sin partidos oficiales
+    pendientes. No se guarda por sync: depende de la hora, y pasado el
+    partido el siguiente tiene que salir aunque no se haya sincronizado."""
+    p = await proximo_partido_oficial(session, team_id)
+    if p is None:
+        return None
+    return {
+        "htMatchId": p.ht_match_id,
+        "matchType": p.match_type,
+        "tournament": p.tournament,
+        "date": p.played_at.isoformat(),
+        "home": p.home,
+        "away": p.away,
+        "isHome": p.is_home,
+        "rivalHtId": p.rival_ht_id,
+        "ordersGiven": p.orders_given,
+        "round": p.round,
+    }

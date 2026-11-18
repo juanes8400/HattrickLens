@@ -249,7 +249,7 @@ export const ARTICULOS: Articulo[] = [
         titulo: tx("Qué hay en pantalla"),
         puntos: [
           tx(
-            "Próximo partido: rival, fecha, competición y el pronóstico con victoria, empate y derrota.",
+            "Próximo partido oficial, sea de liga, copa, promoción o Masters: rival, fecha, competición y, en liga y copa, el pronóstico.",
           ),
           tx(
             "Liga resumida: puesto, puntos y la probabilidad de cada final de temporada.",
