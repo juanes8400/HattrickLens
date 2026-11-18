@@ -74,7 +74,7 @@ export function Etapa({ datos }: { datos: ClasesDeJugador }) {
     <div className="space-y-4">
       <p className="text-sm text-[var(--muted)]">
         {tx(
-          "La misma etapa de la ficha de cada jugador; si la corriges a mano allí, manda también aquí. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.",
+          "La misma etapa de la ficha de cada jugador. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.",
           { n: reglas.splitAbove },
         )}
       </p>

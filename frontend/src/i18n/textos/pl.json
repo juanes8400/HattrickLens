@@ -1355,7 +1355,6 @@
   "Sin clics nuevos todavía. Con doce personas, esto pasa la mayor parte del tiempo.": "Jeszcze brak nowych kliknięć. Przy dwunastu osobach tak jest przez większość czasu.",
   "Sin comparativa: hacen falta partidos de los rivales.": "Brak porównania: potrzebne są mecze przeciwników.",
   "Sin compra registrada en el historial reciente del equipo.": "Brak zapisanego zakupu w niedawnej historii drużyny.",
-  "Sin confirmar, usar sugerencia de la app": "Niepotwierdzone, weź podpowiedź aplikacji",
   "Sin conteo verificable para esta etapa. El signo ? nunca significa cero: puede faltar el identificador real del jugador, la fecha inicial o un recuento pendiente.": "Brak sprawdzalnego zestawienia dla tego etapu. Znak ? nigdy nie oznacza zera: może brakować prawdziwego identyfikatora zawodnika, daty początkowej albo zaległego przeliczenia.",
   "Sin datos de posición.": "Brak danych o pozycji.",
   "Sin datos de saldo todavía para este jugador.": "Brak jeszcze danych o saldzie tego zawodnika.",
@@ -1523,7 +1522,6 @@
   "Tu alineación contra la propuesta: qué cambia entre lo que mandaste a Hattrick y lo que recomienda el motor.": "Twój skład wobec propozycji: co się zmienia między tym, co wysłałeś do Hattricka, i tym, co zaleca silnik.",
   "Tu alineación enviada": "Twój wysłany skład",
   "Tu campo": "Twoja połowa",
-  "Tu confirmación:": "Twoje potwierdzenie:",
   "Tu decisión ahora mismo es:": "Twoja obecna decyzja to:",
   "Tu elección la gestiona el panel de consentimiento de Google, que es el que te preguntó. Desde él puedes cambiarla cuando quieras. Hasta que respondes, Google tiene prohibido usar cookies de publicidad y personalizar lo que ves.": "Twoim wyborem zarządza panel zgody Google, który cię o to zapytał. Możesz go tam zmienić w dowolnej chwili. Dopóki nie odpowiesz, Google nie może używać plików cookie reklamowych ani personalizować tego, co widzisz.",
   "Tu equipo": "Twoja drużyna",
@@ -2286,7 +2284,6 @@
   "De {{a}} a {{b}} años": "Od {{a}} do {{b}} lat",
   "En su pico; Pieza de rotación si su percentil está por debajo de {{p}}.": "U szczytu; Zawodnik rotacyjny, jeśli jego percentyl jest poniżej {{p}}.",
   "{{a}} años o más": "{{a}} lat lub więcej",
-  "La misma etapa de la ficha de cada jugador; si la corriges a mano allí, manda también aquí. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "Ten sam etap co na stronie każdego zawodnika; jeśli poprawisz go tam ręcznie, obowiązuje też tutaj. Etap z więcej niż {{n}} zawodnikami dzieli się na podstawowych i rezerwowych.",
   "Rentabilidad deportiva": "Opłacalność sportowa",
   "Estrellas": "Gwiazdy",
   "Gangas": "Okazje",
@@ -2393,5 +2390,6 @@
   "Salario y TSI": "Pensja i TSI",
   "Puedes marcar varios: cada uno es una línea en todas las gráficas.": "Możesz zaznaczyć kilka: każdy jest linią na wszystkich wykresach.",
   "Grupos: subidas y bajadas de la última sincronización dentro de cada grupo de la Clasificación de jugadores (titulares que bajan, suplentes que superan a un titular, promesas estancadas o que suben, veteranos que empiezan a bajar, estrellas y caros que caen, gangas que suben, un grupo que baja tres semanas seguidas y tus propios grupos).": "Grupy: wzrosty i spadki z ostatniej synchronizacji w każdej grupie Klasyfikacji zawodników (podstawowi, którym spada, rezerwowi, którzy przewyższają podstawowego, talenty, które stoją w miejscu lub rosną, weterani, którym zaczyna spadać, gwiazdy i drodzy, którzy słabną, okazje, które rosną, grupa spadająca trzy tygodnie z rzędu i twoje własne grupy).",
-  "Mercado y once: un titular en venta, un titular sin experiencia o que no juega los dos últimos oficiales, una venta que ya dejaría ganancia, un precio que sube un 15 % en una semana, un ex jugador tuyo en venta del que cobrarías comisión, la resistencia baja para la edad y un juvenil listo para subir.": "Rynek i jedenastka: podstawowy na sprzedaż, podstawowy z małym doświadczeniem lub bez gry w dwóch ostatnich meczach oficjalnych, sprzedaż, która już dałaby zysk, cena rosnąca o 15% w tydzień, twój były zawodnik na sprzedaż, z którego dostałbyś prowizję, niska kondycja jak na wiek i junior gotowy do awansu."
+  "Mercado y once: un titular en venta, un titular sin experiencia o que no juega los dos últimos oficiales, una venta que ya dejaría ganancia, un precio que sube un 15 % en una semana, un ex jugador tuyo en venta del que cobrarías comisión, la resistencia baja para la edad y un juvenil listo para subir.": "Rynek i jedenastka: podstawowy na sprzedaż, podstawowy z małym doświadczeniem lub bez gry w dwóch ostatnich meczach oficjalnych, sprzedaż, która już dałaby zysk, cena rosnąca o 15% w tydzień, twój były zawodnik na sprzedaż, z którego dostałbyś prowizję, niska kondycja jak na wiek i junior gotowy do awansu.",
+  "La misma etapa de la ficha de cada jugador. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "Ten sam etap co na stronie każdego zawodnika. Etap z więcej niż {{n}} zawodnikami dzieli się na podstawowych i rezerwowych."
 }

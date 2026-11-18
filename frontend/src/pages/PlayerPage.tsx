@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Chart } from "../charts/Chart";
 import {
@@ -26,9 +25,8 @@ import {
 import { PlayerDistributionPanel } from "../components/PlayerDistributionPanel";
 import { PrecioPorComparables } from "../components/PrecioPorComparables";
 import { PanelDePestanas, Tabs } from "../components/Tabs";
-import { TEAM_ID, usePlayerBalance, usePlayerDetail } from "../hooks/useTeam";
+import { usePlayerBalance, usePlayerDetail } from "../hooks/useTeam";
 import { date, htAge, htAgeTexto, money, number } from "../hooks/useFormat";
-import { api } from "../services/api";
 import type { ActivePlayerDetail, ExPlayerDetail } from "../services/api";
 import { skillLevelLabel } from "../utils/skillLevels";
 
@@ -210,8 +208,6 @@ export function PlayerPage() {
 type Vista = "jugador" | "comparador";
 
 function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
-  const id = data.htPlayerId;
-  const qc = useQueryClient();
   // En la URL y no en memoria: asi recargar, volver atras o pasarle el
   // enlace a alguien cae en la pestana que estaba abierta, y la entrada
   // desde Transferencias puede apuntar derecha al comparador.
@@ -280,16 +276,6 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
   const tsiRange = useDateRangeFilter(tsiWeekly.labels);
   const htmsRange = useDateRangeFilter(htmsWeekly.labels);
   const matchRatingRange = useDateRangeFilter(matchRatingWeekly.labels);
-  const confirmStage = useMutation({
-    mutationFn: (stage: string | null) =>
-      api.confirmCareerStage(TEAM_ID, id, stage),
-    // La etapa confirmada a mano manda también en «Sus clases» y en
-    // Clasificación de jugadores, que la leen de `/player-classes`.
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: ["player", TEAM_ID, id] });
-      void qc.invalidateQueries({ queryKey: ["player-classes", TEAM_ID] });
-    },
-  });
 
   const bestPosition = data.positions[0];
   const top10Positions = data.positions.slice(0, 10);
@@ -528,32 +514,8 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-2 pt-1">
-                  <label
-                    className="text-xs text-[var(--muted)]"
-                    htmlFor="career-stage-confirm"
-                  >
-                    {tx("Tu confirmación:")}
-                  </label>
-                  <select
-                    id="career-stage-confirm"
-                    className="rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-xs"
-                    value={data.careerStage.confirmedStage ?? ""}
-                    disabled={confirmStage.isPending}
-                    onChange={(e) =>
-                      confirmStage.mutate(e.target.value || null)
-                    }
-                  >
-                    <option value="">
-                      {tx("Sin confirmar, usar sugerencia de la app")}
-                    </option>
-                    {CAREER_STAGE_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {o.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* «Tu confirmación» salió de aquí el 2026-11-18, pedido del
+                    usuario. Una etapa ya confirmada antes sigue mandando. */}
               </div>
             </Panel>
 
