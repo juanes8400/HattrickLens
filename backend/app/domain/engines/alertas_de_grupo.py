@@ -18,9 +18,9 @@ sale de ajustar datos del usuario.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
-from app.domain.engines.insights import Insight, Severity
+from app.domain.engines.insights import ORDER, Insight, Severity
 from app.domain.value_objects.ht_constants import SKILL_LABELS
 
 #: Semanas seguidas bajando para «El grupo cae» (dicho por el usuario).
@@ -405,4 +405,58 @@ def tu_grupo_se_movio(
                     evidence={"group_id": g.id},
                 )
             )
+    return out
+
+
+#: Cómo se nombra cada alerta cuando se junta con otra del mismo jugador
+#: (2026-11-18, decidido por el usuario: «Sí. Fusionar.»). Con sus datos, una
+#: sola bajada de un titular que además es veterano y estrella salía tres
+#: veces en el buzón.
+_BAJADAS: dict[str, str] = {
+    "group.starter_drop": "Titular con bajada",
+    "group.dropped_from_xi": "Sale del mejor once",
+    "group.veteran_first_drop": "Primera bajada de veterano",
+    "group.decline_fast": "Declive acelerado",
+    "group.star_drop": "Estrella que cae",
+    "group.costly_dropping": "Caro que sigue bajando",
+}
+_SUBIDAS: dict[str, str] = {
+    "group.sub_pushing": "Suplente que empuja",
+    "group.reserve_rising": "Reserva que despierta",
+    "group.prospect_rose": "Promesa que sube",
+    "group.rotation_rising": "Rotación que asoma",
+    "group.bargain_rising": "Ganga que se revaloriza",
+}
+
+
+def juntar_por_jugador(alertas: Sequence[Insight]) -> list[Insight]:
+    """Una alerta por jugador y por sentido: las bajadas juntas y las subidas
+    juntas. Queda la más grave entera, y en su detalle se nombran las otras.
+    Su clave es la de la más grave, así que archivarla sigue funcionando
+    igual."""
+    juntas: dict[tuple[int, str], list[Insight]] = {}
+    out: list[Insight] = []
+    for a in alertas:
+        raiz = a.key.rsplit(".", 1)[0]
+        pid = a.evidence.get("ht_player_id")
+        sentido = "baja" if raiz in _BAJADAS else "sube" if raiz in _SUBIDAS else None
+        if sentido is None or pid is None:
+            out.append(a)
+            continue
+        juntas.setdefault((int(pid), sentido), []).append(a)
+    for grupo in juntas.values():
+        grupo.sort(key=lambda a: ORDER[a.severity])
+        principal, otras = grupo[0], grupo[1:]
+        if not otras:
+            out.append(principal)
+            continue
+        nombres = {**_BAJADAS, **_SUBIDAS}
+        tambien = ", ".join(nombres[a.key.rsplit(".", 1)[0]] for a in otras)
+        out.append(
+            replace(
+                principal,
+                detail=f"{principal.detail} También: {tambien}.",
+                evidence={**principal.evidence, "also": [a.key for a in otras]},
+            )
+        )
     return out

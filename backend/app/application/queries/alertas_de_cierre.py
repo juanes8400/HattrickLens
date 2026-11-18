@@ -198,19 +198,26 @@ async def alertas_de_cierre(
         for g in c.groups
     ]
 
+    # Las de un mismo jugador y un mismo sentido salen juntas (ver
+    # `juntar_por_jugador`).
+    de_jugador = ag.juntar_por_jugador(
+        [
+            *ag.titular_con_bajada(jugadores),
+            *ag.la_bajada_le_saca_del_once(jugadores, de_titular_a_suplencia),
+            *ag.suplente_que_empuja(jugadores),
+            *ag.reserva_que_despierta(jugadores),
+            *ag.promesa_que_sube(jugadores),
+            *ag.rotacion_que_asoma(jugadores, de_rotacion_a_pico),
+            *ag.primer_aviso_de_declive(jugadores),
+            *ag.declive_acelerado(jugadores),
+            *ag.estrella_que_cae(jugadores),
+            *ag.caro_que_sigue_bajando(jugadores),
+            *ag.ganga_que_se_revaloriza(jugadores),
+        ]
+    )
     grupos: list[list[Insight]] = [
-        ag.titular_con_bajada(jugadores),
-        ag.la_bajada_le_saca_del_once(jugadores, de_titular_a_suplencia),
-        ag.suplente_que_empuja(jugadores),
-        ag.reserva_que_despierta(jugadores),
+        de_jugador,
         ag.promesa_estancada(atrasos),
-        ag.promesa_que_sube(jugadores),
-        ag.rotacion_que_asoma(jugadores, de_rotacion_a_pico),
-        ag.primer_aviso_de_declive(jugadores),
-        ag.declive_acelerado(jugadores),
-        ag.estrella_que_cae(jugadores),
-        ag.caro_que_sigue_bajando(jugadores),
-        ag.ganga_que_se_revaloriza(jugadores),
         ag.el_grupo_cae(series),
         ag.entrenamiento_que_no_llega_al_once(atrasos),
         ag.tu_grupo_se_movio(jugadores, propios),
