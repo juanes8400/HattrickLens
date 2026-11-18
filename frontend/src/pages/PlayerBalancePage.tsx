@@ -37,6 +37,7 @@ import { useIsDarkTheme } from "../hooks/useTheme";
 import {
   TEAM_ID,
   usePlayerBalance,
+  usePlayerClasses,
   usePreciosComparables,
   useSquad,
 } from "../hooks/useTeam";
@@ -45,6 +46,13 @@ import type { PlayerBalanceRow, PrecioDeUnJugador } from "../services/api";
 
 import { simularVenta } from "../utils/simulacionDeVenta";
 import { tx } from "../i18n/tx";
+import { usePersistido } from "../hooks/usePersistido";
+import { FiltroDeClases } from "../components/clases/FiltroDeClases";
+import {
+  idsDelFiltro,
+  SIN_FILTRO,
+  type ValorDelFiltro,
+} from "../components/clases/filtro";
 import { terminoOficial } from "../i18n/glosario";
 const UNKNOWN_TRAINING = tx("Sin evidencia suficiente");
 const UNKNOWN_SEASON = tx("Temporada desconocida");
@@ -325,8 +333,19 @@ function TablaDeLaPlantilla({
   cargando: boolean;
   onSimular: (htPlayerId: number, precio: number | null) => void;
 }) {
+  // EL FILTRO DE CLASES (2026-11-18, el mismo de Jugadores). Filtra antes de
+  // sumar: con «Caros» elegido, los cuatro totales de arriba son los de los
+  // Caros. No es una recomendación de venta; la decisión sigue siendo tuya,
+  // con el simulador delante.
+  const clases = usePlayerClasses();
+  const [filtroDeClases, setFiltroDeClases] = usePersistido<ValorDelFiltro>(
+    "transferencias.filtro-de-clases",
+    SIN_FILTRO,
+  );
+  const ids = clases.data ? idsDelFiltro(clases.data, filtroDeClases) : null;
   const porJugador = new Map(precios.map((p) => [p.htPlayerId, p]));
   const filas = jugadores
+    .filter((j) => !ids || ids.has(j.htPlayerId))
     .map((j) => {
       const precio = porJugador.get(j.htPlayerId) ?? null;
       const agentPct = j.agentPctIfSoldNow;
@@ -594,6 +613,16 @@ function TablaDeLaPlantilla({
         <Empty>{tx("Cargando…")}</Empty>
       ) : (
         <>
+          {clases.data && (
+            <div className="px-4 pt-3">
+              <FiltroDeClases
+                id="transferencias-filtro"
+                datos={clases.data}
+                valor={filtroDeClases}
+                onChange={setFiltroDeClases}
+              />
+            </div>
+          )}
           <div className="grid gap-3 px-4 py-3 sm:grid-cols-2 lg:grid-cols-4 [&>*]:min-w-0">
             <Kpi
               label={tx("Costo hasta ahora")}
