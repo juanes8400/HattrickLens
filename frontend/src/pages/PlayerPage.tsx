@@ -33,6 +33,7 @@ import type { ActivePlayerDetail, ExPlayerDetail } from "../services/api";
 import { skillLevelLabel } from "../utils/skillLevels";
 
 import { tx } from "../i18n/tx";
+import { SusClases } from "../components/clases/SusClases";
 import { ETAPAS_DE_CARRERA } from "../utils/etapasDeCarrera";
 import { nivelOficial, terminoOficial } from "../i18n/glosario";
 /** El nombre de cada habilidad sale del glosario oficial de Hattrick, no del
@@ -282,8 +283,12 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
   const confirmStage = useMutation({
     mutationFn: (stage: string | null) =>
       api.confirmCareerStage(TEAM_ID, id, stage),
-    onSuccess: () =>
-      qc.invalidateQueries({ queryKey: ["player", TEAM_ID, id] }),
+    // La etapa confirmada a mano manda también en «Sus clases» y en
+    // Clasificación de jugadores, que la leen de `/player-classes`.
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["player", TEAM_ID, id] });
+      void qc.invalidateQueries({ queryKey: ["player-classes", TEAM_ID] });
+    },
   });
 
   const bestPosition = data.positions[0];
@@ -551,6 +556,8 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                 </div>
               </div>
             </Panel>
+
+            <SusClases htPlayerId={data.htPlayerId} />
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,0.72fr)] [&>*]:min-w-0">
               <div className="space-y-4">

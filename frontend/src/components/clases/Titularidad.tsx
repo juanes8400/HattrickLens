@@ -19,25 +19,7 @@ import type {
 } from "../../services/api";
 import { COLOR, type Grupo } from "./colores";
 import { ListaDeGrupos } from "./comun";
-
-/** El nombre de la casilla, para un hueco: no tiene orden ni jugador, sólo
- *  el puesto que queda libre. Los mismos nombres que la página de Posiciones. */
-function puesto(base: string): string {
-  switch (base) {
-    case "keeper":
-      return tx("Portero");
-    case "central_defender":
-      return tx("Defensa Central");
-    case "wingback":
-      return tx("Defensa Lateral");
-    case "inner_midfield":
-      return tx("Mediocentro");
-    case "winger":
-      return tx("Extremo");
-    default:
-      return tx("Delantero");
-  }
-}
+import { puesto } from "./frases";
 
 /** Las cuatro filas que pide `PitchGrid`, con el portero al final. */
 function filas(casillas: CasillaDeOnce[]): CasillaDeOnce[][] {
