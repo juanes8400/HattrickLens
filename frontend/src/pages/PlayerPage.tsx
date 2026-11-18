@@ -440,7 +440,11 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
             }`}
           >
             {effectiveLabel}{" "}
-            {confirmedOption ? tx("· confirmado") : tx("· sugerido")}
+            {confirmedOption
+              ? tx("· confirmado")
+              : data.careerStage.provisional
+                ? tx("· provisional")
+                : tx("· sugerido")}
           </span>
         </div>
         <p className="text-sm text-[var(--muted)]">

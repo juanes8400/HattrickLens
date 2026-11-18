@@ -47,7 +47,8 @@ function franjas(r: ReglasDeEtapa) {
 /** Lo que decidió su etapa, junto a su nombre. */
 function dato(j: JugadorDeClases, r: ReglasDeEtapa): string {
   if (j.etapa.confirmed) return tx("confirmada a mano");
-  if (!j.etapa.hasSufficientHistory) return tx("un snapshot");
+  // 6.11.0: sin historial la etapa sale de la edad y es provisional.
+  if (!j.etapa.hasSufficientHistory) return tx("provisional");
   if (
     j.ageYears > r.youngMaxAge &&
     j.ageYears <= r.peakMaxAge &&
@@ -137,7 +138,7 @@ export function Etapa({ datos }: { datos: ClasesDeJugador }) {
           "↑ y ↓: de sus habilidades principales, cuántas subieron y cuántas bajaron desde el primer snapshot guardado.",
         )}{" "}
         {tx(
-          "A cualquier edad, con un solo snapshot no hay tendencia que mirar y la etapa es Sin historial suficiente.",
+          "Con un solo snapshot no hay tendencia que mirar: la etapa sale de la edad y del percentil, y es provisional. En declive no puede salir hasta que haya historial.",
         )}
       </p>
       <ListaDeGrupos grupos={grupos} />

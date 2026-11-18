@@ -109,6 +109,8 @@ export interface ActivePlayerDetail {
     rationale: string;
     confidence: string;
     signals: Record<string, number | string | boolean | null>;
+    /** 6.11.0: sin historial, la etapa sale sólo de la edad. */
+    provisional?: boolean;
     confirmedStage: string | null;
     confirmedAt: string | null;
   };

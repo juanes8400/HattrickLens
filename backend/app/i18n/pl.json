@@ -1979,5 +1979,11 @@
   "Sueldo semanal": "Pensja tygodniowa",
   "cortes: mediana de HTMS28 y mediana del sueldo de la plantilla\n\nEstrellas   HTMS28 ≥ mediana   sueldo ≥ mediana\nGangas      HTMS28 ≥ mediana   sueldo < mediana\nCaros       HTMS28 < mediana   sueldo ≥ mediana\nEconómicos  HTMS28 < mediana   sueldo < mediana\n\nmirando a un grupo, en la semana s:\n  media(s) = promedio de la última lectura de cada jugador\n             de hoy del grupo que ya estaba en el club en s\n  en la media(s) = cuántos entran en ese promedio": "podziały: mediana HTMS28 i mediana pensji w kadrze\n\nGwiazdy   HTMS28 ≥ mediana   pensja ≥ mediana\nOkazje    HTMS28 ≥ mediana   pensja < mediana\nDrodzy    HTMS28 < mediana   pensja ≥ mediana\nTani      HTMS28 < mediana   pensja < mediana\n\nprzy skupieniu na grupie, w tygodniu s:\n  średnia(s) = średnia ostatniego odczytu każdego dzisiejszego\n               zawodnika grupy, który był już w klubie w s\n  w średniej(s) = ilu wchodzi do tej średniej",
   "Con varios grupos marcados, cada uno puntea sus propios saltos y lleva su propia fila de «en la media», en su color.": "Przy kilku zaznaczonych grupach każda rysuje przerywaną linią własne skoki i ma własny wiersz «w średniej», w swoim kolorze.",
-  "ids: números separados por comas": "ids: liczby oddzielone przecinkami"
+  "ids: números separados por comas": "ids: liczby oddzielone przecinkami",
+  "Etapa provisional: falta una segunda sincronización, en otro día, para ver la tendencia de sus habilidades.": "Etap tymczasowy: potrzebna jest druga synchronizacja, innego dnia, żeby zobaczyć trend jego umiejętności.",
+  "provisional, sale de la edad; falta historial real": "tymczasowy, wynika z wieku; brakuje prawdziwej historii",
+  "{} años y percentil {} en su habilidad dominante dentro de la plantilla activa. {}": "{} lat i percentyl {} w jego dominującej umiejętności w aktywnej kadrze. {}",
+  "{} años, edad de formación. {}": "{} lat, wiek formowania. {}",
+  "{} años, en el tramo de mayor factor de edad. {}": "{} lat, w przedziale najwyższego współczynnika wieku. {}",
+  "{} años. Etapa provisional: falta una segunda sincronización, en otro día, para ver si sus habilidades bajan, que es lo que separa «Veterano estable» de «En declive».": "{} lat. Etap tymczasowy: potrzebna jest druga synchronizacja, innego dnia, żeby zobaczyć, czy jego umiejętności spadają — to właśnie odróżnia «Stabilny weteran» od «W spadku»."
 }

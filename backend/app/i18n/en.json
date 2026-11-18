@@ -1979,5 +1979,11 @@
   "Sueldo semanal": "Weekly wages",
   "cortes: mediana de HTMS28 y mediana del sueldo de la plantilla\n\nEstrellas   HTMS28 ≥ mediana   sueldo ≥ mediana\nGangas      HTMS28 ≥ mediana   sueldo < mediana\nCaros       HTMS28 < mediana   sueldo ≥ mediana\nEconómicos  HTMS28 < mediana   sueldo < mediana\n\nmirando a un grupo, en la semana s:\n  media(s) = promedio de la última lectura de cada jugador\n             de hoy del grupo que ya estaba en el club en s\n  en la media(s) = cuántos entran en ese promedio": "cuts: squad median HTMS28 and median wages\n\nStars       HTMS28 ≥ median   wages ≥ median\nBargains    HTMS28 ≥ median   wages < median\nExpensive   HTMS28 < median   wages ≥ median\nCheap       HTMS28 < median   wages < median\n\nfocusing on a group, in week s:\n  average(s) = mean of the last reading of each of today's\n               group players who was already at the club in s\n  in the average(s) = how many enter that mean",
   "Con varios grupos marcados, cada uno puntea sus propios saltos y lleva su propia fila de «en la media», en su color.": "With several groups ticked, each one dashes its own jumps and has its own «in the average» row, in its colour.",
-  "ids: números separados por comas": "ids: numbers separated by commas"
+  "ids: números separados por comas": "ids: numbers separated by commas",
+  "Etapa provisional: falta una segunda sincronización, en otro día, para ver la tendencia de sus habilidades.": "Provisional stage: a second sync, on another day, is needed to see the trend of his skills.",
+  "provisional, sale de la edad; falta historial real": "provisional, based on age; real history missing",
+  "{} años y percentil {} en su habilidad dominante dentro de la plantilla activa. {}": "{} years and percentile {} in his dominant skill within the active squad. {}",
+  "{} años, edad de formación. {}": "{} years, development age. {}",
+  "{} años, en el tramo de mayor factor de edad. {}": "{} years, in the highest age factor band. {}",
+  "{} años. Etapa provisional: falta una segunda sincronización, en otro día, para ver si sus habilidades bajan, que es lo que separa «Veterano estable» de «En declive».": "{} years. Provisional stage: a second sync, on another day, is needed to see whether his skills are dropping, which is what separates «Stable veteran» from «Declining»."
 }

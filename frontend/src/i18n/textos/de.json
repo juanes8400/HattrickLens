@@ -2262,7 +2262,6 @@
   "Sin historial suficiente": "Nicht genug Verlauf",
   "Veterano estable; En declive si le bajan más habilidades de las que le suben.": "Stabiler Veteran; Im Abstieg, wenn mehr Fähigkeiten fallen als steigen.",
   "confirmada a mano": "von Hand bestätigt",
-  "un snapshot": "ein Snapshot",
   "percentil {{v}}": "Perzentil {{v}}",
   "{{etapa}} · titulares": "{{etapa}} · Stammspieler",
   "{{etapa}} · suplentes": "{{etapa}} · Ersatzspieler",
@@ -2294,7 +2293,6 @@
   "En su pico; Pieza de rotación si su percentil está por debajo de {{p}}.": "Auf dem Höhepunkt; Rotationsspieler, wenn sein Perzentil unter {{p}} liegt.",
   "{{a}} años o más": "{{a}} Jahre oder älter",
   "La misma etapa de la ficha de cada jugador; si la corriges a mano allí, manda también aquí. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "Dieselbe Phase wie auf der Seite jedes Spielers; korrigierst du sie dort von Hand, gilt sie auch hier. Eine Phase mit mehr als {{n}} Spielern wird in Stamm- und Ersatzspieler geteilt.",
-  "A cualquier edad, con un solo snapshot no hay tendencia que mirar y la etapa es Sin historial suficiente.": "In jedem Alter gibt es mit nur einem Snapshot keinen Verlauf, und die Phase ist Nicht genug Verlauf.",
   "Rentabilidad deportiva": "Sportliche Rendite",
   "Estrellas": "Stars",
   "Gangas": "Schnäppchen",
@@ -2321,5 +2319,8 @@
   "Bajo cada semana, cuántos jugadores de cada grupo entran en su media, en su color. Punteado: ese grupo cambió quién entra, así que ese salto no es entrenamiento.": "Unter jeder Woche, wie viele Spieler jeder Gruppe in ihrem Durchschnitt sind, in ihrer Farbe. Gestrichelt: bei dieser Gruppe hat sich geändert, wer dazugehört, also ist dieser Sprung kein Training.",
   "{{grupos}}: una línea por grupo, semana a semana.": "{{grupos}}: eine Linie pro Gruppe, Woche für Woche.",
   "{{semanas}} semana(s) · {{n}} grupos": "{{semanas}} Woche(n) · {{n}} Gruppen",
-  "Además, para mejorar las herramientas, los datos de todos los clubes pueden analizarse juntos, de forma agregada y anónima: de cada plantilla sólo se sacan resúmenes estadísticos, sin nombres ni identificadores, y nadie ve los datos de un club que no sea el suyo.": "Außerdem können die Daten aller Vereine gemeinsam ausgewertet werden, um die Werkzeuge zu verbessern – zusammengefasst und anonym: Aus jedem Kader werden nur statistische Zusammenfassungen gewonnen, ohne Namen oder Kennungen, und niemand sieht die Daten eines anderen Vereins als seines eigenen."
+  "Además, para mejorar las herramientas, los datos de todos los clubes pueden analizarse juntos, de forma agregada y anónima: de cada plantilla sólo se sacan resúmenes estadísticos, sin nombres ni identificadores, y nadie ve los datos de un club que no sea el suyo.": "Außerdem können die Daten aller Vereine gemeinsam ausgewertet werden, um die Werkzeuge zu verbessern – zusammengefasst und anonym: Aus jedem Kader werden nur statistische Zusammenfassungen gewonnen, ohne Namen oder Kennungen, und niemand sieht die Daten eines anderen Vereins als seines eigenen.",
+  "provisional": "vorläufig",
+  "· provisional": "· vorläufig",
+  "Con un solo snapshot no hay tendencia que mirar: la etapa sale de la edad y del percentil, y es provisional. En declive no puede salir hasta que haya historial.": "Mit nur einer Momentaufnahme gibt es keinen Verlauf: Die Phase ergibt sich aus Alter und Perzentil und ist vorläufig. Im Rückgang kann erst mit Historie erscheinen."
 }

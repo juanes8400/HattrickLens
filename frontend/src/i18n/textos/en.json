@@ -2262,7 +2262,6 @@
   "Sin historial suficiente": "Not enough history",
   "Veterano estable; En declive si le bajan más habilidades de las que le suben.": "Steady veteran; Declining if more skills drop than rise.",
   "confirmada a mano": "confirmed by hand",
-  "un snapshot": "one snapshot",
   "percentil {{v}}": "percentile {{v}}",
   "{{etapa}} · titulares": "{{etapa}} · starters",
   "{{etapa}} · suplentes": "{{etapa}} · substitutes",
@@ -2294,7 +2293,6 @@
   "En su pico; Pieza de rotación si su percentil está por debajo de {{p}}.": "At their peak; Rotation player if their percentile is below {{p}}.",
   "{{a}} años o más": "{{a}} or older",
   "La misma etapa de la ficha de cada jugador; si la corriges a mano allí, manda también aquí. Una etapa con más de {{n}} jugadores se parte en titulares y suplentes.": "The same stage as on each player's page; if you correct it there by hand, it applies here too. A stage with more than {{n}} players is split into starters and substitutes.",
-  "A cualquier edad, con un solo snapshot no hay tendencia que mirar y la etapa es Sin historial suficiente.": "At any age, with a single snapshot there is no trend to look at and the stage is Not enough history.",
   "Rentabilidad deportiva": "Sporting return",
   "Estrellas": "Stars",
   "Gangas": "Bargains",
@@ -2321,5 +2319,8 @@
   "Bajo cada semana, cuántos jugadores de cada grupo entran en su media, en su color. Punteado: ese grupo cambió quién entra, así que ese salto no es entrenamiento.": "Under each week, how many players of each group are in its average, in its colour. Dashed: that group changed who is in it, so that jump is not training.",
   "{{grupos}}: una línea por grupo, semana a semana.": "{{grupos}}: one line per group, week by week.",
   "{{semanas}} semana(s) · {{n}} grupos": "{{semanas}} week(s) · {{n}} groups",
-  "Además, para mejorar las herramientas, los datos de todos los clubes pueden analizarse juntos, de forma agregada y anónima: de cada plantilla sólo se sacan resúmenes estadísticos, sin nombres ni identificadores, y nadie ve los datos de un club que no sea el suyo.": "In addition, to improve the tools, the data of all clubs may be analysed together, in aggregate and anonymously: only statistical summaries are drawn from each squad, with no names or identifiers, and nobody sees the data of a club other than their own."
+  "Además, para mejorar las herramientas, los datos de todos los clubes pueden analizarse juntos, de forma agregada y anónima: de cada plantilla sólo se sacan resúmenes estadísticos, sin nombres ni identificadores, y nadie ve los datos de un club que no sea el suyo.": "In addition, to improve the tools, the data of all clubs may be analysed together, in aggregate and anonymously: only statistical summaries are drawn from each squad, with no names or identifiers, and nobody sees the data of a club other than their own.",
+  "provisional": "provisional",
+  "· provisional": "· provisional",
+  "Con un solo snapshot no hay tendencia que mirar: la etapa sale de la edad y del percentil, y es provisional. En declive no puede salir hasta que haya historial.": "With a single snapshot there is no trend to look at: the stage comes from age and percentile, and it is provisional. Declining cannot appear until there is history."
 }
