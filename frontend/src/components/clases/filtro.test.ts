@@ -95,3 +95,18 @@ describe("el filtro clasificación → grupo", () => {
     ).toEqual(new Set([2]));
   });
 });
+
+describe("los grupos vacíos no salen en los selectores", () => {
+  it("una clasificación con grupos pero ninguno con jugadores no se ofrece", () => {
+    const vacia = datos([
+      {
+        id: 4,
+        classificationName: "Rol",
+        groups: [{ id: 11, groupName: "Capitán", color: "blue" }],
+      },
+    ]);
+    expect(clasificacionesElegibles(vacia).map((c) => c.clave)).not.toContain(
+      "propia-4",
+    );
+  });
+});

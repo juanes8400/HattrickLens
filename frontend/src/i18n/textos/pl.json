@@ -2390,5 +2390,6 @@
   "Último partido: su parte, contra lo que dijimos antes de jugarlo. Es el mismo que encabeza Cambios.": "Ostatni mecz: jego raport wobec tego, co przewidywaliśmy przed meczem. To ten sam, który otwiera Zmiany.",
   "Si la suma de TSI sube pero el HTMS28 baja, estás comprando rendimiento de hoy a costa de futuro (jugadores mayores). Si el salario por punto de TSI sube semana a semana, cada punto de calidad te está costando más: es momento de revisar renovaciones y ventas.": "Jeśli suma TSI rośnie, a HTMS28 spada, kupujesz dzisiejszą wydajność kosztem przyszłości (starsi zawodnicy). Jeśli pensja na punkt TSI rośnie tydzień po tygodniu, każdy punkt jakości kosztuje cię coraz więcej: czas przejrzeć kontrakty i sprzedaże.",
   "Los jugadores con TSI 0 (canteranos sin índice todavía) no cuentan en el salario por punto de TSI, pero sí en las medias.": "Zawodnicy z TSI 0 (juniorzy jeszcze bez indeksu) nie liczą się w pensji za punkt TSI, ale liczą się w średnich.",
-  "Salario y TSI": "Pensja i TSI"
+  "Salario y TSI": "Pensja i TSI",
+  "Puedes marcar varios: cada uno es una línea en todas las gráficas.": "Możesz zaznaczyć kilka: każdy jest linią na wszystkich wykresach."
 }

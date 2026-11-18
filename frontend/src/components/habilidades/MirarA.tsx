@@ -10,6 +10,7 @@ import type {
   ClaveDeClasificacion,
 } from "../clases/clasificaciones";
 import { PLANTILLA } from "./graficasPorGrupo";
+import { HABILIDADES_EN_REJILLA } from "../../config/flags";
 
 function Fila({
   etiqueta,
@@ -101,11 +102,10 @@ export function SelectorMirarA({
           tabs={clasificaciones.map((c) => ({
             key: c.clave,
             label: c.nombre,
-            disabled: c.grupos.length === 0,
-            title:
-              c.grupos.length === 0
-                ? tx("Aún no has creado ningún grupo.")
-                : undefined,
+            disabled: !c.grupos.some((g) => g.jugadores.length > 0),
+            title: !c.grupos.some((g) => g.jugadores.length > 0)
+              ? tx("Aún no has creado ningún grupo.")
+              : undefined,
           }))}
         />
       </Fila>
@@ -118,22 +118,30 @@ export function SelectorMirarA({
             apagada={false}
             onClick={() => onMarcar(PLANTILLA)}
           />
-          {activa.grupos.map((g) => (
-            <Casilla
-              key={g.clave}
-              nombre={`${g.nombre} · ${g.jugadores.length}`}
-              color={g.color}
-              marcada={marcados.includes(g.clave)}
-              apagada={g.jugadores.length === 0}
-              onClick={() => onMarcar(g.clave)}
-            />
-          ))}
+          {/* Los grupos vacíos no salen (2026-11-18, pedido del usuario):
+              antes salían apagados, ocupando sitio sin poder marcarse. */}
+          {activa.grupos
+            .filter((g) => g.jugadores.length > 0)
+            .map((g) => (
+              <Casilla
+                key={g.clave}
+                nombre={`${g.nombre} · ${g.jugadores.length}`}
+                color={g.color}
+                marcada={marcados.includes(g.clave)}
+                apagada={false}
+                onClick={() => onMarcar(g.clave)}
+              />
+            ))}
         </div>
       </Fila>
       <p className="text-xs text-[var(--muted)] sm:pl-[6.75rem]">
-        {tx(
-          "Puedes marcar varios. Con uno solo, las gráficas son las de hoy; con dos o más, una línea por grupo.",
-        )}
+        {HABILIDADES_EN_REJILLA
+          ? tx(
+              "Puedes marcar varios: cada uno es una línea en todas las gráficas.",
+            )
+          : tx(
+              "Puedes marcar varios. Con uno solo, las gráficas son las de hoy; con dos o más, una línea por grupo.",
+            )}
       </p>
       {dato && (
         <Fila etiqueta={tx("Dato")}>

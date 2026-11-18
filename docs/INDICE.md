@@ -45,15 +45,15 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 878 | 34531 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard | 28 | 112 |
 | `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 29486 | alertas, alineacion, league, dashboard | 25 | 100 |
 | `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 601 | 6421 | club | 4 | 8 |
-| `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 509 | 10628 | clases, resumen | 12 | 35 |
-| `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 639 | 8757 | clases, plantilla | 10 | 30 |
+| `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 509 | 10636 | clases, resumen | 12 | 35 |
+| `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 639 | 8763 | clases, plantilla | 10 | 30 |
 | `/classes` | [ClasificacionPage.tsx](../frontend/src/pages/ClasificacionPage.tsx) | 31 | 8507 | clases | 10 | 30 |
-| `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1088 | 13067 | clases, resumen, skills | 14 | 40 |
+| `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1088 | 13070 | clases, resumen, skills | 14 | 40 |
 | `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1544 | 21554 | clases, jugadores, player_balance, precio_comparable, jugadores | 19 | 53 |
 | `/positions` | [PositionsPage.tsx](../frontend/src/pages/PositionsPage.tsx) | 355 | 4260 | plantilla | 3 | 14 |
 | `/lineup` | [LineupPage.tsx](../frontend/src/pages/LineupPage.tsx) | 1019 | 9539 | alineacion, plantilla | 10 | 24 |
 | `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 2157 | 14608 | entrenamiento, jugadores, club | 10 | 38 |
-| `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3703 | 20335 | clases, player_balance, precio_comparable, jugadores, plantilla | 17 | 49 |
+| `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3703 | 20341 | clases, player_balance, precio_comparable, jugadores, plantilla | 17 | 49 |
 | `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1215 | libro | 0 | 1 |
 | `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4039 | 16231 | academy | 13 | 31 |
 | `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 740 | 7282 | matches, partidos | 4 | 17 |

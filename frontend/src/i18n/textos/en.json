@@ -2390,5 +2390,6 @@
   "Último partido: su parte, contra lo que dijimos antes de jugarlo. Es el mismo que encabeza Cambios.": "Last match: its report, against what we said before it was played. It's the same one that heads Changes.",
   "Si la suma de TSI sube pero el HTMS28 baja, estás comprando rendimiento de hoy a costa de futuro (jugadores mayores). Si el salario por punto de TSI sube semana a semana, cada punto de calidad te está costando más: es momento de revisar renovaciones y ventas.": "If the TSI total rises but HTMS28 falls, you're buying today's performance at the expense of the future (older players). If the wage per TSI point rises week by week, each point of quality is costing you more: time to review renewals and sales.",
   "Los jugadores con TSI 0 (canteranos sin índice todavía) no cuentan en el salario por punto de TSI, pero sí en las medias.": "Players with TSI 0 (youth players without an index yet) don't count in the wage per TSI point, but they do in the averages.",
-  "Salario y TSI": "Wage and TSI"
+  "Salario y TSI": "Wage and TSI",
+  "Puedes marcar varios: cada uno es una línea en todas las gráficas.": "You can tick several: each one is a line in every chart."
 }

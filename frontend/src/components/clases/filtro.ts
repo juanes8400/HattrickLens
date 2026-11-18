@@ -12,11 +12,14 @@ export interface ValorDelFiltro {
 
 export const SIN_FILTRO: ValorDelFiltro = { clasificacion: "", grupo: "" };
 
-/** Las clasificaciones que se pueden elegir: Mis grupos sólo si hay alguno. */
+/** Las clasificaciones que se pueden elegir: las que tienen algún grupo con
+ *  jugadores (2026-11-18: los grupos vacíos no salen en los selectores). */
 export function clasificacionesElegibles(
   datos: ClasesDeJugador,
 ): Clasificacion[] {
-  return clasificaciones(datos).filter((c) => c.grupos.length > 0);
+  return clasificaciones(datos).filter((c) =>
+    c.grupos.some((g) => g.jugadores.length > 0),
+  );
 }
 
 /** Los jugadores que deja pasar el filtro, o `null` si no filtra nada.

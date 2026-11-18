@@ -65,11 +65,14 @@ export function FiltroDeClases({
           }
         >
           <option value="">{tx("Cualquier grupo")}</option>
-          {elegida.grupos.map((g) => (
-            <option key={g.clave} value={g.clave}>
-              {`${g.nombre} (${g.jugadores.length})`}
-            </option>
-          ))}
+          {/* Sin los grupos vacíos: elegir uno dejaría la tabla en blanco. */}
+          {elegida.grupos
+            .filter((g) => g.jugadores.length > 0)
+            .map((g) => (
+              <option key={g.clave} value={g.clave}>
+                {`${g.nombre} (${g.jugadores.length})`}
+              </option>
+            ))}
         </select>
       )}
       {valor.clasificacion && (
