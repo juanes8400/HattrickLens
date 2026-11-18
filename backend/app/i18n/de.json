@@ -1979,5 +1979,11 @@
   "Sueldo semanal": "Wochengehalt",
   "cortes: mediana de HTMS28 y mediana del sueldo de la plantilla\n\nEstrellas   HTMS28 ≥ mediana   sueldo ≥ mediana\nGangas      HTMS28 ≥ mediana   sueldo < mediana\nCaros       HTMS28 < mediana   sueldo ≥ mediana\nEconómicos  HTMS28 < mediana   sueldo < mediana\n\nmirando a un grupo, en la semana s:\n  media(s) = promedio de la última lectura de cada jugador\n             de hoy del grupo que ya estaba en el club en s\n  en la media(s) = cuántos entran en ese promedio": "Schnitte: Median von HTMS28 und Median des Gehalts im Kader\n\nStars         HTMS28 ≥ Median   Gehalt ≥ Median\nSchnäppchen   HTMS28 ≥ Median   Gehalt < Median\nTeuer         HTMS28 < Median   Gehalt ≥ Median\nGünstig       HTMS28 < Median   Gehalt < Median\n\nmit Fokus auf eine Gruppe, in Woche s:\n  Schnitt(s) = Mittel der letzten Lesung jedes heutigen\n               Gruppenspielers, der in s schon im Verein war\n  im Schnitt(s) = wie viele in dieses Mittel eingehen",
   "Con varios grupos marcados, cada uno puntea sus propios saltos y lleva su propia fila de «en la media», en su color.": "Mit mehreren markierten Gruppen strichelt jede ihre eigenen Sprünge und hat ihre eigene Zeile «im Schnitt», in ihrer Farbe.",
-  "ids: números separados por comas": "ids: durch Kommas getrennte Zahlen"
+  "ids: números separados por comas": "ids: durch Kommas getrennte Zahlen",
+  "Etapa provisional: falta una segunda sincronización, en otro día, para ver la tendencia de sus habilidades.": "Vorläufige Phase: Es braucht eine zweite Synchronisation an einem anderen Tag, um den Verlauf seiner Fähigkeiten zu sehen.",
+  "provisional, sale de la edad; falta historial real": "vorläufig, aus dem Alter abgeleitet; es fehlt echte Historie",
+  "{} años y percentil {} en su habilidad dominante dentro de la plantilla activa. {}": "{} Jahre und Perzentil {} in seiner Hauptfähigkeit innerhalb des aktiven Kaders. {}",
+  "{} años, edad de formación. {}": "{} Jahre, Ausbildungsalter. {}",
+  "{} años, en el tramo de mayor factor de edad. {}": "{} Jahre, im Bereich mit dem höchsten Altersfaktor. {}",
+  "{} años. Etapa provisional: falta una segunda sincronización, en otro día, para ver si sus habilidades bajan, que es lo que separa «Veterano estable» de «En declive».": "{} Jahre. Vorläufige Phase: Es braucht eine zweite Synchronisation an einem anderen Tag, um zu sehen, ob seine Fähigkeiten sinken – genau das unterscheidet «Stabiler Veteran» von «Im Rückgang»."
 }

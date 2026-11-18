@@ -376,6 +376,7 @@ async def player_detail(
             "rationale": career_stage.rationale,
             "confidence": career_stage.confidence,
             "signals": career_stage.signals,
+            "provisional": career_stage.provisional,
             # HL-15x #93: confirmación manual del usuario, si la hay, la app
             # solo sugiere `stage`/`label` de arriba, nunca los sobreescribe.
             "confirmedStage": (

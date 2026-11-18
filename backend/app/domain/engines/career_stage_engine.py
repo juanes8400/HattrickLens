@@ -65,6 +65,65 @@ class CareerStage:
     rationale: str
     confidence: str
     signals: dict[str, Any]
+    #: Sale sólo de la edad (y del percentil): aún no hay historial.
+    provisional: bool = False
+
+
+def _provisional(
+    age_years: int, squad_percentile: float | None, signals: dict[str, Any]
+) -> CareerStage:
+    """ETAPA PROVISIONAL (6.11.0, 2026-11-17, decisión del usuario). Sin dos
+    snapshots en fechas distintas antes salía «Sin historial suficiente», y
+    así veía la plantilla entera la mitad de los clubes: los que llevan un día
+    en la app. Pero la etapa sale casi toda de la edad (en 161 plantillas la
+    etapa y tres franjas de edad reparten igual en un 0,92 de 1), así que se
+    usan las mismas reglas sin la tendencia: hasta 21, Promesa; de 22 a 27,
+    En su pico o Pieza de rotación por el percentil, que no pide historial;
+    desde 28, Veterano estable. «En declive» es lo único que no puede salir:
+    hace falta ver habilidades bajando."""
+    confianza = "provisional, sale de la edad; falta historial real"
+    espera = (
+        "Etapa provisional: falta una segunda sincronización, en otro día, para ver "
+        "la tendencia de sus habilidades."
+    )
+    if age_years <= YOUNG_MAX_AGE:
+        return CareerStage(
+            stage="promesa",
+            label="Promesa en desarrollo",
+            rationale=f"{age_years} años, edad de formación. {espera}",
+            confidence=confianza,
+            signals=signals,
+            provisional=True,
+        )
+    if age_years <= PEAK_MAX_AGE:
+        rotacion = squad_percentile is not None and squad_percentile < ROTATION_BELOW_PERCENTILE
+        if squad_percentile is None:
+            razon = f"{age_years} años, en el tramo de mayor factor de edad. {espera}"
+        else:
+            razon = (
+                f"{age_years} años y percentil {squad_percentile:.0f} en su habilidad "
+                f"dominante dentro de la plantilla activa. {espera}"
+            )
+        return CareerStage(
+            stage="rotacion" if rotacion else "pico",
+            label="Pieza de rotación" if rotacion else "En su pico",
+            rationale=razon,
+            confidence=confianza,
+            signals=signals,
+            provisional=True,
+        )
+    return CareerStage(
+        stage="veterano",
+        label="Veterano estable",
+        rationale=(
+            f"{age_years} años. Etapa provisional: falta una segunda sincronización, en "
+            "otro día, para ver si sus habilidades bajan, que es lo que separa «Veterano "
+            "estable» de «En declive»."
+        ),
+        confidence=confianza,
+        signals=signals,
+        provisional=True,
+    )
 
 
 def classify_career_stage(
@@ -101,17 +160,7 @@ def classify_career_stage(
     }
 
     if not has_sufficient_history:
-        return CareerStage(
-            stage="sin_historial",
-            label="Sin historial suficiente",
-            rationale=(
-                "Todavía no hay dos snapshots reales en fechas distintas para comparar "
-                "tendencia de habilidades, se necesita al menos una sincronización más, "
-                "en otra semana, para clasificar con algo de base."
-            ),
-            confidence="sin evaluar, falta historial real",
-            signals=signals,
-        )
+        return _provisional(age_years, squad_percentile, signals)
 
     if age_years <= YOUNG_MAX_AGE:
         rationale = (
