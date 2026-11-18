@@ -225,11 +225,12 @@ export function pestanaEnRejilla(
   poblaciones: Poblacion[],
   plantilla: Record<string, (number | null)[]>,
 ): PestanaDibujada {
-  if (tab.key !== "skills")
-    return {
-      ...pestanaComparada(tab, poblaciones, plantilla, ""),
-      rejilla: true,
-    };
+  if (tab.key !== "skills") {
+    const p = pestanaComparada(tab, poblaciones, plantilla, "");
+    // Sin los 11 de más TSI: el usuario los dio por desaparecidos
+    // (2026-11-18). Sólo quedan en la forma anterior, tras la bandera.
+    return { ...p, rejilla: true };
+  }
   const una = (dato: string) =>
     pestanaComparada(tab, poblaciones, plantilla, dato);
   const datos = datosDeHabilidades(tab);

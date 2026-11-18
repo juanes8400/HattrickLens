@@ -1,7 +1,7 @@
 {
   "name": "ht-lens-frontend",
   "private": true,
-  "version": "6.20.0",
+  "version": "6.21.0",
   "type": "module",
   "scripts": {
     "build": "tsc -b && vite build",
