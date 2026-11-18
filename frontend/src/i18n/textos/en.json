@@ -2389,5 +2389,7 @@
   "Cambios de clase": "Class changes",
   "Las clases de hoy quedan guardadas. Desde la próxima sincronización verás aquí quién cambió de clase.": "Today's classes are saved. From the next sync on, you'll see here who changed class.",
   "Nadie cambió de clase desde la sincronización anterior.": "Nobody changed class since the previous sync.",
-  "Antes: {{grupo}}, en la sincronización anterior.": "Before: {{grupo}}, in the previous sync."
+  "Antes: {{grupo}}, en la sincronización anterior.": "Before: {{grupo}}, in the previous sync.",
+  "Todavía no hay ningún partido jugado. Aparece aquí en cuanto se juegue el primero y sincronices.": "No match has been played yet. It shows up here as soon as the first one is played and you sync.",
+  "Último partido: su parte, contra lo que dijimos antes de jugarlo. Es el mismo que encabeza Cambios.": "Last match: its report, against what we said before it was played. It's the same one that heads Changes."
 }

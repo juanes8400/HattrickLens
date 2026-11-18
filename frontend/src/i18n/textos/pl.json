@@ -2389,5 +2389,7 @@
   "Cambios de clase": "Zmiany klasy",
   "Las clases de hoy quedan guardadas. Desde la próxima sincronización verás aquí quién cambió de clase.": "Dzisiejsze klasy zostały zapisane. Od następnej synchronizacji zobaczysz tutaj, kto zmienił klasę.",
   "Nadie cambió de clase desde la sincronización anterior.": "Od poprzedniej synchronizacji nikt nie zmienił klasy.",
-  "Antes: {{grupo}}, en la sincronización anterior.": "Wcześniej: {{grupo}}, w poprzedniej synchronizacji."
+  "Antes: {{grupo}}, en la sincronización anterior.": "Wcześniej: {{grupo}}, w poprzedniej synchronizacji.",
+  "Todavía no hay ningún partido jugado. Aparece aquí en cuanto se juegue el primero y sincronices.": "Nie rozegrano jeszcze żadnego meczu. Pojawi się tutaj, gdy tylko zostanie rozegrany pierwszy i zsynchronizujesz.",
+  "Último partido: su parte, contra lo que dijimos antes de jugarlo. Es el mismo que encabeza Cambios.": "Ostatni mecz: jego raport wobec tego, co przewidywaliśmy przed meczem. To ten sam, który otwiera Zmiany."
 }
