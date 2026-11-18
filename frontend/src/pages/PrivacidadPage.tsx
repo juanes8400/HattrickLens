@@ -79,6 +79,14 @@ export function PrivacidadPage() {
             "Con ese permiso se leen los datos que Hattrick publica sobre tu club: plantilla, entrenamiento, partidos, economía y mercado. Se guardan para poder enseñarte cómo cambian con el tiempo, que es justamente lo que Hattrick no conserva.",
           )}
         </p>
+        {/* 6.10.1 (2026-11-17): se escribe ANTES de hacer el primer análisis
+            conjunto, no después. Agregado quiere decir que de cada plantilla
+            sólo sale un resumen estadístico; nunca un jugador ni un club. */}
+        <p>
+          {tx(
+            "Además, para mejorar las herramientas, los datos de todos los clubes pueden analizarse juntos, de forma agregada y anónima: de cada plantilla sólo se sacan resúmenes estadísticos, sin nombres ni identificadores, y nadie ve los datos de un club que no sea el suyo.",
+          )}
+        </p>
         <p>
           {tx(
             "El permiso de acceso se guarda cifrado, y puedes revocarlo cuando quieras desde tu propia cuenta de Hattrick, sin pasar por aquí.",
