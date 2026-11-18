@@ -1583,6 +1583,12 @@ export const ARTICULOS: Articulo[] = [
           ),
           tx("Estadio: cuándo ampliar compensaría."),
           tx(
+            "Grupos: subidas y bajadas de la última sincronización dentro de cada grupo de la Clasificación de jugadores (titulares que bajan, suplentes que superan a un titular, promesas estancadas o que suben, veteranos que empiezan a bajar, estrellas y caros que caen, gangas que suben, un grupo que baja tres semanas seguidas y tus propios grupos).",
+          ),
+          tx(
+            "Mercado y once: un titular en venta, un titular sin experiencia o que no juega los dos últimos oficiales, una venta que ya dejaría ganancia, un precio que sube un 15 % en una semana, un ex jugador tuyo en venta del que cobrarías comisión, la resistencia baja para la edad y un juvenil listo para subir.",
+          ),
+          tx(
             "Academia: juveniles a punto de perderse, promesas, y si la academia ha sido rentable o no.",
           ),
           tx(

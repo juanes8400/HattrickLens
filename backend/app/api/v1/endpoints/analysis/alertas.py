@@ -17,6 +17,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_team_owner
 from app.api.v1.endpoints.analysis.plantilla import roster
 from app.application.queries.academy import AcademyQueryService
+from app.application.queries.alertas_de_cierre import (
+    alertas_de_cierre,
+    comision_a_la_vista_de,
+)
 from app.application.queries.arena import ArenaQueryService
 from app.application.queries.economy import (
     VENTANA_POR_DEFECTO,
@@ -462,6 +466,9 @@ async def _derive_insights(session: AsyncSession, team_id: int) -> list[ins.Insi
             ins.assistant_trainers_below_reference(staff_dict),
         ]
 
+    # Las alertas de cierre (2026-11-18, definidas por el usuario): subidas y
+    # bajadas dentro de los grupos, y las generales de la plantilla.
+    groups.extend(await alertas_de_cierre(session, team_id, players, trained_skill, setup))
     return ins.collect(*groups)
 
 
@@ -599,6 +606,8 @@ async def _insights_del_reloj(session: AsyncSession, team_id: int) -> list[ins.I
     # que aparecer sin que nadie sincronice, y `until` lo retira solo a una
     # hora concreta.
     groups.append(ins.avisos_del_autor(await _avisos_vivos(session, datetime.now(UTC))))
+    # La reventa cierra a una hora: pasada, la alerta se va sin esperar al sync.
+    groups.append(await comision_a_la_vista_de(session, team_id))
     return ins.collect(*groups)
 
 

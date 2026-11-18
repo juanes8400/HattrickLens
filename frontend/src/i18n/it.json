@@ -430,7 +430,10 @@
       "partidos": "partite",
       "staff": "staff",
       "transferencias": "trasferimenti",
-      "uso": "utilizzo"
+      "uso": "utilizzo",
+      "alineación": "formazione",
+      "clasificación": "classificazione dei giocatori",
+      "habilidades": "abilità"
     },
     "severidad": {
       "danger": "Pericolo",

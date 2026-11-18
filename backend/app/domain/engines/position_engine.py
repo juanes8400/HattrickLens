@@ -150,6 +150,20 @@ def _special_role_score(player: dict[str, Any], position: str) -> float:
     raise KeyError(f"unknown special role: {position}")
 
 
+def habilidades_que_pesan(position: str) -> frozenset[str]:
+    """Las habilidades con coeficiente en algún sector de ese puesto.
+
+    2026-11-18: «habilidad que pesa» de las alertas de grupo, por decisión del
+    usuario. Es la matriz del Manual no Escrito que ya usa Alineación."""
+    spec, _ = _spec_for(position)
+    return frozenset(
+        skill
+        for sector in spec["contributions"].values()
+        for skill, coefficient in sector.items()
+        if coefficient > 0
+    )
+
+
 def rate(player: dict[str, Any], position: str) -> PositionRating:
     """Return a Manual-based contribution index for one role.
 

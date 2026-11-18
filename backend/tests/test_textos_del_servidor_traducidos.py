@@ -90,6 +90,14 @@ EXENTOS: dict[str, str] = {
         "siglas de la comunidad de Hattrick para la actitud, iguales en todos los "
         "idiomas; el hueco es el nombre del rival"
     ),
+    "alineación": (
+        "clave del campo `module` de una alerta: la pantalla la traduce y la usa "
+        "para enlazar a su pantalla"
+    ),
+    "clasificación": (
+        "clave del campo `module` de una alerta: la pantalla la traduce y la usa "
+        "para enlazar a su pantalla"
+    ),
     "HT-Tools community formula": (
         "nombre interno del motor en su ficha técnica; ninguna pantalla lo pinta"
     ),

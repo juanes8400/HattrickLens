@@ -63,7 +63,10 @@
       "partidos": "mecze",
       "staff": "personel",
       "transferencias": "transfery",
-      "uso": "użycie"
+      "uso": "użycie",
+      "alineación": "skład",
+      "clasificación": "klasyfikacja zawodników",
+      "habilidades": "umiejętności"
     },
     "nada": "W tej chwili nic nie wymaga twojej uwagi.",
     "ningunaFiltro": "Żaden aktywny alert nie pasuje do filtra.",
