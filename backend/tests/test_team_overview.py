@@ -534,54 +534,103 @@ def test_player_classes_splits_the_whole_squad_four_ways(
     assert len(once["slots"]) == 11
     assert {s["htPlayerId"] for s in once["slots"]} == {j["htPlayerId"] for j in titulares}
     assert all(s["label"] for s in once["slots"])
-    assert body["groups"] == []
+    assert body["classifications"] == []
     assert body["stageRules"] == {
         "youngMaxAge": 21,
         "peakMaxAge": 27,
         "rotationBelowPercentile": 40,
         "splitAbove": 11,
     }
-    assert all(j["groupId"] is None for j in jugadores)
+    assert all(j["groupIds"] == {} for j in jugadores)
 
 
-def test_own_groups_can_be_created_filled_renamed_and_deleted(
+def test_own_classifications_hold_their_own_groups(
     seeded: tuple[TestClient, int],
 ) -> None:
-    """Personalizar: un jugador en un solo grupo; borrar el grupo lo devuelve
-    a «Sin grupo»."""
+    """Clasificaciones propias (2026-11-18): dentro de cada una, un jugador en
+    un solo grupo; en dos clasificaciones, uno en cada una. Borrar un grupo lo
+    devuelve a «Sin grupo» en esa clasificación, y borrar la clasificación se
+    lleva sus grupos."""
     client, team_id = seeded
     base = f"/api/v1/teams/{team_id}"
     pid = client.get(f"{base}/player-classes").json()["players"][0]["htPlayerId"]
 
-    assert (
-        client.post(f"{base}/player-groups", json={"name": "X", "color": "pink"}).status_code == 400
-    )
-    a = client.post(f"{base}/player-groups", json={"name": " Intocables ", "color": "blue"}).json()
-    b = client.post(f"{base}/player-groups", json={"name": "Para vender", "color": "red"}).json()
-    assert a["groupName"] == "Intocables"
+    mercado = client.post(f"{base}/player-classifications", json={"name": " Mercado "}).json()
+    rol = client.post(f"{base}/player-classifications", json={"name": "Rol"}).json()
+    assert mercado["classificationName"] == "Mercado"
+    cm, cr = mercado["id"], rol["id"]
 
+    nuevo = f"{base}/player-groups"
     assert (
-        client.put(f"{base}/player-groups/members/{pid}", json={"groupId": a["id"]}).status_code
+        client.post(nuevo, json={"name": "X", "color": "pink", "classificationId": cm}).status_code
+        == 400
+    )
+    assert (
+        client.post(nuevo, json={"name": "X", "color": "red", "classificationId": 999}).status_code
+        == 404
+    )
+    vender = client.post(
+        nuevo, json={"name": " Vender ", "color": "red", "classificationId": cm}
+    ).json()
+    mantener = client.post(
+        nuevo, json={"name": "Mantener", "color": "gray", "classificationId": cm}
+    ).json()
+    capitan = client.post(
+        nuevo, json={"name": "Capitán", "color": "blue", "classificationId": cr}
+    ).json()
+    assert vender["groupName"] == "Vender"
+
+    miembro = f"{base}/player-groups/members/{pid}"
+    assert (
+        client.put(miembro, json={"classificationId": cm, "groupId": vender["id"]}).status_code
+        == 200
+    )
+    # Dentro de Mercado se mueve de grupo; no se suma a otro.
+    assert (
+        client.put(miembro, json={"classificationId": cm, "groupId": mantener["id"]}).status_code
         == 200
     )
     assert (
-        client.put(f"{base}/player-groups/members/{pid}", json={"groupId": b["id"]}).status_code
+        client.put(miembro, json={"classificationId": cr, "groupId": capitan["id"]}).status_code
         == 200
     )
-    body = client.get(f"{base}/player-classes").json()
-    assert [g["groupName"] for g in body["groups"]] == ["Intocables", "Para vender"]
-    assert next(j for j in body["players"] if j["htPlayerId"] == pid)["groupId"] == b["id"]
-
-    renombrado = client.patch(f"{base}/player-groups/{b['id']}", json={"name": "Vender"}).json()
-    assert renombrado == {"id": b["id"], "groupName": "Vender", "color": "red"}
-
-    assert client.delete(f"{base}/player-groups/{b['id']}").status_code == 200
-    body = client.get(f"{base}/player-classes").json()
-    assert [g["groupName"] for g in body["groups"]] == ["Intocables"]
-    assert next(j for j in body["players"] if j["htPlayerId"] == pid)["groupId"] is None
+    # Un grupo de otra clasificación no vale.
     assert (
-        client.put(f"{base}/player-groups/members/{pid}", json={"groupId": 999}).status_code == 404
+        client.put(miembro, json={"classificationId": cm, "groupId": capitan["id"]}).status_code
+        == 400
     )
+
+    body = client.get(f"{base}/player-classes").json()
+    assert [c["classificationName"] for c in body["classifications"]] == ["Mercado", "Rol"]
+    assert [g["groupName"] for g in body["classifications"][0]["groups"]] == ["Vender", "Mantener"]
+    suyo = next(j for j in body["players"] if j["htPlayerId"] == pid)
+    assert suyo["groupIds"] == {str(cm): mantener["id"], str(cr): capitan["id"]}
+
+    renombrado = client.patch(
+        f"{base}/player-groups/{mantener['id']}", json={"name": "Quedarse"}
+    ).json()
+    assert renombrado == {"id": mantener["id"], "groupName": "Quedarse", "color": "gray"}
+    assert client.patch(f"{base}/player-classifications/{cr}", json={"name": "Roles"}).json() == {
+        "id": cr,
+        "classificationName": "Roles",
+    }
+
+    assert client.delete(f"{base}/player-groups/{mantener['id']}").status_code == 200
+    suyo = next(
+        j for j in client.get(f"{base}/player-classes").json()["players"] if j["htPlayerId"] == pid
+    )
+    assert suyo["groupIds"] == {str(cr): capitan["id"]}
+
+    assert client.delete(f"{base}/player-classifications/{cr}").status_code == 200
+    body = client.get(f"{base}/player-classes").json()
+    assert [c["classificationName"] for c in body["classifications"]] == ["Mercado"]
+    assert next(j for j in body["players"] if j["htPlayerId"] == pid)["groupIds"] == {}
+
+    # Sacarlo de un grupo es poner groupId a None.
+    client.put(miembro, json={"classificationId": cm, "groupId": vender["id"]})
+    client.put(miembro, json={"classificationId": cm, "groupId": None})
+    body = client.get(f"{base}/player-classes").json()
+    assert next(j for j in body["players"] if j["htPlayerId"] == pid)["groupIds"] == {}
 
 
 def test_la_suma_semanal_no_pierde_a_quien_no_cambio_esa_semana() -> None:

@@ -7,8 +7,17 @@ import type { ClasesDeJugador, EtapaDeCarrera } from "../../services/api";
 import { ETAPAS_DE_CARRERA } from "../../utils/etapasDeCarrera";
 import { COLOR, COLORES_DE_GRUPO, type Grupo } from "./colores";
 
+/** Las de la app por su nombre; las propias, «propia-<id>». */
 export type ClaveDeClasificacion =
-  "rentabilidad" | "titularidad" | "etapa" | "propios";
+  "rentabilidad" | "titularidad" | "etapa" | `propia-${number}`;
+
+/** El grupo de un jugador en una clasificación propia, o null. */
+export function grupoPropioDe(
+  j: { groupIds: Record<string, number> },
+  clasificacionId: number,
+): number | null {
+  return j.groupIds[String(clasificacionId)] ?? null;
+}
 
 export interface Clasificacion {
   clave: ClaveDeClasificacion;
@@ -96,15 +105,16 @@ export function clasificaciones(datos: ClasesDeJugador): Clasificacion[] {
       nombre: tx("Etapa de carrera"),
       grupos: gruposDeEtapa(datos),
     },
-    {
-      clave: "propios",
-      nombre: tx("Mis grupos"),
-      grupos: datos.groups.map((g) => ({
+    // Las propias del usuario, una por clasificación (2026-11-18).
+    ...datos.classifications.map((c) => ({
+      clave: `propia-${c.id}` as const,
+      nombre: c.classificationName,
+      grupos: c.groups.map((g) => ({
         clave: String(g.id),
         nombre: g.groupName,
         color: COLORES_DE_GRUPO[g.color] ?? COLOR.gris,
-        jugadores: datos.players.filter((j) => j.groupId === g.id),
+        jugadores: datos.players.filter((j) => grupoPropioDe(j, c.id) === g.id),
       })),
-    },
+    })),
   ];
 }

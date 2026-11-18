@@ -12,6 +12,7 @@ import { usePlayerClasses, useSquad } from "../hooks/useTeam";
 import { usePersistido } from "../hooks/usePersistido";
 import { FiltroDeClases } from "../components/clases/FiltroDeClases";
 import { Pastilla } from "../components/clases/comun";
+import { grupoPropioDe } from "../components/clases/clasificaciones";
 import {
   idsDelFiltro,
   SIN_FILTRO,
@@ -19,7 +20,7 @@ import {
 } from "../components/clases/filtro";
 import {
   fraseDeEtapa,
-  fraseDeMisGrupos,
+  fraseDePropia,
   fraseDeRentabilidad,
   fraseDeTitularidad,
   type Pertenencia,
@@ -288,23 +289,24 @@ export function TeamPage() {
       fraseDeEtapa,
       (j) => ORDEN_ETAPA.indexOf(j.etapa.stage),
     ),
-    // Mis grupos, sólo si el usuario creó alguno: una columna llena de
-    // guiones no diría nada.
-    ...(datosDeClases && datosDeClases.groups.length > 0
-      ? [
-          columnaDeClase(
-            "misGrupos",
-            tx("Mis grupos"),
-            datosDeClases,
-            porId,
-            fraseDeMisGrupos,
-            (j) =>
-              j.groupId == null
-                ? 99
-                : datosDeClases.groups.findIndex((g) => g.id === j.groupId),
-          ),
-        ]
-      : []),
+    // UNA COLUMNA POR CLASIFICACIÓN PROPIA (2026-11-18): crear «Mercado»
+    // añade la columna «Mercado», borrarla la quita. Sólo las que ya tienen
+    // grupos: una columna llena de guiones no diría nada.
+    ...(datosDeClases?.classifications ?? [])
+      .filter((c) => c.groups.length > 0)
+      .map((c) =>
+        columnaDeClase(
+          `propia-${c.id}`,
+          c.classificationName,
+          datosDeClases,
+          porId,
+          (_d, j) => fraseDePropia(c, j),
+          (j) => {
+            const id = grupoPropioDe(j, c.id);
+            return id == null ? 99 : c.groups.findIndex((g) => g.id === id);
+          },
+        ),
+      ),
     {
       key: "lastMatch",
       optional: true,

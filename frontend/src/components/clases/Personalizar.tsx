@@ -1,5 +1,6 @@
-/** Personalizar: grupos que crea el usuario, y cada jugador en uno solo.
- *  Se arrastra la tarjeta a su columna o, en el móvil, se elige en la lista. */
+/** Personalizar: las clasificaciones propias del usuario (2026-11-18) y,
+ *  dentro de cada una, sus grupos, con cada jugador en uno solo. Se arrastra
+ *  la tarjeta a su columna o, en el móvil, se elige en la lista. */
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BotonDeBorrado } from "../BotonDeBorrado";
@@ -9,11 +10,15 @@ import { tx } from "../../i18n/tx";
 import { api, errorMessage } from "../../services/api";
 import type {
   ClasesDeJugador,
+  ClasificacionPropia,
   GrupoPropio,
   JugadorDeClases,
 } from "../../services/api";
+import { Tabs } from "../Tabs";
+import { grupoPropioDe } from "./clasificaciones";
 import { COLORES_DE_GRUPO, COLOR } from "./colores";
 import { Punto } from "./comun";
+import { useClasificacionPropiaElegida } from "./elegida";
 
 const SIN_GRUPO = "sin";
 
@@ -51,10 +56,12 @@ function ElegirColor({
 
 function Tarjeta({
   jugador,
+  grupoActual,
   grupos,
   onMover,
 }: {
   jugador: JugadorDeClases;
+  grupoActual: number | null;
   grupos: GrupoPropio[];
   onMover: (groupId: number | null) => void;
 }) {
@@ -80,7 +87,7 @@ function Tarjeta({
           aria-label={tx("Mover a {{jugador}} a otro grupo", {
             jugador: jugador.name,
           })}
-          value={jugador.groupId ?? SIN_GRUPO}
+          value={grupoActual ?? SIN_GRUPO}
           onChange={(e) =>
             onMover(
               e.target.value === SIN_GRUPO ? null : Number(e.target.value),
@@ -104,6 +111,7 @@ function Columna({
   titulo,
   color,
   jugadores,
+  grupoActual,
   grupos,
   onSoltar,
   onMover,
@@ -112,6 +120,8 @@ function Columna({
   titulo: string;
   color: string;
   jugadores: JugadorDeClases[];
+  /** El grupo de los de esta columna; null en «Sin grupo». */
+  grupoActual: number | null;
   grupos: GrupoPropio[];
   onSoltar: (htPlayerId: number) => void;
   onMover: (htPlayerId: number, groupId: number | null) => void;
@@ -157,6 +167,7 @@ function Columna({
             <Tarjeta
               key={j.htPlayerId}
               jugador={j}
+              grupoActual={grupoActual}
               grupos={grupos}
               onMover={(g) => onMover(j.htPlayerId, g)}
             />
@@ -233,15 +244,167 @@ function CabeceraDeGrupo({
   );
 }
 
-export function Personalizar({ datos }: { datos: ClasesDeJugador }) {
+/** Crear, renombrar y borrar clasificaciones propias, y elegir cuál se
+ *  edita debajo. */
+function ElegirClasificacion({
+  datos,
+  elegida,
+  onElegir,
+}: {
+  datos: ClasesDeJugador;
+  elegida: ClasificacionPropia | undefined;
+  onElegir: (id: number | null) => void;
+}) {
+  const qc = useQueryClient();
+  const [nueva, setNueva] = useState("");
+  const [renombrando, setRenombrando] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const refrescar = () =>
+    qc.invalidateQueries({ queryKey: ["player-classes"] });
+  const crear = useMutation({
+    mutationFn: () => api.createPlayerClassification(TEAM_ID, nueva.trim()),
+    onSuccess: (c) => {
+      setNueva("");
+      onElegir(c.id);
+      void refrescar();
+    },
+  });
+  const renombrar = useMutation({
+    mutationFn: (v: { id: number; name: string }) =>
+      api.renamePlayerClassification(TEAM_ID, v.id, v.name),
+    onSuccess: () => {
+      setRenombrando(false);
+      void refrescar();
+    },
+  });
+  const borrar = useMutation({
+    mutationFn: (id: number) => api.deletePlayerClassification(TEAM_ID, id),
+    onSuccess: () => {
+      onElegir(null);
+      void refrescar();
+    },
+  });
+  const error = crear.error ?? renombrar.error ?? borrar.error;
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        {datos.classifications.length > 0 && (
+          <Tabs
+            modo="filtro"
+            label={tx("Tus clasificaciones")}
+            tabs={datos.classifications.map((c) => ({
+              key: String(c.id),
+              label: c.classificationName,
+            }))}
+            active={elegida ? String(elegida.id) : ""}
+            onChange={(k) => onElegir(Number(k))}
+          />
+        )}
+        <form
+          className="flex items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (nueva.trim()) crear.mutate();
+          }}
+        >
+          <input
+            value={nueva}
+            maxLength={40}
+            onChange={(e) => setNueva(e.target.value)}
+            placeholder={tx("Mercado, Rol…")}
+            aria-label={tx("Nombre de la clasificación nueva")}
+            className="w-40 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-sm"
+          />
+          <button
+            type="submit"
+            disabled={!nueva.trim() || crear.isPending}
+            className="rounded-md border border-[var(--border)] px-3 py-1.5 text-sm font-medium disabled:opacity-50"
+          >
+            {tx("+ Clasificación")}
+          </button>
+        </form>
+      </div>
+      {elegida && (
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          {renombrando ? (
+            <form
+              className="flex items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (nombre.trim())
+                  renombrar.mutate({ id: elegida.id, name: nombre.trim() });
+              }}
+            >
+              <input
+                autoFocus
+                value={nombre}
+                maxLength={40}
+                onChange={(e) => setNombre(e.target.value)}
+                aria-label={tx("Nombre de la clasificación")}
+                className="w-40 rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm"
+              />
+              <button
+                type="submit"
+                className="font-medium text-[var(--accent)]"
+              >
+                {tx("Guardar")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setRenombrando(false)}
+                className="text-[var(--muted)]"
+              >
+                {tx("Cancelar")}
+              </button>
+            </form>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setNombre(elegida.classificationName);
+                setRenombrando(true);
+              }}
+              className="text-[var(--muted)] hover:text-[var(--text)]"
+            >
+              {tx("Renombrar «{{c}}»", { c: elegida.classificationName })}
+            </button>
+          )}
+          <BotonDeBorrado
+            onConfirmar={() => borrar.mutate(elegida.id)}
+            className="text-[var(--muted)] hover:text-[var(--danger)]"
+            confirmacion={tx("¿Borrar «{{c}}» y sus grupos?", {
+              c: elegida.classificationName,
+            })}
+          >
+            {tx("Borrar «{{c}}»", { c: elegida.classificationName })}
+          </BotonDeBorrado>
+        </div>
+      )}
+      {error && (
+        <p className="text-sm text-[var(--danger)]">{errorMessage(error)}</p>
+      )}
+    </div>
+  );
+}
+
+/** Los grupos de UNA clasificación propia, como tablero. */
+function Tablero({
+  datos,
+  clasificacion,
+}: {
+  datos: ClasesDeJugador;
+  clasificacion: ClasificacionPropia;
+}) {
   const qc = useQueryClient();
   const [nombre, setNombre] = useState("");
   const [color, setColor] = useState("blue");
   const refrescar = () =>
     qc.invalidateQueries({ queryKey: ["player-classes"] });
+  const cid = clasificacion.id;
+  const grupos = clasificacion.groups;
 
   const crear = useMutation({
-    mutationFn: () => api.createPlayerGroup(TEAM_ID, nombre.trim(), color),
+    mutationFn: () => api.createPlayerGroup(TEAM_ID, cid, nombre.trim(), color),
     onSuccess: () => {
       setNombre("");
       void refrescar();
@@ -260,7 +423,7 @@ export function Personalizar({ datos }: { datos: ClasesDeJugador }) {
   });
   const mover = useMutation({
     mutationFn: (v: { htPlayerId: number; groupId: number | null }) =>
-      api.setPlayerGroup(TEAM_ID, v.htPlayerId, v.groupId),
+      api.setPlayerGroup(TEAM_ID, v.htPlayerId, cid, v.groupId),
     onSuccess: refrescar,
   });
   const error = crear.error ?? cambiar.error ?? borrar.error ?? mover.error;
@@ -268,17 +431,12 @@ export function Personalizar({ datos }: { datos: ClasesDeJugador }) {
   const porNombre = [...datos.players].sort((a, b) =>
     a.name.localeCompare(b.name),
   );
-  const sinGrupo = porNombre.filter((j) => j.groupId == null);
+  const sinGrupo = porNombre.filter((j) => grupoPropioDe(j, cid) == null);
   const moverA = (htPlayerId: number, groupId: number | null) =>
     mover.mutate({ htPlayerId, groupId });
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[var(--muted)]">
-        {tx(
-          "Crea tus grupos, ponles nombre y color, y arrastra a cada jugador al suyo. Un jugador va en un solo grupo.",
-        )}
-      </p>
       <form
         className="flex flex-wrap items-center gap-2"
         onSubmit={(e) => {
@@ -314,17 +472,21 @@ export function Personalizar({ datos }: { datos: ClasesDeJugador }) {
           titulo={tx("Sin grupo")}
           color={COLOR.gris}
           jugadores={sinGrupo}
-          grupos={datos.groups}
+          grupoActual={null}
+          grupos={grupos}
           onSoltar={(id) => moverA(id, null)}
           onMover={moverA}
         />
-        {datos.groups.map((g) => (
+        {grupos.map((g) => (
           <div key={g.id} className="relative">
             <Columna
               titulo={g.groupName}
               color={COLORES_DE_GRUPO[g.color] ?? COLOR.gris}
-              jugadores={porNombre.filter((j) => j.groupId === g.id)}
-              grupos={datos.groups}
+              jugadores={porNombre.filter(
+                (j) => grupoPropioDe(j, cid) === g.id,
+              )}
+              grupoActual={g.id}
+              grupos={grupos}
               onSoltar={(id) => moverA(id, g.id)}
               onMover={moverA}
               cabecera={
@@ -338,6 +500,34 @@ export function Personalizar({ datos }: { datos: ClasesDeJugador }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+export function Personalizar({ datos }: { datos: ClasesDeJugador }) {
+  const [elegidaId, setElegidaId] = useClasificacionPropiaElegida();
+  const elegida =
+    datos.classifications.find((c) => c.id === elegidaId) ??
+    datos.classifications[0];
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-[var(--muted)]">
+        {tx(
+          "Crea tus clasificaciones (por ejemplo «Mercado» o «Rol»), dale a cada una sus grupos con nombre y color, y arrastra a cada jugador al suyo. Dentro de una clasificación, un jugador va en un solo grupo. Cada clasificación es también una columna en Jugadores.",
+        )}
+      </p>
+      <ElegirClasificacion
+        datos={datos}
+        elegida={elegida}
+        onElegir={setElegidaId}
+      />
+      {elegida ? (
+        <Tablero key={elegida.id} datos={datos} clasificacion={elegida} />
+      ) : (
+        <p className="text-sm text-[var(--muted)]">
+          {tx("Empieza creando una clasificación.")}
+        </p>
+      )}
     </div>
   );
 }

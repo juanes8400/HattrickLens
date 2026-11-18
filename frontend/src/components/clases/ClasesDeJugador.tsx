@@ -7,7 +7,8 @@
  *  - Rentabilidad deportiva: HTMS a los 28 contra sueldo, cortado en las
  *    medianas (2026-11-17; sustituye a Potencial, HTMS hoy × HTMS28).
  *  - Etapa de carrera: una fila por edad, con el dato que decide la etapa.
- *  - Personalizar: un tablero con los grupos que crea el usuario.
+ *  - Mis clasificaciones: las propias del usuario, con un selector dentro.
+ *  - Personalizar: crearlas, y un tablero con los grupos de cada una.
  *
  * Las reglas viven en el backend, `domain/engines/clases_de_jugador.py`.
  */
@@ -17,15 +18,17 @@ import { usePlayerClasses } from "../../hooks/useTeam";
 import { usePersistido } from "../../hooks/usePersistido";
 import { tx } from "../../i18n/tx";
 import { Etapa } from "./Etapa";
+import { MisClasificaciones } from "./MisClasificaciones";
 import { Personalizar } from "./Personalizar";
 import { Rentabilidad } from "./Rentabilidad";
 import { Titularidad } from "./Titularidad";
 
-type Vista = "titularidad" | "rentabilidad" | "etapa" | "personalizar";
+type Vista = "titularidad" | "rentabilidad" | "etapa" | "mias" | "personalizar";
 const VISTAS: Vista[] = [
   "titularidad",
   "rentabilidad",
   "etapa",
+  "mias",
   "personalizar",
 ];
 
@@ -51,6 +54,9 @@ export function ClasesDeJugador() {
             { key: "titularidad", label: tx("Titularidad") },
             { key: "rentabilidad", label: tx("Rentabilidad deportiva") },
             { key: "etapa", label: tx("Etapa de carrera") },
+            // Una pestaña para todas las propias, con selector dentro
+            // (2026-11-18): la barra no crece con cada clasificación nueva.
+            { key: "mias", label: tx("Mis clasificaciones") },
             { key: "personalizar", label: tx("Personalizar") },
           ]}
           active={vista}
@@ -64,6 +70,11 @@ export function ClasesDeJugador() {
           <Rentabilidad datos={data} />
         ) : vista === "etapa" ? (
           <Etapa datos={data} />
+        ) : vista === "mias" ? (
+          <MisClasificaciones
+            datos={data}
+            onIrAPersonalizar={() => setVista("personalizar")}
+          />
         ) : (
           <Personalizar datos={data} />
         )}

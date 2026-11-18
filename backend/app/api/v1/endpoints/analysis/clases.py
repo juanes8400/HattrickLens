@@ -1,5 +1,7 @@
-"""Clases de Jugador: la plantilla partida de cuatro formas, y los grupos
-propios del usuario (crear, renombrar, borrar y poner a cada jugador en uno).
+"""Clasificación de jugadores: la plantilla partida por las clasificaciones de
+la app y por las propias del usuario (2026-11-18), cada una con sus grupos.
+Crear, renombrar y borrar clasificaciones y grupos, y poner a cada jugador en
+uno por clasificación.
 
 Las reglas viven en `domain/engines/clases_de_jugador.py`.
 """
@@ -9,12 +11,13 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
-from sqlalchemy import select, update
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import require_team_owner
 from app.application.queries.clases_de_jugador import (
     ClasesDeJugadorQueryService,
+    clasificaciones_del_equipo,
     grupos_del_equipo,
 )
 from app.domain.engines.career_stage_engine import (
@@ -32,8 +35,11 @@ router = APIRouter()
 #: Los colores que se pueden elegir para un grupo propio. La pantalla tiene
 #: la misma lista; cualquier otro valor se rechaza.
 COLORES = ("blue", "red", "green", "orange", "purple", "teal", "gray")
-#: Más grupos que esto no caben en la pantalla de un vistazo.
+#: Más grupos que esto no caben en la pantalla de un vistazo (por
+#: clasificación).
 MAX_GRUPOS = 12
+#: Cada clasificación propia es una columna más en Jugadores.
+MAX_CLASIFICACIONES = 8
 
 
 def _once(o: Once) -> dict[str, Any]:
@@ -77,7 +83,16 @@ async def player_classes(
             else None
         ),
         "currency": c.currency,
-        "groups": [{"id": g.id, "groupName": g.name, "color": g.color} for g in c.groups],
+        # `classificationName` y `groupName`, y no `name`: el servidor traduce
+        # los campos `name`, y lo que escribe el usuario no se traduce.
+        "classifications": [
+            {
+                "id": cl.id,
+                "classificationName": cl.name,
+                "groups": [{"id": g.id, "groupName": g.name, "color": g.color} for g in cl.groups],
+            }
+            for cl in c.classifications
+        ],
         # Los cortes de la Etapa de carrera, para que la pantalla los explique
         # con los números del motor y no con una copia que se quede vieja.
         "stageRules": {
@@ -107,16 +122,22 @@ async def player_classes(
                     "hasSufficientHistory": j.etapa.has_sufficient_history,
                     "side": j.etapa.lado,
                 },
-                "groupId": j.group_id,
+                # Claves de texto: así llegan en JSON de todas formas.
+                "groupIds": {str(k): v for k, v in j.group_ids.items()},
             }
             for j in c.players
         ],
     }
 
 
+class ClasificacionBody(BaseModel):
+    name: str = Field(min_length=1, max_length=40)
+
+
 class GrupoBody(BaseModel):
     name: str = Field(min_length=1, max_length=40)
     color: str
+    classification_id: int = Field(alias="classificationId")
 
 
 class GrupoCambio(BaseModel):
@@ -125,14 +146,24 @@ class GrupoCambio(BaseModel):
 
 
 class MiembroBody(BaseModel):
-    #: None devuelve al jugador a «Sin grupo». En la petición se llama
-    #: `groupId`, como el resto de campos que lee la pantalla.
+    classification_id: int = Field(alias="classificationId")
+    #: None devuelve al jugador a «Sin grupo» en esa clasificación. En la
+    #: petición se llama `groupId`, como el resto de campos que lee la pantalla.
     group_id: int | None = Field(alias="groupId")
 
 
 def _color_valido(color: str) -> None:
     if color not in COLORES:
         raise HTTPException(400, f"color desconocido: {color}, válidos: {', '.join(COLORES)}")
+
+
+async def _clasificacion(
+    session: AsyncSession, team_id: int, classification_id: int
+) -> m.PlayerClassification:
+    c = await session.get(m.PlayerClassification, classification_id)
+    if c is None or c.team_id != team_id:
+        raise HTTPException(404, f"clasificación {classification_id} no existe en este equipo")
+    return c
 
 
 async def _grupo(session: AsyncSession, team_id: int, group_id: int) -> m.PlayerGroup:
@@ -142,19 +173,95 @@ async def _grupo(session: AsyncSession, team_id: int, group_id: int) -> m.Player
     return grupo
 
 
+def _clasificacion_json(c: m.PlayerClassification) -> dict[str, Any]:
+    return {"id": c.id, "classificationName": c.name}
+
+
+@router.post(
+    "/teams/{team_id}/player-classifications",
+    summary="Crear una clasificación propia",
+    dependencies=[Depends(require_team_owner)],
+)
+async def crear_clasificacion(
+    team_id: int, body: ClasificacionBody, session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    if len(await clasificaciones_del_equipo(session, team_id)) >= MAX_CLASIFICACIONES:
+        raise HTTPException(400, f"como mucho {MAX_CLASIFICACIONES} clasificaciones")
+    c = m.PlayerClassification(
+        team_id=team_id, name=body.name.strip(), created_at=datetime.now(UTC)
+    )
+    session.add(c)
+    await session.commit()
+    return _clasificacion_json(c)
+
+
+@router.patch(
+    "/teams/{team_id}/player-classifications/{classification_id}",
+    summary="Renombrar una clasificación propia",
+    dependencies=[Depends(require_team_owner)],
+)
+async def renombrar_clasificacion(
+    team_id: int,
+    classification_id: int,
+    body: ClasificacionBody,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    c = await _clasificacion(session, team_id, classification_id)
+    c.name = body.name.strip()
+    await session.commit()
+    return _clasificacion_json(c)
+
+
+@router.delete(
+    "/teams/{team_id}/player-classifications/{classification_id}",
+    summary="Borrar una clasificación propia, con sus grupos",
+    dependencies=[Depends(require_team_owner)],
+)
+async def borrar_clasificacion(
+    team_id: int, classification_id: int, session: AsyncSession = Depends(get_session)
+) -> dict[str, Any]:
+    c = await _clasificacion(session, team_id, classification_id)
+    # Explícito y no por la clave foránea: SQLite no las aplica sin pedírselo.
+    await session.execute(
+        delete(m.PlayerGroupMember).where(
+            m.PlayerGroupMember.team_id == team_id,
+            m.PlayerGroupMember.classification_id == classification_id,
+        )
+    )
+    await session.execute(
+        delete(m.PlayerGroup).where(
+            m.PlayerGroup.team_id == team_id,
+            m.PlayerGroup.classification_id == classification_id,
+        )
+    )
+    await session.delete(c)
+    await session.commit()
+    return {"deleted": classification_id}
+
+
 @router.post(
     "/teams/{team_id}/player-groups",
-    summary="Crear un grupo propio",
+    summary="Crear un grupo en una clasificación propia",
     dependencies=[Depends(require_team_owner)],
 )
 async def crear_grupo(
     team_id: int, body: GrupoBody, session: AsyncSession = Depends(get_session)
 ) -> dict[str, Any]:
     _color_valido(body.color)
-    if len(await grupos_del_equipo(session, team_id)) >= MAX_GRUPOS:
-        raise HTTPException(400, f"como mucho {MAX_GRUPOS} grupos")
+    await _clasificacion(session, team_id, body.classification_id)
+    suyos = [
+        g
+        for g in await grupos_del_equipo(session, team_id)
+        if g.classification_id == body.classification_id
+    ]
+    if len(suyos) >= MAX_GRUPOS:
+        raise HTTPException(400, f"como mucho {MAX_GRUPOS} grupos por clasificación")
     grupo = m.PlayerGroup(
-        team_id=team_id, name=body.name.strip(), color=body.color, created_at=datetime.now(UTC)
+        team_id=team_id,
+        classification_id=body.classification_id,
+        name=body.name.strip(),
+        color=body.color,
+        created_at=datetime.now(UTC),
     )
     session.add(grupo)
     await session.commit()
@@ -189,9 +296,9 @@ async def borrar_grupo(
 ) -> dict[str, Any]:
     grupo = await _grupo(session, team_id, group_id)
     await session.execute(
-        update(m.Player)
-        .where(m.Player.team_id == team_id, m.Player.player_group_id == group_id)
-        .values(player_group_id=None)
+        delete(m.PlayerGroupMember).where(
+            m.PlayerGroupMember.team_id == team_id, m.PlayerGroupMember.group_id == group_id
+        )
     )
     await session.delete(grupo)
     await session.commit()
@@ -200,7 +307,7 @@ async def borrar_grupo(
 
 @router.put(
     "/teams/{team_id}/player-groups/members/{ht_player_id}",
-    summary="Poner a un jugador en un grupo propio, o sacarlo",
+    summary="Poner a un jugador en un grupo de una clasificación propia, o sacarlo",
     dependencies=[Depends(require_team_owner)],
 )
 async def poner_en_grupo(
@@ -209,13 +316,40 @@ async def poner_en_grupo(
     body: MiembroBody,
     session: AsyncSession = Depends(get_session),
 ) -> dict[str, Any]:
+    await _clasificacion(session, team_id, body.classification_id)
     if body.group_id is not None:
-        await _grupo(session, team_id, body.group_id)
+        grupo = await _grupo(session, team_id, body.group_id)
+        if grupo.classification_id != body.classification_id:
+            raise HTTPException(400, "ese grupo es de otra clasificación")
     jugador = await session.scalar(
         select(m.Player).where(m.Player.ht_player_id == ht_player_id, m.Player.team_id == team_id)
     )
     if jugador is None:
         raise HTTPException(404, f"player {ht_player_id} not found in team {team_id}")
-    jugador.player_group_id = body.group_id
+    actual = await session.scalar(
+        select(m.PlayerGroupMember).where(
+            m.PlayerGroupMember.team_id == team_id,
+            m.PlayerGroupMember.ht_player_id == ht_player_id,
+            m.PlayerGroupMember.classification_id == body.classification_id,
+        )
+    )
+    if body.group_id is None:
+        if actual is not None:
+            await session.delete(actual)
+    elif actual is None:
+        session.add(
+            m.PlayerGroupMember(
+                team_id=team_id,
+                ht_player_id=ht_player_id,
+                classification_id=body.classification_id,
+                group_id=body.group_id,
+            )
+        )
+    else:
+        actual.group_id = body.group_id
     await session.commit()
-    return {"htPlayerId": ht_player_id, "groupId": body.group_id}
+    return {
+        "htPlayerId": ht_player_id,
+        "classificationId": body.classification_id,
+        "groupId": body.group_id,
+    }

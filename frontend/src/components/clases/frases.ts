@@ -10,11 +10,12 @@ import { number } from "../../hooks/useFormat";
 import { tx } from "../../i18n/tx";
 import type {
   ClasesDeJugador,
+  ClasificacionPropia,
   JugadorDeClases,
   OnceDeFormacion,
 } from "../../services/api";
 import { nombreDeEtapa } from "../../utils/etapasDeCarrera";
-import { COLOR_DE_ETAPA } from "./clasificaciones";
+import { COLOR_DE_ETAPA, grupoPropioDe } from "./clasificaciones";
 import { COLOR, COLORES_DE_GRUPO } from "./colores";
 
 /** El nombre de una casilla sin orden («keeper», «winger»…). Los mismos
@@ -229,24 +230,27 @@ export function fraseDeEtapa(
   };
 }
 
-/** Mis grupos: sólo si el usuario creó alguno. */
-export function fraseDeMisGrupos(
-  datos: ClasesDeJugador,
+/** Una clasificación propia (2026-11-18): en qué grupo de ella está. Sin
+ *  grupos creados todavía no hay nada que decir y no sale la línea. */
+export function fraseDePropia(
+  c: ClasificacionPropia,
   j: JugadorDeClases,
 ): Pertenencia | null {
-  if (datos.groups.length === 0) return null;
-  const g = datos.groups.find((x) => x.id === j.groupId);
+  if (c.groups.length === 0) return null;
+  const id = grupoPropioDe(j, c.id);
+  const g = c.groups.find((x) => x.id === id);
   return {
-    clasificacion: tx("Mis grupos"),
-    grupo: g ? g.groupName : tx("Ninguno"),
+    clasificacion: c.classificationName,
+    grupo: g ? g.groupName : tx("Sin grupo"),
     color: g ? (COLORES_DE_GRUPO[g.color] ?? COLOR.gris) : COLOR.gris,
     frase: g
       ? tx("En tu grupo «{{g}}».", { g: g.groupName })
-      : tx("No está en ninguno de tus grupos."),
+      : tx("Sin grupo en «{{c}}».", { c: c.classificationName }),
   };
 }
 
-/** Las cuatro, en el orden de la pantalla de Clasificación de jugadores. */
+/** Las tres de la app y una por clasificación propia, en el orden de la
+ *  pantalla de Clasificación de jugadores. */
 export function pertenencias(
   datos: ClasesDeJugador,
   htPlayerId: number,
@@ -257,6 +261,6 @@ export function pertenencias(
     fraseDeTitularidad(datos, j),
     fraseDeRentabilidad(datos, j),
     fraseDeEtapa(datos, j),
-    fraseDeMisGrupos(datos, j),
+    ...datos.classifications.map((c) => fraseDePropia(c, j)),
   ].filter((p): p is Pertenencia => p != null);
 }

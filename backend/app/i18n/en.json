@@ -1964,7 +1964,6 @@
   "λ_local   = ataque_i · defensa_j · media_liga · ventaja_local\nλ_visita  = ataque_j · defensa_i · media_liga\n\nfuerza_i  = (goles_i + K · media) ÷ (partidos_i + K)\n\nP(puesto) ≈ Monte Carlo sobre las jornadas que faltan": "λ_home    = attack_i · defence_j · league_mean · home_advantage\nλ_away    = attack_j · defence_i · league_mean\n\nstrength_i = (goals_i + K · mean) ÷ (matches_i + K)\n\nP(position) ≈ Monte Carlo over the remaining rounds",
   "← el que se usa": "← the one used",
   "color desconocido: {}, válidos: {}": "unknown colour: {}, valid: {}",
-  "como mucho {} grupos": "at most {} groups",
   "grupo {} no existe en este equipo": "group {} does not exist in this team",
   "Cuando cambia «en la media», el salto de la línea lo trae quien llegó, no el entrenamiento: por eso ese tramo va punteado.": "When «in the average» changes, the jump in the line comes from whoever arrived, not from training: that is why that stretch is dashed.",
   "El cálculo de la sección HTMS": "The calculation in the HTMS section",
@@ -1985,5 +1984,9 @@
   "{} años y percentil {} en su habilidad dominante dentro de la plantilla activa. {}": "{} years and percentile {} in his dominant skill within the active squad. {}",
   "{} años, edad de formación. {}": "{} years, development age. {}",
   "{} años, en el tramo de mayor factor de edad. {}": "{} years, in the highest age factor band. {}",
-  "{} años. Etapa provisional: falta una segunda sincronización, en otro día, para ver si sus habilidades bajan, que es lo que separa «Veterano estable» de «En declive».": "{} years. Provisional stage: a second sync, on another day, is needed to see whether his skills are dropping, which is what separates «Stable veteran» from «Declining»."
+  "{} años. Etapa provisional: falta una segunda sincronización, en otro día, para ver si sus habilidades bajan, que es lo que separa «Veterano estable» de «En declive».": "{} years. Provisional stage: a second sync, on another day, is needed to see whether his skills are dropping, which is what separates «Stable veteran» from «Declining».",
+  "clasificación {} no existe en este equipo": "classification {} does not exist in this team",
+  "como mucho {} clasificaciones": "at most {} classifications",
+  "como mucho {} grupos por clasificación": "at most {} groups per classification",
+  "ese grupo es de otra clasificación": "that group belongs to another classification"
 }

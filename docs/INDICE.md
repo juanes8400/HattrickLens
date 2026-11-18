@@ -45,15 +45,15 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 878 | 34530 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard | 28 | 112 |
 | `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 29485 | alertas, alineacion, league, dashboard | 25 | 100 |
 | `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 601 | 6420 | club | 4 | 8 |
-| `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 457 | 10215 | clases, resumen | 12 | 35 |
-| `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 637 | 8427 | clases, plantilla | 10 | 30 |
-| `/classes` | [ClasificacionPage.tsx](../frontend/src/pages/ClasificacionPage.tsx) | 31 | 7916 | clases | 10 | 30 |
-| `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1088 | 12771 | clases, resumen, skills | 14 | 40 |
-| `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1544 | 21045 | clases, jugadores, player_balance, precio_comparable, jugadores | 19 | 52 |
+| `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 457 | 10451 | clases, resumen | 12 | 35 |
+| `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 639 | 8669 | clases, plantilla | 10 | 30 |
+| `/classes` | [ClasificacionPage.tsx](../frontend/src/pages/ClasificacionPage.tsx) | 31 | 8447 | clases | 10 | 30 |
+| `/skills` | [SkillsPage.tsx](../frontend/src/pages/SkillsPage.tsx) | 1088 | 13007 | clases, resumen, skills | 14 | 40 |
+| `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1544 | 21275 | clases, jugadores, player_balance, precio_comparable, jugadores | 19 | 52 |
 | `/positions` | [PositionsPage.tsx](../frontend/src/pages/PositionsPage.tsx) | 355 | 4259 | plantilla | 3 | 14 |
 | `/lineup` | [LineupPage.tsx](../frontend/src/pages/LineupPage.tsx) | 1019 | 9538 | alineacion, plantilla | 10 | 24 |
 | `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 2157 | 14607 | entrenamiento, jugadores, club | 10 | 38 |
-| `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3703 | 20023 | clases, player_balance, precio_comparable, jugadores, plantilla | 17 | 49 |
+| `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3703 | 20259 | clases, player_balance, precio_comparable, jugadores, plantilla | 17 | 49 |
 | `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1215 | libro | 0 | 1 |
 | `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4039 | 16230 | academy | 13 | 31 |
 | `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 684 | 6492 | matches | 4 | 16 |
@@ -314,7 +314,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/team`
 
-- **Página:** [frontend/src/pages/TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) (637 líneas)
+- **Página:** [frontend/src/pages/TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) (639 líneas)
 - **Componentes y hooks suyos (24):**
   - [frontend/src/components/CountryFlag.tsx](../frontend/src/components/CountryFlag.tsx)
   - [frontend/src/components/DataTable.tsx](../frontend/src/components/DataTable.tsx)
@@ -351,19 +351,21 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 ### `/classes`
 
 - **Página:** [frontend/src/pages/ClasificacionPage.tsx](../frontend/src/pages/ClasificacionPage.tsx) (31 líneas)
-- **Componentes y hooks suyos (21):**
+- **Componentes y hooks suyos (23):**
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
   - [frontend/src/components/PitchField.tsx](../frontend/src/components/PitchField.tsx)
   - [frontend/src/components/PlayerLink.tsx](../frontend/src/components/PlayerLink.tsx)
   - [frontend/src/components/Tabs.tsx](../frontend/src/components/Tabs.tsx)
   - [frontend/src/components/clases/ClasesDeJugador.tsx](../frontend/src/components/clases/ClasesDeJugador.tsx)
   - [frontend/src/components/clases/Etapa.tsx](../frontend/src/components/clases/Etapa.tsx)
+  - [frontend/src/components/clases/MisClasificaciones.tsx](../frontend/src/components/clases/MisClasificaciones.tsx)
   - [frontend/src/components/clases/Personalizar.tsx](../frontend/src/components/clases/Personalizar.tsx)
   - [frontend/src/components/clases/Rentabilidad.tsx](../frontend/src/components/clases/Rentabilidad.tsx)
   - [frontend/src/components/clases/Titularidad.tsx](../frontend/src/components/clases/Titularidad.tsx)
   - [frontend/src/components/clases/clasificaciones.ts](../frontend/src/components/clases/clasificaciones.ts)
   - [frontend/src/components/clases/colores.ts](../frontend/src/components/clases/colores.ts)
   - [frontend/src/components/clases/comun.tsx](../frontend/src/components/clases/comun.tsx)
+  - [frontend/src/components/clases/elegida.ts](../frontend/src/components/clases/elegida.ts)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
   - [frontend/src/hooks/usePersistido.ts](../frontend/src/hooks/usePersistido.ts)
   - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
@@ -373,9 +375,9 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/layouts/navegacion.ts](../frontend/src/layouts/navegacion.ts)
   - [frontend/src/utils/etapasDeCarrera.ts](../frontend/src/utils/etapasDeCarrera.ts)
-- **Pide a `api.`:** `createPlayerGroup`, `deletePlayerGroup`, `playerClasses`, `setPlayerGroup`, `updatePlayerGroup`
+- **Pide a `api.`:** `playerClasses`
 - **Donde se escriben esas llamadas:** [frontend/src/services/api/clases.ts](../frontend/src/services/api/clases.ts)
-- **Rutas HTTP:** `/teams/:x/player-classes`, `/teams/:x/player-groups`, `/teams/:x/player-groups/:x`, `/teams/:x/player-groups/members/:x`
+- **Rutas HTTP:** `/teams/:x/player-classes`
 - **Endpoints:** [backend/app/api/v1/endpoints/analysis/clases.py](../backend/app/api/v1/endpoints/analysis/clases.py)
 - **Aplicación:** `app.application.dto.dashboard` (22 rutas), `app.application.dto.squad` (22 rutas), `app.application.queries.clases_de_jugador` (6 rutas), `app.application.queries.player_history` (14 rutas), `app.application.queries.squad` (22 rutas), `app.application.queries.weekly` (26 rutas)
 - **Dominio:** `app.domain.engines` (25 rutas), `app.domain.engines.asignacion_optima` (16 rutas), `app.domain.engines.career_stage_engine` (6 rutas), `app.domain.engines.clases_de_jugador` (6 rutas), `app.domain.engines.lineup_optimizer` (15 rutas), `app.domain.engines.position_engine` (23 rutas), `app.domain.engines.pricing_engine` (6 rutas), `app.domain.engines.stats` (17 rutas), `app.domain.value_objects.formations` (16 rutas), `app.domain.value_objects.ht_constants` (26 rutas)

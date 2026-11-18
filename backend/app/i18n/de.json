@@ -1964,7 +1964,6 @@
   "λ_local   = ataque_i · defensa_j · media_liga · ventaja_local\nλ_visita  = ataque_j · defensa_i · media_liga\n\nfuerza_i  = (goles_i + K · media) ÷ (partidos_i + K)\n\nP(puesto) ≈ Monte Carlo sobre las jornadas que faltan": "λ_heim     = Angriff_i · Abwehr_j · Ligamittel · Heimvorteil\nλ_auswärts = Angriff_j · Abwehr_i · Ligamittel\n\nStärke_i  = (Tore_i + K · Mittel) ÷ (Spiele_i + K)\n\nP(Platz) ≈ Monte Carlo über die verbleibenden Spieltage",
   "← el que se usa": "← der, der genutzt wird",
   "color desconocido: {}, válidos: {}": "unbekannte Farbe: {}, gültig: {}",
-  "como mucho {} grupos": "höchstens {} Gruppen",
   "grupo {} no existe en este equipo": "Gruppe {} gibt es in diesem Team nicht",
   "Cuando cambia «en la media», el salto de la línea lo trae quien llegó, no el entrenamiento: por eso ese tramo va punteado.": "Wenn sich «im Schnitt» ändert, kommt der Sprung der Linie von dem, der neu dazukam, nicht vom Training: deshalb ist dieser Abschnitt gestrichelt.",
   "El cálculo de la sección HTMS": "Die Berechnung im Abschnitt HTMS",
@@ -1985,5 +1984,9 @@
   "{} años y percentil {} en su habilidad dominante dentro de la plantilla activa. {}": "{} Jahre und Perzentil {} in seiner Hauptfähigkeit innerhalb des aktiven Kaders. {}",
   "{} años, edad de formación. {}": "{} Jahre, Ausbildungsalter. {}",
   "{} años, en el tramo de mayor factor de edad. {}": "{} Jahre, im Bereich mit dem höchsten Altersfaktor. {}",
-  "{} años. Etapa provisional: falta una segunda sincronización, en otro día, para ver si sus habilidades bajan, que es lo que separa «Veterano estable» de «En declive».": "{} Jahre. Vorläufige Phase: Es braucht eine zweite Synchronisation an einem anderen Tag, um zu sehen, ob seine Fähigkeiten sinken – genau das unterscheidet «Stabiler Veteran» von «Im Rückgang»."
+  "{} años. Etapa provisional: falta una segunda sincronización, en otro día, para ver si sus habilidades bajan, que es lo que separa «Veterano estable» de «En declive».": "{} Jahre. Vorläufige Phase: Es braucht eine zweite Synchronisation an einem anderen Tag, um zu sehen, ob seine Fähigkeiten sinken – genau das unterscheidet «Stabiler Veteran» von «Im Rückgang».",
+  "clasificación {} no existe en este equipo": "Klassifizierung {} existiert in diesem Team nicht",
+  "como mucho {} clasificaciones": "höchstens {} Klassifizierungen",
+  "como mucho {} grupos por clasificación": "höchstens {} Gruppen pro Klassifizierung",
+  "ese grupo es de otra clasificación": "diese Gruppe gehört zu einer anderen Klassifizierung"
 }

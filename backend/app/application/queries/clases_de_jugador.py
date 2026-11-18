@@ -62,7 +62,9 @@ class JugadorDeClases:
     titularidad: str
     rentabilidad: str
     etapa: EtapaDelJugador
-    group_id: int | None
+    #: Su grupo en cada clasificación propia: id de clasificación → id de
+    #: grupo. Sin entrada es «Sin grupo».
+    group_ids: dict[int, int]
 
 
 @dataclass(frozen=True)
@@ -70,6 +72,13 @@ class GrupoPropio:
     id: int
     name: str
     color: str
+
+
+@dataclass(frozen=True)
+class ClasificacionPropia:
+    id: int
+    name: str
+    groups: tuple[GrupoPropio, ...]
 
 
 @dataclass(frozen=True)
@@ -83,7 +92,7 @@ class ClasesDeJugador:
     #: La moneda en que va `salary` («US$», «€»…).
     currency: str
     players: tuple[JugadorDeClases, ...]
-    groups: tuple[GrupoPropio, ...]
+    classifications: tuple[ClasificacionPropia, ...]
 
 
 @dataclass(frozen=True)
@@ -119,6 +128,22 @@ def cuentas_de_rentabilidad(
     return CuentasDeRentabilidad(htms=htms, sueldos=sueldos, corte=corte)
 
 
+async def clasificaciones_del_equipo(
+    session: AsyncSession, team_id: int
+) -> list[m.PlayerClassification]:
+    return list(
+        (
+            await session.execute(
+                select(m.PlayerClassification)
+                .where(m.PlayerClassification.team_id == team_id)
+                .order_by(m.PlayerClassification.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+
 async def grupos_del_equipo(session: AsyncSession, team_id: int) -> list[m.PlayerGroup]:
     return list(
         (
@@ -126,6 +151,18 @@ async def grupos_del_equipo(session: AsyncSession, team_id: int) -> list[m.Playe
                 select(m.PlayerGroup)
                 .where(m.PlayerGroup.team_id == team_id)
                 .order_by(m.PlayerGroup.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+
+async def miembros_del_equipo(session: AsyncSession, team_id: int) -> list[m.PlayerGroupMember]:
+    return list(
+        (
+            await session.execute(
+                select(m.PlayerGroupMember).where(m.PlayerGroupMember.team_id == team_id)
             )
         )
         .scalars()
@@ -197,8 +234,15 @@ class ClasesDeJugadorQueryService:
         titulares = {pid for pid, t in reparto.titularidad.items() if t == TITULAR}
         lados = partir_etapas({pid: c[0] for pid, c in crudas.items()}, titulares)
 
+        clasificaciones = await clasificaciones_del_equipo(self._s, team_id)
         grupos = await grupos_del_equipo(self._s, team_id)
-        existentes = {g.id for g in grupos}
+        # Un grupo vale si su clasificación existe; un miembro, si su grupo es
+        # de esa misma clasificación. Lo demás son restos y no cuentan.
+        de_clasificacion = {g.id: g.classification_id for g in grupos}
+        miembros: dict[int, dict[int, int]] = {}
+        for mb in await miembros_del_equipo(self._s, team_id):
+            if de_clasificacion.get(mb.group_id) == mb.classification_id:
+                miembros.setdefault(mb.ht_player_id, {})[mb.classification_id] = mb.group_id
 
         jugadores = []
         for snap, ident in filas:
@@ -225,10 +269,7 @@ class ClasesDeJugadorQueryService:
                         has_sufficient_history=suficiente,
                         lado=lados.get(pid),
                     ),
-                    # Un grupo borrado deja de contar aunque quede la marca.
-                    group_id=(
-                        ident.player_group_id if ident.player_group_id in existentes else None
-                    ),
+                    group_ids=miembros.get(pid, {}),
                 )
             )
 
@@ -243,5 +284,16 @@ class ClasesDeJugadorQueryService:
             corte=corte,
             currency=moneda,
             players=tuple(jugadores),
-            groups=tuple(GrupoPropio(id=g.id, name=g.name, color=g.color) for g in grupos),
+            classifications=tuple(
+                ClasificacionPropia(
+                    id=c.id,
+                    name=c.name,
+                    groups=tuple(
+                        GrupoPropio(id=g.id, name=g.name, color=g.color)
+                        for g in grupos
+                        if g.classification_id == c.id
+                    ),
+                )
+                for c in clasificaciones
+            ),
         )
