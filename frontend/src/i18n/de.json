@@ -436,7 +436,10 @@
       "transferencias": "Transfers",
       "partidos": "Spiele",
       "general": "Allgemein",
-      "uso": "Nutzung"
+      "uso": "Nutzung",
+      "alineación": "Aufstellung",
+      "clasificación": "Spielerklassifizierung",
+      "habilidades": "Fähigkeiten"
     }
   },
   "flor": {

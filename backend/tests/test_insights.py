@@ -1,4 +1,5 @@
 """HL-130 y familia · Motor de alertas accionables."""
+
 import re
 from pathlib import Path
 
@@ -41,7 +42,7 @@ def test_detects_expensive_training_real_case() -> None:
     assert len(out) == 1
     assert out[0].severity is Severity.WARNING
     assert "Cobos" in out[0].detail
-    assert out[0].action                       # toda alerta lleva acción
+    assert out[0].action  # toda alerta lleva acción
 
 
 def test_no_warning_when_training_the_young() -> None:
@@ -51,7 +52,7 @@ def test_no_warning_when_training_the_young() -> None:
 def test_structural_deficit_uses_real_numbers() -> None:
     out = structural_deficit(-217_000, 21_034_174, "US$")
     assert out and out[0].severity is Severity.WARNING
-    assert "96" in out[0].detail or "97" in out[0].detail   # ~96 semanas de margen
+    assert "96" in out[0].detail or "97" in out[0].detail  # ~96 semanas de margen
 
 
 def test_deficit_becomes_danger_when_runway_is_short() -> None:
@@ -66,6 +67,7 @@ def test_positive_balance_produces_no_alert() -> None:
 # `test_sold_out_sectors_flag_censored_demand` se retiro el 2026-09-01 con la
 # alerta que probaba: avisaba de sectores agotados y de la demanda que no cabia,
 # y eso exige la asistencia POR SECTOR, que es funcion de HT Supporter.
+
 
 def test_academy_roi_both_directions() -> None:
     malo = academy_roi(11_240_000, 0, "US$")
@@ -125,10 +127,12 @@ def test_a_bruised_player_is_not_an_injury() -> None:
 def test_each_injured_player_gets_his_own_alert() -> None:
     """Agrupadas en una sola, archivar la del primer lesionado tapaba al
     segundo. Una clave por jugador."""
-    out = injuries([
-        {"ht_player_id": 1, "name": "Uno", "injury_level": 2},
-        {"ht_player_id": 2, "name": "Dos", "injury_level": 3},
-    ])
+    out = injuries(
+        [
+            {"ht_player_id": 1, "name": "Uno", "injury_level": 2},
+            {"ht_player_id": 2, "name": "Dos", "injury_level": 3},
+        ]
+    )
     assert [i.key for i in out] == ["player.injured.1", "player.injured.2"]
 
 
@@ -156,14 +160,17 @@ def test_every_insight_has_a_message_and_module() -> None:
 
 # ── Plantilla, jugador a jugador ────────────────────────────────────────────
 
+
 def test_low_form_flags_up_to_the_configured_threshold() -> None:
     """2026-08-16, umbral fijado por el usuario en 4: una forma de 4 entra y
     una de 5 se queda fuera."""
-    out = low_form([
-        {"ht_player_id": 1, "name": "Malo", "form": 1},
-        {"ht_player_id": 2, "name": "Justo", "form": 4},
-        {"ht_player_id": 3, "name": "Bien", "form": 5},
-    ])
+    out = low_form(
+        [
+            {"ht_player_id": 1, "name": "Malo", "form": 1},
+            {"ht_player_id": 2, "name": "Justo", "form": 4},
+            {"ht_player_id": 3, "name": "Bien", "form": 5},
+        ]
+    )
     assert [i.evidence["player"] for i in out] == ["Malo", "Justo"]
     assert all(i.severity is Severity.WARNING for i in out)
 
@@ -181,23 +188,35 @@ def test_thin_keeper_depth_escalates_with_zero_keepers() -> None:
     ninguno = thin_keeper_depth([{"name": "A", "best_position": "forward"}])
     assert ninguno[0].severity is Severity.DANGER
 
-    uno = thin_keeper_depth([
-        {"name": "A", "best_position": "keeper"}, {"name": "B", "best_position": "forward"},
-    ])
+    uno = thin_keeper_depth(
+        [
+            {"name": "A", "best_position": "keeper"},
+            {"name": "B", "best_position": "forward"},
+        ]
+    )
     assert uno[0].severity is Severity.WARNING
 
-    dos = thin_keeper_depth([
-        {"name": "A", "best_position": "keeper"}, {"name": "B", "best_position": "keeper"},
-    ])
+    dos = thin_keeper_depth(
+        [
+            {"name": "A", "best_position": "keeper"},
+            {"name": "B", "best_position": "keeper"},
+        ]
+    )
     assert dos == []
 
 
 # ── Economía ─────────────────────────────────────────────────────────────────
 
+
 def test_income_concentration_flags_a_dominant_source() -> None:
-    out = income_concentration([
-        ("Espectadores", 90_000), ("Patrocinadores", 5_000), ("Financieros", 5_000),
-    ], currency="US$")
+    out = income_concentration(
+        [
+            ("Espectadores", 90_000),
+            ("Patrocinadores", 5_000),
+            ("Financieros", 5_000),
+        ],
+        currency="US$",
+    )
     assert out and "espectadores" in out[0].title.lower()
     assert "última semana cerrada" in out[0].detail
 
@@ -226,10 +245,15 @@ def test_fan_club_trend_only_flags_a_relative_drop() -> None:
 # ── Liga ─────────────────────────────────────────────────────────────────────
 
 RELEGATION_ROW = {
-    "name": "Pulgas Arrechas", "expected_position": 7.5, "expected_points": 12.0,
-    "relegation_probability": 0.55, "relegation_playoff_probability": 0.1,
-    "promotion_probability": 0.0, "title_probability": 0.0,
-    "attack_strength": 0.7, "defence_strength": 1.4,
+    "name": "Pulgas Arrechas",
+    "expected_position": 7.5,
+    "expected_points": 12.0,
+    "relegation_probability": 0.55,
+    "relegation_playoff_probability": 0.1,
+    "promotion_probability": 0.0,
+    "title_probability": 0.0,
+    "attack_strength": 0.7,
+    "defence_strength": 1.4,
 }
 
 
@@ -273,44 +297,76 @@ def test_en_la_division_mas_alta_no_se_habla_de_ascenso() -> None:
 
 
 def test_next_match_forecast_labels_favorite_and_underdog() -> None:
-    favorito = next_match_forecast({
-        "home": "Nosotros", "away": "Rival", "isHome": True,
-        "homeWin": 0.7, "draw": 0.2, "awayWin": 0.1,
-    })
+    favorito = next_match_forecast(
+        {
+            "home": "Nosotros",
+            "away": "Rival",
+            "isHome": True,
+            "homeWin": 0.7,
+            "draw": 0.2,
+            "awayWin": 0.1,
+        }
+    )
     assert favorito and favorito[0].severity is Severity.OPPORTUNITY
 
-    perdedor = next_match_forecast({
-        "home": "Rival", "away": "Nosotros", "isHome": False,
-        "homeWin": 0.7, "draw": 0.2, "awayWin": 0.1,
-    })
+    perdedor = next_match_forecast(
+        {
+            "home": "Rival",
+            "away": "Nosotros",
+            "isHome": False,
+            "homeWin": 0.7,
+            "draw": 0.2,
+            "awayWin": 0.1,
+        }
+    )
     assert perdedor and perdedor[0].severity is Severity.WARNING
 
 
 # ── Copa, academia, estadio, staff ───────────────────────────────────────────
 
+
 def test_youth_star_prospect_needs_a_non_provisional_verdict() -> None:
-    listo = youth_star_prospect([{
-        "ht_youth_player_id": 1, "name": "Promesa", "category": "crack",
-        "best_skill": "scoring", "best_skill_max": 14, "verdict_is_provisional": False,
-        "promote_advice": "promociónalo",
-    }])
+    listo = youth_star_prospect(
+        [
+            {
+                "ht_youth_player_id": 1,
+                "name": "Promesa",
+                "category": "crack",
+                "best_skill": "scoring",
+                "best_skill_max": 14,
+                "verdict_is_provisional": False,
+                "promote_advice": "promociónalo",
+            }
+        ]
+    )
     assert listo and "Promesa" in listo[0].title
     # 2026-09-13: salía «Mejor habilidad: winger», la clave interna en inglés.
     assert "Anotación" in listo[0].detail and "scoring" not in listo[0].detail
 
-    provisional = youth_star_prospect([{
-        "ht_youth_player_id": 2, "name": "Duda", "category": "crack",
-        "best_skill": "scoring", "best_skill_max": 14, "verdict_is_provisional": True,
-        "promote_advice": "",
-    }])
+    provisional = youth_star_prospect(
+        [
+            {
+                "ht_youth_player_id": 2,
+                "name": "Duda",
+                "category": "crack",
+                "best_skill": "scoring",
+                "best_skill_max": 14,
+                "verdict_is_provisional": True,
+                "promote_advice": "",
+            }
+        ]
+    )
     assert provisional == []
 
 
 def test_arena_expansion_opportunity_needs_a_reasonable_payback() -> None:
-    out = arena_expansion_opportunity([
-        {"label": "Chica", "netPerSeason": 50_000, "paybackSeasons": 3.0},
-        {"label": "Grande", "netPerSeason": -1000, "paybackSeasons": None},
-    ], currency="US$")
+    out = arena_expansion_opportunity(
+        [
+            {"label": "Chica", "netPerSeason": 50_000, "paybackSeasons": 3.0},
+            {"label": "Grande", "netPerSeason": -1000, "paybackSeasons": None},
+        ],
+        currency="US$",
+    )
     assert out and "Chica" in out[0].detail
 
 
@@ -327,6 +383,7 @@ def test_assistant_trainers_below_reference() -> None:
 
 # ── El catálogo de claves ────────────────────────────────────────────────────
 
+
 def test_known_key_roots_matches_the_keys_the_module_really_emits() -> None:
     """`KNOWN_KEY_ROOTS` es lo que deja al buzón distinguir una archivada viva
     de una huérfana, así que una lista desfasada volvería a llenarlo de avisos
@@ -335,7 +392,14 @@ def test_known_key_roots_matches_the_keys_the_module_really_emits() -> None:
 
     Las claves con sufijo (`player.injured.{id}`) se escriben como f-string, de
     modo que la raíz es todo lo que hay antes de la primera llave."""
-    fuente = Path(ins.__file__).read_text(encoding="utf-8")
+    # 2026-11-18: las alertas de cierre viven en dos módulos aparte, con el
+    # mismo catálogo.
+    from app.domain.engines import alertas_de_grupo, alertas_de_plantilla
+
+    fuente = "".join(
+        Path(mod.__file__).read_text(encoding="utf-8")
+        for mod in (ins, alertas_de_grupo, alertas_de_plantilla)
+    )
     literales = re.findall(r'key=\(?\s*f?"([^"]+)"', fuente)
     raices = {lit.split("{")[0].rstrip(".") for lit in literales}
     assert raices, "no se encontró ninguna clave en el módulo"
@@ -347,10 +411,10 @@ def test_an_orphaned_key_is_recognisable() -> None:
     archivadas siguen en la base y el buzón tiene que poder tirarlas."""
     for huerfana in (
         "player.transfer_listed.483141997",  # la lista de transferibles no es una alerta
-        "player.overpaid.474426586",         # se fue con salario contra mercado
-        "training.pop_soon",                 # subidas de nivel próximas
-        "squad.injuries",                    # ahora se avisa una por jugador
-        "squad.sector_standout.midfield",    # no pedía decisión (2026-09-13)
+        "player.overpaid.474426586",  # se fue con salario contra mercado
+        "training.pop_soon",  # subidas de nivel próximas
+        "squad.injuries",  # ahora se avisa una por jugador
+        "squad.sector_standout.midfield",  # no pedía decisión (2026-09-13)
     ):
         assert not ins.is_known_key(huerfana)
 
@@ -368,9 +432,7 @@ def test_structural_deficit_calla_cuando_es_el_redondeo_del_equilibrio() -> None
     alerta tenía todo el sentido; con el número bueno, avisar de esto es
     llenar el buzón de ruido.
     """
-    assert (
-        structural_deficit(-21_259, 9_391_047, "US$", weekly_income=538_088) == []
-    )
+    assert structural_deficit(-21_259, 9_391_047, "US$", weekly_income=538_088) == []
 
 
 def test_structural_deficit_avisa_aunque_haya_caja_de_sobra() -> None:

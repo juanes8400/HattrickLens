@@ -65,6 +65,10 @@ const MODULE_ROUTES: Record<string, string> = {
   uso: "/uso",
   transferencias: "/transfers/balance",
   partidos: "/matches",
+  // Las alertas de cierre (2026-11-18).
+  alineación: "/lineup",
+  clasificación: "/classes",
+  habilidades: "/overview",
   general: "/sync",
 };
 

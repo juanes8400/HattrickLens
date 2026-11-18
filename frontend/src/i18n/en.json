@@ -436,7 +436,10 @@
       "transferencias": "transfers",
       "partidos": "matches",
       "general": "general",
-      "uso": "usage"
+      "uso": "usage",
+      "alineación": "lineup",
+      "clasificación": "player classification",
+      "habilidades": "skills"
     }
   },
   "flor": {
