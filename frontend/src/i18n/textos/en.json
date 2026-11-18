@@ -2360,5 +2360,11 @@
   "En tu grupo «{{g}}».": "In your group “{{g}}”.",
   "No está en ninguno de tus grupos.": "Not in any of your groups.",
   "Sus clases": "Their classes",
-  "Ver en Clasificación de jugadores": "See in Player classification"
+  "Ver en Clasificación de jugadores": "See in Player classification",
+  "Ver sólo": "Show only",
+  "Todos los jugadores": "All players",
+  "Grupo de {{clasificacion}}": "{{clasificacion}} group",
+  "Cualquier grupo": "Any group",
+  "Quitar filtro": "Clear filter",
+  "Las columnas Titularidad, Rentabilidad deportiva y Etapa de carrera dicen en qué grupo de la Clasificación de jugadores cae cada uno, y «Ver sólo» deja la tabla con un grupo.": "The Starting status, Sporting return and Career stage columns show which Player classification group each player falls into, and “Show only” narrows the table to one group."
 }

@@ -8,10 +8,32 @@ import { Tabs } from "../components/Tabs";
 import { ErrorState, Loading, SinDatos } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
 import { Specialty } from "../components/Specialty";
-import { useSquad } from "../hooks/useTeam";
+import { usePlayerClasses, useSquad } from "../hooks/useTeam";
+import { usePersistido } from "../hooks/usePersistido";
+import { FiltroDeClases } from "../components/clases/FiltroDeClases";
+import { Pastilla } from "../components/clases/comun";
+import {
+  idsDelFiltro,
+  SIN_FILTRO,
+  type ValorDelFiltro,
+} from "../components/clases/filtro";
+import {
+  fraseDeEtapa,
+  fraseDeMisGrupos,
+  fraseDeRentabilidad,
+  fraseDeTitularidad,
+  type Pertenencia,
+} from "../components/clases/frases";
+import { ETAPAS_DE_CARRERA } from "../utils/etapasDeCarrera";
+import { tx } from "../i18n/tx";
 import { htAge, money, number, relative } from "../hooks/useFormat";
 import { abreviatura } from "../utils/abreviaturas";
-import type { SquadPlayer, VentanaDeComparacion } from "../services/api";
+import type {
+  ClasesDeJugador,
+  JugadorDeClases,
+  SquadPlayer,
+  VentanaDeComparacion,
+} from "../services/api";
 
 const SKILLS = [
   "keeper",
@@ -104,6 +126,51 @@ const VENTANAS: { key: VentanaDeComparacion; clave: string; texto: string }[] =
     { key: "all", clave: "jugadores.ventanaSiempre", texto: "Siempre" },
   ];
 
+/** El orden en que se ordenan las columnas de clase: el de la pantalla de
+ *  Clasificación de jugadores, no el alfabético. */
+const ORDEN_TITULARIDAD = ["titular", "suplencia", "reserva"];
+const ORDEN_RENTABILIDAD = ["estrellas", "gangas", "caros", "economicos"];
+const ORDEN_ETAPA = ETAPAS_DE_CARRERA.map((e) => e.clave as string);
+
+/** Una columna de clase (2026-11-18): la pastilla del grupo, el mismo nombre
+ *  y color que la tarjeta «Sus clases» de la ficha. Nace `optional` para que
+ *  en un móvil empiece oculta, como el resto de columnas que no son las
+ *  esenciales. */
+function columnaDeClase(
+  key: string,
+  header: string,
+  datos: ClasesDeJugador | undefined,
+  porId: Map<number, JugadorDeClases>,
+  pertenencia: (d: ClasesDeJugador, j: JugadorDeClases) => Pertenencia | null,
+  orden: (j: JugadorDeClases) => number,
+): Column<SquadPlayer> {
+  const de = (p: SquadPlayer) => {
+    const j = porId.get(p.htPlayerId);
+    return datos && j ? { j, p: pertenencia(datos, j) } : null;
+  };
+  return {
+    key,
+    header,
+    align: "left",
+    optional: true,
+    value: (p) => de(p)?.p?.grupo ?? "",
+    sortValue: (p) => {
+      const x = de(p);
+      return x ? -orden(x.j) : -99;
+    },
+    render: (p) => {
+      const x = de(p)?.p;
+      return x ? (
+        <span title={x.frase}>
+          <Pastilla texto={x.grupo} color={x.color} />
+        </span>
+      ) : (
+        <span className="text-[var(--muted)]">—</span>
+      );
+    },
+  };
+}
+
 /**
  * Jugadores es la tabla maestra. La ficha, posiciones y análisis individual
  * viven en /players/:id para no convertir la vista de plantilla en un
@@ -117,12 +184,29 @@ export function TeamPage() {
   // qué cierre cae cada ventana lo resuelve el servidor.
   const [ventana, setVentana] = useState<VentanaDeComparacion>("change");
   const squad = useSquad(undefined, ventana);
+  // Las clases van en su propia petición: si tarda o falla, la tabla sale
+  // igual y sus columnas se quedan con un guion.
+  const clases = usePlayerClasses();
+  const [filtroDeClases, setFiltroDeClases] = usePersistido<ValorDelFiltro>(
+    "jugadores.filtro-de-clases",
+    SIN_FILTRO,
+  );
 
   if (squad.isLoading) return <Loading />;
   if (squad.isError) return <ErrorState error={squad.error} />;
   if (!squad.data) return <SinDatos />;
 
   const data = squad.data;
+  const datosDeClases = clases.data;
+  const porId = new Map(
+    (datosDeClases?.players ?? []).map((j) => [j.htPlayerId, j]),
+  );
+  const ids = datosDeClases
+    ? idsDelFiltro(datosDeClases, filtroDeClases)
+    : null;
+  const filas = ids
+    ? data.players.filter((p) => ids.has(p.htPlayerId))
+    : data.players;
   // 2026-08-16, pedido explícito: aquí NINGUNA columna nace oculta. Es la tabla
   // maestra de la plantilla y quien la abre quiere verlo todo; el selector
   // "Columnas" sigue estando para quitar lo que estorbe. Por eso ninguna lleva
@@ -180,6 +264,47 @@ export function TeamPage() {
       value: (player) => player.specialty,
       render: (player) => <Specialty specialty={player.specialty} />,
     },
+    columnaDeClase(
+      "titularidad",
+      tx("Titularidad"),
+      datosDeClases,
+      porId,
+      fraseDeTitularidad,
+      (j) => ORDEN_TITULARIDAD.indexOf(j.titularidad),
+    ),
+    columnaDeClase(
+      "rentabilidad",
+      tx("Rentabilidad deportiva"),
+      datosDeClases,
+      porId,
+      fraseDeRentabilidad,
+      (j) => ORDEN_RENTABILIDAD.indexOf(j.rentabilidad),
+    ),
+    columnaDeClase(
+      "etapa",
+      tx("Etapa de carrera"),
+      datosDeClases,
+      porId,
+      fraseDeEtapa,
+      (j) => ORDEN_ETAPA.indexOf(j.etapa.stage),
+    ),
+    // Mis grupos, sólo si el usuario creó alguno: una columna llena de
+    // guiones no diría nada.
+    ...(datosDeClases && datosDeClases.groups.length > 0
+      ? [
+          columnaDeClase(
+            "misGrupos",
+            tx("Mis grupos"),
+            datosDeClases,
+            porId,
+            fraseDeMisGrupos,
+            (j) =>
+              j.groupId == null
+                ? 99
+                : datosDeClases.groups.findIndex((g) => g.id === j.groupId),
+          ),
+        ]
+      : []),
     {
       key: "lastMatch",
       optional: true,
@@ -471,12 +596,21 @@ export function TeamPage() {
         </div>
       </header>
 
+      {datosDeClases && (
+        <FiltroDeClases
+          id="jugadores-filtro"
+          datos={datosDeClases}
+          valor={filtroDeClases}
+          onChange={setFiltroDeClases}
+        />
+      )}
+
       <DataTable
         emptyMessage={t(
           "jugadores.vacia",
           "Sin jugadores en la plantilla. Sincroniza para traerlos.",
         )}
-        rows={data.players}
+        rows={filas}
         columns={columns}
         rowKey={(player) => player.htPlayerId}
         initialSort="tsi"
