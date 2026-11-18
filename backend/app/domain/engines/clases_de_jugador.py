@@ -16,7 +16,11 @@ TITULARIDAD (Titular / Suplencia / Reserva).
 Empate en el corte: si la tercera empata con la cuarta, se usan sólo dos
 («Si hay empate entre la 3ra y la 4ta, usar solo 2»). Generalizado: entran
 sólo las formaciones con más experiencia que la primera que se queda fuera,
-así ninguna se elige por el orden de una lista. Los lesionados cuentan como
+así ninguna se elige por el orden de una lista. Si el empate se las lleva
+todas, se usa el 4-4-2 («Si todas están igual de empatadas, usar 4-4-2»,
+2026-11-17): en 8 de 328 plantillas el reparto salía vacío, todos en Reserva.
+Sin lectura de experiencia no hay nada que desempatar y no se inventa ninguna:
+la pantalla pide sincronizar. Los lesionados cuentan como
 sanos («Como si estuviera sano»): una lesión dice quién no juega este sábado,
 no a qué grupo pertenece.
 
@@ -44,6 +48,8 @@ from app.domain.engines.lineup_optimizer import Lineup, best_lineup
 from app.domain.value_objects.formations import LINE_COUNTS
 
 CUANTAS_FORMACIONES = 3
+#: La formación cuando el empate no deja ninguna (regla del usuario, 2026-11-17).
+SI_TODAS_EMPATAN = "4-4-2"
 #: Una etapa con más jugadores que esto se parte en titulares y suplentes.
 TOPE_DE_UNA_ETAPA = 11
 
@@ -108,14 +114,16 @@ def formaciones_mas_entrenadas(
     """Las `cuantas` con más experiencia, sin ninguna que entre por empate.
 
     Si la última que cabe empata con la primera que se queda fuera, se quitan
-    todas las de ese nivel: elegir entre ellas sería elegir al azar.
+    todas las de ese nivel: elegir entre ellas sería elegir al azar. Si eso
+    las quita todas, el 4-4-2.
     """
     conocidas = [(_con_guiones(k), v) for k, v in experiencia.items()]
     ordenadas = sorted(((f, v) for f, v in conocidas if f in LINE_COUNTS), key=lambda fv: -fv[1])
     if len(ordenadas) <= cuantas:
         return tuple(f for f, _ in ordenadas)
     corte = ordenadas[cuantas][1]
-    return tuple(f for f, v in ordenadas[:cuantas] if v > corte)
+    elegidas = tuple(f for f, v in ordenadas[:cuantas] if v > corte)
+    return elegidas or (SI_TODAS_EMPATAN,)
 
 
 def _sanos(jugadores: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:

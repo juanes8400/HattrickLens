@@ -42,6 +42,18 @@ def test_sin_lectura_de_experiencia_no_hay_formaciones():
     assert formaciones_mas_entrenadas({}) == ()
 
 
+def test_si_todas_empatan_se_usa_el_4_4_2():
+    # Equipo nuevo: las diez formaciones al mismo nivel.
+    xp = {k: 4 for k in ("550", "541", "532", "523", "451", "442", "433", "352", "343", "253")}
+    assert formaciones_mas_entrenadas(xp) == ("4-4-2",)
+
+
+def test_si_el_empate_de_arriba_se_las_lleva_todas_tambien_el_4_4_2():
+    # Cuatro empatadas arriba y una por debajo: el corte no deja ninguna.
+    xp = {"550": 6, "532": 6, "433": 6, "352": 6, "442": 2}
+    assert formaciones_mas_entrenadas(xp) == ("4-4-2",)
+
+
 # ---------------------------------------------------------------- titularidad
 
 
@@ -222,3 +234,11 @@ def test_con_huecos_el_castigo_por_amontonar_cuenta_solo_a_los_que_juegan():
     assert a.base_position == "inner_midfield"
     assert a.rating == round(_player_rating(medio, a.position, {}), 2)
     assert a.rating > round(_player_rating(medio, a.position, {"inner_midfield": 0.825}), 2)
+
+
+def test_todas_empatadas_dan_un_reparto_con_titulares():
+    xp = {k: 4 for k in ("550", "541", "532", "523", "451", "442", "433", "352", "343", "253")}
+    reparto = repartir([_jugador(i, 10 + i) for i in range(1, 6)], xp, once=_once_por_valor())
+    assert reparto.formations == ("4-4-2",)
+    # Antes del 4-4-2 salían todos en Reserva; ahora el motor de juguete pone a dos.
+    assert _quien(reparto, TITULAR) == {4, 5}
