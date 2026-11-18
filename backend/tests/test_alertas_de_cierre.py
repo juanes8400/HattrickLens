@@ -215,3 +215,25 @@ def test_b14_titular_que_no_jugo_los_dos_ultimos_oficiales() -> None:
     out = ap.titular_que_no_juega([juega, fuera, nunca], oficiales)
     assert sorted(i.evidence["ht_player_id"] for i in out) == [2, 3]
     assert ap.titular_que_no_juega([fuera], oficiales[:1]) == []
+
+
+def test_una_misma_bajada_sale_en_una_sola_alerta() -> None:
+    """Caso real del usuario: titular, veterano en su primera bajada y estrella."""
+    j = jugador(etapa="veterano", cambia={"defending": 9}, bajadas_totales=1)
+    sueltas = [
+        *ag.titular_con_bajada([j]),
+        *ag.primer_aviso_de_declive([j]),
+        *ag.estrella_que_cae([j]),
+    ]
+    assert len(sueltas) == 3
+    juntas = ag.juntar_por_jugador(sueltas)
+    assert len(juntas) == 1
+    assert juntas[0].key == "group.starter_drop.1"
+    assert "Primera bajada de veterano, Estrella que cae" in juntas[0].detail
+
+
+def test_bajadas_y_subidas_no_se_mezclan_ni_entre_jugadores() -> None:
+    baja = ag.titular_con_bajada([jugador(1, cambia={"defending": 9})])
+    sube = ag.ganga_que_se_revaloriza([jugador(1, rentabilidad="gangas", cambia={"winger": 6})])
+    otro = ag.titular_con_bajada([jugador(2, cambia={"defending": 9})])
+    assert len(ag.juntar_por_jugador([*baja, *sube, *otro])) == 3
