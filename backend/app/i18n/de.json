@@ -2071,5 +2071,12 @@
   "Reserva que despierta": "Reserve erwacht",
   "Promesa que sube": "Talent im Aufwind",
   "Rotación que asoma": "Rotationsspieler im Kommen",
-  "Ganga que se revaloriza": "Schnäppchen gewinnt an Wert"
+  "Ganga que se revaloriza": "Schnäppchen gewinnt an Wert",
+  "Predicción de Hattrick · mejor alineación sin enviar · minuto 0": "Vorhersage von Hattrick · beste Aufstellung, nicht abgegeben · Minute 0",
+  "Hattrick no deja enviar la alineación con este acceso: falta el permiso de órdenes de partido, y se concede al reconectar": "Hattrick erlaubt mit diesem Zugang nicht, die Aufstellung abzugeben: Die Berechtigung für Spielanweisungen fehlt und wird beim erneuten Verbinden erteilt",
+  "falta el jugador de «{}»": "der Spieler für «{}» fehlt",
+  "orden desconocida: «{}»": "unbekannte Anweisung: «{}»",
+  "puesto desconocido: «{}»": "unbekannte Position: «{}»",
+  "un jugador aparece dos veces entre los lanzadores": "ein Spieler steht zweimal unter den Elfmeterschützen",
+  "{} jugadores en «{}» no caben en la cancha": "{} Spieler auf «{}» passen nicht aufs Feld"
 }

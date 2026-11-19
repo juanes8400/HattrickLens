@@ -179,7 +179,10 @@ export type PitchZoneMethod =
   | "last"
   /** Solo para el lado propio: la predicción de minuto 0 de Hattrick para las
    *  órdenes ya enviadas. De un rival no existe. */
-  | "submitted";
+  | "submitted"
+  /** También sólo del lado propio (2026-11-19): la mejor alineación de la
+   *  app, prevista por Hattrick sin enviarla. */
+  | "best_lineup";
 
 export const apiComun = {
   editStint: (

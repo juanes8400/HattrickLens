@@ -14,7 +14,11 @@
  */
 import type { PitchZoneMethod } from "../services/api";
 import type { ResumenDeZonas } from "./pitchZoneMethods";
-import { NOTA_DE_LOS_RESUMENES, PITCH_ZONE_METHODS } from "./pitchZoneMethods";
+import {
+  MOTIVO_NO_DISPONIBLE,
+  NOTA_DE_LOS_RESUMENES,
+  PITCH_ZONE_METHODS,
+} from "./pitchZoneMethods";
 
 import { tx } from "../i18n/tx";
 export function PitchZoneMethodSelector({
@@ -38,25 +42,16 @@ export function PitchZoneMethodSelector({
       <div className="flex flex-wrap overflow-hidden rounded border border-[var(--border)] text-xs">
         {options.map((o) => {
           const tachada = noDisponibles.includes(o.key);
+          const motivo = MOTIVO_NO_DISPONIBLE[o.key] ?? o.short;
           return (
             <button
               key={o.key}
-              title={
-                tachada
-                  ? tx("Todavía no has enviado la alineación de este partido.")
-                  : o.short
-              }
+              title={tachada ? motivo : o.short}
               onClick={() => onMethodChange(o.key)}
               className={`px-3 py-1 ${method === o.key ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)]"} ${tachada ? "text-[var(--muted)] line-through" : ""}`}
             >
               {o.label}
-              {tachada && (
-                <span className="sr-only">
-                  {" "}
-                  ({tx("Todavía no has enviado la alineación de este partido.")}
-                  )
-                </span>
-              )}
+              {tachada && <span className="sr-only"> ({motivo})</span>}
             </button>
           );
         })}
