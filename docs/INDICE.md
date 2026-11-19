@@ -57,10 +57,10 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1215 | libro | 0 | 1 |
 | `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4039 | 16250 | academy | 13 | 31 |
 | `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 740 | 7386 | matches, partidos | 4 | 18 |
-| `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1753 | 17647 | league | 13 | 71 |
-| `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1063 | 14708 | cup | 16 | 78 |
+| `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1753 | 17667 | league | 13 | 71 |
+| `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1070 | 14735 | cup | 16 | 78 |
 | `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 352 | 16994 | cup, league | 18 | 82 |
-| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1374 | 22394 | rivals, dashboard | 17 | 83 |
+| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1377 | 22417 | rivals, dashboard | 17 | 83 |
 | `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1394 | 14887 | economy, precio_comparable | 11 | 38 |
 | `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3845 | arena | 3 | 12 |
 | `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 29246 | alertas | 28 | 102 |
@@ -706,7 +706,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/cup`
 
-- **Página:** [frontend/src/pages/CupPage.tsx](../frontend/src/pages/CupPage.tsx) (1063 líneas)
+- **Página:** [frontend/src/pages/CupPage.tsx](../frontend/src/pages/CupPage.tsx) (1070 líneas)
 - **Componentes y hooks suyos (15):**
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/BarraDePrediccion.tsx](../frontend/src/components/BarraDePrediccion.tsx)
@@ -758,7 +758,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/rivals/:rivalHtTeamId`
 
-- **Página:** [frontend/src/pages/RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) (1374 líneas)
+- **Página:** [frontend/src/pages/RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) (1377 líneas)
 - **Componentes y hooks suyos (17):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)

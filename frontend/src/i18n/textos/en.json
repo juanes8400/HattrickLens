@@ -2397,5 +2397,6 @@
   "Sin predicción para este partido.": "No prediction for this match.",
   "Próximo partido oficial, sea de liga, copa, promoción o Masters: rival, fecha, competición y su pronóstico.": "Next official match, whether league, cup, promotion or Masters: opponent, date, competition and its prediction.",
   "Victoria": "Win",
-  "Derrota": "Loss"
+  "Derrota": "Loss",
+  "Todavía no has enviado la alineación de este partido.": "You haven't submitted the lineup for this match yet."
 }
