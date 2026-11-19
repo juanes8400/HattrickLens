@@ -17,7 +17,14 @@ const CATEGORY_LABELS: Record<string, string> = {
   rivales: "Rivales",
   economia: "Economía",
   economía: "Economía",
+  transferencias: "Transferencias",
 };
+
+/** El nombre de una categoría de Cambios, en el idioma de la app. Lo usan
+ *  también el resumen de Sincronización, para que los dos digan lo mismo. */
+export function etiquetaDeCategoria(categoria: string): string {
+  return tx(CATEGORY_LABELS[categoria] ?? categoria);
+}
 
 const CATEGORY_TONE: Record<string, string> = {
   // Los fichajes de los clubes contra los que vas a jugar no son un cambio
@@ -625,7 +632,7 @@ export function SyncChangesFeed({
                       "bg-[var(--surface-2)] text-[var(--muted)]",
                   )}
                 >
-                  {CATEGORY_LABELS[category] ?? category}
+                  {etiquetaDeCategoria(category)}
                 </span>
                 <span className="text-xs text-[var(--muted)]">
                   {items.length}

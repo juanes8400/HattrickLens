@@ -284,19 +284,6 @@ class SyncTeamHandler(  # noqa: D101
                     )
                     result.changes.append(_as_change_row(change))
 
-            for c in result.changes:
-                detail = c.get("detail")
-                uow.session.add(
-                    m.SyncChange(
-                        sync_id=sync_id,
-                        team_id=cmd.team_id,
-                        category=c["category"],
-                        summary=c["summary"],
-                        detail_json=json.dumps(detail, ensure_ascii=False) if detail else None,
-                        created_at=captured_at,
-                    )
-                )
-
             # HL-161: enriquecimiento de jugadores vendidos (edad en la
             # venta, país, carácter, especialidad, país destino), pedido
             # explícitamente 2026-08-04 SIN botón: se dispara solo aquí,
@@ -395,6 +382,25 @@ class SyncTeamHandler(  # noqa: D101
             # el mundo ya estan al dia: su disparador sale de la fecha
             # economica de la liga, que este mismo sync acaba de refrescar.
             await self._paso_del_mercado(uow, cmd.team_id, result, on_progress)
+
+            # LOS CAMBIOS SE GUARDAN AL FINAL, CUANDO YA ESTÁN TODOS (2026-11-19,
+            # reporte del usuario: «me amaga como si tuviera cambios y no
+            # aparece ninguno»). Antes se guardaban a media sincronización, y
+            # lo que se encontraba después --los fichajes de los rivales, que
+            # van con los partidos-- salía en el resumen pero nunca llegaba a
+            # Cambios.
+            for c in result.changes:
+                detail = c.get("detail")
+                uow.session.add(
+                    m.SyncChange(
+                        sync_id=sync_id,
+                        team_id=cmd.team_id,
+                        category=c["category"],
+                        summary=c["summary"],
+                        detail_json=json.dumps(detail, ensure_ascii=False) if detail else None,
+                        created_at=captured_at,
+                    )
+                )
 
             await uow.syncs.finalize(
                 sync_id,

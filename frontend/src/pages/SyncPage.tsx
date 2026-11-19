@@ -3,7 +3,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { ErrorState, Note, Panel } from "../components/Panels";
 import { SyncProgressPanel } from "../components/SyncProgressPanel";
-import { TEAM_ID, useDashboard } from "../hooks/useTeam";
+import { TEAM_ID, useDashboard, useSyncChanges } from "../hooks/useTeam";
+import { etiquetaDeCategoria } from "../components/SyncChangesFeed";
 import { relative } from "../hooks/useFormat";
 import { api, type SyncResult } from "../services/api";
 
@@ -151,8 +152,17 @@ export function SyncPage() {
  *  pulsar el botón.
  */
 function ResumenDeLaSincronizacion({ result }: { result: SyncResult }) {
+  // LO MISMO QUE ENSEÑA CAMBIOS, leído de Cambios (2026-11-19, reporte del
+  // usuario: «me amaga como si tuviera cambios y no aparece ninguno»). El
+  // resumen contaba lo que devolvía la sincronización y Cambios enseña lo que
+  // quedó guardado; si alguna vez difieren, aquí manda lo guardado.
+  const guardado = useSyncChanges();
+  const cambios =
+    guardado.data?.syncId === result.syncId
+      ? guardado.data.changes
+      : result.changes;
   const porCategoria = new Map<string, number>();
-  for (const cambio of result.changes) {
+  for (const cambio of cambios) {
     porCategoria.set(
       cambio.category,
       (porCategoria.get(cambio.category) ?? 0) + 1,
@@ -184,7 +194,9 @@ function ResumenDeLaSincronizacion({ result }: { result: SyncResult }) {
                   className="rounded-full bg-[var(--surface-2)] px-3 py-1 text-xs"
                 >
                   <b className="tabular-nums">{cuantos}</b>{" "}
-                  <span className="text-[var(--muted)]">{categoria}</span>
+                  <span className="text-[var(--muted)]">
+                    {etiquetaDeCategoria(categoria)}
+                  </span>
                 </span>
               ))}
             </div>
