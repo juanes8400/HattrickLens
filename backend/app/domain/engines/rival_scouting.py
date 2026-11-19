@@ -400,6 +400,10 @@ class PitchZoneMethod(StrEnum):
     # Hattrick para las órdenes ya enviadas. De un rival no existe, porque sus
     # órdenes son privadas hasta que se juega.
     SUBMITTED = "submitted"
+    # También sólo del lado propio (2026-11-19, pedido del usuario): la mejor
+    # alineación de la app, prevista por Hattrick SIN enviarla. Ver
+    # `application/queries/mejor_alineacion.py`.
+    BEST_LINEUP = "best_lineup"
 
 
 @dataclass

@@ -15,6 +15,7 @@ import {
 import { Tabs, PanelDePestanas } from "../components/Tabs";
 import { PitchZoneMethodSelector } from "../components/PitchZoneMethodSelector";
 import {
+  BEST_LINEUP_METHOD,
   PITCH_ZONE_METHODS,
   SUBMITTED_METHOD,
 } from "../components/pitchZoneMethods";
@@ -248,6 +249,7 @@ export function CupPage() {
                               onMethodChange={setMetodoPropio}
                               options={[
                                 SUBMITTED_METHOD,
+                                BEST_LINEUP_METHOD,
                                 ...PITCH_ZONE_METHODS,
                               ]}
                               noDisponibles={
