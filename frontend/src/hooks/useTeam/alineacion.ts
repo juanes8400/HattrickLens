@@ -51,11 +51,3 @@ export const useLineup = (
     // mientras llega el nuevo, en vez de vaciar la pantalla entera.
     placeholderData: (previous) => previous,
   });
-
-/** Los partidos a los que se puede enviar alineación (2026-11-19). */
-export const usePartidosParaEnviar = (enabled = true) =>
-  useQuery({
-    queryKey: ["lineup-partidos-pendientes", TEAM_ID],
-    queryFn: () => api.partidosParaEnviar(TEAM_ID),
-    enabled,
-  });

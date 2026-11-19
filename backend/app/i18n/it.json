@@ -2078,13 +2078,5 @@
   "orden desconocida: «{}»": "ordine sconosciuto: «{}»",
   "puesto desconocido: «{}»": "ruolo sconosciuto: «{}»",
   "un jugador aparece dos veces entre los lanzadores": "un giocatore compare due volte tra i rigoristi",
-  "{} jugadores en «{}» no caben en la cancha": "{} giocatori in «{}» non entrano in campo",
-  "capitán": "capitano",
-  "lanzador de tiros libres": "battitore dei calci piazzati",
-  "el {} tiene que estar entre los once": "il {} deve essere tra gli undici",
-  "ese partido ya no admite alineación": "quella partita non accetta più la formazione",
-  "los lanzadores de penales tienen que estar entre los once": "i rigoristi devono essere tra gli undici",
-  "no hay once que enviar": "non c'è un undici da inviare",
-  "táctica desconocida: {}": "tattica sconosciuta: {}",
-  "el once cambió desde que abriste la pantalla: recárgala antes de enviar": "l'undici è cambiato da quando hai aperto la schermata: ricaricala prima di inviare"
+  "{} jugadores en «{}» no caben en la cancha": "{} giocatori in «{}» non entrano in campo"
 }

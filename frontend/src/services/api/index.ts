@@ -12,12 +12,8 @@ export type {
   HindsightLine,
   HindsightProposedPlayer,
   HindsightUsedPlayer,
-  EnvioDeAlineacion,
   Lineup,
   LineupHindsight,
-  PartidosParaEnviar,
-  RespuestaDeEnvio,
-  RolDelOnce,
   TeamSpiritMultiplier,
 } from "./alineacion";
 export type { SessionProfile, SessionTeam } from "./auth";
