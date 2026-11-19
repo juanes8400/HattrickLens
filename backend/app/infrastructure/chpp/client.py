@@ -130,62 +130,6 @@ class CHPPClient:
             return True
         return resp.status_code != 401
 
-    async def alineacion(
-        self,
-        ht_match_id: int,
-        team_id: int,
-        alineacion: dict[str, Any],
-        *,
-        guardar: bool,
-        version: str = "3.0",
-        source_system: str = "hattrick",
-    ) -> dict[str, Any]:
-        """Prevé una alineación en Hattrick o, con `guardar=True`, la envía.
-
-        Vuelve el 2026-11-19 desde el commit 2c07e14, con el formato que se
-        comprobó en vivo ese día: la alineación viaja como el campo `lineup`
-        de un POST a `matchorders`.
-
-        * `guardar=False` usa `predictratings`: Hattrick devuelve los siete
-          ratings de esa alineación y NO la guarda. Comprobado leyendo las
-          órdenes antes y después. No necesita ningún permiso extra.
-        * `guardar=True` usa `setmatchorder` y sustituye las órdenes del
-          partido. Necesita el permiso `set_matchorder`; sin él Hattrick
-          contesta 401 y sale como `CHPPDeniedError`, que se arregla
-          reconectando UNA vez, no reintentando.
-
-        No se reintenta nunca: reintentar una escritura que quizá sí llegó es
-        arriesgar un doble envío.
-        """
-        import json as _json
-
-        url = f"{settings.chpp_base_url}/chppxml.ashx"
-        query = {
-            "file": "matchorders",
-            "version": version,
-            "actionType": "setmatchorder" if guardar else "predictratings",
-            "matchID": ht_match_id,
-            "teamId": team_id,
-            "sourceSystem": source_system,
-        }
-        try:
-            resp = await self._client.post(
-                url, params=query, data={"lineup": _json.dumps(alineacion)}
-            )
-        except httpx.TransportError as exc:
-            raise CHPPUnavailableError(str(exc)) from exc
-        if resp.status_code == 401:
-            if await self._token_sigue_vivo():
-                raise CHPPDeniedError(
-                    "Hattrick no deja enviar la alineación con este acceso: falta el "
-                    "permiso de órdenes de partido, y se concede al reconectar"
-                )
-            raise CHPPAuthError("token revocado, requiere re-autorización")
-        if resp.status_code >= 500:
-            raise CHPPUnavailableError(f"Hattrick devolvió {resp.status_code}")
-        resp.raise_for_status()
-        return self._parse("matchorders", resp.content)
-
     def _parse(self, file: str, xml: bytes) -> dict[str, Any]:
         from app.infrastructure.chpp.parsers import get_parser
 

@@ -52,7 +52,6 @@ from app.application.queries.alineacion_enviada import (
     prediccion_guardada,
 )
 from app.application.queries.lo_dicho import guardar_lo_dicho
-from app.application.queries.mejor_alineacion import prevision_de_la_mejor
 from app.application.queries.prediccion_liga import partidos_de_un_equipo, reparto_de_tacticas
 from app.application.queries.weekly import start_of_iso_week
 from app.domain.engines.economy_engine import SEASON_WEEKS
@@ -177,11 +176,6 @@ class _CachedCHPP:
                 _chpp_cache.clear()
         _chpp_cache[clave] = (ahora, datos)
         return datos
-
-    async def alineacion(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
-        """Sin caché, a propósito: la previsión depende de la plantilla del
-        momento, y el envío es una escritura que no se puede servir dos veces."""
-        return await self._inner.alineacion(*args, **kwargs)
 
     async def aclose(self) -> None:
         await self._inner.aclose()
@@ -1053,10 +1047,6 @@ async def rival_scouting(
     pitch_own_sector_ratings = (
         [submitted_prediction] if usa_enviada else historical_pitch_own_sector_ratings
     )
-    # «MEJOR ALINEACIÓN» (2026-11-19, pedido del usuario): el once de la app,
-    # previsto por Hattrick sin enviarlo. Se pide abajo, con el cliente.
-    usa_mejor = False
-    formacion_de_la_mejor: str | None = None
 
     client = _CachedCHPP(
         CHPPClient(
@@ -1117,26 +1107,6 @@ async def rival_scouting(
             )
             if usa_enviada:
                 pitch_own_sector_ratings = [submitted_prediction]
-
-        # La mejor alineación, prevista por Hattrick para el partido pendiente
-        # contra ESTE rival. Sin partido pendiente no hay a qué preguntarle, y
-        # el lado propio cae a lo ya jugado, como la enviada.
-        if pitch_zone_method_own == PitchZoneMethod.BEST_LINEUP and submitted_match is not None:
-            sistema = (submitted_match.source_system or "hattrick").strip().lower()
-            prevista = await prevision_de_la_mejor(
-                client,
-                own_players,
-                submitted_match.ht_match_id,
-                team.ht_team_id,
-                version=FILE_VERSIONS["matchorders"],
-                source_system=sistema
-                if sistema in {"hattrick", "youth", "htointegrated"}
-                else "hattrick",
-            )
-            if prevista is not None:
-                usa_mejor = True
-                formacion_de_la_mejor = prevista[1]
-                pitch_own_sector_ratings = [prevista[0]]
 
         # El último fichaje de cada lado: dice a qué nivel está comprando el
         # club, que es una lectura distinta de la plantilla que ya tiene.
@@ -1319,11 +1289,9 @@ async def rival_scouting(
     own_pitch_zones = pitch_zone_values(
         pitch_own_sector_ratings,
         PitchZoneMethod.LAST
-        if usa_enviada or usa_mejor
+        if usa_enviada
         else (
-            PitchZoneMethod.AVERAGE
-            if metodo_propio in (PitchZoneMethod.SUBMITTED, PitchZoneMethod.BEST_LINEUP)
-            else metodo_propio
+            PitchZoneMethod.AVERAGE if metodo_propio == PitchZoneMethod.SUBMITTED else metodo_propio
         ),
     )
     rival_pitch_zones = pitch_zone_values(pitch_rival_ratings, metodo_rival)
@@ -1345,17 +1313,6 @@ async def rival_scouting(
             "tactic_skill": submitted_match.submitted_tactic_skill if submitted_match else None,
         }
         if usa_enviada
-        else {
-            "kind": "best_lineup_chpp_prediction",
-            "label": "Predicción de Hattrick · mejor alineación sin enviar · minuto 0",
-            "match_id": submitted_match.ht_match_id if submitted_match else None,
-            "observations": 1,
-            "captured_at": None,
-            "tactic_type": None,
-            "tactic_skill": None,
-            "formation": formacion_de_la_mejor,
-        }
-        if usa_mejor
         else {
             "kind": "historical_observed",
             "label": "Histórico propio observado",
@@ -1781,11 +1738,9 @@ async def rival_scouting(
                 "pitch_zone_method_own": (
                     PitchZoneMethod.SUBMITTED
                     if usa_enviada
-                    else PitchZoneMethod.BEST_LINEUP
-                    if usa_mejor
                     else (
                         PitchZoneMethod.AVERAGE
-                        if metodo_propio in (PitchZoneMethod.SUBMITTED, PitchZoneMethod.BEST_LINEUP)
+                        if metodo_propio == PitchZoneMethod.SUBMITTED
                         else metodo_propio
                     )
                 ),
@@ -1793,9 +1748,6 @@ async def rival_scouting(
                 # Sin órdenes enviadas para el próximo partido, ese modo no se puede
                 # ofrecer: la pantalla lo usa para no pintar un botón muerto.
                 "submitted_lineup_available": submitted_prediction is not None,
-                # La mejor alineación sólo se puede prever con un partido pendiente
-                # contra este rival: es a ese partido al que se le pregunta.
-                "best_lineup_available": submitted_match is not None,
                 "tactic_history": None
                 if tactic_history is None
                 else {

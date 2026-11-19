@@ -2071,12 +2071,5 @@
   "Reserva que despierta": "Riserva che si sveglia",
   "Promesa que sube": "Promessa in crescita",
   "Rotación que asoma": "Rotazione che emerge",
-  "Ganga que se revaloriza": "Affare che si rivaluta",
-  "Predicción de Hattrick · mejor alineación sin enviar · minuto 0": "Previsione di Hattrick · migliore formazione, non inviata · minuto 0",
-  "Hattrick no deja enviar la alineación con este acceso: falta el permiso de órdenes de partido, y se concede al reconectar": "Hattrick non permette di inviare la formazione con questo accesso: manca il permesso per gli ordini di partita, che si concede riconnettendosi",
-  "falta el jugador de «{}»": "manca il giocatore per «{}»",
-  "orden desconocida: «{}»": "ordine sconosciuto: «{}»",
-  "puesto desconocido: «{}»": "ruolo sconosciuto: «{}»",
-  "un jugador aparece dos veces entre los lanzadores": "un giocatore compare due volte tra i rigoristi",
-  "{} jugadores en «{}» no caben en la cancha": "{} giocatori in «{}» non entrano in campo"
+  "Ganga que se revaloriza": "Affare che si rivaluta"
 }
