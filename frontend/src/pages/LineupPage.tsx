@@ -1,4 +1,5 @@
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
+import { EnviarAHattrick } from "../components/alineacion/EnviarAHattrick";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import clsx from "clsx";
@@ -591,6 +592,19 @@ export function LineupPage() {
           </div>
         )}
       </Panel>
+
+      {/* ENVIAR A HATTRICK (2026-11-19, pedido del usuario): táctica,
+          capitán, tiro libre y penales, y el envío en dos tiempos. La clave
+          es el once: si cambia, lo elegido se vuelve a sugerir desde cero en
+          vez de arrastrar a quien ya no juega. */}
+      {data.lineup.length === 11 && (
+        <EnviarAHattrick
+          key={data.lineup.map((f) => f.htPlayerId).join(",")}
+          lineup={data}
+          ordenes={ordenes}
+          fuera={fuera.map((f) => f.htPlayerId)}
+        />
+      )}
 
       {data.bench.length > 0 && (
         <Panel

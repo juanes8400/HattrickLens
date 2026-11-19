@@ -2078,5 +2078,13 @@
   "orden desconocida: «{}»": "unbekannte Anweisung: «{}»",
   "puesto desconocido: «{}»": "unbekannte Position: «{}»",
   "un jugador aparece dos veces entre los lanzadores": "ein Spieler steht zweimal unter den Elfmeterschützen",
-  "{} jugadores en «{}» no caben en la cancha": "{} Spieler auf «{}» passen nicht aufs Feld"
+  "{} jugadores en «{}» no caben en la cancha": "{} Spieler auf «{}» passen nicht aufs Feld",
+  "capitán": "Kapitän",
+  "lanzador de tiros libres": "Standardschütze",
+  "el {} tiene que estar entre los once": "der {} muss unter den elf sein",
+  "ese partido ya no admite alineación": "für dieses Spiel kann keine Aufstellung mehr abgegeben werden",
+  "los lanzadores de penales tienen que estar entre los once": "die Elfmeterschützen müssen unter den elf sein",
+  "no hay once que enviar": "es gibt keine Elf zum Abgeben",
+  "táctica desconocida: {}": "unbekannte Taktik: {}",
+  "el once cambió desde que abriste la pantalla: recárgala antes de enviar": "die Elf hat sich geändert, seit du den Bildschirm geöffnet hast: lade ihn neu, bevor du abgibst"
 }
