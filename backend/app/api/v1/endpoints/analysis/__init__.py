@@ -16,7 +16,6 @@ from app.api.v1.endpoints.analysis import (
     alineacion,
     clases,
     entrenamiento,
-    enviar,
     jugadores,
     modelos,
     plantilla,
@@ -43,7 +42,6 @@ router = APIRouter()
 router.include_router(plantilla.router)
 router.include_router(jugadores.router)
 router.include_router(alineacion.router)
-router.include_router(enviar.router)
 router.include_router(entrenamiento.router)
 router.include_router(alertas.router)
 router.include_router(modelos.router)

@@ -2071,20 +2071,5 @@
   "Reserva que despierta": "Rezerwa się budzi",
   "Promesa que sube": "Talent rośnie",
   "Rotación que asoma": "Zawodnik do rotacji się wybija",
-  "Ganga que se revaloriza": "Okazja zyskuje na wartości",
-  "Predicción de Hattrick · mejor alineación sin enviar · minuto 0": "Prognoza Hattricka · najlepszy skład, niewysłany · minuta 0",
-  "Hattrick no deja enviar la alineación con este acceso: falta el permiso de órdenes de partido, y se concede al reconectar": "Hattrick nie pozwala wysłać składu przy tym dostępie: brakuje uprawnienia do poleceń meczowych, które przyznaje się przy ponownym połączeniu",
-  "falta el jugador de «{}»": "brakuje zawodnika na «{}»",
-  "orden desconocida: «{}»": "nieznane polecenie: «{}»",
-  "puesto desconocido: «{}»": "nieznana pozycja: «{}»",
-  "un jugador aparece dos veces entre los lanzadores": "zawodnik pojawia się dwa razy wśród wykonawców rzutów karnych",
-  "{} jugadores en «{}» no caben en la cancha": "{} zawodników na «{}» nie mieści się na boisku",
-  "capitán": "kapitan",
-  "lanzador de tiros libres": "wykonawca stałych fragmentów",
-  "el {} tiene que estar entre los once": "{} musi być wśród jedenastki",
-  "ese partido ya no admite alineación": "do tego meczu nie można już wysłać składu",
-  "los lanzadores de penales tienen que estar entre los once": "wykonawcy rzutów karnych muszą być wśród jedenastki",
-  "no hay once que enviar": "nie ma jedenastki do wysłania",
-  "táctica desconocida: {}": "nieznana taktyka: {}",
-  "el once cambió desde que abriste la pantalla: recárgala antes de enviar": "jedenastka zmieniła się od otwarcia ekranu: odśwież go przed wysłaniem"
+  "Ganga que se revaloriza": "Okazja zyskuje na wartości"
 }

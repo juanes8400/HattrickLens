@@ -28,7 +28,6 @@ from app.domain.engines.plazas_de_entrenamiento import (
     plazas_por_formacion,
 )
 from app.domain.engines.position_engine import positions as _positions
-from app.domain.engines.position_engine import rate as _rate
 from app.domain.engines.team_rating_engine import (
     SECTOR_LABELS,
     SECTORS,
@@ -79,31 +78,6 @@ def _lineup_sector_payload(
             for name in SECTORS
         ],
         "note": LINEUP_SECTOR_NOTE,
-    }
-
-
-def _roles_del_once(jugadores: list[dict[str, Any]]) -> dict[str, Any]:
-    """Capitán, lanzador de tiros libres y orden de penales, sugeridos.
-
-    2026-11-19, pedido del usuario: elegirlos en Alineación y enviarlos con el
-    once. Se sugieren sólo entre los ONCE titulares: Hattrick los quiere en la
-    cancha. Las fórmulas son las de `position_engine` (Manual no Escrito para
-    capitán y tiro libre; la del usuario del 2026-08-09 para penales).
-    """
-    if not jugadores:
-        return {"captain": None, "setPieces": None, "penaltyTakers": []}
-
-    def fila(p: dict[str, Any]) -> dict[str, Any]:
-        return {"htPlayerId": p["ht_player_id"], "player": p["name"]}
-
-    def mejor(rol: str) -> dict[str, Any]:
-        return fila(max(jugadores, key=lambda p: _rate(p, rol).rating))
-
-    penales = sorted(jugadores, key=lambda p: -_rate(p, "penalty_taker").rating)
-    return {
-        "captain": mejor("captain"),
-        "setPieces": mejor("set_piece_taker"),
-        "penaltyTakers": [fila(p) for p in penales],
     }
 
 
@@ -286,7 +260,6 @@ async def _lineup_sin_cache(
             "formationRanking": {},
             "lineup": [],
             "bench": [],
-            "roles": _roles_del_once([]),
             "sectorRatings": _lineup_sector_payload([]),
             "availableCount": available_count,
             "requiredCount": LINEUP_REQUIRED_COUNT,
@@ -437,8 +410,6 @@ async def _lineup_sin_cache(
             }
             for b in lu.bench
         ],
-        # Capitán, tiro libre y penales, sugeridos entre los once (2026-11-19).
-        "roles": _roles_del_once([a.player for a in lu.assignments]),
         # HL-143: segunda opinión sobre el MISMO once que ya eligió el
         # optimizador húngaro, con habilidades crudas. No decide por sí sola.
         "sectorRatings": _lineup_sector_payload(

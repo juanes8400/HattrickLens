@@ -7,7 +7,6 @@ import { BarraDePrediccion } from "../components/BarraDePrediccion";
 import { Column, DataTable } from "../components/DataTable";
 import { PitchZoneMethodSelector } from "../components/PitchZoneMethodSelector";
 import {
-  BEST_LINEUP_METHOD,
   PITCH_ZONE_METHODS,
   SUBMITTED_METHOD,
 } from "../components/pitchZoneMethods";
@@ -459,7 +458,6 @@ export function RivalPage() {
         onMethodOwnChange={setMethodOwn}
         onMethodRivalChange={setMethodRival}
         submittedAvailable={data.submittedLineupAvailable}
-        bestLineupAvailable={data.bestLineupAvailable ?? true}
         ownTeamName={data.ownTeamName}
         rivalTeamName={data.rivalName}
         ultimoPropio={data.ultimoPartidoPropio}
@@ -1158,23 +1156,11 @@ function DeQuePartidoHablamos({
   metodo,
   partido,
   alineacionEnviada,
-  previsionHecha,
 }: {
   metodo: PitchZoneMethod;
   partido: PartidoConMarcador | null;
   alineacionEnviada?: boolean;
-  previsionHecha?: boolean;
 }) {
-  if (metodo === "best_lineup") {
-    if (previsionHecha) return null;
-    return (
-      <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--muted)]">
-        {tx(
-          "Hattrick no pudo prever la mejor alineación, así que esto cae a tu resumen de lo ya jugado.",
-        )}
-      </p>
-    );
-  }
   if (metodo === "submitted") {
     // Con órdenes mandadas no se dice nada más: la línea del selector ya lo
     // cuenta, y repetirlo debajo con otras palabras eran dos frases para una
@@ -1217,7 +1203,6 @@ function PitchZoneDuelsPanel({
   onMethodOwnChange,
   onMethodRivalChange,
   submittedAvailable,
-  bestLineupAvailable = true,
   ownTeamName,
   rivalTeamName,
   ultimoPropio,
@@ -1231,7 +1216,6 @@ function PitchZoneDuelsPanel({
   onMethodOwnChange: (v: PitchZoneMethod) => void;
   onMethodRivalChange: (v: PitchZoneMethod) => void;
   submittedAvailable: boolean;
-  bestLineupAvailable?: boolean;
   ownTeamName: string;
   rivalTeamName: string;
   ultimoPropio: PartidoConMarcador | null;
@@ -1240,19 +1224,10 @@ function PitchZoneDuelsPanel({
   // Tu lado tiene una opción más: la predicción de las órdenes ya enviadas.
   // Sin órdenes mandadas se enseña TACHADA, no se esconde (2026-11-19, pedido
   // del usuario): así se ve que existe y que lo que falta es enviarlas.
-  const opcionesPropias = [
-    SUBMITTED_METHOD,
-    BEST_LINEUP_METHOD,
-    ...PITCH_ZONE_METHODS,
-  ];
-  const propiasNoDisponibles: PitchZoneMethod[] = [
-    ...(submittedAvailable ? [] : (["submitted"] as const)),
-    ...(bestLineupAvailable ? [] : (["best_lineup"] as const)),
-  ];
-  // Las dos que no son un resumen de partidos sino UNA previsión de Hattrick.
-  const esPrevision =
-    sources.own.kind === "submitted_chpp_prediction" ||
-    sources.own.kind === "best_lineup_chpp_prediction";
+  const opcionesPropias = [SUBMITTED_METHOD, ...PITCH_ZONE_METHODS];
+  const propiasNoDisponibles: PitchZoneMethod[] = submittedAvailable
+    ? []
+    : ["submitted"];
   if (!duels) {
     return (
       <Panel title={tx("Duelos por zona de la cancha")}>
@@ -1284,9 +1259,10 @@ function PitchZoneDuelsPanel({
     <Panel
       title={tx("Duelos por zona de la cancha")}
       meta={tx("{{v0}} · rival: {{v1}} partido(s)", {
-        v0: esPrevision
-          ? tx("la predicción de Hattrick")
-          : tx("tú: {{v0}} partido(s)", { v0: matchesAnalysed.own }),
+        v0:
+          sources.own.kind === "submitted_chpp_prediction"
+            ? tx("la predicción de Hattrick")
+            : tx("tú: {{v0}} partido(s)", { v0: matchesAnalysed.own }),
         v1: matchesAnalysed.rival,
       })}
     >
@@ -1299,17 +1275,11 @@ function PitchZoneDuelsPanel({
             {ownTeamName}
           </div>
           <div className="text-xs font-semibold">{sources.own.label}</div>
-          {sources.own.kind === "best_lineup_chpp_prediction" &&
-            sources.own.formation && (
-              <div className="mt-0.5 text-[11px] text-[var(--muted)]">
-                {tx("Formación")} {sources.own.formation}
-              </div>
-            )}
           {/* Con la alineación enviada NO hay táctica leída: Hattrick prevé
               los ratings de unas órdenes, no la táctica con la que se van a
               jugar. Salía «Táctica 0 · nivel 0», que es un doble cero que
               parece un dato y no lo es (lo vio el usuario, 2026-09-09). */}
-          {!esPrevision && sources.own.tacticSkill != null && (
+          {methodOwn !== "submitted" && sources.own.tacticSkill != null && (
             <div className="mt-0.5 text-[11px] text-[var(--muted)]">
               {tx("Táctica")} {sources.own.tacticType} {tx("· nivel")}{" "}
               {sources.own.tacticSkill}
@@ -1318,7 +1288,7 @@ function PitchZoneDuelsPanel({
           {/* Lo mismo que dice el lado del rival (2026-09-13). Con la
               alineación enviada no hay partidos que contar: es una sola
               previsión de Hattrick. */}
-          {!esPrevision && (
+          {methodOwn !== "submitted" && (
             <div className="mt-0.5 text-[11px] text-[var(--muted)]">
               {sources.own.observations ?? 0} {tx("partido(s) vistos")}
             </div>
@@ -1333,7 +1303,6 @@ function PitchZoneDuelsPanel({
             metodo={methodOwn}
             partido={ultimoPropio}
             alineacionEnviada={submittedAvailable}
-            previsionHecha={esPrevision}
           />
         </div>
         <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">

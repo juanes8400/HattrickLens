@@ -2071,20 +2071,5 @@
   "Reserva que despierta": "Riserva che si sveglia",
   "Promesa que sube": "Promessa in crescita",
   "Rotación que asoma": "Rotazione che emerge",
-  "Ganga que se revaloriza": "Affare che si rivaluta",
-  "Predicción de Hattrick · mejor alineación sin enviar · minuto 0": "Previsione di Hattrick · migliore formazione, non inviata · minuto 0",
-  "Hattrick no deja enviar la alineación con este acceso: falta el permiso de órdenes de partido, y se concede al reconectar": "Hattrick non permette di inviare la formazione con questo accesso: manca il permesso per gli ordini di partita, che si concede riconnettendosi",
-  "falta el jugador de «{}»": "manca il giocatore per «{}»",
-  "orden desconocida: «{}»": "ordine sconosciuto: «{}»",
-  "puesto desconocido: «{}»": "ruolo sconosciuto: «{}»",
-  "un jugador aparece dos veces entre los lanzadores": "un giocatore compare due volte tra i rigoristi",
-  "{} jugadores en «{}» no caben en la cancha": "{} giocatori in «{}» non entrano in campo",
-  "capitán": "capitano",
-  "lanzador de tiros libres": "battitore dei calci piazzati",
-  "el {} tiene que estar entre los once": "il {} deve essere tra gli undici",
-  "ese partido ya no admite alineación": "quella partita non accetta più la formazione",
-  "los lanzadores de penales tienen que estar entre los once": "i rigoristi devono essere tra gli undici",
-  "no hay once que enviar": "non c'è un undici da inviare",
-  "táctica desconocida: {}": "tattica sconosciuta: {}",
-  "el once cambió desde que abriste la pantalla: recárgala antes de enviar": "l'undici è cambiato da quando hai aperto la schermata: ricaricala prima di inviare"
+  "Ganga que se revaloriza": "Affare che si rivaluta"
 }

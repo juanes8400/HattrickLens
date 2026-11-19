@@ -100,35 +100,6 @@ export const SUBMITTED_METHOD: ResumenDeZonas = {
   ),
 };
 
-/** También sólo del lado propio (2026-11-19, pedido del usuario): la mejor
- *  alineación de la app, sin tener que enviarla. El aviso va en la línea que
- *  se lee sin pedirla, también pedido suyo: es la mejor, pero no
- *  necesariamente la más adecuada para el partido. */
-export const BEST_LINEUP_METHOD: ResumenDeZonas = {
-  key: "best_lineup",
-  label: tx("Mejor alineación"),
-  short: tx(
-    "la mejor alineación según tu plantilla, calculada por Hattrick sin enviarla. No es necesariamente la más adecuada para este partido: no mira al rival, la sede, la táctica ni si te conviene rotar",
-  ),
-  long: tx(
-    "La alineación que propone la pantalla Alineación --la mejor según las " +
-      "habilidades, la forma, la condición y la experiencia de tu plantilla--, " +
-      "y Hattrick calcula sus ratings de minuto 0 sin guardar nada: tus órdenes " +
-      "no se tocan. No es necesariamente la más adecuada para este partido: no " +
-      "mira al rival, la sede, la táctica ni si te conviene rotar o reservar " +
-      "jugadores. Como con la enviada, las acciones indirectas a balón parado " +
-      "caen a tu resumen de lo ya jugado.",
-  ),
-};
-
-/** Por qué una opción sale tachada, cuando sale. */
-export const MOTIVO_NO_DISPONIBLE: Partial<Record<PitchZoneMethod, string>> = {
-  submitted: tx("Todavía no has enviado la alineación de este partido."),
-  best_lineup: tx(
-    "Sin un partido pendiente contra este rival no hay a qué preguntarle a Hattrick.",
-  ),
-};
-
 /** Lo que vale para los cuatro resúmenes, y que ninguno explica por su cuenta. */
 export const NOTA_DE_LOS_RESUMENES = tx(
   "Los partidos vistos son los de la misma competición que el partido que se " +

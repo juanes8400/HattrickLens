@@ -32,12 +32,7 @@ export interface PitchZoneDuel {
 }
 
 export interface PitchZoneSource {
-  kind:
-    | "submitted_chpp_prediction"
-    | "best_lineup_chpp_prediction"
-    | "historical_observed";
-  /** Con la mejor alineación, la formación que eligió la app. */
-  formation?: string | null;
+  kind: "submitted_chpp_prediction" | "historical_observed";
   label: string;
   matchId: number | null;
   observations: number | null;
@@ -174,9 +169,6 @@ export interface RivalScouting {
   /** `false` cuando todavía no has mandado alineación: sin eso, el modo
    *  "alineación enviada" no tiene nada que enseñar. */
   submittedLineupAvailable: boolean;
-  /** `false` sin un partido pendiente contra este rival: sin partido no hay
-   *  a qué preguntarle a Hattrick por la mejor alineación. */
-  bestLineupAvailable?: boolean;
   rivalRosterSample: { name: string; position: string | null; tsi: number }[];
   /** La predicción del motor de zonas. `null` sin historia con la que
    *  alimentarlo. `drawProbability` es null en Copa: hay prórroga. */

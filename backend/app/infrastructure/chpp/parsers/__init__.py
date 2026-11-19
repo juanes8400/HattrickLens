@@ -866,50 +866,6 @@ def parse_matchorders(xml: bytes) -> dict[str, Any]:
                 }
             )
 
-    # Lo que el usuario ya tiene puesto además del once: banquillo,
-    # lanzadores, capitán, tiro libre y cambios programados. Se lee para
-    # DEVOLVERLO intacto al enviar una alineación (2026-09-19, recuperado el
-    # 2026-11-19 del commit 2c07e14) y para proponerlo en Alineación.
-    def _jugador_de(tag: str) -> int:
-        nodo = match_data.find(tag) if match_data is not None else None
-        return _int(nodo, "PlayerID") if nodo is not None else 0
-
-    bench: list[int] = []
-    kickers: list[int] = []
-    substitutions: list[dict[str, int]] = []
-    if available and match_data is not None:
-        bench = [
-            _int(j, "PlayerID")
-            for j in match_data.iterfind("./Lineup/Bench/Player")
-            if _int(j, "PlayerID") > 0
-        ]
-        kickers = [
-            _int(j, "PlayerID")
-            for j in match_data.iterfind("./Lineup/Kickers/Player")
-            if _int(j, "PlayerID") > 0
-        ]
-        # Ya en la forma con la que se vuelven a enviar.
-        for orden in match_data.iterfind("./PlayerOrders/PlayerOrder"):
-            substitutions.append(
-                {
-                    "playerin": _int(orden, "ObjectPlayerID"),
-                    "playerout": _int(orden, "SubjectPlayerID"),
-                    "orderType": _int(orden, "OrderType"),
-                    "min": _int(orden, "MatchMinuteCriteria"),
-                    "pos": _int(orden, "NewPositionId"),
-                    "beh": _int(orden, "NewPositionBehaviour"),
-                    "card": _int(orden, "RedCardCriteria"),
-                    "standing": _int(orden, "GoalDiffCriteria"),
-                }
-            )
-
-    # La respuesta a un envío: si se guardó y, si no, por qué. Sólo viene
-    # con `actionType=setmatchorder`.
-    orders_set: bool | None = None
-    if match_data is not None and "OrdersSet" in match_data.attrib:
-        orders_set = match_data.attrib["OrdersSet"].strip().lower() in ("true", "1")
-    reason = _txt(match_data, "Reason", "") if match_data is not None else ""
-
     coach_modifier: int | None = None
     if match_data is not None:
         coach = match_data.find("CoachModifier")
@@ -954,13 +910,6 @@ def parse_matchorders(xml: bytes) -> dict[str, Any]:
         "coach_modifier": coach_modifier,
         "positions": positions,
         "prediction": prediction,
-        "bench": bench,
-        "kickers": kickers,
-        "captain": _jugador_de("./Lineup/Captain"),
-        "set_pieces": _jugador_de("./Lineup/SetPieces"),
-        "substitutions": substitutions,
-        "orders_set": orders_set,
-        "reason": reason,
     }
 
 

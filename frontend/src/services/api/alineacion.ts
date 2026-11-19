@@ -127,62 +127,6 @@ export interface Lineup {
     }[];
     note: string;
   };
-  /** Capitán, tiro libre y orden de penales sugeridos, entre los once
-   *  (2026-11-19). */
-  roles?: {
-    captain: RolDelOnce | null;
-    setPieces: RolDelOnce | null;
-    penaltyTakers: RolDelOnce[];
-  };
-}
-
-export interface RolDelOnce {
-  htPlayerId: number;
-  player: string;
-}
-
-/** Los partidos a los que se puede enviar alineación, y las tácticas. */
-export interface PartidosParaEnviar {
-  matches: {
-    htMatchId: number;
-    playedAt: string;
-    isHome: boolean;
-    rival: string;
-    tournament: string;
-    ordersGiven: boolean | null;
-  }[];
-  /** Los nombres en español: la pantalla los pasa por el glosario oficial. */
-  tactics: { code: number; label: string }[];
-}
-
-/** Lo que se manda: el partido, el once que se está viendo y lo elegido. */
-export interface EnvioDeAlineacion {
-  htMatchId: number;
-  formation: string;
-  centralDefenders: number;
-  innerMidfielders: number;
-  orders: string | null;
-  exclude: string | null;
-  tactica: number;
-  capitan: number;
-  tiroLibre: number;
-  penales: number[];
-  titulares: number[];
-  /** `false` = sólo la previsión de Hattrick; `true` = enviar de verdad. */
-  guardar: boolean;
-}
-
-export interface RespuestaDeEnvio {
-  guardar: boolean;
-  htMatchId: number;
-  formation: string;
-  prediccion: Record<string, number> | null;
-  habiaOrdenes: boolean;
-  tacticaPrevia: number | null;
-  cambiosQuitados: number;
-  guardada: boolean;
-  confirmada: boolean;
-  motivo: string | null;
 }
 
 export interface TeamSpiritMultiplier {
@@ -191,14 +135,6 @@ export interface TeamSpiritMultiplier {
 }
 
 export const apiAlineacion = {
-  partidosParaEnviar: (teamId: number) =>
-    request<PartidosParaEnviar>(`/teams/${teamId}/lineup/partidos-pendientes`),
-  /** Prevé (`guardar: false`) o envía (`guardar: true`) la alineación. */
-  enviarAlineacion: (teamId: number, envio: EnvioDeAlineacion) =>
-    request<RespuestaDeEnvio>(`/teams/${teamId}/lineup/enviar`, {
-      method: "POST",
-      body: JSON.stringify(envio),
-    }),
   lineup: (
     teamId: number,
     formation?: string,

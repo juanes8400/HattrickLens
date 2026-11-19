@@ -2071,20 +2071,5 @@
   "Reserva que despierta": "Reserve waking up",
   "Promesa que sube": "Prospect improving",
   "Rotación que asoma": "Rotation player emerging",
-  "Ganga que se revaloriza": "Bargain gaining value",
-  "Predicción de Hattrick · mejor alineación sin enviar · minuto 0": "Hattrick prediction · best lineup, not submitted · minute 0",
-  "Hattrick no deja enviar la alineación con este acceso: falta el permiso de órdenes de partido, y se concede al reconectar": "Hattrick doesn't allow submitting the lineup with this access: the match orders permission is missing, and it's granted when you reconnect",
-  "falta el jugador de «{}»": "the player for «{}» is missing",
-  "orden desconocida: «{}»": "unknown order: «{}»",
-  "puesto desconocido: «{}»": "unknown position: «{}»",
-  "un jugador aparece dos veces entre los lanzadores": "a player appears twice among the penalty takers",
-  "{} jugadores en «{}» no caben en la cancha": "{} players in «{}» don't fit on the pitch",
-  "capitán": "captain",
-  "lanzador de tiros libres": "set pieces taker",
-  "el {} tiene que estar entre los once": "the {} has to be among the eleven",
-  "ese partido ya no admite alineación": "that match no longer accepts a lineup",
-  "los lanzadores de penales tienen que estar entre los once": "the penalty takers have to be among the eleven",
-  "no hay once que enviar": "there is no eleven to submit",
-  "táctica desconocida: {}": "unknown tactic: {}",
-  "el once cambió desde que abriste la pantalla: recárgala antes de enviar": "the eleven changed since you opened the screen: reload it before submitting"
+  "Ganga que se revaloriza": "Bargain gaining value"
 }
