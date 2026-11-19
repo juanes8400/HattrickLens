@@ -153,6 +153,37 @@ async def refresh(
     return response
 
 
+@router.get("/permisos")
+async def permisos(
+    session: AsyncSession = Depends(get_session),
+    user: m.User = Depends(get_current_user),
+) -> dict[str, object]:
+    """Qué permisos tiene de verdad tu acceso a Hattrick, preguntado a Hattrick.
+
+    2026-11-19: el envío de alineación seguía pidiendo el permiso tras
+    reconectar, y no había forma de saber qué había concedido Hattrick. Esto
+    lo pregunta (`check_token`) y lo compara con lo que la app pide al
+    conectar. `permisos` es `null` si Hattrick no contesta.
+    """
+    from app.infrastructure.security.tokens import decrypt_token
+
+    token = await session.scalar(select(m.CHPPToken).where(m.CHPPToken.user_id == user.id))
+    if token is None or token.status != "active":
+        raise HTTPException(409, "reconecta con Hattrick: no hay un token activo")
+    client = CHPPClient(decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc))
+    try:
+        tiene = await client.permisos()
+    finally:
+        await client.aclose()
+    pedidos = [p.strip() for p in (settings.chpp_scope or "").split(",") if p.strip()]
+    return {
+        "permisos": tiene,
+        "pedidos": pedidos,
+        "faltan": None if tiene is None else [p for p in pedidos if p not in tiene],
+        "puedeEnviarAlineacion": None if tiene is None else "set_matchorder" in tiene,
+    }
+
+
 @router.get("/session")
 async def session_profile(
     session: AsyncSession = Depends(get_session),

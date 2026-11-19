@@ -2427,5 +2427,9 @@
   "{{n}} cambio(s) programado(s) nombran a jugadores que no están en este once ni en el banquillo: se quitarán al enviar.": "{{n}} cambi programmati nominano giocatori che non sono in questo undici né in panchina: verranno rimossi all'invio.",
   "Enviada. Se volvieron a leer las órdenes en Hattrick y son las que mandaste.": "Inviata. Gli ordini sono stati riletti in Hattrick e sono quelli che hai mandato.",
   "Hattrick dice que la guardó, pero al releer las órdenes no coinciden. Revísalas en Hattrick.": "Hattrick dice di averla salvata, ma rileggendo gli ordini non coincidono. Controllali in Hattrick.",
-  "Hattrick no guardó la alineación.": "Hattrick non ha salvato la formazione."
+  "Hattrick no guardó la alineación.": "Hattrick non ha salvato la formazione.",
+  "Tu acceso a Hattrick no tiene el permiso de enviar órdenes de partido. Ver los ratings sí funciona; para enviar, reconecta y acepta en la página de Hattrick el permiso de órdenes de partido.": "Il tuo accesso a Hattrick non ha il permesso di inviare ordini di partita. Vedere le valutazioni funziona; per inviare, riconnettiti e accetta nella pagina di Hattrick il permesso per gli ordini di partita.",
+  "Lo que Hattrick dice que tiene tu acceso: {{lista}}.": "Ciò che Hattrick dice che ha il tuo accesso: {{lista}}.",
+  "sólo lectura": "sola lettura",
+  "Reconectar con Hattrick": "Riconnetti a Hattrick"
 }

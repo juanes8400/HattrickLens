@@ -2427,5 +2427,9 @@
   "{{n}} cambio(s) programado(s) nombran a jugadores que no están en este once ni en el banquillo: se quitarán al enviar.": "{{n}} scheduled substitution(s) name players who aren't in this eleven or on the bench: they'll be removed when submitting.",
   "Enviada. Se volvieron a leer las órdenes en Hattrick y son las que mandaste.": "Submitted. The orders were read back from Hattrick and they're the ones you sent.",
   "Hattrick dice que la guardó, pero al releer las órdenes no coinciden. Revísalas en Hattrick.": "Hattrick says it saved it, but the orders don't match when read back. Check them in Hattrick.",
-  "Hattrick no guardó la alineación.": "Hattrick didn't save the lineup."
+  "Hattrick no guardó la alineación.": "Hattrick didn't save the lineup.",
+  "Tu acceso a Hattrick no tiene el permiso de enviar órdenes de partido. Ver los ratings sí funciona; para enviar, reconecta y acepta en la página de Hattrick el permiso de órdenes de partido.": "Your Hattrick access doesn't have the permission to set match orders. Seeing the ratings works; to submit, reconnect and accept the match orders permission on the Hattrick page.",
+  "Lo que Hattrick dice que tiene tu acceso: {{lista}}.": "What Hattrick says your access has: {{lista}}.",
+  "sólo lectura": "read only",
+  "Reconectar con Hattrick": "Reconnect with Hattrick"
 }

@@ -20,7 +20,7 @@ export type {
   RolDelOnce,
   TeamSpiritMultiplier,
 } from "./alineacion";
-export type { SessionProfile, SessionTeam } from "./auth";
+export type { PermisosDeHattrick, SessionProfile, SessionTeam } from "./auth";
 export type {
   CasillaDeOnce,
   ClasesDeJugador,

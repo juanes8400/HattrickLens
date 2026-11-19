@@ -130,6 +130,34 @@ class CHPPClient:
             return True
         return resp.status_code != 401
 
+    async def permisos(self) -> list[str] | None:
+        """Los permisos extra que Hattrick dice que tiene este acceso.
+
+        2026-11-19: tras reconectar, el envío de la alineación seguía diciendo
+        que faltaba el permiso, y desde la app no había forma de saber si el
+        acceso lo tenía o no. `oauth/check_token.ashx` lo dice: trae
+        `ExtendedPermissions` con los permisos separados por comas
+        («manage_youthplayers,set_matchorder»). Sólo lectura.
+
+        `None` si Hattrick no contesta: no saberlo no es lo mismo que no tenerlo.
+        """
+        from xml.etree.ElementTree import ParseError  # noqa: S405, sólo la excepción
+
+        from defusedxml import ElementTree
+
+        try:
+            resp = await self._client.get(f"{settings.chpp_base_url}/oauth/check_token.ashx")
+        except httpx.TransportError:
+            return None
+        if resp.status_code != 200:
+            return None
+        try:
+            raiz = ElementTree.fromstring(resp.content)
+        except ParseError:
+            return None
+        texto = raiz.findtext("ExtendedPermissions") or ""
+        return [p.strip() for p in texto.replace(";", ",").split(",") if p.strip()]
+
     async def alineacion(
         self,
         ht_match_id: int,

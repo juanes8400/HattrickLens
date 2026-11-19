@@ -33,7 +33,17 @@ export interface SessionProfile {
   teams: SessionTeam[];
 }
 
+/** Los permisos que Hattrick dice que tiene tu acceso (2026-11-19). `null`
+ *  donde Hattrick no contestó: no saberlo no es no tenerlo. */
+export interface PermisosDeHattrick {
+  permisos: string[] | null;
+  pedidos: string[];
+  faltan: string[] | null;
+  puedeEnviarAlineacion: boolean | null;
+}
+
 export const apiAuth = {
   sessionProfile: () => request<SessionProfile>(`/auth/chpp/session`),
+  permisosDeHattrick: () => request<PermisosDeHattrick>(`/auth/chpp/permisos`),
   connectChpp: () => request<{ authorizeUrl: string }>(`/auth/chpp/connect`),
 };

@@ -14,7 +14,7 @@
  * Lo que la app no propone --actitud, estilo del entrenador, marcaje y cambios
  * programados-- se conserva tal y como esté en Hattrick.
  */
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { date } from "../../hooks/useFormat";
 import { TEAM_ID, usePartidosParaEnviar } from "../../hooks/useTeam";
@@ -67,6 +67,20 @@ export function EnviarAHattrick({
   const [confirmando, setConfirmando] = useState(false);
   const [prevision, setPrevision] = useState<RespuestaDeEnvio | null>(null);
   const [envio, setEnvio] = useState<RespuestaDeEnvio | null>(null);
+
+  // QUÉ PERMISOS TIENE DE VERDAD TU ACCESO (2026-11-19). Tras reconectar,
+  // el envío seguía pidiendo el permiso y no había forma de saber por qué:
+  // se le pregunta a Hattrick y, si falta, se ofrece reconectar aquí mismo.
+  const permisos = useQuery({
+    queryKey: ["permisos-de-hattrick"],
+    queryFn: api.permisosDeHattrick,
+    staleTime: 60_000,
+  });
+  const sinPermiso = permisos.data?.puedeEnviarAlineacion === false;
+  const reconectar = useMutation({
+    mutationFn: api.connectChpp,
+    onSuccess: ({ authorizeUrl }) => window.location.assign(authorizeUrl),
+  });
 
   const lista = partidos.data?.matches ?? [];
   const elegido = lista.find((p) => p.htMatchId === partido) ?? lista[0];
@@ -125,6 +139,8 @@ export function EnviarAHattrick({
       : null;
 
   const error = mandar.error;
+  const faltaElPermiso =
+    sinPermiso || (error instanceof ApiError && error.status === 403);
   const mensajeDeError =
     error instanceof ApiError && error.status === 403
       ? tx(
@@ -298,7 +314,7 @@ export function EnviarAHattrick({
                 <button
                   type="button"
                   onClick={() => setConfirmando(true)}
-                  disabled={mandar.isPending || !elegido}
+                  disabled={mandar.isPending || !elegido || sinPermiso}
                   data-track="Alineación: enviar a Hattrick"
                   className="rounded-md bg-[var(--accent)] px-3 py-1.5 font-medium text-white disabled:opacity-60"
                 >
@@ -347,6 +363,37 @@ export function EnviarAHattrick({
               <p role="alert" className="text-[var(--danger)]">
                 {mensajeDeError}
               </p>
+            )}
+
+            {faltaElPermiso && (
+              <div className="space-y-2 rounded-lg border border-[var(--warning)] bg-[var(--warning)]/10 p-3">
+                <p>
+                  {tx(
+                    "Tu acceso a Hattrick no tiene el permiso de enviar órdenes de partido. Ver los ratings sí funciona; para enviar, reconecta y acepta en la página de Hattrick el permiso de órdenes de partido.",
+                  )}
+                </p>
+                {permisos.data?.permisos && (
+                  <p className="text-xs text-[var(--muted)]">
+                    {tx(
+                      "Lo que Hattrick dice que tiene tu acceso: {{lista}}.",
+                      {
+                        lista:
+                          permisos.data.permisos.join(", ") ||
+                          tx("sólo lectura"),
+                      },
+                    )}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => reconectar.mutate()}
+                  disabled={reconectar.isPending}
+                  data-track="Alineación: reconectar para enviar"
+                  className="rounded-md bg-[var(--accent)] px-3 py-1.5 font-medium text-white disabled:opacity-60"
+                >
+                  {tx("Reconectar con Hattrick")}
+                </button>
+              </div>
             )}
 
             {prevision && (
