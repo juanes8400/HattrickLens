@@ -163,6 +163,26 @@ def test_si_cambia_el_aforo_el_conteo_empieza_de_nuevo() -> None:
     _run(run())
 
 
+def test_una_fila_sin_aforo_no_deja_el_estadio_en_cero() -> None:
+    """2026-11-18, «se dañó el módulo de estadio»: el partido de Copa en casa
+    recién jugado quedó con aforo 0 y, por ser el último, todo el estadio se
+    medía contra 0 asientos. El aforo sale de la última fila que lo tenga."""
+
+    async def run() -> None:
+        filas = [*MEDIO_LLENO, {"capacity": 0, "sold": 15000, "match_type": 3}]
+        factory, team_id = await _with_stadium(filas)
+        async with factory() as s:
+            out = await ArenaQueryService(s).get(team_id)
+        assert out is not None
+        assert out.capacity_total == 20000
+        assert out.capacity_changed_on is None
+        assert out.matches_analysed == 4
+        assert out.matches[-1].occupancy == 75.0
+        assert out.composition["general"] == 12000
+
+    _run(run())
+
+
 def test_sin_cambio_de_aforo_cuenta_todo() -> None:
     async def run() -> None:
         factory, team_id = await _with_stadium(MEDIO_LLENO)

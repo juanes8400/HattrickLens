@@ -92,13 +92,10 @@ const EXPERIENCE_TYPE_LABELS: Record<string, string> = {
  *  idioma en el momento de pintarse, no al cargar el módulo. */
 const t = i18n.t.bind(i18n);
 
-/** «3 sem», «1 partido», «4 días», en el idioma de la app. */
+/** «3 sem», «4 días», en el idioma de la app. La Evidencia de Experiencia
+ *  va sin «partidos» (2026-11-18, pedido del usuario): «Liga: 12». */
 const semanas = (n: string | number) =>
   t("entrenamiento.sem", "{{n}} sem", { n });
-const partidos = (n: number) =>
-  n === 1
-    ? t("entrenamiento.unPartido", "{{n}} partido", { n: number(n) })
-    : t("entrenamiento.nPartidos", "{{n}} partidos", { n: number(n) });
 const dias = (n: number) =>
   n === 1
     ? t("entrenamiento.unDia", "{{n}} día", { n: number(n) })
@@ -599,14 +596,14 @@ function experienceColumns(): Column<TrainingExperienceRow>[] {
           .filter(([, matches]) => matches > 0)
           .map(
             ([kind, matches]) =>
-              `${t(`entrenamiento.tipoPartido.${kind}`, EXPERIENCE_TYPE_LABELS[kind] ?? kind)}: ${partidos(matches)}`,
+              `${t(`entrenamiento.tipoPartido.${kind}`, EXPERIENCE_TYPE_LABELS[kind] ?? kind)}: ${number(matches)}`,
           );
         if (r.unscoredNationalMatches > 0) {
           parts.push(
             t(
               "entrenamiento.seleccionSinPuntaje",
               "Selección sin puntaje: {{partidos}}",
-              { partidos: partidos(r.unscoredNationalMatches) },
+              { partidos: number(r.unscoredNationalMatches) },
             ),
           );
         }
