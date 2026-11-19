@@ -40,13 +40,7 @@ class Settings(BaseSettings):
     #: `manage_youthplayers` es el que necesita `actionType=unlockskills`.
     #: Comprobado en vivo el 2026-08-26. Un token ya emitido no puede ganar
     #: permisos: cambiar esto obliga a reconectar.
-    #:
-    #: `set_matchorder` vuelve el 2026-11-19, pedido del usuario («pon
-    #: oficialmente que necesito permisos para set_matchorder»): es el permiso
-    #: de enviar alineación y órdenes. Se había retirado el 2026-09-20 (ver el
-    #: commit 2c07e14). Pedirlo no envía nada: sólo lo hace posible.
-    #: Varios permisos van en una sola cadena, separados por comas.
-    chpp_scope: str = "manage_youthplayers,set_matchorder"
+    chpp_scope: str = "manage_youthplayers"
 
     #: Tu ID de usuario de Hattrick, el mismo que sale en `<UserID>` de
     #: cualquier fichero CHPP. Abre la pantalla de uso, y NADA más.
