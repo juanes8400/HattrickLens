@@ -2086,5 +2086,7 @@
   "los lanzadores de penales tienen que estar entre los once": "the penalty takers have to be among the eleven",
   "no hay once que enviar": "there is no eleven to submit",
   "táctica desconocida: {}": "unknown tactic: {}",
-  "el once cambió desde que abriste la pantalla: recárgala antes de enviar": "the eleven changed since you opened the screen: reload it before submitting"
+  "el once cambió desde que abriste la pantalla: recárgala antes de enviar": "the eleven changed since you opened the screen: reload it before submitting",
+  "{}. Permisos que Hattrick dice que tiene tu acceso: {}": "{}. Permissions Hattrick says your access has: {}",
+  "sólo lectura": "read only"
 }

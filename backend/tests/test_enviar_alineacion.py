@@ -222,3 +222,34 @@ def test_roles_se_sugieren_entre_los_once() -> None:
     assert roles["captain"]["htPlayerId"] == 1
     assert roles["setPieces"]["htPlayerId"] == 2
     assert [p["htPlayerId"] for p in roles["penaltyTakers"]] == [2, 1]
+
+
+def test_si_hattrick_niega_el_envio_dice_que_permisos_tiene_y_nunca_es_401(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """2026-11-19: tras reconectar seguía saliendo «falta el permiso». El error
+    trae lo que Hattrick dice que tiene el acceso, y nunca es un 401: ante un
+    401 el navegador repite la petición sola, y con un envío eso sería mandar
+    la alineación dos veces."""
+    from app.infrastructure.chpp.client import CHPPAuthError, CHPPDeniedError
+
+    async def negado(self: Any, *a: Any, guardar: bool, **kw: Any) -> dict:
+        raise CHPPDeniedError("Hattrick no deja enviar la alineación con este acceso")
+
+    async def permisos(self: Any) -> list[str]:
+        return ["manage_youthplayers"]
+
+    monkeypatch.setattr(HattrickDePrueba, "alineacion", negado)
+    monkeypatch.setattr(HattrickDePrueba, "permisos", permisos, raising=False)
+    with pytest.raises(HTTPException) as exc:
+        _mandar({"guardar": True})
+    assert exc.value.status_code == 403
+    assert "manage_youthplayers" in str(exc.value.detail)
+
+    async def muerto(self: Any, *a: Any, guardar: bool, **kw: Any) -> dict:
+        raise CHPPAuthError("token revocado")
+
+    monkeypatch.setattr(HattrickDePrueba, "alineacion", muerto)
+    with pytest.raises(HTTPException) as exc2:
+        _mandar({"guardar": True})
+    assert exc2.value.status_code == 409

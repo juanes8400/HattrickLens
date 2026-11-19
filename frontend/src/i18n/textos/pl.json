@@ -2431,5 +2431,6 @@
   "Tu acceso a Hattrick no tiene el permiso de enviar órdenes de partido. Ver los ratings sí funciona; para enviar, reconecta y acepta en la página de Hattrick el permiso de órdenes de partido.": "Twój dostęp do Hattricka nie ma uprawnienia do wysyłania poleceń meczowych. Podgląd ocen działa; aby wysłać, połącz się ponownie i zaakceptuj na stronie Hattricka uprawnienie do poleceń meczowych.",
   "Lo que Hattrick dice que tiene tu acceso: {{lista}}.": "Co według Hattricka ma twój dostęp: {{lista}}.",
   "sólo lectura": "tylko odczyt",
-  "Reconectar con Hattrick": "Połącz ponownie z Hattrickiem"
+  "Reconectar con Hattrick": "Połącz ponownie z Hattrickiem",
+  "Hattrick rechazó el envío aunque tu acceso sí tiene el permiso de órdenes de partido. No se envió nada. Es un fallo nuestro, no de tu cuenta: avísanos.": "Hattrick odrzucił wysłanie, choć twój dostęp ma uprawnienie do poleceń meczowych. Nic nie zostało wysłane. To nasz błąd, nie twojego konta: daj nam znać."
 }

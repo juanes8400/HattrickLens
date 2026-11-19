@@ -2086,5 +2086,7 @@
   "los lanzadores de penales tienen que estar entre los once": "die Elfmeterschützen müssen unter den elf sein",
   "no hay once que enviar": "es gibt keine Elf zum Abgeben",
   "táctica desconocida: {}": "unbekannte Taktik: {}",
-  "el once cambió desde que abriste la pantalla: recárgala antes de enviar": "die Elf hat sich geändert, seit du den Bildschirm geöffnet hast: lade ihn neu, bevor du abgibst"
+  "el once cambió desde que abriste la pantalla: recárgala antes de enviar": "die Elf hat sich geändert, seit du den Bildschirm geöffnet hast: lade ihn neu, bevor du abgibst",
+  "{}. Permisos que Hattrick dice que tiene tu acceso: {}": "{}. Berechtigungen, die dein Zugang laut Hattrick hat: {}",
+  "sólo lectura": "nur Lesen"
 }

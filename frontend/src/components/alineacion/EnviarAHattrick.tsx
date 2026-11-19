@@ -105,6 +105,9 @@ export function EnviarAHattrick({
         titulares: once.map((f) => f.htPlayerId),
         guardar,
       }),
+    // Si Hattrick lo rechaza, se vuelve a preguntar qué permisos tiene el
+    // acceso: el panel dice lo que hay AHORA, no lo de hace un minuto.
+    onError: () => qc.invalidateQueries({ queryKey: ["permisos-de-hattrick"] }),
     onSuccess: (r) => {
       if (r.guardar) {
         setEnvio(r);
@@ -139,10 +142,17 @@ export function EnviarAHattrick({
       : null;
 
   const error = mandar.error;
-  const faltaElPermiso =
-    sinPermiso || (error instanceof ApiError && error.status === 403);
-  const mensajeDeError =
-    error instanceof ApiError && error.status === 403
+  const rechazado = error instanceof ApiError && error.status === 403;
+  // EL PERMISO ESTÁ Y AUN ASÍ HATTRICK DIJO QUE NO: reconectar no lo arregla,
+  // y decir «reconecta» otra vez sería mandar al usuario en círculos.
+  const rechazadoConPermiso =
+    rechazado && permisos.data?.puedeEnviarAlineacion === true;
+  const faltaElPermiso = sinPermiso || (rechazado && !rechazadoConPermiso);
+  const mensajeDeError = rechazadoConPermiso
+    ? tx(
+        "Hattrick rechazó el envío aunque tu acceso sí tiene el permiso de órdenes de partido. No se envió nada. Es un fallo nuestro, no de tu cuenta: avísanos.",
+      )
+    : rechazado
       ? tx(
           "Hattrick no deja enviar la alineación con tu acceso actual. Reconecta con Hattrick para darle a Hattrick Lens el permiso de órdenes de partido.",
         )

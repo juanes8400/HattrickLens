@@ -279,9 +279,20 @@ async def enviar_alineacion(
     except CHPPAuthError as exc:
         token_row.status = "revoked"
         await session.commit()
-        raise HTTPException(401, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
+        # 409 Y NO 401 (2026-11-19). Ante un 401 el navegador renueva la
+        # sesión y REPITE la petición sola: con un envío, eso podría mandar la
+        # alineación dos veces. Aquí nunca sale un 401.
+        raise HTTPException(409, "Hattrick revocó el acceso: reconecta tu cuenta") from exc
     except CHPPDeniedError as exc:
-        raise HTTPException(403, str(exc)) from exc
+        # Lo que Hattrick dice que tiene el acceso, en el mismo error: tras
+        # reconectar, el usuario seguía viendo «falta el permiso» y no había
+        # forma de saber si el acceso lo tenía (2026-11-19).
+        tiene = await client.permisos()
+        detalle = str(exc)
+        if tiene is not None:
+            lista = ", ".join(tiene) or "sólo lectura"
+            detalle = f"{detalle}. Permisos que Hattrick dice que tiene tu acceso: {lista}"
+        raise HTTPException(403, detalle) from exc
     except CHPPUnavailableError as exc:
         raise HTTPException(503, f"Hattrick no responde: {exc}") from exc
     finally:

@@ -2086,5 +2086,7 @@
   "los lanzadores de penales tienen que estar entre los once": "wykonawcy rzutów karnych muszą być wśród jedenastki",
   "no hay once que enviar": "nie ma jedenastki do wysłania",
   "táctica desconocida: {}": "nieznana taktyka: {}",
-  "el once cambió desde que abriste la pantalla: recárgala antes de enviar": "jedenastka zmieniła się od otwarcia ekranu: odśwież go przed wysłaniem"
+  "el once cambió desde que abriste la pantalla: recárgala antes de enviar": "jedenastka zmieniła się od otwarcia ekranu: odśwież go przed wysłaniem",
+  "{}. Permisos que Hattrick dice que tiene tu acceso: {}": "{}. Uprawnienia, które według Hattricka ma twój dostęp: {}",
+  "sólo lectura": "tylko odczyt"
 }
