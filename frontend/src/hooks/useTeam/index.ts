@@ -13,7 +13,7 @@ export {
   useInsights,
   useRestoreInsight,
 } from "./alertas";
-export { useLineup } from "./alineacion";
+export { useLineup, usePartidosParaEnviar } from "./alineacion";
 export { useSessionProfile } from "./auth";
 export { useClub } from "./club";
 export { useCup } from "./copa";

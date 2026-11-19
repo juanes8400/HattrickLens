@@ -2078,5 +2078,13 @@
   "orden desconocida: «{}»": "unknown order: «{}»",
   "puesto desconocido: «{}»": "unknown position: «{}»",
   "un jugador aparece dos veces entre los lanzadores": "a player appears twice among the penalty takers",
-  "{} jugadores en «{}» no caben en la cancha": "{} players in «{}» don't fit on the pitch"
+  "{} jugadores en «{}» no caben en la cancha": "{} players in «{}» don't fit on the pitch",
+  "capitán": "captain",
+  "lanzador de tiros libres": "set pieces taker",
+  "el {} tiene que estar entre los once": "the {} has to be among the eleven",
+  "ese partido ya no admite alineación": "that match no longer accepts a lineup",
+  "los lanzadores de penales tienen que estar entre los once": "the penalty takers have to be among the eleven",
+  "no hay once que enviar": "there is no eleven to submit",
+  "táctica desconocida: {}": "unknown tactic: {}",
+  "el once cambió desde que abriste la pantalla: recárgala antes de enviar": "the eleven changed since you opened the screen: reload it before submitting"
 }
