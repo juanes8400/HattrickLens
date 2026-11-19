@@ -163,6 +163,26 @@ async def _revisar_comisiones(
     # Lo que encontró va al informe de ESTA sincronización: es dinero, y
     # quien acaba de sincronizar tiene que verlo sin ir a buscarlo.
     result.changes.extend(lote.changes)
+    # Y QUEDA GUARDADO EN ESTA SINCRONIZACIÓN (2026-11-19, reporte del
+    # usuario: el resumen anunciaba cambios que Cambios no enseñaba). El lote
+    # los guarda en su propia fila, que es de relleno y Cambios no lee; aquí
+    # se apuntan también en la sincronización que el usuario acaba de lanzar,
+    # que es la que Cambios enseña.
+    if lote.changes:
+        async with SessionLocal() as s:
+            for c in lote.changes:
+                detail = c.get("detail")
+                s.add(
+                    m.SyncChange(
+                        sync_id=result.sync_id,
+                        team_id=team_id,
+                        category=c["category"],
+                        summary=c["summary"],
+                        detail_json=json.dumps(detail, ensure_ascii=False) if detail else None,
+                        created_at=datetime.now(UTC),
+                    )
+                )
+            await s.commit()
 
 
 def _result_payload(result: Any) -> dict[str, Any]:
