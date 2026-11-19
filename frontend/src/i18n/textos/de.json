@@ -2395,5 +2395,7 @@
   "{{torneo}} · {{sede}}": "{{torneo}} · {{sede}}",
   "Calculando la predicción…": "Prognose wird berechnet…",
   "Sin predicción para este partido.": "Keine Prognose für dieses Spiel.",
-  "Próximo partido oficial, sea de liga, copa, promoción o Masters: rival, fecha, competición y su pronóstico.": "Nächstes Pflichtspiel, ob Liga, Pokal, Relegation oder Masters: Gegner, Datum, Wettbewerb und seine Prognose."
+  "Próximo partido oficial, sea de liga, copa, promoción o Masters: rival, fecha, competición y su pronóstico.": "Nächstes Pflichtspiel, ob Liga, Pokal, Relegation oder Masters: Gegner, Datum, Wettbewerb und seine Prognose.",
+  "Victoria": "Sieg",
+  "Derrota": "Niederlage"
 }
