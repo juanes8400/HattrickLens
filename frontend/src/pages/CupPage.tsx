@@ -250,6 +250,13 @@ export function CupPage() {
                                 SUBMITTED_METHOD,
                                 ...PITCH_ZONE_METHODS,
                               ]}
+                              noDisponibles={
+                                data.readiness.referenceVariants.some(
+                                  (v) => v.mode === "submitted",
+                                )
+                                  ? []
+                                  : ["submitted"]
+                              }
                             />
                           </div>
                           <div className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-3 py-2">

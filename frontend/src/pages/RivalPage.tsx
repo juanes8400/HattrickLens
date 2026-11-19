@@ -453,7 +453,7 @@ export function RivalPage() {
         duels={data.pitchZoneDuels}
         matchesAnalysed={data.pitchZonesMatchesAnalysed}
         sources={data.pitchZoneSources}
-        methodOwn={methodOwn}
+        methodOwn={data.pitchZoneMethodOwn ?? methodOwn}
         methodRival={methodRival}
         onMethodOwnChange={setMethodOwn}
         onMethodRivalChange={setMethodRival}
@@ -1222,10 +1222,12 @@ function PitchZoneDuelsPanel({
   ultimoRival: PartidoConMarcador | null;
 }) {
   // Tu lado tiene una opción más: la predicción de las órdenes ya enviadas.
-  // Se ofrece solo si de verdad hay órdenes mandadas.
-  const opcionesPropias = submittedAvailable
-    ? [SUBMITTED_METHOD, ...PITCH_ZONE_METHODS]
-    : PITCH_ZONE_METHODS;
+  // Sin órdenes mandadas se enseña TACHADA, no se esconde (2026-11-19, pedido
+  // del usuario): así se ve que existe y que lo que falta es enviarlas.
+  const opcionesPropias = [SUBMITTED_METHOD, ...PITCH_ZONE_METHODS];
+  const propiasNoDisponibles: PitchZoneMethod[] = submittedAvailable
+    ? []
+    : ["submitted"];
   if (!duels) {
     return (
       <Panel title={tx("Duelos por zona de la cancha")}>
@@ -1295,6 +1297,7 @@ function PitchZoneDuelsPanel({
             method={methodOwn}
             onMethodChange={onMethodOwnChange}
             options={opcionesPropias}
+            noDisponibles={propiasNoDisponibles}
           />
           <DeQuePartidoHablamos
             metodo={methodOwn}

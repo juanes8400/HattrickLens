@@ -21,25 +21,45 @@ export function PitchZoneMethodSelector({
   method,
   onMethodChange,
   options = PITCH_ZONE_METHODS,
+  noDisponibles = [],
 }: {
   method: PitchZoneMethod;
   onMethodChange: (v: PitchZoneMethod) => void;
   options?: ResumenDeZonas[];
+  /** Las opciones que se enseñan TACHADAS: existen, pero hoy no tienen con
+   *  qué calcularse. Es el caso de «Alineación enviada» cuando todavía no se
+   *  ha mandado ninguna (2026-11-19, pedido del usuario). Siguen pulsables:
+   *  el servidor cae a lo ya jugado y lo dice. */
+  noDisponibles?: PitchZoneMethod[];
 }) {
   const elegido = options.find((o) => o.key === method);
   return (
     <div className="mt-2">
       <div className="flex flex-wrap overflow-hidden rounded border border-[var(--border)] text-xs">
-        {options.map((o) => (
-          <button
-            key={o.key}
-            title={o.short}
-            onClick={() => onMethodChange(o.key)}
-            className={`px-3 py-1 ${method === o.key ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)]"}`}
-          >
-            {o.label}
-          </button>
-        ))}
+        {options.map((o) => {
+          const tachada = noDisponibles.includes(o.key);
+          return (
+            <button
+              key={o.key}
+              title={
+                tachada
+                  ? tx("Todavía no has enviado la alineación de este partido.")
+                  : o.short
+              }
+              onClick={() => onMethodChange(o.key)}
+              className={`px-3 py-1 ${method === o.key ? "bg-[var(--accent)] text-white" : "bg-[var(--surface)]"} ${tachada ? "text-[var(--muted)] line-through" : ""}`}
+            >
+              {o.label}
+              {tachada && (
+                <span className="sr-only">
+                  {" "}
+                  ({tx("Todavía no has enviado la alineación de este partido.")}
+                  )
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
       {/* Lo que se está mirando AHORA, sin pedirlo. Que cambie al pulsar es
           media explicación por sí sola: se ve que los botones no son varias
