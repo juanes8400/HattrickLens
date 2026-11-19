@@ -56,6 +56,15 @@ const KNOWN_CUP_ORDER = [
  * cruzarte más adelante. La Liga sí es completa: los otros equipos de tu
  * serie, siempre los mismos durante toda la temporada.
  */
+/** El resultado con su palabra, no con su letra (2026-11-18, pedido del
+ *  usuario): «3-0 (V)» se leía como «visitante» en un partido jugado en casa.
+ *  La V era de victoria; ahora se dice entera, y la sede va aparte. */
+function resultadoEnPalabras(aFavor: number, enContra: number): string {
+  if (aFavor > enContra) return tx("Victoria");
+  if (aFavor < enContra) return tx("Derrota");
+  return tx("Empate");
+}
+
 export function RivalPickerPage() {
   const league = useLeague();
   const cup = useCup();
@@ -122,7 +131,10 @@ export function RivalPickerPage() {
       h.opponentHtTeamId,
       h.opponent,
       h.date,
-      `${h.goalsFor}-${h.goalsAgainst} (${h.result})`,
+      `${h.goalsFor}-${h.goalsAgainst} · ${resultadoEnPalabras(
+        h.goalsFor,
+        h.goalsAgainst,
+      )} · ${h.isHome ? tx("en casa") : tx("fuera")}`,
     );
   }
   for (const nm of cup.data?.nextMatches ?? []) {
@@ -131,7 +143,7 @@ export function RivalPickerPage() {
       nm.opponentHtTeamId,
       nm.opponent,
       nm.date,
-      "programado",
+      tx("programado"),
     );
   }
 
@@ -147,13 +159,10 @@ export function RivalPickerPage() {
       name: mr.opponent,
       date: mr.date,
       detail: mr.played
-        ? `${mr.goalsFor}-${mr.goalsAgainst} (${
-            (mr.goalsFor ?? 0) > (mr.goalsAgainst ?? 0)
-              ? "V"
-              : mr.goalsFor === mr.goalsAgainst
-                ? "E"
-                : "D"
-          })`
+        ? `${mr.goalsFor}-${mr.goalsAgainst} · ${resultadoEnPalabras(
+            mr.goalsFor ?? 0,
+            mr.goalsAgainst ?? 0,
+          )}`
         : tx("programado"),
     });
   }

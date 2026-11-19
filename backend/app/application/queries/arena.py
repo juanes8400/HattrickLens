@@ -239,7 +239,13 @@ class ArenaQueryService:
 
         # El aforo TOTAL de hoy. No hay aforo histórico por partido, así que
         # todas las ocupaciones se miden contra el mismo.
-        last = todas[-1]
+        #
+        # DE LA ÚLTIMA FILA QUE LO TENGA, no de la última a secas (2026-11-18,
+        # reporte del usuario: «se dañó el módulo de estadio»). Un partido de
+        # Copa en casa podía quedar guardado con aforo 0 --lo creaba el paso
+        # de la taquilla, que no lo pide--, y como era el último, el estadio
+        # entero pasaba a medir 0 asientos: todas las ocupaciones a 0 %.
+        last = next((r for r in reversed(todas) if r.capacity_total), todas[-1])
         capacity_total = last.capacity_total or 0
 
         def ocupacion(vendido: int) -> float:

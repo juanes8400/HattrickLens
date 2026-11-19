@@ -350,10 +350,16 @@ class SyncTeamHandler(  # noqa: D101
                 await self._sync_alineaciones_jugadas(
                     uow, cmd.ht_team_id, captured_at, result, on_progress
                 )
-                await self._completar_desglose_de_taquilla(
+                # PRIMERO EL DETALLE, DESPUÉS LA TAQUILLA (2026-11-18). Al
+                # revés, el paso de la taquilla creaba la fila de estadio de
+                # un partido de Copa EN CASA recién jugado sin el aforo, y el
+                # detalle la daba por hecha y no la completaba: el estadio
+                # entero salía con 0 asientos. Así, la fila de casa la escribe
+                # el detalle, entera; la taquilla sólo crea las de fuera.
+                await self._backfill_missing_match_details(
                     uow, cmd.team_id, cmd.ht_team_id, result, on_progress
                 )
-                await self._backfill_missing_match_details(
+                await self._completar_desglose_de_taquilla(
                     uow, cmd.team_id, cmd.ht_team_id, result, on_progress
                 )
                 await self._completar_detalles_historicos(

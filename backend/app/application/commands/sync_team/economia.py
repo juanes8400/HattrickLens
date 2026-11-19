@@ -104,6 +104,11 @@ class EconomiaMixin(BaseDeSync):
             if any(v is None for v in sectores.values()):
                 continue
             en_casa = partido.home_team_ht_id == ht_team_id
+            # La fila de un partido EN CASA no se crea aquí: la escribe entera
+            # --aforo incluido-- el detalle del partido, que va antes. Creada
+            # desde aquí quedaba con aforo 0 y tumbaba Estadio (2026-11-18).
+            if foto is None and en_casa:
+                continue
             if foto is None:
                 foto = m.StadiumHistory(
                     team_id=team_id,
