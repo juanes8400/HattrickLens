@@ -245,14 +245,18 @@ def test_lo_bisemanal_son_dos_semanas_CERRADAS() -> None:
     assert panel is not None and panel.finance is not None
     assert eco is not None
 
-    bisemanal = next(w for w in eco.balance_windows if w.weeks_requested == 2)
-    assert bisemanal.balance is not None, "el fixture tiene que dar dos cierres"
+    # Contra las dos últimas semanas CERRADAS de Economía, sumadas aquí. Antes
+    # se comparaba con su tabla «Balances acumulados», retirada el 2026-11-20
+    # a pedido del usuario; la garantía es la misma.
+    cerradas = eco.series[-2:]
+    assert len(cerradas) == 2, "el fixture tiene que dar dos cierres"
+    ingresos = sum(p.income for p in cerradas)
 
-    assert panel.finance.biweekly_balance == bisemanal.balance
-    assert panel.finance.biweekly_income == bisemanal.income
+    assert panel.finance.biweekly_balance == sum(p.balance for p in cerradas)
+    assert panel.finance.biweekly_income == ingresos
     # Y la prueba de que no entra la semana en curso: si entrara, los ingresos
     # del Panel llevarían encima los de la semana viva.
-    assert panel.finance.biweekly_income != bisemanal.income + panel.finance.income_sum
+    assert panel.finance.biweekly_income != ingresos + panel.finance.income_sum
 
 
 def test_el_balance_sin_transferencias_es_el_mismo_en_las_tres_pantallas() -> None:

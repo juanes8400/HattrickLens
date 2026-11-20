@@ -105,8 +105,6 @@ def test_weekly_finance_groups_into_hattrick_categories() -> None:
     other = next(i for i in d.weekly_finance.income if i.code == "IncomeOther")
     assert other.amount == 1547634
     assert d.weekly_finance.expected_balance == 1351393
-    assert d.balance_windows[0].balance is None
-    assert d.balance_windows[0].weeks_available == 1
 
 
 def test_structural_forecast_works_from_a_single_snapshot() -> None:
@@ -514,55 +512,6 @@ async def _run_with_rows(rows_factory):
         s.add_all(rows_factory(team.id))
         await s.commit()
         return await EconomyQueryService(s).get(team.id)
-
-
-def test_balance_excl_transfers_takes_out_player_trading() -> None:
-    """Ingresos − gastos SIN la compraventa: una venta puntual no puede
-    disfrazar un negocio que pierde dinero operando."""
-    base = datetime(2026, 6, 1, tzinfo=UTC)
-
-    def rows(team_id: int):
-        return [
-            _economy_row(
-                1, team_id, base,
-                last_income_sum=1000, last_costs_sum=400,
-                last_income_sold_players=600, last_costs_bought_players=100,
-            ),
-            _economy_row(
-                2, team_id, base + timedelta(days=7),
-                last_income_sum=2000, last_costs_sum=800,
-                last_income_sold_players=0, last_costs_bought_players=300,
-            ),
-        ]
-
-    d = run(_run_with_rows(rows))
-    assert d is not None
-    window = next(w for w in d.balance_windows if w.weeks_requested == 2)
-    assert window.income == 300 and window.costs == 120 and window.balance == 180
-    # (300 − 60) − (120 − 40) = 240 − 80 = 160
-    assert window.balance_excl_transfers == 160
-
-
-def test_balance_excl_transfers_stays_silent_without_the_full_breakdown() -> None:
-    """Un snapshot sincronizado antes de guardar Last*SoldPlayers/BoughtPlayers
-    no tiene cómo separar la compraventa, decirlo es mejor que asumir cero."""
-    base = datetime(2026, 6, 1, tzinfo=UTC)
-
-    def rows(team_id: int):
-        return [
-            _economy_row(1, team_id, base, last_income_sum=1000, last_costs_sum=400),
-            _economy_row(
-                2, team_id, base + timedelta(days=7),
-                last_income_sum=2000, last_costs_sum=800,
-                last_income_sold_players=0, last_costs_bought_players=300,
-            ),
-        ]
-
-    d = run(_run_with_rows(rows))
-    assert d is not None
-    window = next(w for w in d.balance_windows if w.weeks_requested == 2)
-    assert window.balance == 180  # el balance crudo no depende del desglose
-    assert window.balance_excl_transfers is None
 
 
 def test_planned_events_move_the_forecast_in_the_right_direction() -> None:

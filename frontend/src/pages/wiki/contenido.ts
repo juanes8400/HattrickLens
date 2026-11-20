@@ -1376,7 +1376,6 @@ export const ARTICULOS: Articulo[] = [
           tx(
             "Flujo: de dónde entra y a dónde va el dinero, en varias ventanas de tiempo.",
           ),
-          tx("Balances acumulados."),
           tx("Ingresos y gastos por semana y por temporada."),
           tx(
             "Escenario de caja: la proyección, siempre aparte y marcada como escenario.",
