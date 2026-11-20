@@ -114,17 +114,6 @@ export interface Economy {
     income: { code: string; label: string; amount: number | null }[];
     costs: { code: string; label: string; amount: number | null }[];
   }[];
-  balanceWindows: {
-    label: string;
-    weeksRequested: number;
-    weeksAvailable: number;
-    income: number | null;
-    costs: number | null;
-    balance: number | null;
-    /** Ingresos − gastos sin compraventa de jugadores. Null si falta el
-     * desglose de alguna semana del tramo. */
-    balanceExclTransfers: number | null;
-  }[];
   structuralForecast: ForecastBand;
   /** Null hasta que haya serie suficiente para validar un modelo temporal. */
   timeseriesForecast: ForecastBand | null;

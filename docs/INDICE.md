@@ -40,10 +40,10 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/guia` | [GuiaPage.tsx](../frontend/src/pages/GuiaPage.tsx) | 52 | - | - | 0 | 0 |
 | `/privacidad` | [PrivacidadPage.tsx](../frontend/src/pages/PrivacidadPage.tsx) | 202 | - | - | 0 | 0 |
 | `/cookies` | [PrivacidadPage.tsx](../frontend/src/pages/PrivacidadPage.tsx) | 202 | - | - | 0 | 0 |
-| `/apoyar` | [ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) | 159 | 9173 | dashboard | 10 | 39 |
-| `/setup` | [SetupPage.tsx](../frontend/src/pages/SetupPage.tsx) | 428 | 9709 | auth_chpp, dashboard | 10 | 39 |
-| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 919 | 42536 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard, partidos | 35 | 122 |
-| `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 37217 | alertas, alineacion, league, dashboard | 32 | 111 |
+| `/apoyar` | [ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) | 159 | 9109 | dashboard | 10 | 39 |
+| `/setup` | [SetupPage.tsx](../frontend/src/pages/SetupPage.tsx) | 428 | 9645 | auth_chpp, dashboard | 10 | 39 |
+| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 919 | 42449 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard, partidos | 35 | 122 |
+| `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 37153 | alertas, alineacion, league, dashboard | 32 | 111 |
 | `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 601 | 6426 | club | 4 | 8 |
 | `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 509 | 10655 | clases, resumen | 12 | 36 |
 | `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 639 | 8782 | clases, plantilla | 10 | 31 |
@@ -60,11 +60,11 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1753 | 17667 | league | 13 | 71 |
 | `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1070 | 14735 | cup | 16 | 78 |
 | `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 352 | 16994 | cup, league | 18 | 82 |
-| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1377 | 22417 | rivals, dashboard | 17 | 83 |
-| `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1394 | 14887 | economy, precio_comparable | 11 | 38 |
+| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1377 | 22353 | rivals, dashboard | 17 | 83 |
+| `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1293 | 14699 | economy, precio_comparable | 11 | 38 |
 | `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3845 | arena | 3 | 12 |
-| `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 29246 | alertas | 28 | 102 |
-| `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 219 | 16432 | cambios, dashboard | 16 | 55 |
+| `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 29182 | alertas | 28 | 102 |
+| `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 219 | 16368 | cambios, dashboard | 16 | 55 |
 | `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 878 | 19281 | clases, player_balance, cambios, partidos, plantilla | 19 | 57 |
 | `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 1022 | 16485 | entrenamiento, modelos, modelos | 14 | 33 |
 | `/wiki` | [WikiPage.tsx](../frontend/src/pages/WikiPage.tsx) | 171 | - | - | 0 | 0 |
@@ -788,7 +788,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/economy`
 
-- **Página:** [frontend/src/pages/EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) (1394 líneas)
+- **Página:** [frontend/src/pages/EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) (1293 líneas)
 - **Componentes y hooks suyos (17):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
@@ -1034,7 +1034,7 @@ pantalla no estorba; uno mediano que leen veintiséis, sí.
 | 12958 | 589 | 22 | [backend/app/application/queries/squad.py](../backend/app/application/queries/squad.py) |
 | 12789 | 1827 | 7 | [backend/app/infrastructure/chpp/parsers/__init__.py](../backend/app/infrastructure/chpp/parsers/__init__.py) |
 | 12656 | 452 | 28 | [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx) |
-| 12608 | 1576 | 8 | [backend/app/application/queries/economy.py](../backend/app/application/queries/economy.py) |
+| 12096 | 1512 | 8 | [backend/app/application/queries/economy.py](../backend/app/application/queries/economy.py) |
 | 10584 | 1176 | 9 | [backend/app/domain/engines/prediccion.py](../backend/app/domain/engines/prediccion.py) |
 | 10264 | 1283 | 8 | [backend/app/application/queries/player_balance.py](../backend/app/application/queries/player_balance.py) |
 | 10120 | 1265 | 8 | [backend/app/domain/engines/mercado_comparable.py](../backend/app/domain/engines/mercado_comparable.py) |

@@ -103,24 +103,6 @@ class WeeklyFinance:
 
 
 @dataclass
-class BalanceWindow:
-    label: str
-    weeks_requested: int
-    weeks_available: int
-    income: int | None
-    costs: int | None
-    balance: int | None
-    # Ingresos − gastos sin compraventa de jugadores: lo que el club gana o
-    # pierde operando, sin que una venta puntual maquille un negocio
-    # deficitario. `None` si falta el desglose de alguna semana del tramo.
-    # `None` cuando alguna semana del tramo se leyó antes de que guardáramos el
-    # desglose de compraventa. No se avisa en pantalla: no hay nada que el
-    # usuario pueda hacer al respecto y el hueco se cierra solo en cuanto esa
-    # semana sale de la ventana.
-    balance_excl_transfers: int | None
-
-
-@dataclass
 class ForecastBand:
     weeks: list[int]
     p10: list[int]
@@ -316,7 +298,6 @@ class EconomyResponse:
     current_week: SeriesPoint | None
     weekly_finance: WeeklyFinance
     sankey_windows: list[SankeyWindow]
-    balance_windows: list[BalanceWindow]
     structural_forecast: ForecastBand
     timeseries_forecast: ForecastBand | None
     recommended_model: str
@@ -1160,7 +1141,6 @@ class EconomyQueryService:
                 previous_costs_total=conv_opt(latest.last_costs_sum),
             ),
             sankey_windows=sankey_windows,
-            balance_windows=_balance_windows(series),
             structural_forecast=structural,
             timeseries_forecast=timeseries,
             recommended_model=recommended,
@@ -1510,7 +1490,7 @@ def _sankey_windows(
 ) -> list[SankeyWindow]:
     """1 semana es la semana en curso tal cual `weekly_finance`; cada ventana
     mayor le suma las N-1 semanas ya cerradas más recientes (`closed_*`, en
-    orden cronológico ascendente, igual que `_balance_windows`)."""
+    orden cronológico ascendente)."""
     windows: list[SankeyWindow] = []
     for weeks in (1, 2, 4, 8, 16):
         extra = weeks - 1
@@ -1526,50 +1506,6 @@ def _sankey_windows(
             )
         )
     return windows
-
-
-def _balance_excl_transfers(points: list[SeriesPoint]) -> int | None:
-    sold = [p.sold_players_income for p in points]
-    bought = [p.bought_players_costs for p in points]
-    if any(v is None for v in sold) or any(v is None for v in bought):
-        return None
-    income_excl = sum(p.income for p in points) - sum(v for v in sold if v is not None)
-    costs_excl = sum(p.costs for p in points) - sum(v for v in bought if v is not None)
-    return income_excl - costs_excl
-
-
-def _balance_windows(series: list[SeriesPoint]) -> list[BalanceWindow]:
-    rows: list[BalanceWindow] = []
-    for weeks in (2, 4, 8, 16):
-        if len(series) < weeks:
-            rows.append(
-                BalanceWindow(
-                    label=f"Últimas {weeks} semanas",
-                    weeks_requested=weeks,
-                    weeks_available=len(series),
-                    income=None,
-                    costs=None,
-                    balance=None,
-                    balance_excl_transfers=None,
-                )
-            )
-            continue
-        points = series[-weeks:]
-        label = (
-            "Balance bisemanal (últimas 2 semanas)" if weeks == 2 else f"Últimas {weeks} semanas"
-        )
-        rows.append(
-            BalanceWindow(
-                label=label,
-                weeks_requested=weeks,
-                weeks_available=weeks,
-                income=sum(point.income for point in points),
-                costs=sum(point.costs for point in points),
-                balance=sum(point.balance for point in points),
-                balance_excl_transfers=_balance_excl_transfers(points),
-            )
-        )
-    return rows
 
 
 def _iso(dt: datetime) -> str:

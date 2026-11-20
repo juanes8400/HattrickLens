@@ -151,7 +151,6 @@ export function EconomyPage() {
             <WeeklyFinanceTable data={data} />
             <HattrickFlow data={data} />
             <ObservedHistory data={data} />
-            <BalanceWindowsTable data={data} />
 
             {data.anomalies.length > 0 && (
               <Panel
@@ -591,106 +590,6 @@ function observedEconomyOption(
     },
     series,
   };
-}
-
-function BalanceWindowsTable({ data }: { data: Economy }) {
-  return (
-    <Panel
-      title={tx("Balances acumulados")}
-      meta={tx("semanas cerradas reportadas por Hattrick")}
-    >
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead className="border-b border-[var(--border)] text-left text-xs text-[var(--muted)]">
-            <tr>
-              <th scope="col" className="px-4 py-3 font-medium">
-                {tx("Periodo")}
-              </th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">
-                {tx("Ingresos")}
-              </th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">
-                {tx("Gastos")}
-              </th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">
-                {tx("Balance")}
-              </th>
-              <th scope="col" className="px-4 py-3 text-right font-medium">
-                {tx("Balance sin transferencias")}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--border)]">
-            {data.balanceWindows.map((window) => {
-              const complete = window.balance != null;
-              return (
-                <tr key={window.weeksRequested}>
-                  <td className="px-4 py-3">
-                    <div>{window.label}</div>
-                    {!complete && (
-                      <div className="text-xs text-[var(--muted)]">
-                        {tx("faltan datos:")} {window.weeksAvailable}/
-                        {window.weeksRequested} {tx("semanas")}
-                      </div>
-                    )}
-                  </td>
-                  <MoneyCell
-                    value={window.income}
-                    currency={data.currency}
-                    tone="positive"
-                  />
-                  <MoneyCell
-                    value={window.costs}
-                    currency={data.currency}
-                    tone="danger"
-                  />
-                  <MoneyCell
-                    value={window.balance}
-                    currency={data.currency}
-                    tone={
-                      window.balance != null && window.balance < 0
-                        ? "danger"
-                        : "positive"
-                    }
-                  />
-                  <MoneyCell
-                    value={window.balanceExclTransfers}
-                    currency={data.currency}
-                    tone={
-                      window.balanceExclTransfers != null &&
-                      window.balanceExclTransfers < 0
-                        ? "danger"
-                        : "positive"
-                    }
-                  />
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </Panel>
-  );
-}
-
-function MoneyCell({
-  value,
-  currency,
-  tone,
-}: {
-  value: number | null;
-  currency: string;
-  tone: "positive" | "danger";
-}) {
-  return (
-    <td
-      className={`px-4 py-3 text-right tabular-nums ${
-        tone === "positive" ? "text-[var(--positive)]" : "text-[var(--danger)]"
-      }`}
-    >
-      {value == null ? "-" : money(value, currency)}
-    </td>
-  );
 }
 
 const HORIZON_OPTIONS: { key: Horizon; label: string }[] = [

@@ -287,18 +287,6 @@ def _serialise(d: Any) -> dict[str, Any]:
             }
             for w in d.sankey_windows
         ],
-        "balanceWindows": [
-            {
-                "label": window.label,
-                "weeksRequested": window.weeks_requested,
-                "weeksAvailable": window.weeks_available,
-                "income": window.income,
-                "costs": window.costs,
-                "balance": window.balance,
-                "balanceExclTransfers": window.balance_excl_transfers,
-            }
-            for window in d.balance_windows
-        ],
         "structuralForecast": _band(d.structural_forecast),
         "timeseriesForecast": _band(d.timeseries_forecast),
         "recommendedModel": d.recommended_model,
