@@ -2238,8 +2238,6 @@
   "Hattrick no prevé las acciones indirectas a balón parado de una alineación enviada, así que esas dos van con tu promedio de lo ya jugado. Siete de los nueve duelos son la alineación que mandaste; dos son tu costumbre.": "Hattrick doesn't predict indirect set pieces for a submitted lineup, so those two use your average of what has been played. Seven of the nine duels are the lineup you submitted; two are your usual.",
   " · En el once": " · In the line-up",
   "escala completa · de {{v0}} a {{v1}}": "full scale · from {{v0}} to {{v1}}",
-  "el total, en Economía": "the total, in Finances",
-  "jugador por jugador, en Transferencias": "player by player, in Transfers",
   "modelo simple por TSI, no calibrado": "simple TSI model, not calibrated",
   "Error desconocido.": "Unknown error.",
   "cambio": "change",
@@ -2420,5 +2418,6 @@
   "quedó por debajo del": "fell below the",
   "puja {{v0}}{{v1}} · equilibrio {{v2}}": "bid {{v0}}{{v1}} · break-even {{v2}}",
   "cierra el {{v0}}": "closes {{v0}}",
-  "{{v0}} → {{v1}} · equilibrio {{v2}} → {{v3}}": "{{v0}} → {{v1}} · break-even {{v2}} → {{v3}}"
+  "{{v0}} → {{v1}} · equilibrio {{v2}} → {{v3}}": "{{v0}} → {{v1}} · break-even {{v2}} → {{v3}}",
+  "Jugador por jugador, en Transferencias / Plantilla actual": "Player by player, in Transfers / Current squad"
 }

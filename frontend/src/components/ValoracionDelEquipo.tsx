@@ -90,12 +90,15 @@ export function ValoracionDelEquipo({
   caja,
 }: {
   activa: boolean;
+  /** Desde el 2026-11-21 vive en Transferencias / Plantilla actual, encima de
+   *  la tabla (pedido del usuario: unificar las dos pantallas). `undefined`
+   *  mientras la caja no ha llegado: la frase de «veces la caja» espera. */
   /** La caja de hoy, para poder decir la valoración EN VECES LA CAJA.
    *
    *  Es la razón de que esta sección viva en Economía y no en Transferencias:
    *  trece millones en jugadores no significan lo mismo con dos millones en
    *  el banco que con veinte. La cifra sola no lo dice; esta división sí. */
-  caja: number;
+  caja?: number;
 }) {
   const { data, isLoading, isError, error } = usePreciosComparables({
     enabled: activa,
@@ -129,14 +132,6 @@ export function ValoracionDelEquipo({
   return (
     <Panel
       title={tx("Valor de Plantilla")}
-      meta={
-        <Link
-          to="/transfers/balance?seccion=plantilla"
-          className="text-xs text-[var(--accent)] hover:underline"
-        >
-          {tx("jugador por jugador, en Transferencias")}
-        </Link>
-      }
       ayuda={tx(
         "Lo que valdría vender hoy toda la plantilla, jugador a jugador. Sale del mismo sitio que la tabla de Transferencias / Mi plantilla --lo que ha costado gente parecida-- así que las dos pantallas dicen el mismo número. No es una tasación y no cuesta ninguna consulta a Hattrick.",
       )}
@@ -177,7 +172,7 @@ export function ValoracionDelEquipo({
                 )}
               </p>
             )}
-            {caja > 0 && (
+            {caja != null && caja > 0 && (
               <p className="text-xs text-[var(--muted)]">
                 {tx("{{v0}} veces tu caja de ahora, que son {{v1}}", {
                   v0: decimal(total / caja, 1),
@@ -418,5 +413,59 @@ function BarraDeJugador({
         )}
       </span>
     </li>
+  );
+}
+
+/** Lo que queda de «Valor de Plantilla» en Economía (2026-11-21): la cifra
+ *  y el enlace a Transferencias / Plantilla actual, donde vive entera desde
+ *  que el usuario pidió unificar las dos pantallas. La misma cuenta que la
+ *  sección completa, así que el número es el mismo en los dos sitios. */
+export function TarjetaDelValor({
+  activa,
+  caja,
+}: {
+  activa: boolean;
+  caja: number;
+}) {
+  const { data, isLoading, isError, error } = usePreciosComparables({
+    enabled: activa,
+  });
+  const cuentas = useMemo(
+    () => resumenDeLaValoracion(data?.jugadores ?? [], data?.sinMedir ?? 0),
+    [data],
+  );
+  if (!activa) return null;
+  if (isLoading) return <Loading />;
+  if (isError) return <ErrorState error={error} />;
+  if (!data) return <SinDatos />;
+  const { total, plantilla, conPrecio } = cuentas;
+  return (
+    <Panel title={tx("Valor de Plantilla")}>
+      <div className="space-y-2 px-4 py-4">
+        <div className="text-3xl font-semibold tabular-nums tracking-tight">
+          {money(total, data.moneda)}
+        </div>
+        <p className="text-xs text-[var(--muted)]">
+          {tx("suma de {{v0}} de {{v1}} jugadores con ventas parecidas", {
+            v0: number(conPrecio.length),
+            v1: number(plantilla),
+          })}
+        </p>
+        {caja > 0 && (
+          <p className="text-xs text-[var(--muted)]">
+            {tx("{{v0}} veces tu caja de ahora, que son {{v1}}", {
+              v0: decimal(total / caja, 1),
+              v1: money(caja, data.moneda),
+            })}
+          </p>
+        )}
+        <Link
+          to="/transfers/balance?seccion=plantilla"
+          className="inline-block text-sm text-[var(--accent)] hover:underline"
+        >
+          {tx("Jugador por jugador, en Transferencias / Plantilla actual")} →
+        </Link>
+      </div>
+    </Panel>
   );
 }

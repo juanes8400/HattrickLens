@@ -17,7 +17,7 @@ import {
   SinDatos,
 } from "../components/Panels";
 import { Tabs, PanelDePestanas } from "../components/Tabs";
-import { ValoracionDelEquipo } from "../components/ValoracionDelEquipo";
+import { TarjetaDelValor } from "../components/ValoracionDelEquipo";
 import { decimal, money, number } from "../hooks/useFormat";
 import { useEconomy } from "../hooks/useTeam";
 import type {
@@ -179,10 +179,9 @@ export function EconomyPage() {
         )}
 
         {section === "detalles" && <DetailsSection data={data} />}
-        <ValoracionDelEquipo
-          activa={section === "valoracion"}
-          caja={data.cash}
-        />
+        {/* Desde el 2026-11-21 sólo la cifra y el enlace: la sección
+            entera vive en Transferencias / Plantilla actual. */}
+        <TarjetaDelValor activa={section === "valoracion"} caja={data.cash} />
       </PanelDePestanas>
     </div>
   );
