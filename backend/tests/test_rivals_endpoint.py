@@ -110,10 +110,12 @@ class FakeCHPP:
         if file == "matches" and params.get("teamID") not in {OWN_HT_TEAM_ID, RIVAL_HT_TEAM_ID}:
             return {"matches": []}
         if file == "matchlineup":
+            # La 1.4, con la casilla exacta: la que pide la ficha desde el
+            # 2026-11-20 (`VERSION_ALINEACION`).
             fname = (
-                "matchlineup.xml"
+                "matchlineup_v14.xml"
                 if params.get("teamID") == RIVAL_HT_TEAM_ID
-                else "matchlineup_home.xml"
+                else "matchlineup_home_v14.xml"
             )
             return get_parser(file)((FIXTURES / fname).read_bytes())
         return get_parser(file)((FIXTURES / f"{file}.xml").read_bytes())
@@ -343,6 +345,12 @@ def test_scouting_returns_real_tsi_and_real_lineup_names(
 
     assert body["manMarking"] is not None
     assert body["manMarking"]["targetName"] == "Sami Suutarinen"  # mayor TSI markable
+    # Una minicancha por partido analizado, en el orden de la rotación.
+    por_partido = body["manMarking"]["targetByMatch"]
+    assert len(por_partido) == body["sideRotation"]["matchesAnalysed"]
+    assert any(p["targetPosition"] is not None for p in por_partido)
+    assert body["defenseRotation"]["matchesAnalysed"] == len(por_partido)
+    assert body["defenseRotation"]["weakSide"] in {"izquierda", "centro", "derecha"}
 
     # HL-144: proyección explícita, separada de los hechos de arriba.
     wp = body["winProbability"]
@@ -591,6 +599,7 @@ def test_scouting_without_matches_still_compares_tsi(
     assert body["matchesAnalysed"] == 0
     assert body["manMarking"] is None
     assert body["sideRotation"] is None
+    assert body["defenseRotation"] is None
     # sin partidos vistos no hay position_code de nadie: no se excluye a nadie
     # aunque el toggle esté activo (nunca se adivina quién es el arquero)
     assert len(body["tsiHistogram"]["rivalValues"]) == len(RIVAL_PLAYERS["players"])
@@ -1046,10 +1055,7 @@ def test_oficiales_y_amistosos_son_excluyentes_uno_u_otro(
         ninguno = client.get(f"{ficha}?include_competitive=false&include_friendlies=false")
         ambos = client.get(f"{ficha}?include_competitive=true&include_friendlies=true")
 
-    assert all(
-        r.status_code == 200
-        for r in (por_defecto, oficiales, amistosos, ninguno, ambos)
-    )
+    assert all(r.status_code == 200 for r in (por_defecto, oficiales, amistosos, ninguno, ambos))
 
     # Una sola muestra manda en toda la ficha: el conteo global y el del mapa
     # de duelos son el mismo numero, ya no hay un recorte propio del panel.
@@ -1226,9 +1232,7 @@ def test_un_rival_sin_cruce_se_guarda_desde_la_primera_visita(
             else "include_competitive=false&include_friendlies=true"
         )
         with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: espia):
-            r = client.get(
-                f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting?{consulta}"
-            )
+            r = client.get(f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting?{consulta}")
         assert r.status_code == 200, r.text
         return Counter(espia.llamadas)
 

@@ -42,8 +42,8 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/cookies` | [PrivacidadPage.tsx](../frontend/src/pages/PrivacidadPage.tsx) | 202 | - | - | 0 | 0 |
 | `/apoyar` | [ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) | 159 | 9109 | dashboard | 10 | 39 |
 | `/setup` | [SetupPage.tsx](../frontend/src/pages/SetupPage.tsx) | 428 | 9645 | auth_chpp, dashboard | 10 | 39 |
-| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 919 | 42449 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard, partidos | 35 | 122 |
-| `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 37153 | alertas, alineacion, league, dashboard | 32 | 111 |
+| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 919 | 42645 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard, partidos | 35 | 122 |
+| `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 37276 | alertas, alineacion, league, dashboard | 32 | 111 |
 | `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 601 | 6426 | club | 4 | 8 |
 | `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 509 | 10655 | clases, resumen | 12 | 36 |
 | `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 639 | 8782 | clases, plantilla | 10 | 31 |
@@ -57,13 +57,13 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1215 | libro | 0 | 1 |
 | `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4039 | 16250 | academy | 13 | 31 |
 | `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 740 | 7386 | matches, partidos | 4 | 18 |
-| `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1753 | 17667 | league | 13 | 71 |
-| `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1070 | 14735 | cup | 16 | 78 |
-| `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 352 | 16994 | cup, league | 18 | 82 |
-| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1377 | 22353 | rivals, dashboard | 17 | 83 |
+| `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1753 | 17790 | league | 13 | 71 |
+| `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1070 | 14931 | cup | 16 | 78 |
+| `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 352 | 17190 | cup, league | 18 | 82 |
+| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1603 | 23276 | rivals, dashboard | 17 | 83 |
 | `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1293 | 14699 | economy, precio_comparable | 11 | 38 |
 | `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3845 | arena | 3 | 12 |
-| `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 29182 | alertas | 28 | 102 |
+| `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 29305 | alertas | 28 | 102 |
 | `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 219 | 16368 | cambios, dashboard | 16 | 55 |
 | `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 878 | 19281 | clases, player_balance, cambios, partidos, plantilla | 19 | 57 |
 | `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 1022 | 16485 | entrenamiento, modelos, modelos | 14 | 33 |
@@ -758,18 +758,20 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/rivals/:rivalHtTeamId`
 
-- **Página:** [frontend/src/pages/RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) (1377 líneas)
-- **Componentes y hooks suyos (17):**
+- **Página:** [frontend/src/pages/RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) (1603 líneas)
+- **Componentes y hooks suyos (19):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
   - [frontend/src/components/BarraDePrediccion.tsx](../frontend/src/components/BarraDePrediccion.tsx)
   - [frontend/src/components/DataTable.tsx](../frontend/src/components/DataTable.tsx)
   - [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx)
+  - [frontend/src/components/PitchField.tsx](../frontend/src/components/PitchField.tsx)
   - [frontend/src/components/PitchZoneMethodSelector.tsx](../frontend/src/components/PitchZoneMethodSelector.tsx)
   - [frontend/src/components/TsiHistogramPanel.tsx](../frontend/src/components/TsiHistogramPanel.tsx)
   - [frontend/src/components/pitchZoneMethods.ts](../frontend/src/components/pitchZoneMethods.ts)
   - [frontend/src/hooks/useFormat.ts](../frontend/src/hooks/useFormat.ts)
+  - [frontend/src/hooks/usePersistido.ts](../frontend/src/hooks/usePersistido.ts)
   - [frontend/src/hooks/useTeam/dashboard.ts](../frontend/src/hooks/useTeam/dashboard.ts)
   - [frontend/src/hooks/useTeam/index.ts](../frontend/src/hooks/useTeam/index.ts)
   - [frontend/src/hooks/useTeam/nucleo.ts](../frontend/src/hooks/useTeam/nucleo.ts)

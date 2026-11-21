@@ -20,7 +20,8 @@ import {
   ProjectionPanel,
 } from "../components/Panels";
 import { TsiHistogramPanel } from "../components/TsiHistogramPanel";
-import { number } from "../hooks/useFormat";
+import { useOrientacionDeLaCancha } from "../components/PitchField";
+import { date, number } from "../hooks/useFormat";
 import { useDashboard, useRivalScouting } from "../hooks/useTeam";
 import type {
   LastPurchase,
@@ -358,54 +359,62 @@ export function RivalPage() {
       />
 
       <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-        <Panel title={tx("Sugerencia de marcaje al hombre")}>
-          {data.manMarking ? (
-            <div className="space-y-2 p-4">
-              <p className="text-sm">{data.manMarking.rationale}</p>
-              <div className="flex flex-wrap items-center gap-6 text-xs text-[var(--muted)]">
-                <span>
-                  {tx("Objetivo:")}{" "}
-                  <b className="text-[var(--text)]">
-                    {data.manMarking.targetName}
-                  </b>{" "}
-                  ({data.manMarking.targetPosition})
-                </span>
-                <span>
-                  {tx("Marcador:")}{" "}
-                  <b className="text-[var(--text)]">
-                    {data.manMarking.markerName}
-                  </b>{" "}
-                  ({data.manMarking.markerPosition})
-                </span>
-                <span
-                  className={`rounded px-2 py-0.5 text-[11px] font-semibold ${
-                    data.manMarking.efficiency === "cerca"
-                      ? "bg-[var(--positive)]/15 text-[var(--positive)]"
-                      : "bg-[var(--warning)]/15 text-[var(--warning)]"
-                  }`}
-                >
-                  {data.manMarking.efficiency === "cerca"
-                    ? tx("Combinación óptima")
-                    : tx("Combinación lejos")}{" "}
-                  (-{(data.manMarking.markerLossPct * 100).toFixed(0)}%)
-                </span>
+        {/* A todo el ancho desde el 2026-11-20: así ataque y defensa quedan
+            lado a lado debajo, y se comparan de un vistazo. */}
+        <div className="lg:col-span-2">
+          <Panel title={tx("Sugerencia de marcaje al hombre")}>
+            {data.manMarking ? (
+              <div className="space-y-2 p-4">
+                <p className="text-sm">{data.manMarking.rationale}</p>
+                <div className="flex flex-wrap items-center gap-6 text-xs text-[var(--muted)]">
+                  <span>
+                    {tx("Objetivo:")}{" "}
+                    <b className="text-[var(--text)]">
+                      {data.manMarking.targetName}
+                    </b>{" "}
+                    ({data.manMarking.targetPosition})
+                  </span>
+                  <span>
+                    {tx("Marcador:")}{" "}
+                    <b className="text-[var(--text)]">
+                      {data.manMarking.markerName}
+                    </b>{" "}
+                    ({data.manMarking.markerPosition})
+                  </span>
+                  <span
+                    className={`rounded px-2 py-0.5 text-[11px] font-semibold ${
+                      data.manMarking.efficiency === "cerca"
+                        ? "bg-[var(--positive)]/15 text-[var(--positive)]"
+                        : "bg-[var(--warning)]/15 text-[var(--warning)]"
+                    }`}
+                  >
+                    {data.manMarking.efficiency === "cerca"
+                      ? tx("Combinación óptima")
+                      : tx("Combinación lejos")}{" "}
+                    (-{(data.manMarking.markerLossPct * 100).toFixed(0)}%)
+                  </span>
+                </div>
+                <MinicanchasDelObjetivo
+                  nombre={data.manMarking.targetName}
+                  partidos={data.manMarking.targetByMatch ?? []}
+                />
+                <p className="text-xs text-[var(--muted)]">
+                  {tx("Confianza:")} {data.manMarking.confidence}
+                  {tx(". Solo compensa si el objetivo es una amenaza clara.")}
+                </p>
+                <p className="text-xs text-[var(--muted)]">
+                  {data.manMarking.riskNote}
+                </p>
               </div>
-              <p className="text-xs text-[var(--muted)]">
-                {tx("Confianza:")} {data.manMarking.confidence}
-                {tx(". Solo compensa si el objetivo es una amenaza clara.")}
-              </p>
-              <p className="text-xs text-[var(--muted)]">
-                {data.manMarking.riskNote}
-              </p>
-            </div>
-          ) : (
-            <Empty>
-              {tx(
-                "Sin datos suficientes: ningún jugador rival marcable (delantero, extremo o mediocentro) apareció en los partidos vistos con posición conocida, o no tienes un jugador propio elegible para marcarlo.",
-              )}
-            </Empty>
-          )}
-        </Panel>
+            ) : (
+              <Empty>
+                {tx(
+                  "Sin datos suficientes: ningún jugador rival marcable (delantero, extremo o mediocentro) apareció en los partidos vistos con posición conocida, o no tienes un jugador propio elegible para marcarlo.",
+                )}
+              </Empty>
+            )}
+          </Panel>
+        </div>
 
         <Panel title={tx("Rotación del ataque")}>
           {data.sideRotation ? (
@@ -435,6 +444,47 @@ export function RivalPage() {
                           v0: nombreDeCarril(data.sideRotation.strongSide),
                           v1: data.sideRotation.dominantPct.toFixed(0),
                           v2: data.sideRotation.matchesAnalysed,
+                        },
+                      )}
+              </p>
+            </div>
+          ) : (
+            <Empty>
+              {tx("Sin partidos")}
+              {claseDePartidosPlural}{" "}
+              {tx("recientes del rival con datos de sector.")}
+            </Empty>
+          )}
+        </Panel>
+
+        <Panel title={tx("Rotación de la defensa")}>
+          {data.defenseRotation ? (
+            <div className="space-y-3 p-4">
+              <DefenseLanes rotation={data.defenseRotation} />
+              <p className="text-xs text-[var(--muted)]">
+                {data.defenseRotation.weakPct === 100
+                  ? tx(
+                      "Lado débil fijo, sin excepción: la {{v0}} fue su carril más flojo en los {{v1}} de {{v2}} partidos vistos.",
+                      {
+                        v0: nombreDeCarril(data.defenseRotation.weakSide),
+                        v1: data.defenseRotation.matchesAnalysed,
+                        v2: data.defenseRotation.matchesAnalysed,
+                      },
+                    )
+                  : data.defenseRotation.rotates
+                    ? tx(
+                        "Rota: ningún lado es el más flojo de forma consistente, el más débil cambió partido a partido en sus últimos {{v0}} partido(s){{v1}}.",
+                        {
+                          v0: data.defenseRotation.matchesAnalysed,
+                          v1: claseDePartidos,
+                        },
+                      )
+                    : tx(
+                        "Lado débil habitual: la {{v0}} fue su carril más flojo en el {{v1}}% de sus últimos {{v2}} partido(s).",
+                        {
+                          v0: nombreDeCarril(data.defenseRotation.weakSide),
+                          v1: data.defenseRotation.weakPct.toFixed(0),
+                          v2: data.defenseRotation.matchesAnalysed,
                         },
                       )}
               </p>
@@ -680,19 +730,27 @@ function nombreDeCarril(clave: string): string {
   return clave;
 }
 
-function AttackLanes({
-  rotation,
+/** Un partido por columna y un carril por fila. Lo comparten el ataque
+ *  (resalta su mejor carril de cada día) y la defensa (resalta el más flojo):
+ *  el mismo dibujo, para que los dos paneles se lean igual. */
+function Carriles({
+  partidos,
+  promedios,
+  color,
+  marca,
 }: {
-  rotation: NonNullable<RivalScouting["sideRotation"]>;
+  partidos: {
+    label: string;
+    left: number;
+    central: number;
+    right: number;
+    resaltado: string;
+  }[];
+  promedios: readonly (readonly [Carril, number, number])[];
+  color: string;
+  /** Lo que dice la ayuda de la barra resaltada. */
+  marca: string;
 }) {
-  const carriles = [
-    ["izquierda", "left", rotation.attackLeftAvg, rotation.attackLeftStd],
-    ["centro", "central", rotation.attackCentralAvg, rotation.attackCentralStd],
-    ["derecha", "right", rotation.attackRightAvg, rotation.attackRightStd],
-  ] as const;
-  // `?? []` y no confiar en el tipo: una respuesta vieja en caché del
-  // navegador no trae el campo, y un panel roto es peor que uno vacío.
-  const partidos = rotation.attackByMatch ?? [];
   // Escala común a los tres carriles: si cada fila tuviera la suya, un carril
   // flojo se vería igual de alto que el fuerte.
   const techo = Math.max(
@@ -706,15 +764,15 @@ function AttackLanes({
 
   return (
     <div className="space-y-1.5">
-      {carriles.map(([etiqueta, clave, avg, std]) => (
+      {promedios.map(([etiqueta, avg, std]) => (
         <div key={etiqueta} className="flex items-stretch gap-2">
           <div className="w-20 shrink-0 self-center text-[10px] uppercase text-[var(--muted)]">
             {nombreDeCarril(etiqueta)}
           </div>
           <div className="flex flex-1 items-end gap-1">
             {partidos.map((partido, i) => {
-              const valor = partido[clave];
-              const gana = partido.best === etiqueta;
+              const valor = partido[CLAVE_DEL_CARRIL[etiqueta]];
+              const resaltado = partido.resaltado === etiqueta;
               return (
                 <div
                   key={i}
@@ -723,15 +781,15 @@ function AttackLanes({
                     v0: partido.label,
                     v1: valor,
                     v2: nombreDeCarril(etiqueta),
-                    v3: gana ? " (su mejor carril ese día)" : "",
+                    v3: resaltado ? marca : "",
                   })}
                 >
                   <div
                     className="w-full rounded-sm"
                     style={{
                       height: `${Math.max(3, (valor / techo) * 34)}px`,
-                      background: gana ? RIVAL_COLOR : "var(--surface-2)",
-                      border: gana ? "none" : "1px solid var(--border)",
+                      background: resaltado ? color : "var(--surface-2)",
+                      border: resaltado ? "none" : "1px solid var(--border)",
                     }}
                   />
                 </div>
@@ -760,8 +818,176 @@ function AttackLanes({
   );
 }
 
+type Carril = "izquierda" | "centro" | "derecha";
+const CLAVE_DEL_CARRIL = {
+  izquierda: "left",
+  centro: "central",
+  derecha: "right",
+} as const;
+
+function AttackLanes({
+  rotation,
+}: {
+  rotation: NonNullable<RivalScouting["sideRotation"]>;
+}) {
+  return (
+    <Carriles
+      // `?? []` y no confiar en el tipo: una respuesta vieja en caché del
+      // navegador no trae el campo, y un panel roto es peor que uno vacío.
+      partidos={(rotation.attackByMatch ?? []).map((p) => ({
+        ...p,
+        resaltado: p.best,
+      }))}
+      promedios={[
+        ["izquierda", rotation.attackLeftAvg, rotation.attackLeftStd],
+        ["centro", rotation.attackCentralAvg, rotation.attackCentralStd],
+        ["derecha", rotation.attackRightAvg, rotation.attackRightStd],
+      ]}
+      color={RIVAL_COLOR}
+      marca={tx(" (su mejor carril ese día)")}
+    />
+  );
+}
+
+/** La defensa del rival, carril a carril. Se resalta su carril MÁS FLOJO de
+ *  cada partido, en el color de aviso de la app y no en el del rival: aquí se
+ *  vigila su punto débil, no su fuerza (pedido del usuario, 2026-11-20). */
+function DefenseLanes({
+  rotation,
+}: {
+  rotation: NonNullable<RivalScouting["defenseRotation"]>;
+}) {
+  return (
+    <Carriles
+      partidos={(rotation.defenseByMatch ?? []).map((p) => ({
+        ...p,
+        resaltado: p.worst,
+      }))}
+      promedios={[
+        ["izquierda", rotation.defenseLeftAvg, rotation.defenseLeftStd],
+        ["centro", rotation.defenseCentralAvg, rotation.defenseCentralStd],
+        ["derecha", rotation.defenseRightAvg, rotation.defenseRightStd],
+      ]}
+      color={WEAK_COLOR}
+      marca={tx(" (su carril más flojo ese día)")}
+    />
+  );
+}
+
+/** Línea (0 delanteros ... 3 portero) y columna (1-5) de cada puesto de campo
+ *  de `matchlineup` (1 portero ... 14 delantero izquierdo). El lado derecho va
+ *  a la primera columna, como en las demás canchas de la app, que ordenan por
+ *  casilla. */
+function casillaDelPuesto(
+  codigo: number,
+): { linea: number; columna: number } | null {
+  if (codigo === 1) return { linea: 3, columna: 3 };
+  if (codigo >= 2 && codigo <= 6) return { linea: 2, columna: codigo - 1 };
+  if (codigo >= 7 && codigo <= 11) return { linea: 1, columna: codigo - 6 };
+  if (codigo >= 12 && codigo <= 14) return { linea: 0, columna: codigo - 10 };
+  return null;
+}
+
+/** Una minicancha por partido analizado con el once del rival y, resaltado,
+ *  el puesto del objetivo del marcaje (pedido del usuario, 2026-11-20).
+ *  La sugerencia nombra un solo puesto; esto enseña si siempre juega ahí o
+ *  lo mueven según la formación. Mismo verde, borde y círculo que las demás
+ *  canchas de la app, y la misma orientación elegida en «Ver la cancha». */
+function MinicanchasDelObjetivo({
+  nombre,
+  partidos,
+}: {
+  nombre: string;
+  partidos: NonNullable<
+    NonNullable<RivalScouting["manMarking"]>["targetByMatch"]
+  >;
+}) {
+  const [porteroArriba] = useOrientacionDeLaCancha();
+  if (partidos.length === 0) return null;
+  // Líneas con el portero al final, como `PitchGrid`; se dan la vuelta igual.
+  const fila = (linea: number) => (porteroArriba ? 4 - linea : linea + 1);
+  return (
+    <div className="pt-1">
+      <div className="mb-1.5 text-xs text-[var(--muted)]">
+        {tx("Dónde jugó {{v0}} en cada partido", { v0: nombre })}
+      </div>
+      <div
+        className="grid gap-2"
+        style={{
+          gridTemplateColumns: `repeat(${partidos.length}, minmax(0, 1fr))`,
+        }}
+      >
+        {partidos.map((p, i) => {
+          const objetivo = p.targetPosition;
+          const jugo = objetivo != null;
+          const puestos = jugo
+            ? [...p.fieldPositions, objetivo]
+            : p.fieldPositions;
+          const ayuda = [
+            date(p.date),
+            p.label,
+            p.formation,
+            jugo ? "" : tx("no jugó"),
+          ]
+            .filter(Boolean)
+            .join(" · ");
+          return (
+            <div key={i} title={ayuda} className="min-w-0">
+              <div
+                className={`relative mx-auto h-36 max-w-[9rem] overflow-hidden rounded-lg bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-950 ${
+                  jugo ? "" : "opacity-50"
+                }`}
+              >
+                <div className="pointer-events-none absolute inset-1.5 rounded-[0.6rem] border-2 border-white/25" />
+                <div className="pointer-events-none absolute left-1/2 top-1/2 h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/20" />
+                <div className="pointer-events-none absolute left-1.5 right-1.5 top-1/2 border-t-2 border-white/20" />
+                <div className="absolute inset-x-2.5 inset-y-3 grid grid-cols-5 grid-rows-4 place-items-center">
+                  {puestos.map((codigo) => {
+                    const casilla = casillaDelPuesto(codigo);
+                    if (!casilla) return null;
+                    const esElObjetivo = codigo === objetivo;
+                    return (
+                      <div
+                        key={codigo}
+                        className={
+                          esElObjetivo
+                            ? "h-3.5 w-3.5 rounded-full ring-2 ring-white/85"
+                            : "h-2 w-2 rounded-full bg-white/45"
+                        }
+                        style={{
+                          gridRow: fila(casilla.linea),
+                          gridColumn: casilla.columna,
+                          background: esElObjetivo ? RIVAL_COLOR : undefined,
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="mt-1 truncate text-center text-[10px] text-[var(--muted)]">
+                {jugo ? p.formation || "-" : tx("no jugó")}
+                <br />
+                {p.label}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-1 flex justify-between text-[10px] text-[var(--muted)]">
+        <span>{tx("más antiguo")}</span>
+        <span>
+          <span style={{ color: RIVAL_COLOR }}>●</span> {nombre}
+        </span>
+        <span>{tx("más reciente")}</span>
+      </div>
+    </div>
+  );
+}
+
 const OWN_COLOR = "#4f7cff";
 const RIVAL_COLOR = "#8b5cf6";
+/** El punto débil del rival: el color de aviso de la app. */
+const WEAK_COLOR = "var(--warning)";
 
 interface ComparisonMetric {
   label: string;
