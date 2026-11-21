@@ -7,13 +7,14 @@ Las reglas viven en `domain/engines/clases_de_jugador.py`.
 """
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.cache_por_sync import olvidar, por_sync
 from app.api.deps import require_team_owner
 from app.application.queries.cambios_de_clase import cambios_de_clase
 from app.application.queries.clases_de_jugador import (
@@ -32,6 +33,10 @@ from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()
+
+#: La clave de las clases en la caché por sync: la leen la ruta y las que la
+#: olvidan al editar grupos o clasificaciones.
+CLAVE_DE_CLASES = "clases-de-jugador"
 
 #: Los colores que se pueden elegir para un grupo propio. La pantalla tiene
 #: la misma lista; cualquier otro valor se rechaza.
@@ -72,6 +77,19 @@ async def player_classes(
 ) -> dict[str, Any]:
     if await session.get(m.Team, team_id) is None:
         raise HTTPException(404, f"team {team_id} not found")
+
+    # GUARDADO HASTA EL PRÓXIMO SYNC (2026-11-21, pedido del usuario: que la
+    # ficha de un jugador cargue más rápido). Las clases sólo cambian al
+    # sincronizar, salvo los grupos y clasificaciones propios, y cada ruta que
+    # los edita la olvida (`olvidar`). Antes cada ficha, cada filtro de clases
+    # y cada pantalla que las enseña volvían a analizar la plantilla entera.
+    async def calcular() -> dict[str, Any]:
+        return await _clases_de_jugador(session, team_id)
+
+    return cast(dict[str, Any], await por_sync(session, team_id, CLAVE_DE_CLASES, (), calcular))
+
+
+async def _clases_de_jugador(session: AsyncSession, team_id: int) -> dict[str, Any]:
     c = await ClasesDeJugadorQueryService(session).get(team_id)
     return {
         "formations": list(c.formations),
@@ -193,6 +211,7 @@ async def crear_clasificacion(
     )
     session.add(c)
     await session.commit()
+    olvidar(team_id, CLAVE_DE_CLASES)
     return _clasificacion_json(c)
 
 
@@ -210,6 +229,7 @@ async def renombrar_clasificacion(
     c = await _clasificacion(session, team_id, classification_id)
     c.name = body.name.strip()
     await session.commit()
+    olvidar(team_id, CLAVE_DE_CLASES)
     return _clasificacion_json(c)
 
 
@@ -237,6 +257,7 @@ async def borrar_clasificacion(
     )
     await session.delete(c)
     await session.commit()
+    olvidar(team_id, CLAVE_DE_CLASES)
     return {"deleted": classification_id}
 
 
@@ -266,6 +287,7 @@ async def crear_grupo(
     )
     session.add(grupo)
     await session.commit()
+    olvidar(team_id, CLAVE_DE_CLASES)
     return {"id": grupo.id, "groupName": grupo.name, "color": grupo.color}
 
 
@@ -284,6 +306,7 @@ async def cambiar_grupo(
         _color_valido(body.color)
         grupo.color = body.color
     await session.commit()
+    olvidar(team_id, CLAVE_DE_CLASES)
     return {"id": grupo.id, "groupName": grupo.name, "color": grupo.color}
 
 
@@ -303,6 +326,7 @@ async def borrar_grupo(
     )
     await session.delete(grupo)
     await session.commit()
+    olvidar(team_id, CLAVE_DE_CLASES)
     return {"deleted": group_id}
 
 
@@ -349,6 +373,7 @@ async def poner_en_grupo(
     else:
         actual.group_id = body.group_id
     await session.commit()
+    olvidar(team_id, CLAVE_DE_CLASES)
     return {
         "htPlayerId": ht_player_id,
         "classificationId": body.classification_id,
@@ -369,6 +394,17 @@ async def player_class_changes(
     guarda la lectura de esa sincronización; ver `cambios_de_clase`."""
     if await session.get(m.Team, team_id) is None:
         raise HTTPException(404, f"team {team_id} not found")
+
+    # Sólo cuenta las tres clases de la app, que no se editan a mano: se
+    # guarda hasta el próximo sync sin nada que olvidar (2026-11-21). La
+    # primera llamada tras un sync sigue escribiendo su lectura.
+    async def calcular() -> dict[str, Any]:
+        return await _cambios_de_clase(session, team_id)
+
+    return cast(dict[str, Any], await por_sync(session, team_id, "cambios-de-clase", (), calcular))
+
+
+async def _cambios_de_clase(session: AsyncSession, team_id: int) -> dict[str, Any]:
     c = await cambios_de_clase(session, team_id)
     return {
         "syncId": c.sync_id,

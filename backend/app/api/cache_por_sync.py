@@ -115,6 +115,16 @@ async def por_sync(
     return valor
 
 
+def olvidar(team_id: int, nombre: str) -> None:
+    """Borra lo guardado de `nombre` para el equipo, en todos los idiomas.
+
+    Para lo que el usuario puede cambiar SIN sincronizar --sus grupos y
+    clasificaciones propias (2026-11-21)--: sin esto la pantalla seguiría
+    enseñando lo de antes de su cambio hasta el próximo sync."""
+    for k in [k for k in _memoria if k[1] == nombre and k[2] == team_id]:
+        del _memoria[k]
+
+
 def limpiar() -> None:
     """Para las pruebas."""
     _memoria.clear()
