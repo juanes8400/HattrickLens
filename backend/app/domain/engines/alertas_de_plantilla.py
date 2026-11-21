@@ -17,6 +17,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
+from app.domain.engines.cruces_de_equilibrio import Cruce
 from app.domain.engines.insights import Insight, Severity
 from app.domain.value_objects.formatting import thousands
 
@@ -122,10 +123,65 @@ def venta_con_ganancia(ventas: Sequence[Venta], moneda: str) -> list[Insight]:
                     ),
                     action="Simúlalo en Transferencias → Plantilla actual.",
                     module="transferencias",
-                    evidence={"ht_player_id": v.ht_player_id},
+                    # El nombre lleva a su Comparador de transferencias
+                    # (2026-11-21, pedido del usuario).
+                    evidence={
+                        "ht_player_id": v.ht_player_id,
+                        "name": v.name,
+                        "enlace": "comparador",
+                    },
                 )
             )
     return out
+
+
+def _titulo_del_cruce(c: Cruce) -> str:
+    n = c.nombre
+    if c.senal == "precio":
+        if c.sentido == "sube":
+            return f"{n} ya vale más que su precio de equilibrio"
+        return f"{n} ya vale menos que su precio de equilibrio"
+    if c.senal == "maximo":
+        if c.sentido == "sube":
+            return f"Ya se pagó por un parecido a {n} más que su precio de equilibrio"
+        return f"Ya no se paga por un parecido a {n} más que su precio de equilibrio"
+    return f"Una puja por un parecido a {n} supera su precio de equilibrio"
+
+
+def _detalle_del_cruce(c: Cruce, moneda: str) -> str:
+    """Una frase entera por caso: partida en trozos no se traduciría."""
+    a, b = thousands(c.antes), thousands(c.ahora)
+    ea, eb = thousands(c.equilibrio_antes), thousands(c.equilibrio_ahora)
+    if c.senal == "precio":
+        return (
+            f"Su precio por comparables pasó de {a} a {b} {moneda} y su precio de "
+            f"equilibrio, de {ea} a {eb} {moneda}."
+        )
+    if c.senal == "maximo":
+        return (
+            f"Lo máximo pagado por un parecido pasó de {a} a {b} {moneda} y su precio de "
+            f"equilibrio, de {ea} a {eb} {moneda}."
+        )
+    return f"La puja más alta abierta es de {b} {moneda}; su precio de equilibrio es {eb} {moneda}."
+
+
+def cruces_del_equilibrio(cruces: Sequence[Cruce], moneda: str) -> list[Insight]:
+    """Un aviso por cada precio que cruzó el precio de equilibrio de un
+    jugador desde la sincronización anterior (2026-11-21, pedido del usuario).
+    Hacia arriba es una oportunidad de vender sin pérdida; hacia abajo, que esa
+    ventana se cerró."""
+    return [
+        Insight(
+            key=f"market.breakeven_cross.{c.ht_player_id}.{c.senal}.{c.sentido}",
+            severity=Severity.OPPORTUNITY if c.sentido == "sube" else Severity.WARNING,
+            title=_titulo_del_cruce(c),
+            detail=_detalle_del_cruce(c, moneda),
+            action="Míralo en su Comparador de transferencias.",
+            module="transferencias",
+            evidence={"ht_player_id": c.ht_player_id, "name": c.nombre, "enlace": "comparador"},
+        )
+        for c in cruces
+    ]
 
 
 @dataclass(frozen=True)

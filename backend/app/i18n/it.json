@@ -2071,5 +2071,14 @@
   "Reserva que despierta": "Riserva che si sveglia",
   "Promesa que sube": "Promessa in crescita",
   "Rotación que asoma": "Rotazione che emerge",
-  "Ganga que se revaloriza": "Affare che si rivaluta"
+  "Ganga que se revaloriza": "Affare che si rivaluta",
+  "{} ya vale más que su precio de equilibrio": "{} ora vale più del suo prezzo di pareggio",
+  "{} ya vale menos que su precio de equilibrio": "{} ora vale meno del suo prezzo di pareggio",
+  "Ya se pagó por un parecido a {} más que su precio de equilibrio": "Un giocatore simile a {} è stato pagato più del suo prezzo di pareggio",
+  "Ya no se paga por un parecido a {} más que su precio de equilibrio": "I giocatori simili a {} non vengono più pagati più del suo prezzo di pareggio",
+  "Una puja por un parecido a {} supera su precio de equilibrio": "Un'offerta per un giocatore simile a {} supera il suo prezzo di pareggio",
+  "Su precio por comparables pasó de {} a {} {} y su precio de equilibrio, de {} a {} {}.": "Il suo prezzo per comparabili è passato da {} a {} {} e il suo prezzo di pareggio da {} a {} {}.",
+  "Lo máximo pagado por un parecido pasó de {} a {} {} y su precio de equilibrio, de {} a {} {}.": "Il massimo pagato per un giocatore simile è passato da {} a {} {} e il suo prezzo di pareggio da {} a {} {}.",
+  "La puja más alta abierta es de {} {}; su precio de equilibrio es {} {}.": "L'offerta aperta più alta è di {} {}; il suo prezzo di pareggio è {} {}.",
+  "Míralo en su Comparador de transferencias.": "Guardalo nel suo Comparatore di trasferimenti."
 }

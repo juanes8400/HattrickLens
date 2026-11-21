@@ -381,6 +381,7 @@ class PlayerBalanceQueryService:
         self,
         team_id: int,
         season: str | None = None,
+        a_la_fecha: datetime | None = None,
     ) -> PlayerBalanceResponse | None:
         """`season`: filtro general de temporadas, pedido explícitamente
         2026-08-04, `None`/"all" trae todo (comportamiento de siempre); un
@@ -389,7 +390,12 @@ class PlayerBalanceQueryService:
         KPI de "Resumen" (transfer_total_*) quedan fuera a propósito: son un
         agregado de TODA la historia que entrega Hattrick, no algo que se
         pueda recortar por temporada sin datos por transacción que Hattrick
-        no da."""
+        no da.
+
+        `a_la_fecha`: el balance de los jugadores ACTIVOS como si fuera ese
+        momento, con los sueldos cobrados hasta entonces y la comisión del
+        agente de entonces. Lo usan los avisos del precio de equilibrio
+        (2026-11-21) para saber cuál era en la visita anterior."""
         team = await self._s.get(m.Team, team_id)
         if team is None:
             return None
@@ -919,7 +925,12 @@ class PlayerBalanceQueryService:
             effective_sale_price = (
                 None if is_currently_active else sale_price if etapa.sale_price is not None else 0
             )
-            as_of = datetime.now(UTC).replace(tzinfo=None)
+            # Una fecha sin zona ya es UTC (así salen de SQLite): `astimezone`
+            # la tomaría por hora local.
+            momento = a_la_fecha or datetime.now(UTC)
+            if momento.tzinfo is not None:
+                momento = momento.astimezone(UTC)
+            as_of = momento.replace(tzinfo=None)
             stint_end = effective_sold_at or as_of
             stint_salary_history = salary_history_for_stint(p.id, purchased_at, stint_end)
             # El respaldo sin timestamp solo es atribuible al paso mas reciente

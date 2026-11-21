@@ -191,6 +191,7 @@ export type {
   SyncSaleEconomics,
   SyncStreamEvent,
   ValueMove,
+  EquilibriumCrossing,
   YouthComparisonChange,
   YouthComparisonRow,
   YouthSummary,

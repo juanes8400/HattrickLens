@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 import type { Insight } from "../services/api";
+import { TextoConEquilibrio } from "./PrecioDeEquilibrio";
 
 /**
  * Piezas compartidas de alertas, 2026-08-15, pedido explícito: "las alertas
@@ -100,6 +101,15 @@ export function InsightRow({
 }) {
   const { t } = useTranslation();
   const route = insightRoute(insight.module);
+  // Las alertas de precio llevan el nombre al Comparador de
+  // transferencias del jugador (2026-11-21, pedido del usuario).
+  const ev = insight.evidence ?? {};
+  const jugadorEnlazado =
+    ev.enlace === "comparador" &&
+    typeof ev.ht_player_id === "number" &&
+    typeof ev.name === "string"
+      ? { htPlayerId: ev.ht_player_id, name: ev.name }
+      : undefined;
   // El módulo llega del servidor en español («economía»); se enseña traducido.
   const modulo = t(`alertas.modulo.${insight.module}`, insight.module);
   // Al archivar o restaurar desaparece la fila entera, y con ella el botón
@@ -119,9 +129,11 @@ export function InsightRow({
         style={{ background: INSIGHT_TONE[insight.severity] }}
       />
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium">{insight.title}</div>
+        <div className="text-sm font-medium">
+          <TextoConEquilibrio texto={insight.title} jugador={jugadorEnlazado} />
+        </div>
         <p className="prosa mt-0.5 text-xs leading-relaxed text-[var(--muted)]">
-          {insight.detail}
+          <TextoConEquilibrio texto={insight.detail} />
         </p>
         {insight.action && (
           <p className="prosa mt-1.5 text-xs text-[var(--accent)]">

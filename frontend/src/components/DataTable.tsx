@@ -30,6 +30,10 @@ export interface Column<T> {
    *  Un identificador de Hattrick, no: «474.426.586» no es un número que
    *  nadie sume, es un nombre escrito con dígitos (2026-09-04). */
   raw?: boolean;
+  /** Lo que explica la cabecera al pasar el ratón, cuando el nombre no basta
+   *  (2026-11-21: «Precio de equilibrio»). Sin esto sólo se explican las
+   *  abreviaturas. */
+  headerTitle?: string;
 }
 
 /** Se exige un ancho POSITIVO antes de concluir que la pantalla es estrecha.
@@ -382,8 +386,13 @@ export function DataTable<T>({
                       `aria-label` se la da al lector de pantalla, que si no
                       leería «FO» y ya. */}
                   <span
-                    title={nombreLargo(c.header)}
+                    title={c.headerTitle ?? nombreLargo(c.header)}
                     aria-label={nombreLargo(c.header)}
+                    className={
+                      c.headerTitle
+                        ? "cursor-help underline decoration-dotted underline-offset-2"
+                        : undefined
+                    }
                   >
                     {c.header}
                   </span>

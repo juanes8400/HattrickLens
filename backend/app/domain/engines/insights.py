@@ -55,6 +55,8 @@ KNOWN_KEY_ROOTS: frozenset[str] = frozenset(
         # Las alertas de cierre (2026-11-18): `alertas_de_grupo` y
         # `alertas_de_plantilla`.
         "academy.ready_to_promote",
+        # Los cruces del precio de equilibrio (2026-11-21).
+        "market.breakeven_cross",
         "group.bargain_rising",
         "group.costly_dropping",
         "group.decline_fast",

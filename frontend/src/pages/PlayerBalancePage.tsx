@@ -53,6 +53,7 @@ import {
   SIN_FILTRO,
   type ValorDelFiltro,
 } from "../components/clases/filtro";
+import { explicacionDelEquilibrio } from "../components/PrecioDeEquilibrio";
 import { terminoOficial } from "../i18n/glosario";
 const UNKNOWN_TRAINING = tx("Sin evidencia suficiente");
 const UNKNOWN_SEASON = tx("Temporada desconocida");
@@ -547,11 +548,13 @@ function TablaDeLaPlantilla({
     },
     // LA ÚLTIMA COLUMNA LLEVA UN DATO, no sólo el botón. Con la cabecera vacía
     // y un `value` de relleno, el CSV se llevaba una columna sin nombre llena
-    // de ceros. El precio de no perder es justo lo que falta al lado del
+    // de ceros. El precio de equilibrio (antes «de no perder», renombrado
+    // el 2026-11-21) es justo lo que falta al lado del
     // precio comparable: lo que habría que pedir para no perder dinero.
     {
       key: "equilibrio",
-      header: tx("Precio de no perder"),
+      header: tx("Precio de equilibrio"),
+      headerTitle: explicacionDelEquilibrio(),
       align: "right",
       value: (f) => f.simulacion?.precioDeEquilibrio ?? "",
       sortValue: (f) => f.simulacion?.precioDeEquilibrio ?? -1,
@@ -767,8 +770,10 @@ function SimulacionDePlantilla({
               }
               className="rounded-md border border-[var(--border)] px-2 py-1.5 text-xs text-[var(--muted)] hover:text-[var(--text)]"
             >
-              {tx("poner el precio de no perder")}:{" "}
-              {money(simulacion.precioDeEquilibrio, currency)}
+              <span title={explicacionDelEquilibrio()}>
+                {tx("poner el precio de equilibrio")}
+              </span>
+              : {money(simulacion.precioDeEquilibrio, currency)}
             </button>
           )}
         </div>

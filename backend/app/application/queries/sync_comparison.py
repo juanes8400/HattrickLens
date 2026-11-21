@@ -16,6 +16,7 @@ from typing import Any
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.queries.cruces_de_equilibrio import cruces_de_equilibrio
 from app.application.queries.player_balance import PlayerBalanceQueryService
 from app.application.queries.weekly import start_of_iso_week
 from app.domain.engines import academy_engine as academy
@@ -1236,6 +1237,13 @@ async def build_sync_comparison(
         anterior.started_at if anterior else None,
         desde_este_sync=report_sync.started_at,
     )
+    equilibrium_crossings = await _cruces_para_cambios(
+        session,
+        team_id,
+        _fin_de(anterior),
+        _fin_de(report_sync) or report_sync.started_at,
+        currency,
+    )
     national_matches = await _partidos_de_seleccion(
         session,
         team_id,
@@ -1278,6 +1286,9 @@ async def build_sync_comparison(
         # lecturas del precio comparable, no de una llamada: el valor de
         # cualquier jugador en cualquier momento pasado ya estaba guardado.
         "valueMoves": value_moves,
+        # LOS CRUCES DEL PRECIO DE EQUILIBRIO (2026-11-21, pedido del usuario):
+        # qué precio pasó de un lado al otro de lo mínimo para no perder.
+        "equilibriumCrossings": equilibrium_crossings,
         "availableReports": [
             {
                 "syncId": s.id,
@@ -1287,6 +1298,34 @@ async def build_sync_comparison(
             for s in available
         ],
     }
+
+
+async def _cruces_para_cambios(
+    session: AsyncSession,
+    team_id: int,
+    desde: datetime | None,
+    hasta: datetime,
+    currency: str,
+) -> list[dict[str, Any]]:
+    """Los cruces del precio de equilibrio desde el informe anterior. Sin
+    informe anterior no hay «antes» con el que comparar."""
+    if desde is None:
+        return []
+    return [
+        {
+            "htPlayerId": c.ht_player_id,
+            "name": c.nombre,
+            "signal": c.senal,
+            "direction": c.sentido,
+            "before": c.antes,
+            "after": c.ahora,
+            "equilibriumBefore": c.equilibrio_antes,
+            "equilibriumAfter": c.equilibrio_ahora,
+            "closesAt": c.cierra.isoformat() if c.cierra else None,
+            "currency": currency,
+        }
+        for c in await cruces_de_equilibrio(session, team_id, desde, hasta)
+    ]
 
 
 def _fin_de(sync: m.Sync | None) -> datetime | None:
