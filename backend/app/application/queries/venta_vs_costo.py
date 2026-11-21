@@ -11,6 +11,14 @@ transferencias: dos líneas sobre el mismo eje desde la llegada del jugador.
 
 Donde las dos líneas se cruzan, el precio es el precio de equilibrio.
 No pide nada a Hattrick.
+
+CADA PRECIO EN SU SEMANA DE HATTRICK (7.0.1, visto por el usuario el mismo
+día: «unos jugadores tienen una semana de historia en un tab y varias en el
+otro»). La 7.0.0 colocaba cada precio en la fecha en que se ESCRIBIÓ su fila
+(`captured_at`), y una semana pasada se escribe tarde --cuando se resuelve una
+venta que cerró en ella, o cuando el barrido llega a ventas viejas--, así que
+semanas enteras de precio se apilaban al final. Ahora se colocan por
+`season_week`, igual que la pestaña «Precio»: las dos dicen las mismas semanas.
 """
 
 from __future__ import annotations
@@ -22,6 +30,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.application.queries.player_balance import PlayerBalanceQueryService
+from app.application.queries.weekly import season_week_for_datetime
 from app.infrastructure.db import models as m
 
 
@@ -40,6 +49,16 @@ class VentaVsCosto:
     puntos: tuple[PuntoDeVenta, ...]
 
 
+def precio_de_la_semana(semanas: list[tuple[str, int | None]], semana: str | None) -> int | None:
+    """El precio de la semana de Hattrick `semana` («TT-ss»), o el de la última
+    semana anterior que tuvo precio. Lo que manda es la semana en que
+    cerraron las ventas, no cuándo se escribió la fila."""
+    if semana is None:
+        return None
+    previas = [p for sw, p in semanas if sw <= semana and p is not None]
+    return previas[-1] if previas else None
+
+
 def _utc(valor: datetime) -> datetime:
     return valor if valor.tzinfo else valor.replace(tzinfo=UTC)
 
@@ -52,8 +71,16 @@ async def venta_vs_costo(
         return None
     tasa = equipo.currency_rate or 1.0
     costos = await PlayerBalanceQueryService(session).serie_de_costo(team_id, ht_player_id)
-    lecturas = [
-        (_utc(f.captured_at), f.mean_price)
+    world = await session.scalar(
+        select(m.WorldContext)
+        .join(m.Team, m.Team.ht_league_id == m.WorldContext.ht_league_id)
+        .where(m.Team.id == team_id)
+    )
+    # Una fila por semana de Hattrick («TT-ss», con ceros: se ordena como
+    # texto). Las de antes de la 0113 no tienen semana y tampoco se dibujan en
+    # la pestaña «Precio».
+    semanas = [
+        (f.season_week, f.mean_price)
         for f in (
             await session.execute(
                 select(m.MarketEstimate)
@@ -61,16 +88,18 @@ async def venta_vs_costo(
                     m.MarketEstimate.team_id == team_id,
                     m.MarketEstimate.ht_player_id == ht_player_id,
                     m.MarketEstimate.mean_price.is_not(None),
+                    m.MarketEstimate.season_week != "",
                 )
-                .order_by(m.MarketEstimate.captured_at)
+                .order_by(m.MarketEstimate.season_week)
             )
         ).scalars()
     ]
     puntos = []
     for c in costos:
         momento = _utc(c.momento)
-        previas = [precio for cuando, precio in lecturas if cuando <= momento]
-        precio = int(round(previas[-1] / tasa)) if previas and previas[-1] is not None else None
+        semana = season_week_for_datetime(world, momento) if world else None
+        base = precio_de_la_semana(semanas, semana)
+        precio = int(round(base / tasa)) if base is not None else None
         puntos.append(
             PuntoDeVenta(
                 fecha=momento.isoformat(),
