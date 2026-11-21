@@ -6,15 +6,44 @@ monta `router` con todos estos, asi que las URL no cambian.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.cache_por_sync import TTL_CON_RELOJ, por_sync
 from app.api.deps import (
     get_squad_service,
     require_team_owner,
 )
 from app.application.dto.squad import SquadResponse
 from app.application.queries.squad import SquadQueryService
+from app.infrastructure.db.session import get_session
 
 router = APIRouter()
+
+
+async def plantilla_guardada(
+    session: AsyncSession,
+    team_id: int,
+    position: str | None = None,
+    comparison_window: str | None = None,
+    svc: SquadQueryService | None = None,
+) -> SquadResponse | None:
+    """La plantilla, guardada (2026-11-21: la piden Plantilla, Posiciones,
+    Alineación, Transferencias, Novedades y la ficha de cada jugador, y cada
+    una la recalculaba entera). Con reloj --edades y días--, así que dura como
+    mucho `TTL_CON_RELOJ`; y es editable, así que una edición la olvida."""
+
+    async def calcular() -> SquadResponse | None:
+        return await (svc or SquadQueryService(session)).get(team_id, position, comparison_window)
+
+    resultado: SquadResponse | None = await por_sync(
+        session,
+        team_id,
+        "plantilla",
+        (position, comparison_window),
+        calcular,
+        ttl=TTL_CON_RELOJ,
+    )
+    return resultado
 
 
 @router.get(
@@ -38,9 +67,10 @@ async def squad(
         ),
     ),
     svc: SquadQueryService = Depends(get_squad_service),
+    session: AsyncSession = Depends(get_session),
 ) -> SquadResponse:
     try:
-        data = await svc.get(team_id, position, comparison_window)
+        data = await plantilla_guardada(session, team_id, position, comparison_window, svc)
     except KeyError as exc:
         raise HTTPException(400, str(exc)) from exc
     if data is None:

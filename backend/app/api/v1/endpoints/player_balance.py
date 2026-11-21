@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.cache_por_sync import TTL_CON_RELOJ, por_sync
 from app.api.deps import require_team_owner
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.player_balance import PlayerBalanceQueryService
@@ -40,10 +41,18 @@ async def player_balance(
     cualquier reventa detectada de un ex-jugador nuestro. Nunca usa una
     valoración de mercado hipotética para un jugador que sigue sin
     venderse: esa cifra es 0 hasta que la venta sea real."""
-    data = await PlayerBalanceQueryService(session).get(team_id, season=season)
-    if data is None:
+
+    # GUARDADO (2026-11-21): 400 ms de cálculo en cada visita a
+    # Transferencias. Con reloj --los sueldos se cuentan hasta hoy-- y
+    # editable, así que dura `TTL_CON_RELOJ` y una edición lo olvida.
+    async def calcular() -> dict[str, Any] | None:
+        data = await PlayerBalanceQueryService(session).get(team_id, season=season)
+        return None if data is None else cast(dict[str, Any], _camel(asdict(data)))
+
+    respuesta = await por_sync(session, team_id, "balance", (season,), calcular, ttl=TTL_CON_RELOJ)
+    if respuesta is None:
         raise HTTPException(404, f"team {team_id} not found")
-    return cast(dict[str, Any], _camel(asdict(data)))
+    return cast(dict[str, Any], respuesta)
 
 
 class EdicionDeEtapa(BaseModel):

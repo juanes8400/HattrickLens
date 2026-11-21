@@ -2,7 +2,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import Response
 from starlette.types import Scope
 
+from app.api.cache_por_sync import olvidar_al_editar
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.registro import configurar_registro
@@ -76,7 +77,10 @@ app.add_middleware(TraducirRespuestas)
 # apretar hasta el último byte se paga en la pantalla.
 app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6)
 
-app.include_router(api_router, prefix="/api/v1")
+# Tras cualquier edición del equipo se olvida lo editable de la caché por
+# sync (2026-11-21). Dependencia y no middleware: un middleware de los de
+# `BaseHTTPMiddleware` puede retener el chorro de la sincronización.
+app.include_router(api_router, prefix="/api/v1", dependencies=[Depends(olvidar_al_editar)])
 
 
 @app.get("/health")

@@ -10,6 +10,7 @@ from typing import Any, cast
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.cache_por_sync import TTL_CON_RELOJ, por_sync
 from app.api.deps import require_team_owner
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.precio_comparable import precio_de, precios_de_la_plantilla
@@ -62,7 +63,15 @@ async def precios_comparables(
     Sin ventas cerradas parecidas la media llega `null`, nunca cero: cero diría
     que no vale nada y lo que pasa es que todavía no se sabe.
     """
-    return cast(dict[str, Any], _camel(asdict(await precios_de_la_plantilla(session, team_id))))
+
+    # GUARDADO HASTA EL PRÓXIMO SYNC (2026-11-21): el fondo del mercado sólo
+    # se mueve en el paso del mercado, que corre dentro del sync.
+    async def calcular() -> dict[str, Any]:
+        return cast(dict[str, Any], _camel(asdict(await precios_de_la_plantilla(session, team_id))))
+
+    return cast(
+        dict[str, Any], await por_sync(session, team_id, "precios-comparables", (), calcular)
+    )
 
 
 @router.get(
@@ -79,7 +88,14 @@ async def venta_contra_costo(
     y lo que entraría en caja vendiéndolo al precio por comparables de esa
     semana (2026-11-21). Sólo para jugadores que siguen en el club; si no, la
     lista llega vacía."""
-    datos = await venta_vs_costo(session, team_id, ht_player_id)
-    if datos is None:
+
+    async def calcular() -> dict[str, Any] | None:
+        datos = await venta_vs_costo(session, team_id, ht_player_id)
+        return None if datos is None else cast(dict[str, Any], _camel(asdict(datos)))
+
+    respuesta = await por_sync(
+        session, team_id, "venta-vs-costo", (ht_player_id,), calcular, ttl=TTL_CON_RELOJ
+    )
+    if respuesta is None:
         raise HTTPException(404, f"el equipo {team_id} no existe")
-    return cast(dict[str, Any], _camel(asdict(datos)))
+    return cast(dict[str, Any], respuesta)

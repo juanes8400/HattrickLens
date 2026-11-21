@@ -5,12 +5,13 @@ entera para tocar cualquiera de sus rutas. El `__init__.py` del paquete
 monta `router` con todos estos, asi que las URL no cambian.
 """
 
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.cache_por_sync import TTL_CON_RELOJ, por_sync
 from app.api.deps import require_team_owner
 from app.api.v1.endpoints.analysis.plantilla import roster
 from app.application.queries.post_match_training import PostMatchTrainingService
@@ -260,7 +261,23 @@ async def training_development(
     Experiencia se reconstruye con partidos/minutos reales. Fidelidad se
     calcula desde la fecha de llegada. Ninguna de las dos ajusta una regresión
     con los datos privados de la cuenta.
+
+    GUARDADO (2026-11-21, pedido del usuario: páginas más rápidas): eran 50
+    consultas por visita. La fidelidad cuenta días desde la llegada, así que
+    dura `TTL_CON_RELOJ`; y las fechas de llegada se editan a mano, así que
+    una edición lo olvida.
     """
+
+    async def calcular() -> dict[str, Any]:
+        return await _desarrollo(session, team_id)
+
+    return cast(
+        dict[str, Any],
+        await por_sync(session, team_id, "desarrollo", (), calcular, ttl=TTL_CON_RELOJ),
+    )
+
+
+async def _desarrollo(session: AsyncSession, team_id: int) -> dict[str, Any]:
     view = await TrainingSquadQueryService(session).development_view(team_id)
     if view is None:
         raise HTTPException(404, f"team {team_id} not found")

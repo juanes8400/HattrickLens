@@ -5,11 +5,13 @@ entera para tocar cualquiera de sus rutas. El `__init__.py` del paquete
 monta `router` con todos estos, asi que las URL no cambian.
 """
 
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.cache_por_sync import por_sync
 from app.api.deps import (
     require_team_owner,
 )
@@ -19,9 +21,13 @@ from app.application.queries.changes_history import (
     build_changes_history,
 )
 from app.application.queries.sync_comparison import build_sync_comparison
+from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()
+
+#: La clave del informe de Cambios en la caché por sync.
+CLAVE_DE_CAMBIOS = "cambios-de-la-sincronizacion"
 
 
 @router.get(
@@ -42,8 +48,25 @@ async def last_sync_changes(
     respuesta trae en `availableReports` las fechas que SÍ tuvieron cambios,
     y pedir una de ellas devuelve esa comparación en vez de la más reciente.
     Un id inválido o sin cambios cae a la última, no es un error del usuario
-    pedir una fecha que ya no existe."""
-    return await build_sync_comparison(session, team_id, sync_id)
+    pedir una fecha que ya no existe.
+
+    GUARDADO HASTA QUE HAYA ALGO NUEVO (2026-11-21, pedido del usuario: que
+    las páginas carguen más rápido). Eran 131 consultas en cada visita. La
+    clave lleva el último cambio guardado del equipo, así que lo que se
+    apunte después del sync --las comisiones que se revisan al terminar--
+    lo invalida solo; y editar precios o etapas a mano lo olvida
+    (`CLAVE_DE_CAMBIOS`), porque cambia los cruces del precio de equilibrio."""
+    ultimo_cambio = await session.scalar(
+        select(func.max(m.SyncChange.id)).where(m.SyncChange.team_id == team_id)
+    )
+
+    async def calcular() -> dict[str, Any]:
+        return await build_sync_comparison(session, team_id, sync_id)
+
+    return cast(
+        dict[str, Any],
+        await por_sync(session, team_id, CLAVE_DE_CAMBIOS, (sync_id, ultimo_cambio), calcular),
+    )
 
 
 @router.get(
@@ -74,7 +97,6 @@ async def changes_history(
             status_code=422,
             detail=f"weeks debe ser uno de {', '.join(map(str, ALLOWED_WINDOW_WEEKS))}",
         )
-    from app.api.cache_por_sync import por_sync
 
     # Una vez por sync (2026-09-14): las fotos sólo cambian al sincronizar.
     return await por_sync(

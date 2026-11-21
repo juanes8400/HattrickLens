@@ -2080,5 +2080,7 @@
   "Su precio por comparables pasó de {} a {} {} y su precio de equilibrio, de {} a {} {}.": "His comparables price went from {} to {} {} and his break-even price from {} to {} {}.",
   "Lo máximo pagado por un parecido pasó de {} a {} {} y su precio de equilibrio, de {} a {} {}.": "The most paid for a similar player went from {} to {} {} and his break-even price from {} to {} {}.",
   "La puja más alta abierta es de {} {}; su precio de equilibrio es {} {}.": "The highest open bid is {} {}; his break-even price is {} {}.",
-  "Míralo en su Comparador de transferencias.": "See it in his Transfer comparator."
+  "Míralo en su Comparador de transferencias.": "See it in his Transfer comparator.",
+  "cambios de clase": "class changes",
+  "precios comparables": "comparables prices"
 }

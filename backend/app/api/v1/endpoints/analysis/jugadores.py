@@ -6,16 +6,18 @@ monta `router` con todos estos, asi que las URL no cambian.
 """
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.cache_por_sync import TTL_CON_RELOJ, por_sync
 from app.api.deps import require_team_owner
 from app.api.v1.endpoints.analysis.plantilla import roster
+from app.api.v1.endpoints.teams.plantilla import plantilla_guardada
 from app.application.queries.player_history import HISTORY_SKILL_COLS, PlayerHistoryQueryService
-from app.application.queries.squad import SKILL_COLS, SquadQueryService
+from app.application.queries.squad import SKILL_COLS
 from app.application.queries.training_context import TrainingContextService
 from app.application.queries.training_squad import TrainingSquadQueryService
 from app.application.queries.weekly import season_week_for_datetime, season_week_label
@@ -62,7 +64,22 @@ async def player_detail(
 ) -> dict[str, Any]:
     """Identidad, habilidades, las 19 posiciones + roles especiales, valoración,
     ventana de venta y previsión de entrenamiento de un jugador, todo lo que
-    ya calculan los motores de plantilla, filtrado a uno solo."""
+    ya calculan los motores de plantilla, filtrado a uno solo.
+
+    GUARDADA POR JUGADOR (2026-11-21, pedido del usuario: que la ficha cargue
+    más rápido). Con reloj y editable: dura `TTL_CON_RELOJ` y una edición del
+    equipo la olvida."""
+
+    async def calcular() -> dict[str, Any]:
+        return await _ficha(session, team_id, ht_player_id)
+
+    return cast(
+        dict[str, Any],
+        await por_sync(session, team_id, "ficha", (ht_player_id,), calcular, ttl=TTL_CON_RELOJ),
+    )
+
+
+async def _ficha(session: AsyncSession, team_id: int, ht_player_id: int) -> dict[str, Any]:
     players, team = await roster(session, team_id)
     p = next((x for x in players if x["ht_player_id"] == ht_player_id), None)
     if p is None:
@@ -187,7 +204,9 @@ async def player_detail(
         when = datetime.fromisoformat(captured_at)
         return season_week_for_datetime(world, when)
 
-    squad = await SquadQueryService(session).get(team_id)
+    # La plantilla GUARDADA: la ficha sólo saca de ella unos datos del
+    # jugador, y recalcularla entera eran 23 consultas por ficha.
+    squad = await plantilla_guardada(session, team_id)
     squad_player = (
         next((sp for sp in squad.players if sp.ht_player_id == ht_player_id), None)
         if squad is not None

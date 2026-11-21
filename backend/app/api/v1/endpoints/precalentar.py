@@ -35,6 +35,7 @@ async def precalentar(team_id: int) -> None:
     # Imports aquí dentro: estos módulos importan `teams`, que importa este.
     from app.api.v1.endpoints.academy import academia_guardada
     from app.api.v1.endpoints.analysis import _insights_guardadas, lineup
+    from app.api.v1.endpoints.analysis.clases import player_class_changes, player_classes
     from app.api.v1.endpoints.cup import cup
     from app.api.v1.endpoints.economy import economy
     from app.api.v1.endpoints.league import (
@@ -44,7 +45,12 @@ async def precalentar(team_id: int) -> None:
         team_of_the_week,
     )
     from app.api.v1.endpoints.matches import matches
+    from app.api.v1.endpoints.player_balance import player_balance
+    from app.api.v1.endpoints.precio_comparable import precios_comparables
     from app.api.v1.endpoints.teams import changes_history, dashboard_guardado
+    from app.api.v1.endpoints.teams.cambios import last_sync_changes
+    from app.api.v1.endpoints.teams.club import club
+    from app.api.v1.endpoints.teams.plantilla import plantilla_guardada
     from app.domain.engines.rival_scouting import PitchZoneMethod
     from app.infrastructure.db import models as m
     from app.infrastructure.db.session import SessionLocal
@@ -69,7 +75,20 @@ async def precalentar(team_id: int) -> None:
             ("subidas", lambda: changes_history(team_id, None, 1, session)),
             (
                 "mejor once",
-                lambda: lineup(team_id, None, None, None, None, None, session),
+                # POR NOMBRE (2026-11-21): en orden se quedó atrás cuando
+                # `lineup` ganó `entrenando`, y la sesión caía en `exclude`:
+                # este paso fallaba en silencio y el once nunca se precalentaba.
+                # Los valores son los que pide la pantalla sin mandos tocados.
+                lambda: lineup(
+                    team_id,
+                    formation=None,
+                    entrenando=False,
+                    central_defenders=None,
+                    inner_midfielders=None,
+                    orders=None,
+                    exclude=None,
+                    session=session,
+                ),
             ),
             (
                 "copa",
@@ -79,6 +98,17 @@ async def precalentar(team_id: int) -> None:
             ("economía", lambda: economy(team_id, 52, True, session)),
             # Juveniles y su «Formación siguiente partido» leen la misma.
             ("academia", lambda: academia_guardada(session, team_id)),
+            # Las que se guardan desde el 2026-11-21 (pedido del usuario: que
+            # las páginas carguen más rápido). Cambios es lo primero que se
+            # mira tras sincronizar; la plantilla y las clases las usan media
+            # aplicación y la ficha de cada jugador.
+            ("cambios", lambda: last_sync_changes(team_id, None, session)),
+            ("plantilla", lambda: plantilla_guardada(session, team_id)),
+            ("clases", lambda: player_classes(team_id, session)),
+            ("cambios de clase", lambda: player_class_changes(team_id, session)),
+            ("club", lambda: club(team_id, session)),
+            ("precios comparables", lambda: precios_comparables(team_id, session)),
+            ("balance", lambda: player_balance(team_id, session, None)),
         ]
         if usuario is not None:
             pasos.insert(
