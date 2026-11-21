@@ -2080,5 +2080,7 @@
   "Su precio por comparables pasó de {} a {} {} y su precio de equilibrio, de {} a {} {}.": "Jego cena według porównywalnych zmieniła się z {} na {} {}, a cena progu rentowności z {} na {} {}.",
   "Lo máximo pagado por un parecido pasó de {} a {} {} y su precio de equilibrio, de {} a {} {}.": "Najwyższa kwota zapłacona za podobnego zawodnika zmieniła się z {} na {} {}, a cena progu rentowności z {} na {} {}.",
   "La puja más alta abierta es de {} {}; su precio de equilibrio es {} {}.": "Najwyższa otwarta oferta to {} {}; jego cena progu rentowności to {} {}.",
-  "Míralo en su Comparador de transferencias.": "Zobacz w jego Porównywarce transferów."
+  "Míralo en su Comparador de transferencias.": "Zobacz w jego Porównywarce transferów.",
+  "cambios de clase": "zmiany klasy",
+  "precios comparables": "ceny według porównywalnych"
 }
