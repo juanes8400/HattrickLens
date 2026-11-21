@@ -22,10 +22,12 @@ Tres detalles que importan:
 """
 
 import asyncio
+import re
 import time
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Any
 
+from fastapi import Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -123,6 +125,47 @@ def olvidar(team_id: int, nombre: str) -> None:
     enseñando lo de antes de su cambio hasta el próximo sync."""
     for k in [k for k in _memoria if k[1] == nombre and k[2] == team_id]:
         del _memoria[k]
+
+
+#: LO QUE EL USUARIO PUEDE CAMBIAR SIN SINCRONIZAR (2026-11-21): precios y
+#: fechas a mano, etapas, intentos de venta, grupos y clasificaciones. Se
+#: guarda igual --es lo que más se mira-- y cualquier edición del equipo que
+#: salga bien lo olvida (`olvidar_al_editar`, montado en el router de la API).
+#: Lo demás no se toca al editar: archivar una alerta no tiene por qué obligar
+#: a recalcular el Dashboard.
+EDITABLES = frozenset(
+    {
+        "clases-de-jugador",
+        "cambios-de-la-sincronizacion",
+        "plantilla",
+        "balance",
+        "ficha",
+        "venta-vs-costo",
+        "desarrollo",
+    }
+)
+
+_EDITAN = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+_RUTA_DE_EQUIPO = re.compile(r"^/api/v1/teams/(\d+)(?:/|$)")
+
+
+def olvidar_lo_editable(team_id: int) -> None:
+    for k in [k for k in _memoria if k[1] in EDITABLES and k[2] == team_id]:
+        del _memoria[k]
+
+
+async def olvidar_al_editar(request: Request) -> AsyncIterator[None]:
+    """Dependencia de TODA la API: tras una edición del equipo, olvida lo
+    editable. Dos veces, antes y después: si a mitad de la edición alguien lee
+    y guarda lo de antes, el segundo olvido lo borra. Si la edición falla con
+    una excepción, no se llega al segundo, y lo guardado sigue valiendo."""
+    coincide = _RUTA_DE_EQUIPO.match(request.url.path)
+    editando = request.method in _EDITAN and coincide is not None
+    if editando and coincide is not None:
+        olvidar_lo_editable(int(coincide.group(1)))
+    yield
+    if editando and coincide is not None:
+        olvidar_lo_editable(int(coincide.group(1)))
 
 
 def limpiar() -> None:

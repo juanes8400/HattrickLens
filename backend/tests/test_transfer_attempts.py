@@ -6,6 +6,7 @@ resultado y un dato que Hattrick NO entrega por CHPP: cuántas veces miraron al
 jugador. Eso solo aparece en el texto de la noticia al cerrarse la puja, así
 que lo teclea el usuario.
 """
+
 import asyncio
 from datetime import UTC, datetime
 from typing import Any
@@ -25,7 +26,8 @@ from app.main import app
 
 def _montar() -> tuple[TestClient, int, int, int]:
     engine = create_async_engine(
-        "sqlite+aiosqlite://", poolclass=StaticPool,
+        "sqlite+aiosqlite://",
+        poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
     factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -35,26 +37,33 @@ def _montar() -> tuple[TestClient, int, int, int]:
             await conn.run_sync(m.Base.metadata.create_all)
         async with factory() as s:
             equipo = m.Team(
-                ht_team_id=537758, name="Pulgas Arrechas",
-                currency_name="US$", currency_rate=10.0,
+                ht_team_id=537758,
+                name="Pulgas Arrechas",
+                currency_name="US$",
+                currency_rate=10.0,
             )
             s.add(equipo)
             await s.flush()
             jugador = m.Player(
-                ht_player_id=1, team_id=equipo.id,
-                first_name="Stănel", last_name="Didoiu",
+                ht_player_id=1,
+                team_id=equipo.id,
+                first_name="Stănel",
+                last_name="Didoiu",
             )
             s.add(jugador)
             await s.flush()
             terminado = m.PlayerListingAttempt(
-                player_id=jugador.id, ht_player_id=1,
+                player_id=jugador.id,
+                ht_player_id=1,
                 detected_at=datetime(2026, 8, 19, 8, 0),
                 deadline=datetime(2026, 8, 22, 8, 1),
                 ended_at=datetime(2026, 8, 22, 8, 5),
-                sold=False, last_highest_bid=None,
+                sold=False,
+                last_highest_bid=None,
             )
             abierto = m.PlayerListingAttempt(
-                player_id=jugador.id, ht_player_id=1,
+                player_id=jugador.id,
+                ht_player_id=1,
                 detected_at=datetime(2026, 8, 23, 9, 0),
                 deadline=datetime(2026, 8, 26, 9, 0),
                 last_highest_bid=7230000,
@@ -147,6 +156,7 @@ def test_an_open_attempt_uses_a_utc_naive_cutoff(monkeypatch) -> None:
 def test_attempt_salary_never_uses_a_snapshot_from_a_later_stint() -> None:
     """El primer snapshot futuro sigue siendo valido, pero solo si cae dentro
     del intervalo de la etapa cuyo intento se esta describiendo."""
+
     async def run() -> tuple[int | str, int | str]:
         engine = create_async_engine(
             "sqlite+aiosqlite://",
@@ -195,15 +205,26 @@ def test_attempt_salary_never_uses_a_snapshot_from_a_later_stint() -> None:
 
             service = TransferAttemptsQueryService(s)
             convert = lambda value: value  # noqa: E731
-            old = await service._salario_hasta(
-                player,
+            # Desde el 2026-11-21 las fotos se leen una vez para todos los
+            # intentos y se le pasan ya ordenadas.
+            fotos = list(
+                (
+                    await s.execute(
+                        select(m.PlayerSnapshot)
+                        .where(m.PlayerSnapshot.player_id == player.id)
+                        .order_by(m.PlayerSnapshot.captured_at)
+                    )
+                ).scalars()
+            )
+            old = service._salario_hasta(
+                fotos,
                 datetime(2026, 1, 1),
                 datetime(2026, 1, 10),
                 datetime(2026, 1, 3),
                 convert,
             )
-            recent = await service._salario_hasta(
-                player,
+            recent = service._salario_hasta(
+                fotos,
                 datetime(2026, 2, 1),
                 datetime(2026, 2, 5),
                 datetime(2026, 1, 3),
@@ -294,7 +315,8 @@ def test_attempts_that_missed_their_closing_moment_get_repaired() -> None:
 
     async def run() -> None:
         engine = create_async_engine(
-            "sqlite+aiosqlite://", poolclass=StaticPool,
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
             connect_args={"check_same_thread": False},
         )
         factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -306,40 +328,58 @@ def test_attempts_that_missed_their_closing_moment_get_repaired() -> None:
             s.add(equipo)
             await s.flush()
             vendido = m.Player(
-                ht_player_id=1, team_id=equipo.id, first_name="Se", last_name="Vendio",
-                sold_at=datetime(2026, 7, 5), sale_price=500000,
+                ht_player_id=1,
+                team_id=equipo.id,
+                first_name="Se",
+                last_name="Vendio",
+                sold_at=datetime(2026, 7, 5),
+                sale_price=500000,
                 left_team_at=datetime(2026, 7, 5),
             )
             relistado = m.Player(
-                ht_player_id=2, team_id=equipo.id, first_name="Se", last_name="Quedo",
+                ht_player_id=2,
+                team_id=equipo.id,
+                first_name="Se",
+                last_name="Quedo",
             )
             s.add_all([vendido, relistado])
             await s.flush()
             # La salida buena es la de SU etapa: un jugador que se vendió y
             # volvió tiene una venta vieja en su ficha que no tiene nada que
             # ver con el intento que se está cerrando.
-            s.add(m.PlayerStint(
-                player_id=vendido.id, ht_player_id=1, team_id=equipo.id,
-                arrived_at=datetime(2026, 1, 1), arrival_price=100000,
-                left_at=datetime(2026, 7, 5), sale_price=500000,
-            ))
-            s.add_all([
-                # Salió al mercado y acabó vendido.
-                m.PlayerListingAttempt(
-                    player_id=vendido.id, ht_player_id=1,
-                    detected_at=datetime(2026, 6, 30),
-                ),
-                # Dos intentos del mismo: el primero tuvo que acabar antes del
-                # segundo.
-                m.PlayerListingAttempt(
-                    player_id=relistado.id, ht_player_id=2,
-                    detected_at=datetime(2026, 8, 1),
-                ),
-                m.PlayerListingAttempt(
-                    player_id=relistado.id, ht_player_id=2,
-                    detected_at=datetime(2026, 8, 10),
-                ),
-            ])
+            s.add(
+                m.PlayerStint(
+                    player_id=vendido.id,
+                    ht_player_id=1,
+                    team_id=equipo.id,
+                    arrived_at=datetime(2026, 1, 1),
+                    arrival_price=100000,
+                    left_at=datetime(2026, 7, 5),
+                    sale_price=500000,
+                )
+            )
+            s.add_all(
+                [
+                    # Salió al mercado y acabó vendido.
+                    m.PlayerListingAttempt(
+                        player_id=vendido.id,
+                        ht_player_id=1,
+                        detected_at=datetime(2026, 6, 30),
+                    ),
+                    # Dos intentos del mismo: el primero tuvo que acabar antes del
+                    # segundo.
+                    m.PlayerListingAttempt(
+                        player_id=relistado.id,
+                        ht_player_id=2,
+                        detected_at=datetime(2026, 8, 1),
+                    ),
+                    m.PlayerListingAttempt(
+                        player_id=relistado.id,
+                        ht_player_id=2,
+                        detected_at=datetime(2026, 8, 10),
+                    ),
+                ]
+            )
             await s.commit()
             team_id = equipo.id
 
@@ -351,9 +391,15 @@ def test_attempts_that_missed_their_closing_moment_get_repaired() -> None:
         assert cerrados == 3
 
         async with factory() as s:
-            intentos = (await s.execute(
-                select(m.PlayerListingAttempt).order_by(m.PlayerListingAttempt.detected_at)
-            )).scalars().all()
+            intentos = (
+                (
+                    await s.execute(
+                        select(m.PlayerListingAttempt).order_by(m.PlayerListingAttempt.detected_at)
+                    )
+                )
+                .scalars()
+                .all()
+            )
             # El que se vendió cierra el día de la venta, y como vendido.
             assert intentos[0].ended_at == datetime(2026, 7, 5)
             assert intentos[0].sold is True
@@ -376,7 +422,8 @@ def test_a_player_still_listed_today_is_left_alone() -> None:
 
     async def run() -> None:
         engine = create_async_engine(
-            "sqlite+aiosqlite://", poolclass=StaticPool,
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
             connect_args={"check_same_thread": False},
         )
         factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -387,13 +434,20 @@ def test_a_player_still_listed_today_is_left_alone() -> None:
             s.add(equipo)
             await s.flush()
             jugador = m.Player(
-                ht_player_id=7, team_id=equipo.id, first_name="En", last_name="Venta",
+                ht_player_id=7,
+                team_id=equipo.id,
+                first_name="En",
+                last_name="Venta",
             )
             s.add(jugador)
             await s.flush()
-            s.add(m.PlayerListingAttempt(
-                player_id=jugador.id, ht_player_id=7, detected_at=datetime(2026, 8, 20),
-            ))
+            s.add(
+                m.PlayerListingAttempt(
+                    player_id=jugador.id,
+                    ht_player_id=7,
+                    detected_at=datetime(2026, 8, 20),
+                )
+            )
             await s.commit()
             team_id = equipo.id
 
@@ -425,7 +479,8 @@ def test_who_is_on_sale_comes_from_the_squad_not_from_the_bids() -> None:
 
     async def run() -> None:
         engine = create_async_engine(
-            "sqlite+aiosqlite://", poolclass=StaticPool,
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
             connect_args={"check_same_thread": False},
         )
         factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -438,26 +493,45 @@ def test_who_is_on_sale_comes_from_the_squad_not_from_the_bids() -> None:
             s.add(equipo)
             await s.flush()
             en_venta = m.Player(
-                ht_player_id=1, team_id=equipo.id, first_name="Sin", last_name="Pujas",
+                ht_player_id=1,
+                team_id=equipo.id,
+                first_name="Sin",
+                last_name="Pujas",
             )
             normal = m.Player(
-                ht_player_id=2, team_id=equipo.id, first_name="No", last_name="Listado",
+                ht_player_id=2,
+                team_id=equipo.id,
+                first_name="No",
+                last_name="Listado",
             )
             s.add_all([en_venta, normal])
             await s.flush()
             sync = m.Sync(
-                user_id=1, team_id=equipo.id, kind="players", status="completed",
+                user_id=1,
+                team_id=equipo.id,
+                kind="players",
+                status="completed",
                 started_at=captura,
             )
             s.add(sync)
             await s.flush()
             for jugador, listado in ((en_venta, True), (normal, False)):
-                s.add(m.PlayerSnapshot(
-                    sync_id=sync.id, player_id=jugador.id, captured_at=captura,
-                    age_years=25, age_days=0, tsi=1000, form=5, stamina=5,
-                    experience=5, salary=1000, content_hash=b"x",
-                    is_transfer_listed=listado,
-                ))
+                s.add(
+                    m.PlayerSnapshot(
+                        sync_id=sync.id,
+                        player_id=jugador.id,
+                        captured_at=captura,
+                        age_years=25,
+                        age_days=0,
+                        tsi=1000,
+                        form=5,
+                        stamina=5,
+                        experience=5,
+                        salary=1000,
+                        content_hash=b"x",
+                        is_transfer_listed=listado,
+                    )
+                )
             await s.commit()
             team_id = equipo.id
 
@@ -570,6 +644,7 @@ def test_saying_i_do_not_know_keeps_the_row_with_question_marks() -> None:
     finally:
         app.dependency_overrides.clear()
 
+
 def test_an_attempt_can_be_deleted_for_good() -> None:
     client, team_id, terminado, abierto = _montar()
     try:
@@ -587,9 +662,7 @@ def test_an_attempt_can_be_deleted_for_good() -> None:
 def test_deleting_an_attempt_of_another_team_is_refused() -> None:
     client, team_id, terminado, _ = _montar()
     try:
-        r = client.delete(
-            f"/api/v1/teams/{team_id + 99}/transfer-attempts/{terminado}"
-        )
+        r = client.delete(f"/api/v1/teams/{team_id + 99}/transfer-attempts/{terminado}")
         assert r.status_code == 404
     finally:
         app.dependency_overrides.clear()
@@ -610,7 +683,8 @@ def test_a_player_who_is_no_longer_ours_cannot_be_on_our_market() -> None:
 
     async def run() -> None:
         engine = create_async_engine(
-            "sqlite+aiosqlite://", poolclass=StaticPool,
+            "sqlite+aiosqlite://",
+            poolclass=StaticPool,
             connect_args={"check_same_thread": False},
         )
         factory = async_sessionmaker(engine, expire_on_commit=False)
@@ -624,28 +698,48 @@ def test_a_player_who_is_no_longer_ours_cannot_be_on_our_market() -> None:
             await s.flush()
             # Se fue hace meses, pero quedo marcado como "en venta".
             ido = m.Player(
-                ht_player_id=1, team_id=equipo.id, first_name="Ya", last_name="Vendido",
-                sold_at=datetime(2026, 7, 5), left_team_at=datetime(2026, 7, 5),
+                ht_player_id=1,
+                team_id=equipo.id,
+                first_name="Ya",
+                last_name="Vendido",
+                sold_at=datetime(2026, 7, 5),
+                left_team_at=datetime(2026, 7, 5),
                 currently_listed=True,
             )
             actual = m.Player(
-                ht_player_id=2, team_id=equipo.id, first_name="En", last_name="Plantilla",
+                ht_player_id=2,
+                team_id=equipo.id,
+                first_name="En",
+                last_name="Plantilla",
             )
             s.add_all([ido, actual])
             await s.flush()
             sync = m.Sync(
-                user_id=1, team_id=equipo.id, kind="players", status="completed",
+                user_id=1,
+                team_id=equipo.id,
+                kind="players",
+                status="completed",
                 started_at=captura,
             )
             s.add(sync)
             await s.flush()
             # Solo el que sigue en el club deja foto hoy.
-            s.add(m.PlayerSnapshot(
-                sync_id=sync.id, player_id=actual.id, captured_at=captura,
-                age_years=25, age_days=0, tsi=1000, form=5, stamina=5,
-                experience=5, salary=1000, content_hash=b"x",
-                is_transfer_listed=True,
-            ))
+            s.add(
+                m.PlayerSnapshot(
+                    sync_id=sync.id,
+                    player_id=actual.id,
+                    captured_at=captura,
+                    age_years=25,
+                    age_days=0,
+                    tsi=1000,
+                    form=5,
+                    stamina=5,
+                    experience=5,
+                    salary=1000,
+                    content_hash=b"x",
+                    is_transfer_listed=True,
+                )
+            )
             await s.commit()
             team_id = equipo.id
 

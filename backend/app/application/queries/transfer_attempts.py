@@ -11,6 +11,7 @@ jugador fue visto 8 veces mientras estaba en la lista de transferibles"), así
 que lo teclea el usuario y aquí se sirve tal cual, sin estimarlo jamás.
 """
 
+from bisect import bisect_left, bisect_right
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -238,6 +239,19 @@ class TransferAttemptsQueryService:
             ).scalars()
         )
         etapa_por_id = {e.id: e for e in etapas}
+        # TODAS LAS FOTOS DE UNA VEZ (2026-11-21, pedido del usuario: que las
+        # páginas carguen más rápido). Antes cada intento hacía tres consultas
+        # --su foto, la de llegada y los sueldos--: 141 con este equipo, cada
+        # una un viaje a la base. Ahora una, y lo demás se busca aquí.
+        self._fotos: dict[int, list[Any]] = {}
+        for foto in (
+            await self._s.execute(
+                select(m.PlayerSnapshot)
+                .where(m.PlayerSnapshot.player_id.in_(ids_de_jugador))
+                .order_by(m.PlayerSnapshot.player_id, m.PlayerSnapshot.captured_at)
+            )
+        ).scalars():
+            self._fotos.setdefault(foto.player_id, []).append(foto)
         etapas_por_jugador: dict[int, list[Any]] = {}
         for e in etapas:
             etapas_por_jugador.setdefault(e.player_id, []).append(e)
@@ -290,15 +304,10 @@ class TransferAttemptsQueryService:
         # cualquier servidor que no estuviera configurado en UTC.
         corte = cierre or datetime.now(UTC).replace(tzinfo=None)
 
-        foto = await self._s.scalar(
-            select(m.PlayerSnapshot)
-            .where(
-                m.PlayerSnapshot.player_id == jugador.id,
-                m.PlayerSnapshot.captured_at <= corte,
-            )
-            .order_by(m.PlayerSnapshot.captured_at.desc())
-            .limit(1)
-        )
+        fotos = self._fotos.get(jugador.id, [])
+        # La última foto en o antes del corte.
+        hasta_el_corte = bisect_right(fotos, corte, key=lambda f: f.captured_at)
+        foto = fotos[hasta_el_corte - 1] if hasta_el_corte else None
         anteriores = [t for t in entrenamientos if t.captured_at <= corte]
         entrenamiento = anteriores[-1] if anteriores else None
         etapa = etapa_por_id.get(intento.stint_id) if intento.stint_id is not None else None
@@ -315,19 +324,12 @@ class TransferAttemptsQueryService:
 
         # La primera foto desde que llego: su edad es, tal cual, la edad de
         # compra. Es la misma que mira Detalle.
-        al_llegar = (
-            await self._s.scalar(
-                select(m.PlayerSnapshot)
-                .where(
-                    m.PlayerSnapshot.player_id == jugador.id,
-                    m.PlayerSnapshot.captured_at >= llegada,
-                )
-                .order_by(m.PlayerSnapshot.captured_at.asc())
-                .limit(1)
-            )
+        desde_la_llegada = (
+            bisect_left(fotos, llegada, key=lambda f: f.captured_at)
             if llegada is not None
-            else None
+            else len(fotos)
         )
+        al_llegar = fotos[desde_la_llegada] if desde_la_llegada < len(fotos) else None
 
         return TransferAttemptRow(
             key=f"{jugador.ht_player_id}_{numero}",
@@ -382,8 +384,8 @@ class TransferAttemptsQueryService:
             ),
             age_at_purchase=_edad_en_la_compra(al_llegar, foto, jugador, llegada),
             days_since_purchase=(corte - llegada).days if llegada is not None else "?",
-            salary_to_date=await self._salario_hasta(
-                jugador,
+            salary_to_date=self._salario_hasta(
+                fotos,
                 llegada,
                 corte,
                 economy_date,
@@ -394,9 +396,9 @@ class TransferAttemptsQueryService:
             ),
         )
 
-    async def _salario_hasta(
+    def _salario_hasta(
         self,
-        jugador: Any,
+        fotos: list[Any],
         desde: datetime | None,
         hasta: datetime | None,
         economy_date: datetime | None,
@@ -416,18 +418,11 @@ class TransferAttemptsQueryService:
         # una actualización. El único caso completo es el pago inmediato.
         if economy_date is None and hasta > desde:
             return "?"
-        filas = (
-            await self._s.execute(
-                select(m.PlayerSnapshot.captured_at, m.PlayerSnapshot.salary)
-                .where(
-                    m.PlayerSnapshot.player_id == jugador.id,
-                    m.PlayerSnapshot.captured_at >= desde,
-                    m.PlayerSnapshot.captured_at <= hasta,
-                )
-                .order_by(m.PlayerSnapshot.captured_at)
-            )
-        ).all()
-        historia = [SalarySnapshot(captured_at=c, salary=conv(s) or 0) for c, s in filas]
+        historia = [
+            SalarySnapshot(captured_at=f.captured_at, salary=conv(f.salary) or 0)
+            for f in fotos
+            if desde <= f.captured_at <= hasta
+        ]
         if not historia:
             return "?"
         return sum(
