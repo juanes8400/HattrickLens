@@ -31,7 +31,11 @@ export function VentaVsCosto({ htPlayerId }: { htPlayerId: number }) {
   if (isError || !data) {
     return <Empty>{tx("No se pudo calcular el costo de este jugador.")}</Empty>;
   }
-  const puntos = data.puntos;
+  // UN PUNTO POR SEMANA: el de hoy y el último semanal pueden caer en la
+  // misma, y el eje repetiría la etiqueta. Manda el más reciente.
+  const puntos = data.puntos.filter(
+    (p, i, todos) => p.semana == null || todos[i + 1]?.semana !== p.semana,
+  );
   if (puntos.length === 0) {
     return (
       <Empty>
@@ -48,7 +52,9 @@ export function VentaVsCosto({ htPlayerId }: { htPlayerId: number }) {
       : null;
   const sinPrecio = puntos.findIndex((p) => p.venta != null);
 
-  const fechas = puntos.map((p) => date(p.fecha));
+  // EL EJE VA EN SEMANAS «TT-ss», como la gráfica de «Precio» (7.0.2,
+  // pedido del usuario). La fecha sólo si falta el calendario.
+  const fechas = puntos.map((p) => p.semana ?? date(p.fecha));
   const costo = puntos.map((p) => p.costo);
   const venta = puntos.map((p) => p.venta);
   // El hueco entre las dos líneas, partido por color: una serie apilada por
@@ -208,8 +214,11 @@ export function VentaVsCosto({ htPlayerId }: { htPlayerId: number }) {
                 "Todavía no hay precio por comparables de este jugador: sólo se ve lo que lleva costado.",
               )
             : tx(
-                "Hasta el {{v0}} no había precio por comparables: antes de esa fecha sólo se ve el costo.",
-                { v0: date(puntos[sinPrecio]!.fecha) },
+                "Hasta la semana {{v0}} no había precio por comparables: antes sólo se ve el costo.",
+                {
+                  v0:
+                    puntos[sinPrecio]!.semana ?? date(puntos[sinPrecio]!.fecha),
+                },
               )}
         </p>
       )}

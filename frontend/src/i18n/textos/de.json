@@ -2433,7 +2433,7 @@
   "le faltan {{v0}} de precio": "es fehlen {{v0}} am Preis",
   "Precio de venta frente al costo acumulado, semana a semana": "Verkaufspreis gegenüber aufgelaufenen Kosten, Woche für Woche",
   "Todavía no hay precio por comparables de este jugador: sólo se ve lo que lleva costado.": "Für diesen Spieler gibt es noch keinen Preis nach Vergleichswerten: Es sind nur die bisherigen Kosten zu sehen.",
-  "Hasta el {{v0}} no había precio por comparables: antes de esa fecha sólo se ve el costo.": "Bis zum {{v0}} gab es keinen Preis nach Vergleichswerten: Vor diesem Datum sind nur die Kosten zu sehen.",
   "Qué enseña la gráfica": "Was das Diagramm zeigt",
-  "Precio de venta vs costo": "Verkaufspreis vs. Kosten"
+  "Precio de venta vs costo": "Verkaufspreis vs. Kosten",
+  "Hasta la semana {{v0}} no había precio por comparables: antes sólo se ve el costo.": "Bis zur Woche {{v0}} gab es keinen Preis nach Vergleichswerten: Davor sind nur die Kosten zu sehen."
 }
