@@ -37,6 +37,9 @@ from app.infrastructure.db import models as m
 @dataclass(frozen=True, slots=True)
 class PuntoDeVenta:
     fecha: str
+    #: «TT-ss», la semana de Hattrick: es lo que lleva el eje (7.0.2, pedido
+    #: del usuario: «semana en formato TT-ss, no fecha»). `None` sin calendario.
+    semana: str | None
     costo: int
     precio: int | None
     comision: float | None
@@ -103,6 +106,7 @@ async def venta_vs_costo(
         puntos.append(
             PuntoDeVenta(
                 fecha=momento.isoformat(),
+                semana=semana,
                 costo=int(round(c.costo)),
                 precio=precio,
                 comision=c.comision,

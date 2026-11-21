@@ -215,6 +215,8 @@ export interface VentaVsCostoDeUnJugador {
   moneda: string;
   puntos: {
     fecha: string;
+    /** «TT-ss», la semana de Hattrick del punto: el eje de la gráfica. */
+    semana: string | null;
     costo: number;
     precio: number | null;
     comision: number | null;

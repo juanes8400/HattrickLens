@@ -2433,7 +2433,7 @@
   "le faltan {{v0}} de precio": "{{v0}} short in price",
   "Precio de venta frente al costo acumulado, semana a semana": "Sale price against accumulated cost, week by week",
   "Todavía no hay precio por comparables de este jugador: sólo se ve lo que lleva costado.": "There is no comparables price for this player yet: only what he has cost so far is shown.",
-  "Hasta el {{v0}} no había precio por comparables: antes de esa fecha sólo se ve el costo.": "There was no comparables price until {{v0}}: before that date only the cost is shown.",
   "Qué enseña la gráfica": "What the chart shows",
-  "Precio de venta vs costo": "Sale price vs cost"
+  "Precio de venta vs costo": "Sale price vs cost",
+  "Hasta la semana {{v0}} no había precio por comparables: antes sólo se ve el costo.": "There was no comparables price until week {{v0}}: before that only the cost is shown."
 }
