@@ -2238,8 +2238,6 @@
   "Hattrick no prevé las acciones indirectas a balón parado de una alineación enviada, así que esas dos van con tu promedio de lo ya jugado. Siete de los nueve duelos son la alineación que mandaste; dos son tu costumbre.": "Hattrick sagt für eine abgeschickte Aufstellung nichts über indirekte Standardsituationen voraus, diese beiden laufen also mit deinem Durchschnitt aus den bisherigen Spielen. Sieben der neun Duelle stammen aus der Aufstellung, die du geschickt hast; zwei sind deine Gewohnheit.",
   " · En el once": " · In der Aufstellung",
   "escala completa · de {{v0}} a {{v1}}": "volle Skala · von {{v0}} bis {{v1}}",
-  "el total, en Economía": "die Summe, in Finanzen",
-  "jugador por jugador, en Transferencias": "Spieler für Spieler, in Transfers",
   "modelo simple por TSI, no calibrado": "einfaches Modell nach TSI, nicht kalibriert",
   "Error desconocido.": "Unbekannter Fehler.",
   "cambio": "Änderung",
@@ -2420,5 +2418,6 @@
   "quedó por debajo del": "ist unter den",
   "puja {{v0}}{{v1}} · equilibrio {{v2}}": "Gebot {{v0}}{{v1}} · Break-even {{v2}}",
   "cierra el {{v0}}": "endet am {{v0}}",
-  "{{v0}} → {{v1}} · equilibrio {{v2}} → {{v3}}": "{{v0}} → {{v1}} · Break-even {{v2}} → {{v3}}"
+  "{{v0}} → {{v1}} · equilibrio {{v2}} → {{v3}}": "{{v0}} → {{v1}} · Break-even {{v2}} → {{v3}}",
+  "Jugador por jugador, en Transferencias / Plantilla actual": "Spieler für Spieler, unter Transfers / Aktueller Kader"
 }

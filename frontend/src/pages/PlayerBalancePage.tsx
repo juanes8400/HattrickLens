@@ -38,6 +38,7 @@ import {
   TEAM_ID,
   usePlayerBalance,
   usePlayerClasses,
+  useEconomy,
   usePreciosComparables,
   useSquad,
 } from "../hooks/useTeam";
@@ -54,6 +55,7 @@ import {
   type ValorDelFiltro,
 } from "../components/clases/filtro";
 import { explicacionDelEquilibrio } from "../components/PrecioDeEquilibrio";
+import { ValoracionDelEquipo } from "../components/ValoracionDelEquipo";
 import { terminoOficial } from "../i18n/glosario";
 const UNKNOWN_TRAINING = tx("Sin evidencia suficiente");
 const UNKNOWN_SEASON = tx("Temporada desconocida");
@@ -345,13 +347,20 @@ function TablaDeLaPlantilla({
   );
   const ids = clases.data ? idsDelFiltro(clases.data, filtroDeClases) : null;
   const porJugador = new Map(precios.map((p) => [p.htPlayerId, p]));
-  const filas = jugadores
-    .filter((j) => !ids || ids.has(j.htPlayerId))
-    .map((j) => {
-      const precio = porJugador.get(j.htPlayerId) ?? null;
-      const agentPct = j.agentPctIfSoldNow;
+  const porBalance = new Map(jugadores.map((j) => [j.htPlayerId, j]));
+  // TODA LA PLANTILLA (2026-11-21, pedido del usuario al unificar con Valor de
+  // Plantilla): los del balance y los que sólo tienen precio --canteranos,
+  // gente sin costo conocido--, para que la tabla sume lo mismo que el total
+  // de arriba. A éstos les faltan costo, saldo y equilibrio, y se ve «—».
+  const todos = [...new Set([...porBalance.keys(), ...porJugador.keys()])];
+  const filas = todos
+    .filter((id) => !ids || ids.has(id))
+    .map((id) => {
+      const j = porBalance.get(id) ?? null;
+      const precio = porJugador.get(id) ?? null;
+      const agentPct = j?.agentPctIfSoldNow ?? null;
       const simulacion =
-        precio?.media != null && agentPct != null
+        j && precio?.media != null && agentPct != null
           ? simularVenta({
               precio: precio.media,
               agentPct,
@@ -359,7 +368,14 @@ function TablaDeLaPlantilla({
               resaleBonusShare: j.resaleBonusShare,
             })
           : null;
-      return { balance: j, precio, agentPct, simulacion };
+      return {
+        id,
+        nombre: j?.name ?? precio?.nombre ?? "",
+        balance: j,
+        precio,
+        agentPct,
+        simulacion,
+      };
     })
     // Primero lo que más deja, y al final lo que no se puede calcular: una
     // fila sin saldo no es «la peor», es que falta un dato.
@@ -371,7 +387,10 @@ function TablaDeLaPlantilla({
   type Fila = (typeof filas)[number];
 
   const conSaldo = filas.filter((f) => f.simulacion != null);
-  const costeTotal = conSaldo.reduce((t, f) => t + f.balance.totalCost, 0);
+  const costeTotal = conSaldo.reduce(
+    (t, f) => t + (f.balance?.totalCost ?? 0),
+    0,
+  );
   const netoTotal = conSaldo.reduce((t, f) => t + (f.simulacion?.neto ?? 0), 0);
   const saldoTotal = netoTotal - costeTotal;
 
@@ -380,10 +399,10 @@ function TablaDeLaPlantilla({
       key: "jugador",
       header: tx("Jugador"),
       align: "left",
-      value: (f) => f.balance.name,
+      value: (f) => f.nombre,
       render: (f) => (
         <span className="whitespace-nowrap">
-          <PlayerLink htPlayerId={f.balance.htPlayerId} name={f.balance.name} />
+          <PlayerLink htPlayerId={f.id} name={f.nombre} />
           <span className="ml-1 text-xs text-[var(--muted)]">
             {f.precio ? tx("{{v0}} años", { v0: f.precio.edad }) : ""}
           </span>
@@ -486,10 +505,10 @@ function TablaDeLaPlantilla({
       key: "coste",
       header: tx("Costo hasta ahora"),
       align: "right",
-      value: (f) => f.balance.totalCost,
+      value: (f) => f.balance?.totalCost ?? "",
       render: (f) => (
         <span className="tabular-nums">
-          {money(f.balance.totalCost, moneda)}
+          {f.balance ? money(f.balance.totalCost, moneda) : "—"}
         </span>
       ),
     },
@@ -573,15 +592,15 @@ function TablaDeLaPlantilla({
               {money(f.simulacion.precioDeEquilibrio, moneda)}
             </span>
           )}
-          <button
-            type="button"
-            onClick={() =>
-              onSimular(f.balance.htPlayerId, f.precio?.media ?? null)
-            }
-            className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] hover:text-[var(--text)]"
-          >
-            {tx("simular")}
-          </button>
+          {f.balance && (
+            <button
+              type="button"
+              onClick={() => onSimular(f.id, f.precio?.media ?? null)}
+              className="rounded-md border border-[var(--border)] px-2 py-1 text-xs text-[var(--muted)] hover:text-[var(--text)]"
+            >
+              {tx("simular")}
+            </button>
+          )}
         </span>
       ),
     },
@@ -597,15 +616,6 @@ function TablaDeLaPlantilla({
               "el precio es lo que ha costado gente parecida, no una tasación",
             )}
           </span>
-          {/* LA VUELTA A ECONOMÍA (2026-11-14). Las dos pantallas enseñan el
-              mismo precio comparable: aquí jugador a jugador, allí la suma.
-              Sin este enlace sólo se podía ir de allí a aquí. */}
-          <Link
-            to="/economy?seccion=valoracion"
-            className="text-[var(--accent)] hover:underline"
-          >
-            {tx("el total, en Economía")}
-          </Link>
         </span>
       }
       ayuda={tx(
@@ -653,7 +663,7 @@ function TablaDeLaPlantilla({
             <DataTable
               rows={filas}
               columns={columnas}
-              rowKey={(f) => f.balance.htPlayerId}
+              rowKey={(f) => f.id}
               initialSort="saldo"
               csvName="plantilla-precio"
               emptyMessage={tx(
@@ -1419,6 +1429,9 @@ export function PlayerBalancePage() {
   // razón que la plantilla: sólo lo mira esta pestaña. No gasta cuota de
   // Hattrick --sale del fondo del mercado-- pero sí una consulta a la base.
   const precios = usePreciosComparables({ enabled: section === "plantilla" });
+  // La caja, para el «veces la caja» del valor de la plantilla. Sin series de
+  // tiempo, que es lo caro, y sólo con la pestaña abierta.
+  const economia = useEconomy(8, false, section === "plantilla");
 
   // Los de «Plantilla actual»: etapa abierta Y presentes hoy en el roster.
   // Las dos condiciones hacen falta. Sólo con la etapa abierta se colaban
@@ -1846,7 +1859,12 @@ export function PlayerBalancePage() {
             {
               key: "plantilla",
               label: tx("Plantilla actual ({{v0}})", {
-                v0: jugadoresDeHoy.length,
+                // Toda la plantilla, como la tabla: los del balance y los que
+                // sólo tienen precio.
+                v0: new Set([
+                  ...jugadoresDeHoy.map((p) => p.htPlayerId),
+                  ...(precios.data?.jugadores ?? []).map((j) => j.htPlayerId),
+                ]).size,
               }),
             },
             { key: "totales", label: tx("Totales") },
@@ -2104,6 +2122,14 @@ export function PlayerBalancePage() {
       )}
 
       <PanelDePestanas grupo="balance" activa={section} className="space-y-4">
+        {/* VALOR DE PLANTILLA, ARRIBA (2026-11-21, pedido del usuario:
+            unificar con Economía). El mismo precio comparable que la tabla:
+            arriba la suma, abajo jugador a jugador. */}
+        <ValoracionDelEquipo
+          activa={section === "plantilla"}
+          caja={economia.data?.cash}
+        />
+
         {section === "plantilla" && (
           <TablaDeLaPlantilla
             jugadores={jugadoresDeHoy}

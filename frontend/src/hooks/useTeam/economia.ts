@@ -10,8 +10,15 @@ import { TEAM_ID } from "./nucleo";
 
 /** `conSeries = false` se salta la proyección por series de tiempo, que es lo
  *  más caro de la consulta: para quien sólo enseña la estructural. */
-export const useEconomy = (horizonWeeks = 52, conSeries = true) =>
+export const useEconomy = (
+  horizonWeeks = 52,
+  conSeries = true,
+  /** Para quien sólo la necesita a veces: Transferencias / Plantilla actual
+   *  la pide para decir el valor «en veces la caja» (2026-11-21). */
+  enabled = true,
+) =>
   useQuery({
     queryKey: ["economy", TEAM_ID, horizonWeeks, conSeries],
     queryFn: () => api.economy(TEAM_ID, horizonWeeks, conSeries),
+    enabled,
   });

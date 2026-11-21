@@ -2238,8 +2238,6 @@
   "Hattrick no prevé las acciones indirectas a balón parado de una alineación enviada, así que esas dos van con tu promedio de lo ya jugado. Siete de los nueve duelos son la alineación que mandaste; dos son tu costumbre.": "Hattrick nie przewiduje akcji ze stałych fragmentów pośrednich dla wysłanego składu, więc te dwa idą z twoją średnią z rozegranych meczów. Siedem z dziewięciu dueli pochodzi ze składu, który wysłałeś; dwa to twój zwyczaj.",
   " · En el once": " · W składzie",
   "escala completa · de {{v0}} a {{v1}}": "pełna skala · od {{v0}} do {{v1}}",
-  "el total, en Economía": "suma, w Finansach",
-  "jugador por jugador, en Transferencias": "zawodnik po zawodniku, w Transferach",
   "modelo simple por TSI, no calibrado": "prosty model według TSI, nieskalibrowany",
   "Error desconocido.": "Nieznany błąd.",
   "cambio": "zmiana",
@@ -2420,5 +2418,6 @@
   "quedó por debajo del": "spadł poniżej",
   "puja {{v0}}{{v1}} · equilibrio {{v2}}": "oferta {{v0}}{{v1}} · próg {{v2}}",
   "cierra el {{v0}}": "kończy się {{v0}}",
-  "{{v0}} → {{v1}} · equilibrio {{v2}} → {{v3}}": "{{v0}} → {{v1}} · próg {{v2}} → {{v3}}"
+  "{{v0}} → {{v1}} · equilibrio {{v2}} → {{v3}}": "{{v0}} → {{v1}} · próg {{v2}} → {{v3}}",
+  "Jugador por jugador, en Transferencias / Plantilla actual": "Zawodnik po zawodniku, w Transfery / Aktualna kadra"
 }
