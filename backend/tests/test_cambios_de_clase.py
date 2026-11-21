@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from fastapi.testclient import TestClient
 
+from app.api import cache_por_sync
 from app.application.queries.cambios_de_clase import comparar
 from app.infrastructure.db import models as m
 from app.infrastructure.db.session import get_session
@@ -79,6 +80,10 @@ def test_con_una_lectura_anterior_salen_los_cambios(
         await gen.aclose()
 
     asyncio.run(plantar_la_anterior())
+    # La respuesta se guarda hasta el próximo sync (2026-11-21). En la app la
+    # lectura anterior ya existe antes de este sync; aquí se planta después,
+    # así que se vacía lo guardado para que se vuelva a calcular.
+    cache_por_sync.limpiar()
     body = client.get(url).json()
     assert body["previousSyncId"] == hoy["syncId"] - 1
     assert body["changes"] == [

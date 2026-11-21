@@ -25,7 +25,12 @@ import {
 import { PlayerDistributionPanel } from "../components/PlayerDistributionPanel";
 import { PrecioPorComparables } from "../components/PrecioPorComparables";
 import { PanelDePestanas, Tabs } from "../components/Tabs";
-import { usePlayerBalance, usePlayerDetail } from "../hooks/useTeam";
+import {
+  usePlayerBalance,
+  usePlayerClassChanges,
+  usePlayerClasses,
+  usePlayerDetail,
+} from "../hooks/useTeam";
 import { date, htAge, htAgeTexto, money, number } from "../hooks/useFormat";
 import type { ActivePlayerDetail, ExPlayerDetail } from "../services/api";
 import { skillLevelLabel } from "../utils/skillLevels";
@@ -189,6 +194,12 @@ export function PlayerPage() {
   const { htPlayerId } = useParams<{ htPlayerId: string }>();
   const id = Number(htPlayerId);
   const { data, isLoading, isError, error } = usePlayerDetail(id);
+  // LAS CLASES, A LA VEZ QUE LA FICHA (2026-11-21, pedido del usuario: que
+  // cargue más rápido). Las piden los paneles de abajo, que no existen hasta
+  // que llega la ficha: eran dos esperas seguidas. Pedirlas aquí las adelanta;
+  // la caché de react-query hace que los paneles reciban esta misma respuesta.
+  usePlayerClasses();
+  usePlayerClassChanges();
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState error={error} />;
