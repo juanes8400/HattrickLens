@@ -2419,5 +2419,21 @@
   "puja {{v0}}{{v1}} · equilibrio {{v2}}": "oferta {{v0}}{{v1}} · próg {{v2}}",
   "cierra el {{v0}}": "kończy się {{v0}}",
   "{{v0}} → {{v1}} · equilibrio {{v2}} → {{v3}}": "{{v0}} → {{v1}} · próg {{v2}} → {{v3}}",
-  "Jugador por jugador, en Transferencias / Plantilla actual": "Zawodnik po zawodniku, w Transfery / Aktualna kadra"
+  "Jugador por jugador, en Transferencias / Plantilla actual": "Zawodnik po zawodniku, w Transfery / Aktualna kadra",
+  "No se pudo calcular el costo de este jugador.": "Nie udało się obliczyć kosztu tego zawodnika.",
+  "Sólo para jugadores que siguen en tu club y de los que se sabe cuándo llegaron.": "Tylko dla zawodników, którzy są nadal w twoim klubie i których data przybycia jest znana.",
+  "perderías": "stracił(a)byś",
+  "ganarías": "zyskał(a)byś",
+  "Costo acumulado": "Skumulowany koszt",
+  "El precio por comparables de hoy menos la comisión que se llevaría el agente si lo vendieras ahora.": "Dzisiejsza cena według porównywalnych minus prowizja, jaką wziąłby agent, gdybyś sprzedał go teraz.",
+  "Precio de venta hoy": "Cena sprzedaży dziś",
+  "precio {{v0}} − {{v1}}% del agente": "cena {{v0}} − {{v1}}% dla agenta",
+  "compra, sueldos e intentos de venta": "zakup, pensje i próby sprzedaży",
+  "su precio ya lo supera": "jego cena już go przekracza",
+  "le faltan {{v0}} de precio": "brakuje {{v0}} ceny",
+  "Precio de venta frente al costo acumulado, semana a semana": "Cena sprzedaży wobec skumulowanego kosztu, tydzień po tygodniu",
+  "Todavía no hay precio por comparables de este jugador: sólo se ve lo que lleva costado.": "Nie ma jeszcze ceny według porównywalnych dla tego zawodnika: widać tylko, ile dotąd kosztował.",
+  "Hasta el {{v0}} no había precio por comparables: antes de esa fecha sólo se ve el costo.": "Do {{v0}} nie było ceny według porównywalnych: przed tą datą widać tylko koszt.",
+  "Qué enseña la gráfica": "Co pokazuje wykres",
+  "Precio de venta vs costo": "Cena sprzedaży a koszt"
 }

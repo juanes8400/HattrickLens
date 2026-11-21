@@ -63,6 +63,7 @@ export {
 } from "./partidos";
 export {
   usePrecioComparable,
+  useVentaVsCosto,
   usePreciosComparables,
   useSquad,
 } from "./plantilla";

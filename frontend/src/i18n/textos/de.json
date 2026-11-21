@@ -2419,5 +2419,21 @@
   "puja {{v0}}{{v1}} · equilibrio {{v2}}": "Gebot {{v0}}{{v1}} · Break-even {{v2}}",
   "cierra el {{v0}}": "endet am {{v0}}",
   "{{v0}} → {{v1}} · equilibrio {{v2}} → {{v3}}": "{{v0}} → {{v1}} · Break-even {{v2}} → {{v3}}",
-  "Jugador por jugador, en Transferencias / Plantilla actual": "Spieler für Spieler, unter Transfers / Aktueller Kader"
+  "Jugador por jugador, en Transferencias / Plantilla actual": "Spieler für Spieler, unter Transfers / Aktueller Kader",
+  "No se pudo calcular el costo de este jugador.": "Die Kosten dieses Spielers konnten nicht berechnet werden.",
+  "Sólo para jugadores que siguen en tu club y de los que se sabe cuándo llegaron.": "Nur für Spieler, die noch in deinem Verein sind und deren Ankunftsdatum bekannt ist.",
+  "perderías": "du würdest verlieren",
+  "ganarías": "du würdest gewinnen",
+  "Costo acumulado": "Aufgelaufene Kosten",
+  "El precio por comparables de hoy menos la comisión que se llevaría el agente si lo vendieras ahora.": "Der heutige Preis nach Vergleichswerten abzüglich der Provision, die der Berater bei einem Verkauf jetzt nehmen würde.",
+  "Precio de venta hoy": "Verkaufspreis heute",
+  "precio {{v0}} − {{v1}}% del agente": "Preis {{v0}} − {{v1}}% Beraterprovision",
+  "compra, sueldos e intentos de venta": "Kauf, Gehälter und Verkaufsversuche",
+  "su precio ya lo supera": "sein Preis liegt schon darüber",
+  "le faltan {{v0}} de precio": "es fehlen {{v0}} am Preis",
+  "Precio de venta frente al costo acumulado, semana a semana": "Verkaufspreis gegenüber aufgelaufenen Kosten, Woche für Woche",
+  "Todavía no hay precio por comparables de este jugador: sólo se ve lo que lleva costado.": "Für diesen Spieler gibt es noch keinen Preis nach Vergleichswerten: Es sind nur die bisherigen Kosten zu sehen.",
+  "Hasta el {{v0}} no había precio por comparables: antes de esa fecha sólo se ve el costo.": "Bis zum {{v0}} gab es keinen Preis nach Vergleichswerten: Vor diesem Datum sind nur die Kosten zu sehen.",
+  "Qué enseña la gráfica": "Was das Diagramm zeigt",
+  "Precio de venta vs costo": "Verkaufspreis vs. Kosten"
 }

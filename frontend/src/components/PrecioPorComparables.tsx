@@ -61,6 +61,8 @@ import {
   parseUtc,
 } from "../hooks/useFormat";
 import { usePrecioComparable } from "../hooks/useTeam";
+import { usePersistido } from "../hooks/usePersistido";
+import { VentaVsCosto } from "./VentaVsCosto";
 import { tx } from "../i18n/tx";
 import { nombreDeHabilidad } from "../i18n/habilidades";
 import { skillLevelLabel } from "../utils/skillLevels";
@@ -761,6 +763,10 @@ export function PrecioPorComparables({
   activo?: boolean;
 }) {
   const consulta = usePrecioComparable(htPlayerId, { enabled: activo });
+  const [vista, setVista] = usePersistido<"precio" | "venta">(
+    "comparador.vista",
+    "precio",
+  );
   const datos = consulta.data;
   // AQUÍ VIVÍA EL MANDO «QUÉ SE DIBUJA», de «sólo ventas cerradas» a «también
   // pujas abiertas», y se fue el 2026-11-07 con las pujas mismas: «quitar el
@@ -1014,7 +1020,45 @@ export function PrecioPorComparables({
           cada semana y no es la respuesta del panel. La respuesta es el
           acumulado --el recuadro y la raya horizontal--, y ése sigue sin
           salir mientras no haya número. */}
-      {datos.serie.length >= MINIMO_PARA_LA_SERIE && (
+      {/* DOS VISTAS DE LA GRÁFICA (2026-11-21, pedido del usuario): lo que
+          se pagó cada semana, o el precio de venta frente a lo que lleva
+          costado. Las dos opciones siempre a la vista. */}
+      {htPlayerId != null && (
+        <div className="px-4 pb-2">
+          <div
+            role="group"
+            aria-label={tx("Qué enseña la gráfica")}
+            className="inline-flex gap-0.5 rounded-md bg-[var(--surface-2)] p-0.5"
+          >
+            {(
+              [
+                ["precio", tx("Precio")],
+                ["venta", tx("Precio de venta vs costo")],
+              ] as const
+            ).map(([clave, etiqueta]) => (
+              <button
+                key={clave}
+                type="button"
+                aria-pressed={vista === clave}
+                onClick={() => setVista(clave)}
+                className={
+                  vista === clave
+                    ? "rounded bg-[var(--surface)] px-3 py-1 text-xs font-semibold shadow-sm"
+                    : "rounded px-3 py-1 text-xs text-[var(--muted)] hover:text-[var(--text)]"
+                }
+              >
+                {etiqueta}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {vista === "venta" && htPlayerId != null && (
+        <div className="px-4 pb-2">
+          <VentaVsCosto htPlayerId={htPlayerId} />
+        </div>
+      )}
+      {vista === "precio" && datos.serie.length >= MINIMO_PARA_LA_SERIE && (
         <div className="px-4 pb-2">
           {/* LA GRÁFICA Y EL ACUMULADO, UNO AL LADO DEL OTRO (2026-11-08,
               pedido del usuario: «haz que un recuadro al lado de la gráfica

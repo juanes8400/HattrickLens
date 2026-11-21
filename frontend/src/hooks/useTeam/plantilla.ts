@@ -26,6 +26,13 @@ export const useSquad = (
 
 /** Lo que ha costado la gente parecida a un jugador. No pide nada a Hattrick,
  *  así que se puede abrir y cerrar sin coste. */
+/** «Precio de venta vs costo» del Comparador; sólo cuando se mira esa vista. */
+export const useVentaVsCosto = (htPlayerId: number) =>
+  useQuery({
+    queryKey: ["venta-vs-costo", TEAM_ID, htPlayerId],
+    queryFn: () => api.ventaVsCosto(TEAM_ID, htPlayerId),
+  });
+
 export const usePrecioComparable = (
   htPlayerId: number | null,
   opciones?: { enabled?: boolean },

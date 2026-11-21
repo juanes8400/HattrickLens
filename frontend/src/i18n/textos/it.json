@@ -2419,5 +2419,21 @@
   "puja {{v0}}{{v1}} · equilibrio {{v2}}": "offerta {{v0}}{{v1}} · pareggio {{v2}}",
   "cierra el {{v0}}": "chiude il {{v0}}",
   "{{v0}} → {{v1}} · equilibrio {{v2}} → {{v3}}": "{{v0}} → {{v1}} · pareggio {{v2}} → {{v3}}",
-  "Jugador por jugador, en Transferencias / Plantilla actual": "Giocatore per giocatore, in Trasferimenti / Rosa attuale"
+  "Jugador por jugador, en Transferencias / Plantilla actual": "Giocatore per giocatore, in Trasferimenti / Rosa attuale",
+  "No se pudo calcular el costo de este jugador.": "Non è stato possibile calcolare il costo di questo giocatore.",
+  "Sólo para jugadores que siguen en tu club y de los que se sabe cuándo llegaron.": "Solo per i giocatori ancora nel tuo club di cui si conosce la data di arrivo.",
+  "perderías": "perderesti",
+  "ganarías": "guadagneresti",
+  "Costo acumulado": "Costo accumulato",
+  "El precio por comparables de hoy menos la comisión que se llevaría el agente si lo vendieras ahora.": "Il prezzo per comparabili di oggi meno la commissione che l'agente prenderebbe se lo vendessi adesso.",
+  "Precio de venta hoy": "Prezzo di vendita oggi",
+  "precio {{v0}} − {{v1}}% del agente": "prezzo {{v0}} − {{v1}}% all'agente",
+  "compra, sueldos e intentos de venta": "acquisto, stipendi e tentativi di vendita",
+  "su precio ya lo supera": "il suo prezzo lo supera già",
+  "le faltan {{v0}} de precio": "mancano {{v0}} di prezzo",
+  "Precio de venta frente al costo acumulado, semana a semana": "Prezzo di vendita rispetto al costo accumulato, settimana per settimana",
+  "Todavía no hay precio por comparables de este jugador: sólo se ve lo que lleva costado.": "Non c'è ancora un prezzo per comparabili per questo giocatore: si vede solo quanto è costato finora.",
+  "Hasta el {{v0}} no había precio por comparables: antes de esa fecha sólo se ve el costo.": "Fino al {{v0}} non c'era un prezzo per comparabili: prima di quella data si vede solo il costo.",
+  "Qué enseña la gráfica": "Cosa mostra il grafico",
+  "Precio de venta vs costo": "Prezzo di vendita vs costo"
 }

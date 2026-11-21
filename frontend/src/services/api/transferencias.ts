@@ -208,7 +208,25 @@ export interface PlayerBalance {
 
 // ── Cierre de la fórmula de entrenamiento ────────────────────────────────────
 
+/** «Precio de venta vs costo» de un jugador, una semana por punto desde su
+ *  llegada (2026-11-21). `venta` es el precio por comparables menos la
+ *  comisión del agente de esa fecha; `null` antes de la primera lectura. */
+export interface VentaVsCostoDeUnJugador {
+  moneda: string;
+  puntos: {
+    fecha: string;
+    costo: number;
+    precio: number | null;
+    comision: number | null;
+    venta: number | null;
+  }[];
+}
+
 export const apiTransferencias = {
+  ventaVsCosto: (teamId: number, htPlayerId: number) =>
+    request<VentaVsCostoDeUnJugador>(
+      `/teams/${teamId}/players/${htPlayerId}/venta-vs-costo`,
+    ),
   /** Lo que ha costado la gente parecida a este jugador. No gasta cuota de
    *  Hattrick: sirve lo que dejo el paso semanal del mercado. */
   precioComparable: (teamId: number, htPlayerId: number) =>
