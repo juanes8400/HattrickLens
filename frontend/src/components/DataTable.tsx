@@ -36,6 +36,20 @@ export interface Column<T> {
   headerTitle?: string;
 }
 
+/** LA PRIMERA COLUMNA, FIJA EN EL TELÉFONO (2026-11-21, revisión a 375 px
+ *  pedida por el usuario). Al desplazar de lado una tabla ancha desaparecía el
+ *  nombre y no se sabía de quién era cada fila; ahora se queda pegado a la
+ *  izquierda, como en una hoja de cálculo. En pantallas anchas no cambia nada.
+ *
+ *  El fondo tiene que ser OPACO --si no, las columnas pasan por debajo y se
+ *  leen a través--, y en una fila resaltada lleva el mismo tinte translúcido
+ *  encima del fondo, para que no se vea como un parche blanco. */
+const FIJA_BASE =
+  "max-sm:sticky max-sm:left-0 max-sm:shadow-[1px_0_0_var(--border)]";
+const FIJA = `${FIJA_BASE} max-sm:z-[1] max-sm:bg-[var(--surface)]`;
+const FIJA_RESALTADA = `${FIJA_BASE} max-sm:z-[1] max-sm:[background:linear-gradient(var(--accent-soft),var(--accent-soft)),var(--surface)]`;
+const FIJA_CABECERA = `${FIJA_BASE} max-sm:z-[2] max-sm:bg-[var(--surface-2)]`;
+
 /** Se exige un ancho POSITIVO antes de concluir que la pantalla es estrecha.
  *  Un cero no es un móvil: es "todavía no se sabe" -- pasa con la pestaña
  *  oculta, en una captura de miniatura o al pintar en el servidor -- y
@@ -352,7 +366,7 @@ export function DataTable<T>({
         <table className="w-full text-sm">
           <thead className="sticky top-0 bg-[var(--surface-2)]">
             <tr>
-              {visible.map((c) => (
+              {visible.map((c, ci) => (
                 <th
                   key={c.key}
                   scope="col"
@@ -379,6 +393,7 @@ export function DataTable<T>({
                   className={clsx(
                     "cursor-pointer whitespace-nowrap px-3 py-2 text-xs font-medium text-[var(--muted)]",
                     c.align === "left" ? "text-left" : "text-right",
+                    ci === 0 && FIJA_CABECERA,
                   )}
                 >
                   {/* Una abreviatura sin nada que la explique obliga a
@@ -442,12 +457,13 @@ export function DataTable<T>({
             )}
             {filaFijada != null && (
               <tr className="border-t border-[var(--border)] bg-[var(--accent-soft)] ring-1 ring-inset ring-[var(--accent)]">
-                {visible.map((c) => (
+                {visible.map((c, ci) => (
                   <td
                     key={c.key}
                     className={clsx(
                       "px-3 py-1.5 tabular-nums",
                       c.align === "left" ? "text-left" : "text-right",
+                      ci === 0 && FIJA_RESALTADA,
                     )}
                   >
                     {c.render ? c.render(filaFijada) : celda(c, filaFijada)}
@@ -472,12 +488,17 @@ export function DataTable<T>({
                     "bg-[var(--accent-soft)] ring-1 ring-inset ring-[var(--accent)]",
                 )}
               >
-                {visible.map((c) => (
+                {visible.map((c, ci) => (
                   <td
                     key={c.key}
                     className={clsx(
                       "px-3 py-1.5 tabular-nums",
                       c.align === "left" ? "text-left" : "text-right",
+                      ci === 0 &&
+                        ((conFoco && i === focused) ||
+                        selectedRowKey === rowKey(row)
+                          ? FIJA_RESALTADA
+                          : FIJA),
                     )}
                   >
                     {c.render ? c.render(row) : celda(c, row)}

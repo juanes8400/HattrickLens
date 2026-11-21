@@ -76,8 +76,11 @@ export function SelectorDeIdioma({ className }: { className?: string }) {
 
   return (
     <div
+      // EN EL TELÉFONO, SÓLO LA BANDERA (2026-11-21, revisión a 375 px: el
+      // nombre del idioma se comía la cabecera). El selector sigue ahí, encima
+      // de la bandera y transparente: se toca igual y abre la misma lista.
       className={clsx(
-        "flex items-center gap-1.5 rounded-md border border-[var(--border)] px-2 py-1",
+        "relative flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--border)] px-2 py-1.5 focus-within:ring-2 focus-within:ring-[var(--accent)] sm:py-1",
         className,
       )}
     >
@@ -95,7 +98,7 @@ export function SelectorDeIdioma({ className }: { className?: string }) {
         }}
         aria-label={t("layout.idioma", "Idioma")}
         title={t("layout.idioma", "Idioma")}
-        className="cursor-pointer bg-transparent text-xs font-medium text-[var(--text)] outline-none"
+        className="absolute inset-0 cursor-pointer bg-transparent text-xs font-medium text-[var(--text)] opacity-0 outline-none sm:static sm:opacity-100"
       >
         {OFRECIDOS.map((codigo) => (
           <option key={codigo} value={codigo} className="text-[var(--text)]">
