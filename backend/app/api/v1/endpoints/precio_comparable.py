@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import require_team_owner
 from app.api.v1.endpoints.arena import _camel
 from app.application.queries.precio_comparable import precio_de, precios_de_la_plantilla
+from app.application.queries.venta_vs_costo import venta_vs_costo
 from app.infrastructure.db.session import get_session
 
 router = APIRouter()
@@ -62,3 +63,23 @@ async def precios_comparables(
     que no vale nada y lo que pasa es que todavía no se sabe.
     """
     return cast(dict[str, Any], _camel(asdict(await precios_de_la_plantilla(session, team_id))))
+
+
+@router.get(
+    "/teams/{team_id}/players/{ht_player_id}/venta-vs-costo",
+    summary="Precio de venta frente a costo acumulado, semana a semana",
+    dependencies=[Depends(require_team_owner)],
+)
+async def venta_contra_costo(
+    team_id: int,
+    ht_player_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """Una semana por punto desde la llegada del jugador: lo que lleva costado
+    y lo que entraría en caja vendiéndolo al precio por comparables de esa
+    semana (2026-11-21). Sólo para jugadores que siguen en el club; si no, la
+    lista llega vacía."""
+    datos = await venta_vs_costo(session, team_id, ht_player_id)
+    if datos is None:
+        raise HTTPException(404, f"el equipo {team_id} no existe")
+    return cast(dict[str, Any], _camel(asdict(datos)))

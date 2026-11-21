@@ -2419,5 +2419,21 @@
   "puja {{v0}}{{v1}} · equilibrio {{v2}}": "bid {{v0}}{{v1}} · break-even {{v2}}",
   "cierra el {{v0}}": "closes {{v0}}",
   "{{v0}} → {{v1}} · equilibrio {{v2}} → {{v3}}": "{{v0}} → {{v1}} · break-even {{v2}} → {{v3}}",
-  "Jugador por jugador, en Transferencias / Plantilla actual": "Player by player, in Transfers / Current squad"
+  "Jugador por jugador, en Transferencias / Plantilla actual": "Player by player, in Transfers / Current squad",
+  "No se pudo calcular el costo de este jugador.": "This player's cost could not be calculated.",
+  "Sólo para jugadores que siguen en tu club y de los que se sabe cuándo llegaron.": "Only for players who are still at your club and whose arrival date is known.",
+  "perderías": "you would lose",
+  "ganarías": "you would gain",
+  "Costo acumulado": "Accumulated cost",
+  "El precio por comparables de hoy menos la comisión que se llevaría el agente si lo vendieras ahora.": "Today's comparables price minus the commission the agent would take if you sold him now.",
+  "Precio de venta hoy": "Sale price today",
+  "precio {{v0}} − {{v1}}% del agente": "price {{v0}} − {{v1}}% to the agent",
+  "compra, sueldos e intentos de venta": "purchase, wages and sale attempts",
+  "su precio ya lo supera": "his price is already above it",
+  "le faltan {{v0}} de precio": "{{v0}} short in price",
+  "Precio de venta frente al costo acumulado, semana a semana": "Sale price against accumulated cost, week by week",
+  "Todavía no hay precio por comparables de este jugador: sólo se ve lo que lleva costado.": "There is no comparables price for this player yet: only what he has cost so far is shown.",
+  "Hasta el {{v0}} no había precio por comparables: antes de esa fecha sólo se ve el costo.": "There was no comparables price until {{v0}}: before that date only the cost is shown.",
+  "Qué enseña la gráfica": "What the chart shows",
+  "Precio de venta vs costo": "Sale price vs cost"
 }

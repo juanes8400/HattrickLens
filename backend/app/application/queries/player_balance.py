@@ -9,8 +9,8 @@ calcular el resultado. Nunca inventa un valor de mercado para un jugador
 que sigue sin venderse.
 """
 
-from dataclasses import dataclass
-from datetime import UTC, datetime
+from dataclasses import dataclass, replace
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -373,9 +373,34 @@ class PlayerBalanceResponse:
     transfer_number_sales: int
 
 
+@dataclass(frozen=True, slots=True)
+class PuntoDeCosto:
+    """Lo que llevaba costado un jugador en `momento` y la comisión que se
+    habría llevado el agente si se hubiera vendido entonces."""
+
+    momento: datetime
+    costo: float
+    comision: float | None
+
+
 class PlayerBalanceQueryService:
     def __init__(self, session: AsyncSession) -> None:
+        self._serie_pedida: int | None = None
+        self._serie: list[PuntoDeCosto] = []
         self._s = session
+
+    async def serie_de_costo(self, team_id: int, ht_player_id: int) -> list[PuntoDeCosto]:
+        """El costo acumulado y la comisión del agente de un jugador, una vez
+        por semana desde su llegada y hoy. Se arma en la misma pasada que el
+        balance, para que la cuenta sea exactamente la de «Costo hasta ahora».
+        Vacía si no está en el club."""
+        self._serie_pedida = ht_player_id
+        self._serie = []
+        try:
+            await self.get(team_id)
+            return list(self._serie)
+        finally:
+            self._serie_pedida = None
 
     async def get(
         self,
@@ -1014,6 +1039,36 @@ class PlayerBalanceQueryService:
                 as_of=as_of,
             )
             balance: PlayerBalance = compute_balance(record)
+            # LA SERIE DE UN JUGADOR (2026-11-21, «Precio de venta vs costo» del
+            # Comparador): el mismo registro, a otras fechas. Sólo su etapa
+            # abierta, que es la que se puede vender.
+            if (
+                self._serie_pedida is not None
+                and p.ht_player_id == self._serie_pedida
+                and is_currently_active
+                and purchased_at is not None
+            ):
+                # Una por semana desde su llegada, y la de hoy al final.
+                llegada = (
+                    purchased_at.astimezone(UTC) if purchased_at.tzinfo else purchased_at
+                ).replace(tzinfo=None)
+                momentos = []
+                t_naive = llegada
+                while t_naive < as_of:
+                    momentos.append(t_naive)
+                    t_naive += timedelta(days=7)
+                momentos.append(as_of)
+                for t_naive in momentos:
+                    b = compute_balance(replace(record, as_of=t_naive))
+                    self._serie.append(
+                        PuntoDeCosto(
+                            momento=t_naive.replace(tzinfo=UTC),
+                            costo=(b.purchase_price or 0) + b.salary_total + b.listing_cost,
+                            comision=agent_pct_de_una_venta(
+                                purchased_at, t_naive, is_academy_graduate=is_academy
+                            ),
+                        )
+                    )
             salary_breakdown_rows = salary_breakdown(
                 purchased_at,
                 effective_sold_at or record.as_of,
