@@ -42,6 +42,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.commands.mercado_comparable import a_guardado
 from app.application.queries.weekly import season_week_for_datetime
 from app.domain.engines.criterios_hattrick import criterios_de
+from app.domain.engines.cruces_de_equilibrio import puja_en
 from app.domain.engines.mercado_comparable import (
     PESO_DEL_CLAVADO,
     VIDA,
@@ -653,6 +654,87 @@ async def precios_de_la_plantilla(
         jugadores=tuple(filas),
         sin_medir=max(0, en_plantilla - len(filas)),
     )
+
+
+@dataclass(frozen=True, slots=True)
+class MaximoYPuja:
+    """Lo máximo pagado por un parecido y la puja más alta abierta, en dos
+    momentos. Ya en la moneda del equipo; `None` donde no había nada."""
+
+    maximo_antes: int | None
+    maximo_ahora: int | None
+    puja_antes: int | None
+    puja_ahora: int | None
+    cierra: datetime | None
+
+
+async def maximos_y_pujas(
+    session: AsyncSession,
+    team_id: int,
+    desde: datetime,
+    hasta: datetime,
+) -> dict[int, MaximoYPuja]:
+    """Para los avisos del precio de equilibrio (2026-11-21), por jugador.
+
+    LO MÁXIMO PAGADO sale de las ventas cerradas que ya se conocían en cada
+    momento, medidas como entonces: con ese momento como «hoy», las que
+    habían caducado no cuentan. Se mide con las habilidades de HOY del
+    jugador; si cambiaron, se compara con otra gente, igual que en el precio.
+
+    LA PUJA MÁS ALTA es la de los anuncios que siguen abiertos hoy y tienen
+    puja, con lo que llevaba cada uno en `desde` según su historia. Sólo los
+    abiertos hoy: el aviso de la puja sólo sube, y un anuncio que cerró desde
+    entonces no puede hacerla subir.
+    """
+    equipo = await session.get(m.Team, team_id)
+    tasa = (equipo.currency_rate or 1.0) if equipo else 1.0
+
+    def convertido(v: int) -> int:
+        return int(round(v / tasa)) if tasa else int(v)
+
+    filas = list(
+        (
+            await session.execute(select(m.MarketSale).where(m.MarketSale.team_id == team_id))
+        ).scalars()
+    )
+    guardadas = [a_guardado(f) for f in filas]
+    # Las abiertas, por el jugador anunciado: es lo que lleva `Guardado`.
+    abiertas = {f.ht_player_id: f for f in filas if not f.is_final}
+
+    def _utc(v: datetime) -> datetime:
+        return v if v.tzinfo else v.replace(tzinfo=UTC)
+
+    def maximo_en(objetivo: Objetivo, momento: datetime) -> int | None:
+        conocidas = [g for g in guardadas if g.firme and _utc(g.visto_el) <= _utc(momento)]
+        precios = [c.venta.precio for c in comparables_de(conocidas, objetivo, momento) if c.cuenta]
+        return convertido(max(precios)) if precios else None
+
+    salida: dict[int, MaximoYPuja] = {}
+    pares, _ = await _plantilla_con_foto(session, team_id)
+    for jugador, foto in pares:
+        objetivo = objetivo_de(
+            jugador.ht_player_id,
+            foto.age_years or 0,
+            {h: getattr(foto, h, 0) or 0 for h in HABILIDADES},
+            especialidad=foto.specialty or 0,
+        )
+        if objetivo is None:
+            continue
+        con_puja = [
+            c.venta
+            for c in comparables_de(guardadas, objetivo, hasta)
+            if not c.venta.firme and c.venta.puja > 0 and c.venta.ht_player_id in abiertas
+        ]
+        mejor = max(con_puja, key=lambda v: v.puja, default=None)
+        antes = [puja_en(abiertas[v.ht_player_id].bid_history_json, desde) or 0 for v in con_puja]
+        salida[jugador.ht_player_id] = MaximoYPuja(
+            maximo_antes=maximo_en(objetivo, desde),
+            maximo_ahora=maximo_en(objetivo, hasta),
+            puja_antes=convertido(max(antes)) if con_puja else None,
+            puja_ahora=convertido(mejor.puja) if mejor else None,
+            cierra=abiertas[mejor.ht_player_id].deadline if mejor else None,
+        )
+    return salida
 
 
 async def _plantilla_con_foto(

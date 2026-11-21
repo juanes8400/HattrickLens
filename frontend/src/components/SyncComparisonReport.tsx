@@ -1,6 +1,12 @@
 import clsx from "clsx";
-import { money, number } from "../hooks/useFormat";
-import type { NationalMatchAppearance, ValueMove } from "../services/api";
+import { Link } from "react-router-dom";
+import { dateTime, money, number } from "../hooks/useFormat";
+import type {
+  EquilibriumCrossing,
+  NationalMatchAppearance,
+  ValueMove,
+} from "../services/api";
+import { TerminoEquilibrio, enlaceAlComparador } from "./PrecioDeEquilibrio";
 import { Empty, Panel } from "./Panels";
 import { PlayerLink } from "./PlayerLink";
 import type { ClubComparisonChange } from "../services/api";
@@ -321,6 +327,97 @@ export function ValueMovesSection({ moves }: { moves: ValueMove[] }) {
               <ul className="mt-1">
                 {suyos.map((mv) => (
                   <FilaDeValor key={mv.htPlayerId} mv={mv} />
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+    </Panel>
+  );
+}
+
+/** Qué decir de cada señal, en el orden en que se pintan. */
+const SENALES_DEL_CRUCE: {
+  senal: EquilibriumCrossing["signal"];
+  titulo: string;
+}[] = [
+  { senal: "precio", titulo: "Su precio por comparables" },
+  { senal: "maximo", titulo: "Lo máximo pagado por un parecido" },
+  { senal: "puja", titulo: "La puja más alta abierta por un parecido" },
+];
+
+function FilaDeCruce({ c }: { c: EquilibriumCrossing }) {
+  const sube = c.direction === "sube";
+  return (
+    <li className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 px-3 py-1.5 text-sm">
+      <span
+        className={clsx(
+          "rounded px-1.5 text-[11px] font-semibold",
+          sube
+            ? "bg-[var(--positive)]/15 text-[var(--positive)]"
+            : "bg-[var(--warning)]/15 text-[var(--warning)]",
+        )}
+      >
+        {sube ? tx("↑ cruzó") : tx("↓ cruzó")}
+      </span>
+      <span className="font-medium">
+        <Link
+          to={enlaceAlComparador(c.htPlayerId)}
+          className="underline decoration-[var(--border)] underline-offset-2 hover:text-[var(--accent)] hover:decoration-[var(--accent)]"
+        >
+          {c.name}
+        </Link>
+      </span>
+      <span>
+        {sube ? tx("ya está por encima del") : tx("quedó por debajo del")}{" "}
+        <TerminoEquilibrio>{tx("precio de equilibrio")}</TerminoEquilibrio>
+      </span>
+      <span className="w-full text-xs tabular-nums text-[var(--muted)]">
+        {c.signal === "puja"
+          ? tx("puja {{v0}}{{v1}} · equilibrio {{v2}}", {
+              v0: money(c.after, c.currency),
+              v1: c.closesAt
+                ? ` · ${tx("cierra el {{v0}}", { v0: dateTime(c.closesAt) })}`
+                : "",
+              v2: money(c.equilibriumAfter, c.currency),
+            })
+          : tx("{{v0}} → {{v1}} · equilibrio {{v2}} → {{v3}}", {
+              v0: money(c.before, c.currency),
+              v1: money(c.after, c.currency),
+              v2: money(c.equilibriumBefore, c.currency),
+              v3: money(c.equilibriumAfter, c.currency),
+            })}
+      </span>
+    </li>
+  );
+}
+
+/** Qué precios cruzaron el precio de equilibrio desde tu visita anterior
+ *  (2026-11-21, pedido del usuario). Va al lado de los movimientos de valor:
+ *  el ±5 % dice cuánto se movió un precio; esto, si con eso ya se puede
+ *  vender sin perder, o si se dejó de poder. No sale cuando no hay nada. */
+export function EquilibriumCrossingsSection({
+  crossings,
+}: {
+  crossings: EquilibriumCrossing[];
+}) {
+  if (crossings.length === 0) return null;
+  return (
+    <Panel
+      title={tx("Cruces del precio de equilibrio")}
+      meta={tx("desde la última vez que entraste")}
+    >
+      <div className="divide-y divide-[var(--border)]">
+        {SENALES_DEL_CRUCE.map((g) => {
+          const suyos = crossings.filter((c) => c.signal === g.senal);
+          if (suyos.length === 0) return null;
+          return (
+            <div key={g.senal} className="py-3">
+              <div className="px-3 text-sm font-semibold">{tx(g.titulo)}</div>
+              <ul className="mt-1">
+                {suyos.map((c) => (
+                  <FilaDeCruce key={`${c.htPlayerId}-${c.direction}`} c={c} />
                 ))}
               </ul>
             </div>

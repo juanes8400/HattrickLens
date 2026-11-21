@@ -15,6 +15,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.queries.academy import AcademyQueryService
 from app.application.queries.cambios_de_clase import cambios_de_clase
 from app.application.queries.clases_de_jugador import ClasesDeJugadorQueryService
+from app.application.queries.cruces_de_equilibrio import (
+    cruces_de_equilibrio,
+    ultimas_dos_sincronizaciones,
+)
 from app.application.queries.player_balance import PlayerBalanceQueryService
 from app.application.queries.precio_comparable import precios_de_la_plantilla
 from app.application.queries.team_overview import TeamOverviewQueryService
@@ -277,9 +281,21 @@ async def alertas_de_cierre(
         grupos.append(ap.titular_que_no_juega(titulares, [d for d in oficiales if d is not None]))
 
     grupos.append(await _venta_con_ganancia(session, team_id))
+    grupos.append(await _cruces_del_equilibrio(session, team_id))
     grupos.append(await _precio_que_sube(session, team_id, por_id))
     grupos.append(await _juveniles_listos(session, team_id))
     return grupos
+
+
+async def _cruces_del_equilibrio(session: AsyncSession, team_id: int) -> list[Insight]:
+    """Los cruces entre las dos últimas sincronizaciones: como las demás
+    alertas de grupo, duran una sincronización."""
+    ventana = await ultimas_dos_sincronizaciones(session, team_id)
+    if ventana is None:
+        return []
+    equipo = await session.get(m.Team, team_id)
+    moneda = (equipo.currency_name if equipo else "") or ""
+    return ap.cruces_del_equilibrio(await cruces_de_equilibrio(session, team_id, *ventana), moneda)
 
 
 async def _venta_con_ganancia(session: AsyncSession, team_id: int) -> list[Insight]:

@@ -32,6 +32,7 @@ from typing import Any, Protocol
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.engines.cruces_de_equilibrio import historia_de_pujas
 from app.domain.engines.mercado_comparable import (
     COMPROBACIONES,
     Estimacion,
@@ -223,6 +224,13 @@ async def guardar(
         fila.name = venta.nombre
         fila.price = venta.precio
         fila.is_final = venta.firme
+        fila.bid_history_json = historia_de_pujas(
+            fila.bid_history_json if not nueva else None,
+            puja_anterior=None if nueva else fila.bid_price,
+            visto_antes=None if nueva else fila.seen_at,
+            puja=venta.puja,
+            ahora=venta.visto_el,
+        )
         fila.bid_price = venta.puja
         fila.deadline = plazo
         fila.seen_at = venta.visto_el

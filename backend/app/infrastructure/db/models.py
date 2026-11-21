@@ -1949,6 +1949,9 @@ class MarketSale(Base):
     #: anteriores a esta columna: esas no pueden llevar el sello del juego, y
     #: se miden con nuestra escalera como siempre.
     skills_json: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    #: `[[momento ISO, puja], ...]`, una entrada cada vez que la puja cambia
+    #: (0118). Sirve para saber cuánto iba la puja en la visita anterior.
+    bid_history_json: Mapped[str] = mapped_column(Text, default="[]", server_default="[]")
 
 
 class PlayerClassification(Base):

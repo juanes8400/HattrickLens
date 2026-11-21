@@ -214,6 +214,9 @@ export interface LastSyncChanges {
   /** Qué valores se movieron desde el informe anterior. Puede faltar en
    *  respuestas de una versión anterior del servidor. */
   valueMoves?: ValueMove[];
+  /** Los cruces del precio de equilibrio (2026-11-21). Opcional: una
+   *  respuesta vieja en caché no lo trae. */
+  equilibriumCrossings?: EquilibriumCrossing[];
   /** Snapshots navegables, sólo los que tuvieron cambios reales, del más
    *  reciente al más antiguo. Elegir uno recalcula toda la comparación. */
   availableReports: { syncId: number; syncedAt: string; changeCount: number }[];
@@ -232,6 +235,22 @@ export interface LastSyncChanges {
  *    un movimiento del mercado: cambió la pregunta, no la respuesta.
  *  · `"perdido"` — tenía número y ya no. No vale menos: dejamos de saberlo.
  */
+/** Un precio que cruzó el precio de equilibrio de un jugador. */
+export interface EquilibriumCrossing {
+  htPlayerId: number;
+  name: string;
+  /** precio por comparables, lo máximo pagado por un parecido, o la puja
+   *  más alta abierta (ésta sólo avisa al subir). */
+  signal: "precio" | "maximo" | "puja";
+  direction: "sube" | "baja";
+  before: number;
+  after: number;
+  equilibriumBefore: number;
+  equilibriumAfter: number;
+  closesAt: string | null;
+  currency: string;
+}
+
 export interface ValueMove {
   htPlayerId: number;
   name: string;
