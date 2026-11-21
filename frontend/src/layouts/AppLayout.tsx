@@ -353,8 +353,10 @@ export function AppLayout() {
               antigüedad del dato y lleva a Sincronización. */}
           <Link
             to="/sync"
+            // EN UNA LÍNEA (2026-11-21, revisión en teléfono): a 375 px «hace 5
+            // d» se partía en dos y la cabecera crecía.
             className={clsx(
-              "rounded-md px-2 py-1.5 text-sm font-medium sm:px-3",
+              "shrink-0 whitespace-nowrap rounded-md px-2 py-1.5 text-sm font-medium sm:px-3",
               data?.stale
                 ? "bg-[var(--warning)]/15 text-[var(--warning)]"
                 : "bg-[var(--positive)]/15 text-[var(--positive)]",

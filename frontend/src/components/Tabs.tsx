@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import clsx from "clsx";
 
@@ -107,7 +107,42 @@ export function Tabs<T extends string>({
   modo?: "secciones" | "filtro";
 }) {
   const zona = useRef<HTMLDivElement>(null);
+  const carril = useRef<HTMLDivElement>(null);
   const esFiltro = modo === "filtro";
+  // QUÉ QUEDA FUERA, A CADA LADO (2026-11-21, revisión en teléfono pedida por
+  // el usuario): Entrenamiento tiene ocho pestañas y Transparencia veinticinco,
+  // y las que no cabían quedaban escondidas sin ninguna pista de que
+  // existían. Un degradado en el borde dice «hay más por aquí».
+  const [hayMas, setHayMas] = useState({ izquierda: false, derecha: false });
+  const medir = useCallback(() => {
+    const c = carril.current;
+    if (!c) return;
+    setHayMas({
+      izquierda: c.scrollLeft > 1,
+      derecha: c.scrollLeft + c.clientWidth < c.scrollWidth - 1,
+    });
+  }, []);
+
+  // LA ELEGIDA, A LA VISTA: al abrir una pestaña que estaba fuera, el carril
+  // se desliza hasta centrarla. Se mueve el carril y no se usa
+  // `scrollIntoView`, que también movería la página de arriba abajo.
+  useEffect(() => {
+    const c = carril.current;
+    if (esFiltro || !c) return;
+    const elegida = c.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (elegida) {
+      const destino =
+        elegida.offsetLeft - (c.clientWidth - elegida.offsetWidth) / 2;
+      c.scrollTo({ left: Math.max(0, destino) });
+    }
+    medir();
+  }, [active, esFiltro, medir]);
+
+  useEffect(() => {
+    if (esFiltro) return;
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, [esFiltro, medir]);
 
   const mover = (indice: number) => {
     const destino = tabs[indice];
@@ -153,55 +188,73 @@ export function Tabs<T extends string>({
     // el borde, con el tercero escondido, parecían rotos; partidos en dos
     // renglones se leen todos. Las secciones siguen desplazándose: son siete y
     // partirlas empujaría el contenido hacia abajo.
-    <div
-      className={esFiltro ? "min-w-0 max-w-full" : "-mx-1 overflow-x-auto px-1"}
-    >
+    <div className={esFiltro ? "min-w-0 max-w-full" : "relative"}>
       <div
-        ref={zona}
-        role={esFiltro ? "group" : "tablist"}
-        aria-label={label}
-        className={clsx(
-          "gap-1 border border-[var(--border)] bg-[var(--surface-2)] p-1",
-          esFiltro
-            ? "inline-flex max-w-full flex-wrap rounded-2xl"
-            : "inline-flex w-max rounded-full",
-        )}
+        ref={carril}
+        onScroll={esFiltro ? undefined : medir}
+        className={
+          esFiltro ? "min-w-0 max-w-full" : "-mx-1 overflow-x-auto px-1"
+        }
       >
-        {tabs.map((t, i) => (
-          <button
-            key={t.key}
-            role={esFiltro ? undefined : "tab"}
-            id={esFiltro || !grupo ? undefined : idDePestana(grupo, t.key)}
-            aria-controls={
-              esFiltro || !grupo ? undefined : idDePanel(grupo, t.key)
-            }
-            // Un filtro dice si está PUESTO; una pestaña, si está elegida.
-            aria-pressed={esFiltro ? active === t.key : undefined}
-            aria-selected={esFiltro ? undefined : active === t.key}
-            // Sólo la activa está en el orden de tabulación; entre ellas se
-            // navega con las flechas. Es lo que espera quien usa teclado y lo
-            // que evita convertir cada grupo de pestañas en un peaje.
-            // En un filtro, en cambio, todas son parada: no es un `tablist` y
-            // nadie espera tener que usar las flechas para descubrirlas.
-            tabIndex={esFiltro || active === t.key ? 0 : -1}
-            disabled={t.disabled}
-            title={t.title}
-            onClick={() => onChange(t.key)}
-            onKeyDown={(e) => alPulsar(e, i)}
-            className={clsx(
-              "flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
-              t.disabled
-                ? "cursor-not-allowed text-[var(--muted)] opacity-40"
-                : active === t.key
-                  ? "bg-[var(--surface)] text-[var(--text)] shadow-sm"
-                  : "text-[var(--muted)] hover:text-[var(--text)]",
-            )}
-          >
-            {t.icon}
-            {t.label}
-          </button>
-        ))}
+        <div
+          ref={zona}
+          role={esFiltro ? "group" : "tablist"}
+          aria-label={label}
+          className={clsx(
+            "gap-1 border border-[var(--border)] bg-[var(--surface-2)] p-1",
+            esFiltro
+              ? "inline-flex max-w-full flex-wrap rounded-2xl"
+              : "inline-flex w-max rounded-full",
+          )}
+        >
+          {tabs.map((t, i) => (
+            <button
+              key={t.key}
+              role={esFiltro ? undefined : "tab"}
+              id={esFiltro || !grupo ? undefined : idDePestana(grupo, t.key)}
+              aria-controls={
+                esFiltro || !grupo ? undefined : idDePanel(grupo, t.key)
+              }
+              // Un filtro dice si está PUESTO; una pestaña, si está elegida.
+              aria-pressed={esFiltro ? active === t.key : undefined}
+              aria-selected={esFiltro ? undefined : active === t.key}
+              // Sólo la activa está en el orden de tabulación; entre ellas se
+              // navega con las flechas. Es lo que espera quien usa teclado y lo
+              // que evita convertir cada grupo de pestañas en un peaje.
+              // En un filtro, en cambio, todas son parada: no es un `tablist` y
+              // nadie espera tener que usar las flechas para descubrirlas.
+              tabIndex={esFiltro || active === t.key ? 0 : -1}
+              disabled={t.disabled}
+              title={t.title}
+              onClick={() => onChange(t.key)}
+              onKeyDown={(e) => alPulsar(e, i)}
+              className={clsx(
+                "flex items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
+                t.disabled
+                  ? "cursor-not-allowed text-[var(--muted)] opacity-40"
+                  : active === t.key
+                    ? "bg-[var(--surface)] text-[var(--text)] shadow-sm"
+                    : "text-[var(--muted)] hover:text-[var(--text)]",
+              )}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
+      {!esFiltro && hayMas.izquierda && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-[var(--bg)] to-transparent"
+        />
+      )}
+      {!esFiltro && hayMas.derecha && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-[var(--bg)] to-transparent"
+        />
+      )}
     </div>
   );
 }
