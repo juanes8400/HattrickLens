@@ -112,6 +112,8 @@ class ManMarkingSuggestion:
     marker_loss_pct: float
     risk_note: str
     evidence: dict[str, Any] = field(default_factory=dict)
+    #: Para buscarlo en las alineaciones: las minicanchas de cada partido.
+    target_ht_player_id: int = 0
 
 
 def _close_marker_group(target_position: int) -> frozenset[int] | None:
@@ -225,7 +227,56 @@ def suggest_man_marking(
                 for t in sorted(targets, key=lambda p: -p.get("tsi", 0))[:5]
             ],
         },
+        target_ht_player_id=target.get("ht_player_id", 0),
     )
+
+
+def es_puesto_de_campo(code: int) -> bool:
+    """Los once puestos de campo de `matchlineup` (1 portero ... 14
+    delantero izquierdo). Fuera quedan los suplentes y los papeles
+    especiales (capitán, balón parado, «entró por»)."""
+    return 1 <= code <= 14
+
+
+@dataclass
+class ObjetivoEnPartido:
+    """Dónde jugó el objetivo del marcaje UN día, con el once del rival
+    alrededor: es lo que se dibuja en cada minicancha."""
+
+    label: str  # rival de aquel día, o la fecha si no se sabe
+    date: str
+    formation: str
+    target_position: int | None  # None: no jugó ese partido
+    field_positions: list[int]  # los puestos ocupados por el resto del once
+
+
+def objetivo_partido_a_partido(
+    target_ht_player_id: int,
+    partidos: list[dict[str, Any]],
+) -> list[ObjetivoEnPartido]:
+    """Una entrada por partido analizado, en el orden en que llegan (del
+    más antiguo al más reciente). Cada partido: `{"label", "date",
+    "formation", "positions": {ht_player_id: puesto}}`.
+
+    Pedido del usuario (2026-11-20): la sugerencia nombraba UN puesto del
+    objetivo, el último visto, y un delantero que ese día jugó de extremo
+    parecía extremo siempre. Así se ve la secuencia entera."""
+    salida = []
+    for p in partidos:
+        puestos: dict[int, int] = p.get("positions") or {}
+        del_objetivo = puestos.get(target_ht_player_id)
+        salida.append(
+            ObjetivoEnPartido(
+                label=str(p.get("label") or p.get("date", ""))[:24],
+                date=str(p.get("date", "")),
+                formation=str(p.get("formation") or ""),
+                target_position=del_objetivo,
+                field_positions=sorted(
+                    {c for pid, c in puestos.items() if pid != target_ht_player_id}
+                ),
+            )
+        )
+    return salida
 
 
 # ── Probabilidad de ganar ───────────────────────────────────────────────────
@@ -369,6 +420,81 @@ def analyse_side_rotation(match_ratings: list[dict[str, Any]]) -> SideRotation |
         dominant_side_by_match=best_side_per_match,
         attack_by_match=por_partido,
         rotates=rotates,
+        matches_analysed=n,
+    )
+
+
+# ── Rotación de la defensa ──────────────────────────────────────────────────
+
+
+@dataclass
+class DefenseByMatch:
+    """La defensa de UN partido, carril por carril."""
+
+    label: str
+    date: str
+    left: int
+    central: int
+    right: int
+    worst: str  # "izquierda" | "centro" | "derecha"
+
+
+@dataclass
+class DefenseRotation:
+    defense_left_avg: float
+    defense_central_avg: float
+    defense_right_avg: float
+    defense_left_std: float
+    defense_central_std: float
+    defense_right_std: float
+    weak_side: str
+    #: % de los partidos vistos en los que `weak_side` fue SU carril más flojo.
+    weak_pct: float
+    defense_by_match: list[DefenseByMatch]
+    rotates: bool
+    matches_analysed: int
+
+
+def analyse_defense_rotation(match_ratings: list[dict[str, Any]]) -> DefenseRotation | None:
+    """El espejo de `analyse_side_rotation` para la defensa, pedido del
+    usuario (2026-11-20). Aquí lo que interesa es el carril MÁS FLOJO: es por
+    donde conviene atacarle. Mismos datos (`left_def`, `central_def`,
+    `right_def` de cada partido) y la misma regla del 60% para decir si el
+    lado flojo es fijo o cambia de un partido a otro."""
+    if not match_ratings:
+        return None
+    claves = {"izquierda": "left_def", "centro": "central_def", "derecha": "right_def"}
+    n = len(match_ratings)
+    valores = {lado: [m[clave] for m in match_ratings] for lado, clave in claves.items()}
+    peor_por_partido = [
+        min(claves, key=lambda lado: m[claves[lado]])  # noqa: B023, se usa en el acto
+        for m in match_ratings
+    ]
+    avg = {lado: sum(v) / n for lado, v in valores.items()}
+    std = {lado: statistics.pstdev(v) if n > 1 else 0.0 for lado, v in valores.items()}
+    weak_side = min(avg, key=lambda lado: avg[lado])
+    veces = peor_por_partido.count(weak_side)
+    return DefenseRotation(
+        defense_left_avg=round(avg["izquierda"], 1),
+        defense_central_avg=round(avg["centro"], 1),
+        defense_right_avg=round(avg["derecha"], 1),
+        defense_left_std=round(std["izquierda"], 1),
+        defense_central_std=round(std["centro"], 1),
+        defense_right_std=round(std["derecha"], 1),
+        weak_side=weak_side,
+        weak_pct=round(100 * veces / n, 1),
+        defense_by_match=[
+            DefenseByMatch(
+                label=str(m.get("opponent") or m.get("match_date", ""))[:24],
+                date=str(m.get("match_date", "")),
+                left=m["left_def"],
+                central=m["central_def"],
+                right=m["right_def"],
+                worst=peor,
+            )
+            for m, peor in zip(match_ratings, peor_por_partido, strict=True)
+        ],
+        rotates=veces < (n * 0.6),
         matches_analysed=n,
     )
 

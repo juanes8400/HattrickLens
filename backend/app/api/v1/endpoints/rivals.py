@@ -39,7 +39,10 @@ from app.api.v1.endpoints.analysis import roster
 from app.api.v1.endpoints.arena import _camel
 from app.application.commands.partidos_de_rivales import (
     VERSION_ALINEACION,
+    actualizar_alineaciones,
     alineacion_de,
+    con_puestos_exactos,
+    es_alineacion_exacta,
     guardar_lo_visto,
     partidos_guardados,
     ratings_de,
@@ -72,9 +75,12 @@ from app.domain.engines.prediccion import (
 )
 from app.domain.engines.rival_scouting import (
     PitchZoneMethod,
+    analyse_defense_rotation,
     analyse_side_rotation,
+    es_puesto_de_campo,
     estimate_win_probability,
     lecturas_completas,
+    objetivo_partido_a_partido,
     pitch_zone_duels,
     pitch_zone_values,
     resumir_ratings,
@@ -450,6 +456,10 @@ class RivalMatchesAndLineups:
     #: que salieron de la base no están: ya estaban guardadas. Es la mitad de
     #: lo que la ficha guarda al terminar; la otra mitad es el detalle.
     alineaciones_nuevas: dict[int, list[dict[str, Any]]] | None = None
+    #: Por partido, el puesto de campo (códigos 1-14) de cada jugador que lo
+    #: ocupó. De aquí salen las minicanchas del marcaje (2026-11-20): dónde
+    #: jugó el objetivo cada día y con qué once alrededor.
+    puestos_por_partido: dict[int, dict[int, int]] | None = None
 
 
 async def fetch_rival_matches_and_lineups(
@@ -650,6 +660,7 @@ async def fetch_rival_matches_and_lineups(
     # alineaciones por ficha, y el usuario lo vio en su cuenta de llamadas.
     guardadas = ya_guardados or {}
     alineaciones_nuevas: dict[int, list[dict[str, Any]]] = {}
+    puestos_por_partido: dict[int, dict[int, int]] = {}
     for mt in matches:
         cacheada = guardadas.get(mt["ht_match_id"])
         if cacheada is not None:
@@ -665,11 +676,15 @@ async def fetch_rival_matches_and_lineups(
                 )
             )["players"]
             alineaciones_nuevas[mt["ht_match_id"]] = lineup
+            lineup = con_puestos_exactos(lineup)
         # Algunos XML incluyen referencias especiales del mismo jugador
         # (capitán, balón parado) además de su entrada real de titular, cada
         # partido cuenta como máximo una vez por jugador en `appearances`.
         seen_in_match: set[int] = set()
+        puestos = puestos_por_partido.setdefault(mt["ht_match_id"], {})
         for p in lineup:
+            if es_puesto_de_campo(p["position_code"]):
+                puestos.setdefault(p["ht_player_id"], p["position_code"])
             if p["position_code"] > 0:
                 position_by_id[p["ht_player_id"]] = p["position_code"]
             if p["name"]:
@@ -691,6 +706,7 @@ async def fetch_rival_matches_and_lineups(
         hay_oficiales=hay_oficiales,
         hay_amistosos=hay_amistosos,
         alineaciones_nuevas=alineaciones_nuevas,
+        puestos_por_partido=puestos_por_partido,
     )
 
 
@@ -1011,8 +1027,12 @@ async def rival_scouting(
         fila.ht_match_id: fila
         for fila in await partidos_guardados(session, rival_ht_team_id, limite=None)
     }
+    # Las guardadas con la 1.2 no valen para los puestos: se vuelven a pedir
+    # (una vez; abajo se reescriben en su fila).
     alineaciones_guardadas = {
-        ht_match_id: {"players": alineacion_de(fila)} for ht_match_id, fila in guardados.items()
+        ht_match_id: {"players": alineacion}
+        for ht_match_id, fila in guardados.items()
+        if es_alineacion_exacta(alineacion := alineacion_de(fila))
     }
 
     # UNO U OTRO, NUNCA LOS DOS NI NINGUNO. 2026-09-09, pedido del usuario:
@@ -1081,6 +1101,8 @@ async def rival_scouting(
     rival_tactic_types: list[int] = []
     rival_tactic_skills: list[int] = []
     rival_formations: list[str] = []
+    # La formación de cada partido, para las minicanchas del marcaje.
+    formacion_por_partido: dict[int, str] = {}
     rival_ratings_for_rotation: list[dict[str, Any]] = []
     rival_name: str | None = None
     rival_matches: list[dict[str, Any]] = []
@@ -1159,7 +1181,7 @@ async def rival_scouting(
                     teamID=team.ht_team_id,
                 )
             )["players"]
-            for p in lineup:
+            for p in con_puestos_exactos(lineup):
                 if p["position_code"] > 0:
                     own_position_by_id[p["ht_player_id"]] = p["position_code"]
 
@@ -1202,6 +1224,7 @@ async def rival_scouting(
                 rival_tactic_types.append(side_data.get("tactic_type", 0))
                 rival_tactic_skills.append(side_data.get("tactic_skill", 0))
                 rival_formations.append(side_data.get("formation", ""))
+                formacion_por_partido[rmt["ht_match_id"]] = side_data.get("formation", "")
                 ratings = side_data.get("ratings", {})
                 rival_ratings_for_rotation.append(
                     {
@@ -1264,13 +1287,16 @@ async def rival_scouting(
     # error que enseñar. El commit es seguro aquí porque la sesión no expira
     # sus objetos al confirmar (`expire_on_commit=False`).
     try:
-        if await guardar_lo_visto(
+        nuevas = rival_data.alineaciones_nuevas or {}
+        guardadas_ahora = await guardar_lo_visto(
+            session, rival_ht_team_id, rival_matches, nuevas, lados_nuevos
+        )
+        rehechas = await actualizar_alineaciones(
             session,
             rival_ht_team_id,
-            rival_matches,
-            rival_data.alineaciones_nuevas or {},
-            lados_nuevos,
-        ):
+            {k: v for k, v in nuevas.items() if k in guardados},
+        )
+        if guardadas_ahora or rehechas:
             await session.commit()
     except Exception:  # noqa: BLE001, no guardar es volver a pedir, no un error
         await session.rollback()
@@ -1278,6 +1304,7 @@ async def rival_scouting(
 
     tactic_history = summarise_tactics(rival_tactic_types, rival_tactic_skills, rival_formations)
     rotation = analyse_side_rotation(rival_ratings_for_rotation)
+    defense_rotation = analyse_defense_rotation(rival_ratings_for_rotation)
 
     def metodo_valido(valor: str, por_defecto: str) -> str:
         return valor if valor in set(PitchZoneMethod) else por_defecto
@@ -1500,6 +1527,29 @@ async def rival_scouting(
         if p["ht_player_id"] in rival_name_by_id
     ]
     marking = suggest_man_marking(own_for_marking, rival_for_marking)
+    # Dónde jugó el objetivo en cada partido analizado: los mismos partidos,
+    # en el mismo orden, que la rotación de carriles.
+    puestos_por_partido = rival_data.puestos_por_partido or {}
+    objetivo_por_partido = (
+        []
+        if marking is None
+        else objetivo_partido_a_partido(
+            marking.target_ht_player_id,
+            [
+                {
+                    "label": (
+                        rmt["away_team_name"]
+                        if rmt["home_team_id"] == rival_ht_team_id
+                        else rmt["home_team_name"]
+                    ),
+                    "date": rmt.get("match_date", ""),
+                    "formation": formacion_por_partido.get(rmt["ht_match_id"], ""),
+                    "positions": puestos_por_partido.get(rmt["ht_match_id"], {}),
+                }
+                for rmt in rival_matches
+            ],
+        )
+    )
 
     # Comparación de plantilla, TSI, forma, condición y experiencia son
     # públicas de un rival (verificado en vivo contra players.xml real: solo
@@ -1675,6 +1725,16 @@ async def rival_scouting(
                     "marker_loss_pct": marking.marker_loss_pct,
                     "risk_note": marking.risk_note,
                     "evidence": marking.evidence,
+                    "target_by_match": [
+                        {
+                            "label": o.label,
+                            "date": o.date,
+                            "formation": o.formation,
+                            "target_position": o.target_position,
+                            "field_positions": o.field_positions,
+                        }
+                        for o in objetivo_por_partido
+                    ],
                 },
                 "prediction": prediccion,
                 "win_probability": {
@@ -1708,6 +1768,31 @@ async def rival_scouting(
                     ],
                     "rotates": rotation.rotates,
                     "matches_analysed": rotation.matches_analysed,
+                },
+                "defense_rotation": None
+                if defense_rotation is None
+                else {
+                    "defense_left_avg": defense_rotation.defense_left_avg,
+                    "defense_central_avg": defense_rotation.defense_central_avg,
+                    "defense_right_avg": defense_rotation.defense_right_avg,
+                    "defense_left_std": defense_rotation.defense_left_std,
+                    "defense_central_std": defense_rotation.defense_central_std,
+                    "defense_right_std": defense_rotation.defense_right_std,
+                    "weak_side": defense_rotation.weak_side,
+                    "weak_pct": defense_rotation.weak_pct,
+                    "defense_by_match": [
+                        {
+                            "label": d.label,
+                            "date": d.date,
+                            "left": d.left,
+                            "central": d.central,
+                            "right": d.right,
+                            "worst": d.worst,
+                        }
+                        for d in defense_rotation.defense_by_match
+                    ],
+                    "rotates": defense_rotation.rotates,
+                    "matches_analysed": defense_rotation.matches_analysed,
                 },
                 "pitch_zone_duels": None
                 if pitch_duels is None

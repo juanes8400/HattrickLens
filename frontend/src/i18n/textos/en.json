@@ -2398,5 +2398,13 @@
   "Próximo partido oficial, sea de liga, copa, promoción o Masters: rival, fecha, competición y su pronóstico.": "Next official match, whether league, cup, promotion or Masters: opponent, date, competition and its prediction.",
   "Victoria": "Win",
   "Derrota": "Loss",
-  "Todavía no has enviado la alineación de este partido.": "You haven't submitted the lineup for this match yet."
+  "Todavía no has enviado la alineación de este partido.": "You haven't submitted the lineup for this match yet.",
+  "Rotación de la defensa": "Defence rotation",
+  " (su mejor carril ese día)": " (their best lane that day)",
+  " (su carril más flojo ese día)": " (their weakest lane that day)",
+  "Lado débil fijo, sin excepción: la {{v0}} fue su carril más flojo en los {{v1}} de {{v2}} partidos vistos.": "Fixed weak side, without exception: {{v0}} was their weakest lane in {{v1}} of {{v2}} matches seen.",
+  "Rota: ningún lado es el más flojo de forma consistente, el más débil cambió partido a partido en sus últimos {{v0}} partido(s){{v1}}.": "Rotates: no side is consistently the weakest; the weakest changed from match to match in their last {{v0}} match(es){{v1}}.",
+  "Lado débil habitual: la {{v0}} fue su carril más flojo en el {{v1}}% de sus últimos {{v2}} partido(s).": "Usual weak side: {{v0}} was their weakest lane in {{v1}}% of their last {{v2}} match(es).",
+  "Dónde jugó {{v0}} en cada partido": "Where {{v0}} played in each match",
+  "no jugó": "did not play"
 }

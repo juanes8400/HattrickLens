@@ -130,6 +130,17 @@ export interface RivalScouting {
     evidence: {
       targetCandidates: { name: string; tsi: number; position: string }[];
     };
+    /** Dónde jugó el objetivo en cada partido analizado, del más viejo al
+     *  más reciente. Puestos de campo 1-14 (1 portero ... 14 delantero
+     *  izquierdo); `targetPosition` null = no jugó. Opcional: una respuesta
+     *  vieja en caché no lo trae. */
+    targetByMatch?: {
+      label: string;
+      date: string;
+      formation: string;
+      targetPosition: number | null;
+      fieldPositions: number[];
+    }[];
   } | null;
   sideRotation: {
     attackLeftAvg: number;
@@ -153,6 +164,29 @@ export interface RivalScouting {
       central: number;
       right: number;
       best: string;
+    }[];
+    rotates: boolean;
+    matchesAnalysed: number;
+  } | null;
+  /** El espejo de `sideRotation` para la defensa: aquí se resalta el carril
+   *  MÁS FLOJO de cada partido, que es por donde conviene atacarle.
+   *  Opcional por las respuestas viejas en caché. */
+  defenseRotation?: {
+    defenseLeftAvg: number;
+    defenseCentralAvg: number;
+    defenseRightAvg: number;
+    defenseLeftStd: number;
+    defenseCentralStd: number;
+    defenseRightStd: number;
+    weakSide: string;
+    weakPct: number;
+    defenseByMatch: {
+      label: string;
+      date: string;
+      left: number;
+      central: number;
+      right: number;
+      worst: string;
     }[];
     rotates: boolean;
     matchesAnalysed: number;

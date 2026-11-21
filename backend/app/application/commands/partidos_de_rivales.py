@@ -55,9 +55,40 @@ PARTIDOS_GUARDADOS_POR_RIVAL = 5
 #: lo guardado no serviría para lo que lo lee, y el desajuste sería silencioso
 #: --posiciones que se leen como otra cosa, no un error--.
 #:
-#: NO confundir con la 2.1 que pide «Mejor alineación», que usa `RoleID`: en
-#: esta versión ese campo es sólo un índice secuencial sin significado.
-VERSION_ALINEACION = "1.2"
+#: LA 1.4 Y NO LA 1.2 DESDE EL 2026-11-20. La 1.2 da el `PositionCode` del
+#: esquema ANTIGUO de once casillas: los tres centrales comparten código, y los
+#: delanteros salen como 10 y 11, que la app leía como «interior izquierdo» y
+#: «extremo izquierdo». Comprobado en vivo con un 5-3-2 (partido 775933322):
+#: la 1.2 dio 2,3,3,4,5 / 7,7,8 / 10,11 y la 1.4 dio 101-105 / 107-109 /
+#: 111,113, la casilla exacta. `con_puestos_exactos` la pasa al esquema 1-14
+#: que usa toda la app (`MATCH_POSITION_NAMES`).
+VERSION_ALINEACION = "1.4"
+
+#: Casillas de campo de la 1.4 (`RoleID`): 100 portero ... 113 delantero
+#: izquierdo. 114-120 son el banquillo; 17 y 18, balón parado y capitán.
+_PRIMERA_CASILLA, _ULTIMA_CASILLA = 100, 113
+
+
+def es_alineacion_exacta(jugadores: list[dict[str, Any]]) -> bool:
+    """Si la alineación vino de la 1.4, con la casilla exacta. Las guardadas
+    antes del 2026-11-20 son de la 1.2 y hay que volver a pedirlas."""
+    return any(_PRIMERA_CASILLA <= (p.get("role_id") or 0) <= _ULTIMA_CASILLA for p in jugadores)
+
+
+def con_puestos_exactos(jugadores: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """La alineación con `position_code` en el esquema 1-14 de la app, sacado
+    de la casilla exacta. El banquillo queda en 0: no jugó ningún puesto."""
+    salida = []
+    for p in jugadores:
+        casilla = p.get("role_id") or 0
+        if _PRIMERA_CASILLA <= casilla <= _ULTIMA_CASILLA:
+            puesto = casilla - _PRIMERA_CASILLA + 1
+        elif casilla > _ULTIMA_CASILLA:
+            puesto = 0
+        else:
+            puesto = p.get("position_code", -1)
+        salida.append({**p, "position_code": puesto})
+    return salida
 
 
 @dataclass
@@ -106,7 +137,32 @@ def alineacion_de(fila: m.RivalMatch) -> list[dict[str, Any]]:
         datos = json.loads(fila.lineup_json)
     except (TypeError, ValueError):
         return []
-    return datos if isinstance(datos, list) else []
+    return con_puestos_exactos(datos) if isinstance(datos, list) else []
+
+
+async def actualizar_alineaciones(
+    session: AsyncSession,
+    team_ht_id: int,
+    alineaciones: dict[int, list[dict[str, Any]]],
+) -> int:
+    """Reescribe la alineación de partidos YA guardados: los de la 1.2 que se
+    acaban de volver a pedir en la 1.4. Sin esto se pedirían en cada visita,
+    porque `guardar_lo_visto` no toca una fila que ya existe. No hace commit."""
+    if not alineaciones:
+        return 0
+    filas = (
+        await session.execute(
+            select(m.RivalMatch).where(
+                m.RivalMatch.team_ht_id == team_ht_id,
+                m.RivalMatch.ht_match_id.in_(list(alineaciones)),
+            )
+        )
+    ).scalars()
+    n = 0
+    for fila in filas:
+        fila.lineup_json = json.dumps(alineaciones[fila.ht_match_id], ensure_ascii=False)
+        n += 1
+    return n
 
 
 def ratings_de(fila: m.RivalMatch) -> dict[str, int] | None:
@@ -347,7 +403,7 @@ async def guardar_partidos_de_un_rival(
         return
 
     ya = {
-        fila.ht_match_id
+        fila.ht_match_id: fila
         for fila in (
             await session.execute(select(m.RivalMatch).where(m.RivalMatch.team_ht_id == team_ht_id))
         ).scalars()
@@ -358,6 +414,23 @@ async def guardar_partidos_de_un_rival(
         ht_match_id = mt["ht_match_id"]
         if ht_match_id in ya:
             resumen.partidos_ya_estaban += 1
+            # Guardado con la 1.2: se vuelve a pedir SÓLO la alineación, una
+            # vez. El detalle guardado sigue valiendo.
+            if not es_alineacion_exacta(alineacion_de(ya[ht_match_id])):
+                try:
+                    nueva = (
+                        await client.fetch(
+                            "matchlineup",
+                            version=VERSION_ALINEACION,
+                            matchID=ht_match_id,
+                            matchType=mt["match_type"],
+                            teamID=team_ht_id,
+                        )
+                    )["players"]
+                except Exception as exc:  # noqa: BLE001, igual que abajo
+                    resumen.errores.append(f"partido {ht_match_id} de {team_ht_id}: {exc}")
+                else:
+                    ya[ht_match_id].lineup_json = json.dumps(nueva, ensure_ascii=False)
             continue
         # La fecha se mira ANTES de pedir nada: un partido sin fecha legible
         # no cabe en la ventana, y pedir su detalle sería gastar dos llamadas

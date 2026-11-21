@@ -56,9 +56,7 @@ class CHPPFalso:
                     {
                         "ht_match_id": equipo * 100 + i,
                         "match_type": 1,
-                        "match_date": (base + timedelta(days=7 * i)).strftime(
-                            "%Y-%m-%d %H:%M:%S"
-                        ),
+                        "match_date": (base + timedelta(days=7 * i)).strftime("%Y-%m-%d %H:%M:%S"),
                         "status": "FINISHED",
                         "home_team_id": equipo,
                         "away_team_id": 999,
@@ -80,9 +78,7 @@ class CHPPFalso:
                     {
                         "ht_match_id": equipo * 100 + 50 + i,
                         "match_type": 1,
-                        "match_date": (base + timedelta(days=7 * i)).strftime(
-                            "%Y-%m-%d %H:%M:%S"
-                        ),
+                        "match_date": (base + timedelta(days=7 * i)).strftime("%Y-%m-%d %H:%M:%S"),
                         "home_team_id": equipo,
                         "away_team_id": 999,
                         "home_team_name": f"Equipo {equipo}",
@@ -118,8 +114,8 @@ class CHPPFalso:
         if file == "matchlineup":
             return {
                 "players": [
-                    {"ht_player_id": 1, "name": "Uno", "position_code": 5},
-                    {"ht_player_id": 2, "name": "Dos", "position_code": 7},
+                    {"ht_player_id": 1, "name": "Uno", "role_id": 104, "position_code": 104},
+                    {"ht_player_id": 2, "name": "Dos", "role_id": 106, "position_code": 106},
                 ]
             }
         return {}
@@ -154,18 +150,16 @@ def test_guarda_cinco_por_rival_y_no_mas() -> None:
             await s.commit()
 
             cuantos = await s.scalar(
-                select(func.count()).select_from(m.RivalMatch).where(
-                    m.RivalMatch.team_ht_id == RIVAL
-                )
+                select(func.count())
+                .select_from(m.RivalMatch)
+                .where(m.RivalMatch.team_ht_id == RIVAL)
             )
             assert cuantos == PARTIDOS_GUARDADOS_POR_RIVAL
             assert resumen.partidos_nuevos == PARTIDOS_GUARDADOS_POR_RIVAL
 
             # Los cinco ÚLTIMOS, no los cinco primeros: los partidos 2..6.
             guardados = await partidos_guardados(s, RIVAL)
-            assert [f.ht_match_id for f in guardados] == [
-                RIVAL * 100 + i for i in range(2, 7)
-            ]
+            assert [f.ht_match_id for f in guardados] == [RIVAL * 100 + i for i in range(2, 7)]
             # Y en orden ascendente, que es lo que necesita «último partido».
             assert guardados[-1].played_at > guardados[0].played_at
 
@@ -223,9 +217,9 @@ def test_una_jornada_nueva_entra_y_el_mas_viejo_sale() -> None:
             despues = [f.ht_match_id for f in await partidos_guardados(s, RIVAL)]
 
             total = await s.scalar(
-                select(func.count()).select_from(m.RivalMatch).where(
-                    m.RivalMatch.team_ht_id == RIVAL
-                )
+                select(func.count())
+                .select_from(m.RivalMatch)
+                .where(m.RivalMatch.team_ht_id == RIVAL)
             )
 
         assert resumen.partidos_nuevos == 1
@@ -512,5 +506,64 @@ def test_con_cinco_en_el_calendario_el_archivo_ni_se_toca() -> None:
             await guardar_partidos_de_rivales(s, chpp, {RIVAL}, "2.8", "3.1")
             await s.commit()
         assert chpp.cuantas("matchesarchive") == 0
+
+    asyncio.run(go())
+
+
+def test_la_casilla_exacta_pasa_al_esquema_de_la_app() -> None:
+    """2026-11-20: la 1.4 da la casilla (100 portero ... 113 delantero
+    izquierdo) y la app nombra los puestos del 1 al 14."""
+    from app.application.commands.partidos_de_rivales import (
+        con_puestos_exactos,
+        es_alineacion_exacta,
+    )
+
+    jugadores = [
+        {"ht_player_id": 1, "role_id": 100, "position_code": 100},
+        {"ht_player_id": 2, "role_id": 113, "position_code": 113},
+        {"ht_player_id": 3, "role_id": 116, "position_code": 116},  # banquillo
+        {"ht_player_id": 4, "role_id": 18, "position_code": -1},  # capitán
+    ]
+    assert [p["position_code"] for p in con_puestos_exactos(jugadores)] == [1, 14, 0, -1]
+    assert es_alineacion_exacta(jugadores)
+    # Lo guardado con la 1.2: el RoleID era un índice, nunca 100 o más.
+    assert not es_alineacion_exacta([{"role_id": 3, "position_code": 3}])
+
+
+def test_una_alineacion_de_la_1_2_se_vuelve_a_pedir_una_vez() -> None:
+    """Las filas guardadas antes del cambio se reescriben con la 1.4 en la
+    siguiente precarga, pidiendo SÓLO la alineación."""
+    from app.application.commands.partidos_de_rivales import (
+        alineacion_de,
+        es_alineacion_exacta,
+    )
+
+    async def go() -> None:
+        factory = await _sesion()
+        chpp = CHPPFalso(partidos=5)
+        async with factory() as s:
+            await guardar_partidos_de_rivales(s, chpp, {RIVAL}, "2.8", "3.1")
+            await s.commit()
+        async with factory() as s:
+            for fila in (await s.execute(select(m.RivalMatch))).scalars():
+                fila.lineup_json = json.dumps(
+                    [{"ht_player_id": 1, "role_id": 5, "position_code": 5}]
+                )
+            await s.commit()
+
+        async with factory() as s:
+            await guardar_partidos_de_rivales(s, chpp, {RIVAL}, "2.8", "3.1")
+            await s.commit()
+        assert chpp.cuantas("matchdetails") == 5, "el detalle guardado vale"
+        assert chpp.cuantas("matchlineup") == 10, "una vez cada alineación vieja"
+        async with factory() as s:
+            filas = list((await s.execute(select(m.RivalMatch))).scalars())
+        assert filas and all(es_alineacion_exacta(alineacion_de(f)) for f in filas)
+
+        # Y ya no se vuelve a pedir.
+        async with factory() as s:
+            await guardar_partidos_de_rivales(s, chpp, {RIVAL}, "2.8", "3.1")
+            await s.commit()
+        assert chpp.cuantas("matchlineup") == 10
 
     asyncio.run(go())

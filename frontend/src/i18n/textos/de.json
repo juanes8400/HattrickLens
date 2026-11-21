@@ -2398,5 +2398,13 @@
   "Próximo partido oficial, sea de liga, copa, promoción o Masters: rival, fecha, competición y su pronóstico.": "Nächstes Pflichtspiel, ob Liga, Pokal, Relegation oder Masters: Gegner, Datum, Wettbewerb und seine Prognose.",
   "Victoria": "Sieg",
   "Derrota": "Niederlage",
-  "Todavía no has enviado la alineación de este partido.": "Du hast die Aufstellung für dieses Spiel noch nicht abgegeben."
+  "Todavía no has enviado la alineación de este partido.": "Du hast die Aufstellung für dieses Spiel noch nicht abgegeben.",
+  "Rotación de la defensa": "Wechsel der schwachen Abwehrseite",
+  " (su mejor carril ese día)": " (seine beste Bahn an diesem Tag)",
+  " (su carril más flojo ese día)": " (seine schwächste Bahn an diesem Tag)",
+  "Lado débil fijo, sin excepción: la {{v0}} fue su carril más flojo en los {{v1}} de {{v2}} partidos vistos.": "Feste schwache Seite, ohne Ausnahme: {{v0}} war seine schwächste Bahn in {{v1}} von {{v2}} gesehenen Spielen.",
+  "Rota: ningún lado es el más flojo de forma consistente, el más débil cambió partido a partido en sus últimos {{v0}} partido(s){{v1}}.": "Wechselnd: keine Seite ist durchgehend die schwächste, die schwächste wechselte von Spiel zu Spiel in seinen letzten {{v0}} Spielen{{v1}}.",
+  "Lado débil habitual: la {{v0}} fue su carril más flojo en el {{v1}}% de sus últimos {{v2}} partido(s).": "Übliche schwache Seite: {{v0}} war seine schwächste Bahn in {{v1}}% seiner letzten {{v2}} Spiele.",
+  "Dónde jugó {{v0}} en cada partido": "Wo {{v0}} in jedem Spiel gespielt hat",
+  "no jugó": "nicht gespielt"
 }

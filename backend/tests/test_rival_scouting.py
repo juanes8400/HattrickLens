@@ -1,10 +1,14 @@
 """Scouting de rivales: KDE de TSI, marcaje al hombre, rotación de lado."""
+
 import math
 
 from app.domain.engines.rival_scouting import (
+    analyse_defense_rotation,
     analyse_side_rotation,
+    es_puesto_de_campo,
     estimate_win_probability,
     gaussian_kde,
+    objetivo_partido_a_partido,
     suggest_man_marking,
     summarise_tactics,
     tsi_kde_comparison,
@@ -224,3 +228,70 @@ def test_summarise_tactics_formations_empty_when_all_unknown() -> None:
     assert out.avg_tactic_skill == 0.0
     assert out.formations == []
     assert out.most_common_formation is None
+
+
+def _defensa(izq: int, cen: int, der: int, rival: str = "X") -> dict:
+    return {
+        "opponent": rival,
+        "match_date": "2026-11-01",
+        "left_def": izq,
+        "central_def": cen,
+        "right_def": der,
+    }
+
+
+def test_la_defensa_resalta_su_carril_mas_flojo() -> None:
+    """Lo contrario que el ataque: interesa por dónde es más débil."""
+    out = analyse_defense_rotation(
+        [_defensa(50, 60, 40), _defensa(52, 61, 41), _defensa(30, 62, 44), _defensa(51, 60, 39)]
+    )
+    assert out is not None
+    assert [d.worst for d in out.defense_by_match] == ["derecha", "derecha", "izquierda", "derecha"]
+    assert out.weak_side == "derecha"
+    assert out.weak_pct == 75.0
+    assert out.rotates is False
+    assert out.matches_analysed == 4
+
+
+def test_la_defensa_rota_si_ningun_lado_flojo_domina() -> None:
+    out = analyse_defense_rotation(
+        [_defensa(40, 60, 50), _defensa(50, 60, 40), _defensa(55, 45, 60)]
+    )
+    assert out is not None
+    assert out.rotates is True
+    assert analyse_defense_rotation([]) is None
+
+
+def test_solo_cuentan_los_puestos_de_campo() -> None:
+    assert es_puesto_de_campo(1) and es_puesto_de_campo(14)
+    assert not es_puesto_de_campo(0)
+    assert not es_puesto_de_campo(15)  # suplente
+    assert not es_puesto_de_campo(18)  # capitán
+
+
+def test_el_objetivo_partido_a_partido() -> None:
+    """Un puesto por partido, None si no jugó, y el resto del once aparte."""
+    partidos = [
+        {
+            "label": "Rayo",
+            "date": "2026-10-12",
+            "formation": "4-4-2",
+            "positions": {7: 13, 1: 1, 2: 3},
+        },
+        {"label": "Norte", "date": "2026-10-19", "formation": "3-5-2", "positions": {7: 7, 1: 1}},
+        {"label": "Real", "date": "2026-10-26", "formation": "4-5-1", "positions": {1: 1, 2: 3}},
+    ]
+    out = objetivo_partido_a_partido(7, partidos)
+    assert [o.target_position for o in out] == [13, 7, None]
+    assert [o.formation for o in out] == ["4-4-2", "3-5-2", "4-5-1"]
+    assert out[0].field_positions == [1, 3]
+    assert out[2].label == "Real"
+
+
+def test_la_sugerencia_guarda_a_quien_marcar() -> None:
+    out = suggest_man_marking(
+        [{"name": "Gómez", "ht_player_id": 1, "position_code": 4, "defending": 7}],
+        [{"name": "Pérez", "ht_player_id": 99, "position_code": 13, "tsi": 5000}],
+    )
+    assert out is not None
+    assert out.target_ht_player_id == 99
