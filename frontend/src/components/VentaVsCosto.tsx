@@ -57,17 +57,29 @@ export function VentaVsCosto({ htPlayerId }: { htPlayerId: number }) {
   const fechas = puntos.map((p) => p.semana ?? date(p.fecha));
   const costo = puntos.map((p) => p.costo);
   const venta = puntos.map((p) => p.venta);
-  // El hueco entre las dos líneas, partido por color: una serie apilada por
-  // tramo con el mínimo como base y la diferencia encima.
-  const base = puntos.map((p) =>
-    p.venta == null ? null : Math.min(p.venta, p.costo),
-  );
-  const gana = puntos.map((p) =>
-    p.venta == null ? null : Math.max(0, p.venta - p.costo),
-  );
-  const pierde = puntos.map((p) =>
-    p.venta == null ? null : Math.max(0, p.costo - p.venta),
-  );
+  // EL HUECO ENTRE LAS DOS LÍNEAS, un rectángulo por semana con precio: de
+  // esa semana a la siguiente, entre el precio de venta y el costo. Verde si
+  // la venta va por encima (ganarías), ámbar si va por debajo (perderías).
+  //
+  // RECTÁNGULOS Y NO UN ÁREA APILADA (7.0.2): ECharts no dibuja una serie
+  // apilada que empieza con huecos, y aquí todas empiezan así --el costo
+  // existe desde la llegada y el precio llega después--. En la 7.0.0 la
+  // franja no salía.
+  const hueco = puntos.flatMap((p, i) => {
+    const siguiente = fechas[i + 1];
+    if (p.venta == null || siguiente == null) return [];
+    const gana = p.venta >= p.costo;
+    return [
+      [
+        {
+          xAxis: fechas[i],
+          yAxis: Math.min(p.venta, p.costo),
+          itemStyle: { color: gana ? COLOR_GANA : COLOR_PIERDE },
+        },
+        { xAxis: siguiente, yAxis: Math.max(p.venta, p.costo) },
+      ],
+    ];
+  });
   const fmt = (v: number) => money(v, data.moneda);
 
   const option: EChartsOption = {
@@ -86,36 +98,6 @@ export function VentaVsCosto({ htPlayerId }: { htPlayerId: number }) {
     },
     series: [
       {
-        name: "base",
-        type: "line",
-        data: base,
-        stack: "hueco",
-        symbol: "none",
-        lineStyle: { opacity: 0 },
-        tooltip: { show: false },
-        silent: true,
-      },
-      {
-        name: tx("perderías"),
-        type: "line",
-        data: pierde,
-        stack: "hueco",
-        symbol: "none",
-        lineStyle: { opacity: 0 },
-        areaStyle: { color: COLOR_PIERDE },
-        silent: true,
-      },
-      {
-        name: tx("ganarías"),
-        type: "line",
-        data: gana,
-        stack: "hueco",
-        symbol: "none",
-        lineStyle: { opacity: 0 },
-        areaStyle: { color: COLOR_GANA },
-        silent: true,
-      },
-      {
         name: tx("Costo acumulado"),
         type: "line",
         step: "end",
@@ -123,6 +105,7 @@ export function VentaVsCosto({ htPlayerId }: { htPlayerId: number }) {
         symbol: "none",
         lineStyle: { width: 2, color: "#888780" },
         itemStyle: { color: "#888780" },
+        markArea: { silent: true, data: hueco as never },
       },
       {
         name: tx("Precio de venta"),
@@ -207,6 +190,36 @@ export function VentaVsCosto({ htPlayerId }: { htPlayerId: number }) {
         )}
         option={option}
       />
+      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[var(--muted)]">
+        <span>
+          <span
+            className="mr-1 inline-block h-0.5 w-3 align-middle"
+            style={{ background: "#888780" }}
+          />
+          {tx("Costo acumulado")}
+        </span>
+        <span>
+          <span
+            className="mr-1 inline-block h-0.5 w-3 align-middle"
+            style={{ background: COLOR_VENTA }}
+          />
+          {tx("Precio de venta")}
+        </span>
+        <span>
+          <span
+            className="mr-1 inline-block h-2.5 w-2.5 align-middle"
+            style={{ background: COLOR_PIERDE }}
+          />
+          {tx("perderías")}
+        </span>
+        <span>
+          <span
+            className="mr-1 inline-block h-2.5 w-2.5 align-middle"
+            style={{ background: COLOR_GANA }}
+          />
+          {tx("ganarías")}
+        </span>
+      </div>
       {sinPrecio !== 0 && (
         <p className="text-xs text-[var(--muted)]">
           {sinPrecio < 0
