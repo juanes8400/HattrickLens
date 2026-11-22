@@ -187,6 +187,10 @@ describe("las gráficas del comparador", () => {
       expect(clavado.symbolSize).toBeGreaterThan(avalado.symbolSize);
     });
 
+    it("el eje de precios empieza en 0", () => {
+      expect((opcion.yAxis as { min?: number }).min).toBe(0);
+    });
+
     it("y aquí también uno es disco y el otro aro", () => {
       const aro = porNombre(opcion, "Equivalente")?.itemStyle;
       expect(aro?.color).toBe("transparent");

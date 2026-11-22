@@ -1208,6 +1208,9 @@ export function serieDePuntosOption(
     },
     yAxis: {
       type: "value",
+      // DESDE 0, SIEMPRE (2026-11-22, pedido del usuario): la altura de un
+      // punto se lee como su precio entero, no como lo que sobra de un corte.
+      min: 0,
       axisLabel: { fontSize: 10, formatter: (v: number) => corto(v) },
       splitLine: { lineStyle: { opacity: 0.15 } },
     },
