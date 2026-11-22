@@ -32,6 +32,7 @@ import type {
 } from "../services/api";
 
 import { tx } from "../i18n/tx";
+import { puestoEnPantalla } from "../utils/puestoEnCancha";
 interface RosterRow {
   name: string;
   position: string | null;
@@ -874,20 +875,6 @@ function DefenseLanes({
   );
 }
 
-/** Línea (0 delanteros ... 3 portero) y columna (1-5) de cada puesto de campo
- *  de `matchlineup` (1 portero ... 14 delantero izquierdo). El lado derecho va
- *  a la primera columna, como en las demás canchas de la app, que ordenan por
- *  casilla. */
-function casillaDelPuesto(
-  codigo: number,
-): { linea: number; columna: number } | null {
-  if (codigo === 1) return { linea: 3, columna: 3 };
-  if (codigo >= 2 && codigo <= 6) return { linea: 2, columna: codigo - 1 };
-  if (codigo >= 7 && codigo <= 11) return { linea: 1, columna: codigo - 6 };
-  if (codigo >= 12 && codigo <= 14) return { linea: 0, columna: codigo - 10 };
-  return null;
-}
-
 /** Una minicancha por partido analizado con el once del rival y, resaltado,
  *  el puesto del objetivo del marcaje (pedido del usuario, 2026-11-20).
  *  La sugerencia nombra un solo puesto; esto enseña si siempre juega ahí o
@@ -904,8 +891,8 @@ function MinicanchasDelObjetivo({
 }) {
   const [porteroArriba] = useOrientacionDeLaCancha();
   if (partidos.length === 0) return null;
-  // Líneas con el portero al final, como `PitchGrid`; se dan la vuelta igual.
-  const fila = (linea: number) => (porteroArriba ? 4 - linea : linea + 1);
+  // Fila y COLUMNA según la orientación: ver `puestoEnPantalla`. Con el
+  // portero abajo también se dan la vuelta los lados (2026-11-22).
   // HACIA DÓNDE ATACA (2026-11-22, pedido del usuario: «no se entiende para
   // cuál lado es defender y para cuál atacar»). Su portería con el área
   // grande y la chica en el lado del portero, y un rótulo en cada punta.
@@ -972,7 +959,7 @@ function MinicanchasDelObjetivo({
                 />
                 <div className="absolute inset-x-2.5 inset-y-3 grid grid-cols-5 grid-rows-4 place-items-center">
                   {puestos.map((codigo) => {
-                    const casilla = casillaDelPuesto(codigo);
+                    const casilla = puestoEnPantalla(codigo, porteroArriba);
                     if (!casilla) return null;
                     const esElObjetivo = codigo === objetivo;
                     return (
@@ -984,7 +971,7 @@ function MinicanchasDelObjetivo({
                             : "h-2 w-2 rounded-full bg-white/45"
                         }
                         style={{
-                          gridRow: fila(casilla.linea),
+                          gridRow: casilla.fila,
                           gridColumn: casilla.columna,
                           background: esElObjetivo ? RIVAL_COLOR : undefined,
                         }}
