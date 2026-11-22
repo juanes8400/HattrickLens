@@ -13,7 +13,7 @@ individual de los jugadores rivales.
 import dataclasses
 import logging
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1187,7 +1187,7 @@ class LeagueQueryService:
             )
             if proximo is not None:
                 next_match |= proximo
-            supuesto = next_match.pop("_supuesto", None)
+            supuesto = cast("dict[str, Any] | None", next_match.pop("_supuesto", None))
             # SI HAY ÓRDENES ES UN HECHO, NO UNA CONSECUENCIA DEL PRONÓSTICO
             # (2026-11-14, visto por el usuario contra Angkor FC). La pantalla
             # lo deducía de `sources.own.kind`, y en la jornada 1 de una serie
