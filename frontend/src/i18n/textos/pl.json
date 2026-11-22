@@ -2441,10 +2441,6 @@
   "Pasó lo improbable: con lo que salió al campo, lo más probable era ganar.": "Stało się to, co mało prawdopodobne: przy tym, co wyszło na boisko, najbardziej prawdopodobna była wygrana.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era perder.": "Stało się to, co mało prawdopodobne: przy tym, co wyszło na boisko, najbardziej prawdopodobna była porażka.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era empatar.": "Stało się to, co mało prawdopodobne: przy tym, co wyszło na boisko, najbardziej prawdopodobny był remis.",
-  "Tu equipo salió más flojo de lo que suponíamos, sobre todo en: {{v0}}.": "Twoja drużyna wyszła słabsza, niż zakładaliśmy, zwłaszcza tu: {{v0}}.",
-  "Tu equipo salió más fuerte de lo que suponíamos, sobre todo en: {{v0}}.": "Twoja drużyna wyszła silniejsza, niż zakładaliśmy, zwłaszcza tu: {{v0}}.",
-  "El rival vino más fuerte de lo que suponíamos, sobre todo en: {{v0}}.": "Rywal przyszedł silniejszy, niż zakładaliśmy, zwłaszcza tu: {{v0}}.",
-  "El rival vino más flojo de lo que suponíamos, sobre todo en: {{v0}}.": "Rywal przyszedł słabszy, niż zakładaliśmy, zwłaszcza tu: {{v0}}.",
   "El partido no se jugó como suponíamos: con lo que salió al campo, lo que pasó era lo más probable.": "Mecz nie przebiegł tak, jak zakładaliśmy: przy tym, co wyszło na boisko, to, co się stało, było najbardziej prawdopodobne.",
   "Lo que dijimos": "Co mówiliśmy",
   "Con lo real tuyo y lo supuesto del rival": "Twoje prawdziwe oceny, rywal jak zakładano",
@@ -2477,5 +2473,9 @@
   "No guardamos qué dijimos de este partido.": "Nie zapisaliśmy, co mówiliśmy o tym meczu.",
   "Salió lo que esperábamos.": "Wyszło tak, jak się spodziewaliśmy.",
   "Lo que más pesó a tu favor: tu {{v0}} contra su {{v1}}. Si ese duelo hubiera quedado parejo, tu probabilidad de ganar bajaba de {{v2}} a {{v3}}.": "Co najbardziej ci pomogło: twój sektor {{v0}} przeciw ich sektorowi {{v1}}. Gdyby ten pojedynek był wyrównany, twoja szansa na wygraną spadłaby z {{v2}} do {{v3}}.",
-  "Lo que más te frenó: tu {{v0}} contra su {{v1}}. Si ese duelo hubiera quedado parejo, subía a {{v2}}.": "Co najbardziej cię hamowało: twój sektor {{v0}} przeciw ich sektorowi {{v1}}. Gdyby ten pojedynek był wyrównany, wzrosłaby do {{v2}}."
+  "Lo que más te frenó: tu {{v0}} contra su {{v1}}. Si ese duelo hubiera quedado parejo, subía a {{v2}}.": "Co najbardziej cię hamowało: twój sektor {{v0}} przeciw ich sektorowi {{v1}}. Gdyby ten pojedynek był wyrównany, wzrosłaby do {{v2}}.",
+  "Tu equipo sacó valoraciones más bajas de lo que suponíamos, sobre todo en: {{v0}}.": "Twoja drużyna dostała niższe oceny, niż zakładaliśmy, zwłaszcza tu: {{v0}}.",
+  "Tu equipo sacó valoraciones más altas de lo que suponíamos, sobre todo en: {{v0}}.": "Twoja drużyna dostała wyższe oceny, niż zakładaliśmy, zwłaszcza tu: {{v0}}.",
+  "El rival sacó valoraciones más altas de lo que suponíamos, sobre todo en: {{v0}}.": "Rywal dostał wyższe oceny, niż zakładaliśmy, zwłaszcza tu: {{v0}}.",
+  "El rival sacó valoraciones más bajas de lo que suponíamos, sobre todo en: {{v0}}.": "Rywal dostał niższe oceny, niż zakładaliśmy, zwłaszcza tu: {{v0}}."
 }

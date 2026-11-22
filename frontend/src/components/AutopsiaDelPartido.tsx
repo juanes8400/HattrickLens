@@ -125,16 +125,18 @@ function fraseDelVeredicto(a: MatchAutopsy): string {
       "Pasó lo improbable: con lo que salió al campo, lo más probable era empatar.",
     );
   }
-  // Información: con lo real, lo que pasó era lo más probable.
+  // Información: con lo real, lo que pasó era lo más probable. «Valoraciones
+  // más altas / más bajas» y no «más fuerte / más flojo» (2026-11-22, elegido
+  // por el usuario): es lo que se mide, y no suena a juicio de los jugadores.
   if (v.culpa === "propio") {
     const peor = capa("realPropio")!.gana < capa("dicho")!.gana;
     return peor
       ? tx(
-          "Tu equipo salió más flojo de lo que suponíamos, sobre todo en: {{v0}}.",
+          "Tu equipo sacó valoraciones más bajas de lo que suponíamos, sobre todo en: {{v0}}.",
           { v0: sector },
         )
       : tx(
-          "Tu equipo salió más fuerte de lo que suponíamos, sobre todo en: {{v0}}.",
+          "Tu equipo sacó valoraciones más altas de lo que suponíamos, sobre todo en: {{v0}}.",
           { v0: sector },
         );
   }
@@ -142,11 +144,11 @@ function fraseDelVeredicto(a: MatchAutopsy): string {
     const peor = capa("real")!.gana < capa("realPropio")!.gana;
     return peor
       ? tx(
-          "El rival vino más fuerte de lo que suponíamos, sobre todo en: {{v0}}.",
+          "El rival sacó valoraciones más altas de lo que suponíamos, sobre todo en: {{v0}}.",
           { v0: sector },
         )
       : tx(
-          "El rival vino más flojo de lo que suponíamos, sobre todo en: {{v0}}.",
+          "El rival sacó valoraciones más bajas de lo que suponíamos, sobre todo en: {{v0}}.",
           { v0: sector },
         );
   }
