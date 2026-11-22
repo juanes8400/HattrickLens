@@ -906,6 +906,22 @@ function MinicanchasDelObjetivo({
   if (partidos.length === 0) return null;
   // Líneas con el portero al final, como `PitchGrid`; se dan la vuelta igual.
   const fila = (linea: number) => (porteroArriba ? 4 - linea : linea + 1);
+  // HACIA DÓNDE ATACA (2026-11-22, pedido del usuario: «no se entiende para
+  // cuál lado es defender y para cuál atacar»). Su portería con el área
+  // grande y la chica en el lado del portero, y un rótulo en cada punta.
+  const junto = porteroArriba ? "top-1.5" : "bottom-1.5";
+  const sinLinea = porteroArriba ? "border-t-0" : "border-b-0";
+  const rotulo = (texto: string) => (
+    <div className="truncate text-center text-[10px] leading-4 text-[var(--muted)]">
+      {texto}
+    </div>
+  );
+  const ataca = rotulo(
+    porteroArriba
+      ? `${tx("ataca hacia aquí")} ↓`
+      : `${tx("ataca hacia aquí")} ↑`,
+  );
+  const suPorteria = rotulo(tx("su portería"));
   return (
     <div className="pt-1">
       <div className="mb-1.5 text-xs text-[var(--muted)]">
@@ -933,6 +949,7 @@ function MinicanchasDelObjetivo({
             .join(" · ");
           return (
             <div key={i} title={ayuda} className="min-w-0">
+              {porteroArriba ? suPorteria : ataca}
               <div
                 className={`relative mx-auto h-36 max-w-[9rem] overflow-hidden rounded-lg bg-gradient-to-b from-emerald-950 via-emerald-900 to-emerald-950 ${
                   jugo ? "" : "opacity-50"
@@ -941,6 +958,18 @@ function MinicanchasDelObjetivo({
                 <div className="pointer-events-none absolute inset-1.5 rounded-[0.6rem] border-2 border-white/25" />
                 <div className="pointer-events-none absolute left-1/2 top-1/2 h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white/20" />
                 <div className="pointer-events-none absolute left-1.5 right-1.5 top-1/2 border-t-2 border-white/20" />
+                {/* Su área grande, su área chica y su portería. */}
+                <div
+                  className={`pointer-events-none absolute left-1/2 h-[22%] w-[62%] -translate-x-1/2 border-2 border-white/40 ${junto} ${sinLinea}`}
+                />
+                <div
+                  className={`pointer-events-none absolute left-1/2 h-[9%] w-[30%] -translate-x-1/2 border-2 border-white/40 ${junto} ${sinLinea}`}
+                />
+                <div
+                  className={`pointer-events-none absolute left-1/2 h-1 w-[18%] -translate-x-1/2 rounded-sm bg-white/85 ${
+                    porteroArriba ? "top-0.5" : "bottom-0.5"
+                  }`}
+                />
                 <div className="absolute inset-x-2.5 inset-y-3 grid grid-cols-5 grid-rows-4 place-items-center">
                   {puestos.map((codigo) => {
                     const casilla = casillaDelPuesto(codigo);
@@ -964,6 +993,7 @@ function MinicanchasDelObjetivo({
                   })}
                 </div>
               </div>
+              {porteroArriba ? ataca : suPorteria}
               <div className="mt-1 truncate text-center text-[10px] text-[var(--muted)]">
                 {jugo ? p.formation || "-" : tx("no jugó")}
                 <br />
