@@ -29,6 +29,13 @@ export const useLastMatchReport = () =>
     queryFn: () => api.lastMatchReport(TEAM_ID),
   });
 
+/** La autopsia del último partido, debajo de su parte (2026-11-22). */
+export const useMatchAutopsy = () =>
+  useQuery({
+    queryKey: ["match-autopsy", TEAM_ID],
+    queryFn: () => api.matchAutopsy(TEAM_ID),
+  });
+
 /** El próximo partido oficial, de cualquier competición (2026-11-18). */
 export const useNextOfficialMatch = () =>
   useQuery({

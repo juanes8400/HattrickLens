@@ -47,6 +47,45 @@ export interface LastMatchReport {
   } | null;
 }
 
+/** Una pasada del motor en la autopsia, desde el lado propio. */
+export interface CapaDeLaAutopsia {
+  clave: "dicho" | "realPropio" | "real";
+  gana: number;
+  empate: number;
+  pierde: number;
+  /** Goles propios primero. */
+  marcador: string;
+}
+
+/** La autopsia del último partido (2026-11-22). Claves y números: la
+ *  pantalla escribe las frases. */
+export interface MatchAutopsy {
+  htMatchId: number;
+  sinValoraciones: boolean;
+  resultado?: "gana" | "empate" | "pierde";
+  copa?: boolean;
+  fuente?: string | null;
+  capas?: CapaDeLaAutopsia[];
+  supuestoVsReal?: {
+    lado: "propio" | "rival";
+    sector: string;
+    supuesto: number;
+    real: number;
+  }[];
+  veredicto?: {
+    tipo: "sinPrediccion" | "esperado" | "informacion" | "azar";
+    culpa: "propio" | "rival" | null;
+    sector: string | null;
+  };
+  porDebajoDeSuMedia?: {
+    htPlayerId: number;
+    nombre: string;
+    estrellas: number;
+    media: number;
+    partidos: number;
+  }[];
+}
+
 export interface MatchRow {
   htMatchId: number;
   date: string;
@@ -228,6 +267,8 @@ export const apiPartidos = {
     request<MatchDetail>(`/teams/${teamId}/matches/${htMatchId}`),
   lastMatchReport: (teamId: number) =>
     request<LastMatchReport | null>(`/teams/${teamId}/last-match-report`),
+  matchAutopsy: (teamId: number) =>
+    request<MatchAutopsy | null>(`/teams/${teamId}/match-autopsy`),
   nextOfficialMatch: (teamId: number) =>
     request<ProximoPartidoOficial | null>(
       `/teams/${teamId}/next-official-match`,

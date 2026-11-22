@@ -23,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # (2026-09-14, lo tiró el CI de la 2.0). No hay ciclo: ese módulo no importa
 # nada de `queries`.
 from app.application.queries.alineacion_enviada import AlineacionEnviada
-from app.application.queries.lo_dicho import guardar_lo_dicho
+from app.application.queries.lo_dicho import guardar_lo_dicho, lo_supuesto
 from app.application.queries.prediccion_liga import reparto_de_tacticas
 from app.application.queries.promocion import rival_de_promocion
 from app.domain.engines.prediccion import (  # type: ignore[attr-defined]
@@ -590,6 +590,9 @@ def _proximo_con_alineaciones(
         "expectedAwayGoals": round(goles_visita, 2),
         "mostLikelyScore": f"{marcador[0]}-{marcador[1]}",
         "verdict": veredicto,
+        # Para guardar con lo dicho, no para la pantalla: el que llama lo saca
+        # antes de responder. Ver `lo_supuesto`.
+        "_supuesto": lo_supuesto(ratings_mios, ratings_suyos, f_mio, f_suyo),
         "sources": {
             "own": {
                 "kind": fuente_mia,
@@ -1184,6 +1187,7 @@ class LeagueQueryService:
             )
             if proximo is not None:
                 next_match |= proximo
+            supuesto = next_match.pop("_supuesto", None)
             # SI HAY ÓRDENES ES UN HECHO, NO UNA CONSECUENCIA DEL PRONÓSTICO
             # (2026-11-14, visto por el usuario contra Angkor FC). La pantalla
             # lo deducía de `sources.own.kind`, y en la jornada 1 de una serie
@@ -1200,6 +1204,7 @@ class LeagueQueryService:
                 team.id,
                 next_match,
                 "zonas" if proximo is not None else "goles",
+                supuesto,
             )
 
         # El rival de Promoción. Va en la respuesta de Liga porque es de

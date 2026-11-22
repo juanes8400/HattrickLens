@@ -47,7 +47,16 @@ async def build_parte_del_partido(session: AsyncSession, team_id: int) -> dict[s
     if team is None:
         return None
 
-    partido = await session.scalar(
+    partido = await ultimo_partido_jugado(session, team.ht_team_id)
+    if partido is None:
+        return None
+    return await _parte(session, team, team_id, partido)
+
+
+async def ultimo_partido_jugado(session: AsyncSession, ht_team_id: int) -> m.Match | None:
+    """El último partido jugado que cuenta: el del parte y el de la autopsia
+    (2026-11-22), que tienen que ser siempre el mismo."""
+    return await session.scalar(
         select(m.Match)
         .options(
             load_only(
@@ -64,8 +73,7 @@ async def build_parte_del_partido(session: AsyncSession, team_id: int) -> dict[s
             )
         )
         .where(
-            (m.Match.home_team_ht_id == team.ht_team_id)
-            | (m.Match.away_team_ht_id == team.ht_team_id),
+            (m.Match.home_team_ht_id == ht_team_id) | (m.Match.away_team_ht_id == ht_team_id),
             m.Match.home_goals >= 0,
             # SIN TORNEOS NI ESCALERAS (2026-11-01, dicho por un usuario: «el
             # partido que aparece no es de Liga, no debería aparecer»). Un
@@ -79,9 +87,11 @@ async def build_parte_del_partido(session: AsyncSession, team_id: int) -> dict[s
         .order_by(m.Match.played_at.desc())
         .limit(1)
     )
-    if partido is None:
-        return None
 
+
+async def _parte(
+    session: AsyncSession, team: m.Team, team_id: int, partido: m.Match
+) -> dict[str, Any]:
     # El pronóstico DE ESTE CLUB. Un partido tiene dos lados y los dos pueden
     # estar conectados, con pronósticos distintos: el de enfrente no es «lo que
     # te dijimos», y esta pantalla no sirve para otra cosa.

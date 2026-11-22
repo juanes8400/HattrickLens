@@ -57,6 +57,7 @@ export {
 } from "./nucleo";
 export {
   useLastMatchReport,
+  useMatchAutopsy,
   useMatchDetail,
   useMatches,
   useNextOfficialMatch,
