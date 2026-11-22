@@ -2437,7 +2437,6 @@
   "Vale {{v0}}. Para no perder necesitas {{v1}}.": "Jest wart {{v0}}. Żeby nie stracić, potrzebujesz {{v1}}.",
   "Lo más pagado es {{v0}}. Para no perder necesitas {{v1}}.": "Najwyższa zapłacona kwota to {{v0}}. Żeby nie stracić, potrzebujesz {{v1}}.",
   "La puja va en {{v0}}. Para no perder necesitas {{v1}}.": "Oferta wynosi {{v0}}. Żeby nie stracić, potrzebujesz {{v1}}.",
-  "No guardamos qué dijimos de este partido, y acabó en empate.": "Nie zapisaliśmy, co mówiliśmy o tym meczu, a skończył się remisem.",
   "Salió lo que esperábamos: un empate.": "Wyszło tak, jak się spodziewaliśmy: remis.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era ganar.": "Stało się to, co mało prawdopodobne: przy tym, co wyszło na boisko, najbardziej prawdopodobna była wygrana.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era perder.": "Stało się to, co mało prawdopodobne: przy tym, co wyszło na boisko, najbardziej prawdopodobna była porażka.",
@@ -2477,6 +2476,6 @@
   "Veredicto:": "Werdykt:",
   "No guardamos qué dijimos de este partido.": "Nie zapisaliśmy, co mówiliśmy o tym meczu.",
   "Salió lo que esperábamos.": "Wyszło tak, jak się spodziewaliśmy.",
-  "Donde más ventaja sacaste: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).": "Gdzie miałeś największą przewagę: twój sektor {{v0}} przeciw ich sektorowi {{v1}} ({{v2}} – {{v3}}).",
-  "Donde más ventaja te sacó: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).": "Gdzie rywal miał największą przewagę: twój sektor {{v0}} przeciw jego sektorowi {{v1}} ({{v2}} – {{v3}})."
+  "Lo que más pesó a tu favor: tu {{v0}} contra su {{v1}}. Si ese duelo hubiera quedado parejo, tu probabilidad de ganar bajaba de {{v2}} a {{v3}}.": "Co najbardziej ci pomogło: twój sektor {{v0}} przeciw ich sektorowi {{v1}}. Gdyby ten pojedynek był wyrównany, twoja szansa na wygraną spadłaby z {{v2}} do {{v3}}.",
+  "Lo que más te frenó: tu {{v0}} contra su {{v1}}. Si ese duelo hubiera quedado parejo, subía a {{v2}}.": "Co najbardziej cię hamowało: twój sektor {{v0}} przeciw ich sektorowi {{v1}}. Gdyby ten pojedynek był wyrównany, wzrosłaby do {{v2}}."
 }

@@ -47,6 +47,15 @@ export interface LastMatchReport {
   } | null;
 }
 
+/** Un duelo de la autopsia: tu sector, el suyo, tu probabilidad de ganar
+ *  con lo real y la que habrías tenido con ese duelo parejo. */
+export interface DueloQuePeso {
+  sector: string;
+  contra: string;
+  gana: number;
+  igualado: number;
+}
+
 /** Una pasada del motor en la autopsia, desde el lado propio. */
 export interface CapaDeLaAutopsia {
   clave: "dicho" | "realPropio" | "real";
@@ -76,10 +85,12 @@ export interface MatchAutopsy {
     tipo: "sinPrediccion" | "esperado" | "informacion" | "azar";
     culpa: "propio" | "rival" | null;
     sector: string | null;
-    /** El sector suyo con que se cruzó `sector`, y la parte propia del
-     *  duelo (0-1). Sólo cuando `sector` es el duelo decisivo. */
-    contra: string | null;
-    reparto: number | null;
+  };
+  /** Igualando cada duelo y volviendo a pasar el motor: el que más bajaba
+   *  tu probabilidad de ganar (te ayudó) y el que más la subía (te frenó). */
+  loQueMasPeso?: {
+    aFavor: DueloQuePeso | null;
+    enContra: DueloQuePeso | null;
   };
   porDebajoDeSuMedia?: {
     htPlayerId: number;

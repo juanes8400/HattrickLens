@@ -2437,7 +2437,6 @@
   "Vale {{v0}}. Para no perder necesitas {{v1}}.": "Vale {{v0}}. Per non perderci ti servono {{v1}}.",
   "Lo más pagado es {{v0}}. Para no perder necesitas {{v1}}.": "Il massimo pagato è {{v0}}. Per non perderci ti servono {{v1}}.",
   "La puja va en {{v0}}. Para no perder necesitas {{v1}}.": "L'offerta è a {{v0}}. Per non perderci ti servono {{v1}}.",
-  "No guardamos qué dijimos de este partido, y acabó en empate.": "Non abbiamo salvato cosa avevamo detto di questa partita, ed è finita in pareggio.",
   "Salió lo que esperábamos: un empate.": "È andata come ci aspettavamo: un pareggio.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era ganar.": "È successo l'improbabile: con ciò che è sceso in campo, la cosa più probabile era vincere.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era perder.": "È successo l'improbabile: con ciò che è sceso in campo, la cosa più probabile era perdere.",
@@ -2477,6 +2476,6 @@
   "Veredicto:": "Verdetto:",
   "No guardamos qué dijimos de este partido.": "Non abbiamo salvato cosa avevamo detto di questa partita.",
   "Salió lo que esperábamos.": "È andata come ci aspettavamo.",
-  "Donde más ventaja sacaste: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).": "Dove hai avuto il vantaggio maggiore: il tuo settore {{v0}} contro il loro settore {{v1}} ({{v2}} – {{v3}}).",
-  "Donde más ventaja te sacó: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).": "Dove l'avversario ha avuto il vantaggio maggiore: il tuo settore {{v0}} contro il loro settore {{v1}} ({{v2}} – {{v3}})."
+  "Lo que más pesó a tu favor: tu {{v0}} contra su {{v1}}. Si ese duelo hubiera quedado parejo, tu probabilidad de ganar bajaba de {{v2}} a {{v3}}.": "Ciò che ti ha aiutato di più: il tuo settore {{v0}} contro il loro settore {{v1}}. Se quel duello fosse stato pari, la tua probabilità di vincere sarebbe scesa da {{v2}} a {{v3}}.",
+  "Lo que más te frenó: tu {{v0}} contra su {{v1}}. Si ese duelo hubiera quedado parejo, subía a {{v2}}.": "Ciò che ti ha frenato di più: il tuo settore {{v0}} contro il loro settore {{v1}}. Se quel duello fosse stato pari, sarebbe salita a {{v2}}."
 }

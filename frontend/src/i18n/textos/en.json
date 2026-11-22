@@ -2437,7 +2437,6 @@
   "Vale {{v0}}. Para no perder necesitas {{v1}}.": "He is worth {{v0}}. To avoid a loss you need {{v1}}.",
   "Lo más pagado es {{v0}}. Para no perder necesitas {{v1}}.": "The most paid is {{v0}}. To avoid a loss you need {{v1}}.",
   "La puja va en {{v0}}. Para no perder necesitas {{v1}}.": "The bid stands at {{v0}}. To avoid a loss you need {{v1}}.",
-  "No guardamos qué dijimos de este partido, y acabó en empate.": "We didn't save what we said about this match, and it ended in a draw.",
   "Salió lo que esperábamos: un empate.": "It went as we expected: a draw.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era ganar.": "The unlikely happened: with what took the field, winning was the most likely outcome.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era perder.": "The unlikely happened: with what took the field, losing was the most likely outcome.",
@@ -2477,6 +2476,6 @@
   "Veredicto:": "Verdict:",
   "No guardamos qué dijimos de este partido.": "We didn't save what we said about this match.",
   "Salió lo que esperábamos.": "It went as we expected.",
-  "Donde más ventaja sacaste: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).": "Where you had the biggest edge: your {{v0}} against their {{v1}} ({{v2}} – {{v3}}).",
-  "Donde más ventaja te sacó: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).": "Where they had the biggest edge over you: your {{v0}} against their {{v1}} ({{v2}} – {{v3}})."
+  "Lo que más pesó a tu favor: tu {{v0}} contra su {{v1}}. Si ese duelo hubiera quedado parejo, tu probabilidad de ganar bajaba de {{v2}} a {{v3}}.": "What helped you most: your {{v0}} against their {{v1}}. Had that duel been even, your chance of winning would have dropped from {{v2}} to {{v3}}.",
+  "Lo que más te frenó: tu {{v0}} contra su {{v1}}. Si ese duelo hubiera quedado parejo, subía a {{v2}}.": "What held you back most: your {{v0}} against their {{v1}}. Had that duel been even, it would have risen to {{v2}}."
 }

@@ -13,7 +13,7 @@ from typing import Any
 from app.application.queries.autopsia_del_partido import (
     _capa,
     autopsia_del_partido,
-    duelo_decisivo,
+    lo_que_mas_peso,
     veredicto,
 )
 from app.application.queries.lo_dicho import lo_supuesto
@@ -147,8 +147,6 @@ def test_el_rival_vino_mas_fuerte_de_lo_supuesto() -> None:
         "tipo": "informacion",
         "culpa": "rival",
         "sector": "central_def",
-        "contra": None,
-        "reparto": None,
     }
     defensa = next(
         f
@@ -177,16 +175,20 @@ def test_de_visitante_lo_dicho_se_pone_del_lado_propio() -> None:
     assert autopsia["supuestoVsReal"] == []
 
 
-def test_sin_prediccion_queda_el_duelo_decisivo() -> None:
-    autopsia = _autopsia(goles=(2, 0), propio=_todos(40, left_att=70))
+def test_sin_prediccion_queda_lo_que_mas_peso() -> None:
+    """Un carril muy por encima es lo que más ayudó; uno muy por debajo, lo
+    que más frenó: igualados, la probabilidad de ganar baja y sube."""
+    autopsia = _autopsia(goles=(2, 0), propio=_todos(40, left_att=70, central_att=20))
     assert autopsia is not None
-    assert autopsia["veredicto"] == {
-        "tipo": "sinPrediccion",
-        "culpa": None,
-        "sector": "left_att",
-        "contra": "right_def",
-        "reparto": round(70 / 110, 3),
-    }
+    assert autopsia["veredicto"] == {"tipo": "sinPrediccion", "culpa": None, "sector": None}
+    peso = autopsia["loQueMasPeso"]
+    assert (peso["aFavor"]["sector"], peso["aFavor"]["contra"]) == ("left_att", "right_def")
+    assert peso["aFavor"]["igualado"] < peso["aFavor"]["gana"]
+    assert (peso["enContra"]["sector"], peso["enContra"]["contra"]) == (
+        "central_att",
+        "central_def",
+    )
+    assert peso["enContra"]["igualado"] > peso["enContra"]["gana"]
 
 
 def test_esperado_y_azar() -> None:
@@ -197,8 +199,11 @@ def test_esperado_y_azar() -> None:
     assert veredicto("pierde", capas, propio, rival, None)["tipo"] == "azar"
 
 
-def test_en_un_empate_no_hay_duelo_decisivo() -> None:
-    assert duelo_decisivo(_todos(40), _todos(40), "empate") is None
+def test_con_todo_parejo_nada_peso() -> None:
+    assert lo_que_mas_peso(_todos(40), _todos(40), 1.0, 1.0, False) == {
+        "aFavor": None,
+        "enContra": None,
+    }
 
 
 def test_lo_supuesto_guarda_solo_los_campos_del_motor() -> None:
