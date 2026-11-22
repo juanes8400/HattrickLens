@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import (
     require_team_owner,
 )
+from app.application.queries.autopsia_del_partido import autopsia_del_partido
 from app.application.queries.parte_del_partido import build_parte_del_partido
 from app.application.queries.proximo_partido_oficial import proximo_partido_oficial
 from app.domain.value_objects.ht_constants import MATCH_TYPE_LEAGUE
@@ -48,6 +49,30 @@ async def last_match_report(
         "parte-del-partido",
         (),
         lambda: build_parte_del_partido(session, team_id),
+    )
+
+
+@router.get(
+    "/{team_id}/match-autopsy",
+    summary="La autopsia del ultimo partido: el partido y la prediccion, abiertos",
+    dependencies=[Depends(require_team_owner)],
+)
+async def match_autopsy(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any] | None:
+    """Debajo del parte, en Partidos → Último partido (2026-11-22). Lo que
+    dijimos, lo que habría dicho el motor con lo real, y por qué.
+
+    Una vez por sync, como el parte: el partido ya está jugado."""
+    from app.api.cache_por_sync import por_sync
+
+    return await por_sync(
+        session,
+        team_id,
+        "autopsia-del-partido",
+        (),
+        lambda: autopsia_del_partido(session, team_id),
     )
 
 

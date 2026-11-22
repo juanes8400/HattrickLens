@@ -7,16 +7,34 @@ que la Poisson de la serie no lo alcanza-- y copiar la función habría dejado
 dos sitios escribiendo la misma tabla con reglas que podrían divergir.
 """
 
+import json
 import logging
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
 
-from app.domain.engines.prediccion import VERSION_DEL_MOTOR
+from app.domain.engines.prediccion import CAMPOS, VERSION_DEL_MOTOR
 from app.infrastructure.db import models as m
 
 _log = logging.getLogger(__name__)
+
+
+def lo_supuesto(
+    propio: dict[str, float],
+    rival: dict[str, float],
+    factor_propio: float,
+    factor_rival: float,
+) -> dict[str, Any]:
+    """Lo que entró en el motor, desde el lado propio (2026-11-22, para la
+    autopsia del partido). Sólo los nueve campos del motor: las lecturas traen
+    además táctica, partido y sede, que aquí sobran."""
+    return {
+        "propio": {c: round(float(propio[c]), 2) for c in CAMPOS if c in propio},
+        "rival": {c: round(float(rival[c]), 2) for c in CAMPOS if c in rival},
+        "factorPropio": round(float(factor_propio), 4),
+        "factorRival": round(float(factor_rival), 4),
+    }
 
 
 async def guardar_lo_dicho(
@@ -24,6 +42,7 @@ async def guardar_lo_dicho(
     team_id: int,
     pronostico: dict[str, Any],
     fuente: str,
+    supuesto: dict[str, Any] | None = None,
 ) -> None:
     """Deja escrito lo que acabamos de decir de un partido por jugarse.
 
@@ -65,6 +84,9 @@ async def guardar_lo_dicho(
         "most_likely_score": str(pronostico["mostLikelyScore"])[:16],
         "source": fuente,
         "engine": VERSION_DEL_MOTOR,
+        # Se reescribe también: si la última vez se predijo con el respaldo de
+        # goles, lo supuesto de una vez anterior ya no es lo que se dijo.
+        "supuesto_json": None if supuesto is None else json.dumps(supuesto),
         "computed_at": datetime.now(UTC),
     }
     from app.infrastructure.db.session import SessionLocal

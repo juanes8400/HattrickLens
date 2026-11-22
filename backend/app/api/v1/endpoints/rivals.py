@@ -54,7 +54,7 @@ from app.application.queries.alineacion_enviada import (
     prediccion_en_vivo,
     prediccion_guardada,
 )
-from app.application.queries.lo_dicho import guardar_lo_dicho
+from app.application.queries.lo_dicho import guardar_lo_dicho, lo_supuesto
 from app.application.queries.prediccion_liga import partidos_de_un_equipo, reparto_de_tacticas
 from app.application.queries.weekly import start_of_iso_week
 from app.domain.engines.economy_engine import SEASON_WEEKS
@@ -1451,6 +1451,17 @@ async def rival_scouting(
         pitch_zone_method_rival,
         en_casa=None if propio_en_casa is None else not propio_en_casa,
     )
+    # LA TÁCTICA DE CADA LADO (2026-09-12). La tuya no hay que adivinarla
+    # si mandaste órdenes: viene con ellas. La del rival se pondera con lo
+    # que viene jugando, en vez de apostar por su táctica más frecuente.
+    factor_mio = (
+        factor_de_tactica(exacta=submitted_match.submitted_tactic_type)
+        if usa_enviada
+        and submitted_match is not None
+        and submitted_match.submitted_tactic_type is not None
+        else factor_de_tactica(reparto_de_tacticas(historical_pitch_own_sector_ratings))
+    )
+    factor_suyo = factor_de_tactica(dict(Counter(rival_tactic_types)))
     prediccion = _prediccion_del_rival(
         mias,
         suyas,
@@ -1461,17 +1472,8 @@ async def rival_scouting(
         metodo_rival=pitch_zone_method_rival,
         vistos_mios=len(pitch_own_sector_ratings),
         vistos_suyos=len(pitch_rival_ratings),
-        # LA TÁCTICA DE CADA LADO (2026-09-12). La tuya no hay que adivinarla
-        # si mandaste órdenes: viene con ellas. La del rival se pondera con lo
-        # que viene jugando, en vez de apostar por su táctica más frecuente.
-        factor_mio=(
-            factor_de_tactica(exacta=submitted_match.submitted_tactic_type)
-            if usa_enviada
-            and submitted_match is not None
-            and submitted_match.submitted_tactic_type is not None
-            else factor_de_tactica(reparto_de_tacticas(historical_pitch_own_sector_ratings))
-        ),
-        factor_suyo=factor_de_tactica(dict(Counter(rival_tactic_types))),
+        factor_mio=factor_mio,
+        factor_suyo=factor_suyo,
     )
 
     # LO QUE DECIMOS DE LA PROMOCIÓN QUEDA ESCRITO (2026-11-01, pedido del
@@ -1505,6 +1507,7 @@ async def rival_scouting(
             team_id,
             _en_casa_y_fuera(prediccion, propio_en_casa=propio_en_casa),
             "zonas",
+            lo_supuesto(mias, suyas, factor_mio, factor_suyo),
         )
 
     own_for_marking = [

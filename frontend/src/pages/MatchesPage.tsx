@@ -26,6 +26,7 @@ import {
 import { usePersistido } from "../hooks/usePersistido";
 import { PanelDePestanas, Tabs } from "../components/Tabs";
 import { ParteDelPartido } from "../components/ParteDelPartido";
+import { AutopsiaDelPartido } from "../components/AutopsiaDelPartido";
 import type {
   BestRating,
   HomeAwayRow,
@@ -108,7 +109,14 @@ function UltimoPartido() {
         </Empty>
       </Panel>
     );
-  return <ParteDelPartido parte={parte.data} />;
+  // El parte de siempre arriba y la autopsia debajo (2026-11-22, decisión
+  // del usuario: aunque repita el resultado y lo que dijimos).
+  return (
+    <div className="space-y-4">
+      <ParteDelPartido parte={parte.data} />
+      <AutopsiaDelPartido parte={parte.data} />
+    </div>
+  );
 }
 
 function HistorialDePartidos() {

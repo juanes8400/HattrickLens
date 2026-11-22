@@ -1542,6 +1542,11 @@ class MatchPrediction(Base):
     #: agregado de la temporada, que ignora alineaciones y tacticas).
     source: Mapped[str] = mapped_column(String(16), default="")
     engine: Mapped[str] = mapped_column(String(32), default="")
+    #: LO QUE SUPONÍAMOS (2026-11-22, para la autopsia del partido): las nueve
+    #: valoraciones de cada lado y el factor de táctica con que entraron en el
+    #: motor, DESDE EL LADO PROPIO. `None` en los partidos de antes y cuando
+    #: se predijo con el respaldo de goles, que no usa valoraciones.
+    supuesto_json: Mapped[str | None] = mapped_column(Text)
     computed_at: Mapped[datetime] = mapped_column(UtcDateTime())
 
     __table_args__ = (
