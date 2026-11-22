@@ -2074,13 +2074,13 @@
   "Ganga que se revaloriza": "Affare che si rivaluta",
   "{} ya vale más que su precio de equilibrio": "{} ora vale più del suo prezzo di pareggio",
   "{} ya vale menos que su precio de equilibrio": "{} ora vale meno del suo prezzo di pareggio",
-  "Ya se pagó por un parecido a {} más que su precio de equilibrio": "Un giocatore simile a {} è stato pagato più del suo prezzo di pareggio",
-  "Ya no se paga por un parecido a {} más que su precio de equilibrio": "I giocatori simili a {} non vengono più pagati più del suo prezzo di pareggio",
-  "Una puja por un parecido a {} supera su precio de equilibrio": "Un'offerta per un giocatore simile a {} supera il suo prezzo di pareggio",
-  "Su precio por comparables pasó de {} a {} {} y su precio de equilibrio, de {} a {} {}.": "Il suo prezzo per comparabili è passato da {} a {} {} e il suo prezzo di pareggio da {} a {} {}.",
-  "Lo máximo pagado por un parecido pasó de {} a {} {} y su precio de equilibrio, de {} a {} {}.": "Il massimo pagato per un giocatore simile è passato da {} a {} {} e il suo prezzo di pareggio da {} a {} {}.",
-  "La puja más alta abierta es de {} {}; su precio de equilibrio es {} {}.": "L'offerta aperta più alta è di {} {}; il suo prezzo di pareggio è {} {}.",
   "Míralo en su Comparador de transferencias.": "Guardalo nel suo Comparatore di trasferimenti.",
   "cambios de clase": "cambi di classe",
-  "precios comparables": "prezzi per comparabili"
+  "precios comparables": "prezzi per comparabili",
+  "Alguien pagó por un jugador como {} más que su precio de equilibrio": "Qualcuno ha pagato per un giocatore come {} più del suo prezzo di pareggio",
+  "Lo más pagado por un jugador como {} ya no llega a su precio de equilibrio": "Il massimo pagato per un giocatore come {} non arriva più al suo prezzo di pareggio",
+  "Hay una puja por un jugador como {} más alta que su precio de equilibrio": "C'è un'offerta per un giocatore come {} più alta del suo prezzo di pareggio",
+  "Vale {} {}. Para no perder necesitas {} {}.": "Vale {} {}. Per non perderci ti servono {} {}.",
+  "Lo más pagado es {} {}. Para no perder necesitas {} {}.": "Il massimo pagato è {} {}. Per non perderci ti servono {} {}.",
+  "La puja va en {} {}. Para no perder necesitas {} {}.": "L'offerta è a {} {}. Per non perderci ti servono {} {}."
 }

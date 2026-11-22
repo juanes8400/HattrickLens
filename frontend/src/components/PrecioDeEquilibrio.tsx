@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useId } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { tx } from "../i18n/tx";
@@ -12,15 +12,30 @@ export function explicacionDelEquilibrio(): string {
   );
 }
 
-/** El término, con su explicación al pasar el ratón. */
+/** El término, con su explicación en un tooltip (2026-11-22, pedido del
+ *  usuario). Antes era el `title` nativo de un `<abbr>`: tardaba en salir, no
+ *  se veía que estuviera ahí --el subrayado sólo aparecía al pasar el ratón--
+ *  y en el teléfono no salía nunca. Ahora va subrayado a puntos siempre, sale
+ *  al pasar el ratón y también al tocarlo o llegar con el teclado. */
 export function TerminoEquilibrio({ children }: { children: ReactNode }) {
+  const id = useId();
   return (
-    <abbr
-      title={explicacionDelEquilibrio()}
-      className="cursor-help no-underline decoration-dotted underline-offset-2 hover:underline"
-    >
-      {children}
-    </abbr>
+    <span className="group relative inline">
+      <span
+        tabIndex={0}
+        aria-describedby={id}
+        className="cursor-help underline decoration-[var(--muted)] decoration-dotted underline-offset-2 outline-none focus-visible:text-[var(--accent)]"
+      >
+        {children}
+      </span>
+      <span
+        id={id}
+        role="tooltip"
+        className="pointer-events-none absolute left-0 top-full z-30 mt-1 hidden w-64 max-w-[80vw] rounded-md border border-[var(--border)] bg-[var(--surface)] p-2.5 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-[var(--text)] shadow-lg group-focus-within:block group-hover:block"
+      >
+        {explicacionDelEquilibrio()}
+      </span>
+    </span>
   );
 }
 

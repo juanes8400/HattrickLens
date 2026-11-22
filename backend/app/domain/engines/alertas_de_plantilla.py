@@ -141,28 +141,24 @@ def _titulo_del_cruce(c: Cruce) -> str:
         if c.sentido == "sube":
             return f"{n} ya vale más que su precio de equilibrio"
         return f"{n} ya vale menos que su precio de equilibrio"
+    # Frases elegidas por el usuario el 2026-11-22 (estilo «A»: nombran el
+    # precio de equilibrio, que se explica al pasar el ratón por él).
     if c.senal == "maximo":
         if c.sentido == "sube":
-            return f"Ya se pagó por un parecido a {n} más que su precio de equilibrio"
-        return f"Ya no se paga por un parecido a {n} más que su precio de equilibrio"
-    return f"Una puja por un parecido a {n} supera su precio de equilibrio"
+            return f"Alguien pagó por un jugador como {n} más que su precio de equilibrio"
+        return f"Lo más pagado por un jugador como {n} ya no llega a su precio de equilibrio"
+    return f"Hay una puja por un jugador como {n} más alta que su precio de equilibrio"
 
 
 def _detalle_del_cruce(c: Cruce, moneda: str) -> str:
     """Una frase entera por caso: partida en trozos no se traduciría."""
-    a, b = thousands(c.antes), thousands(c.ahora)
-    ea, eb = thousands(c.equilibrio_antes), thousands(c.equilibrio_ahora)
+    # Sólo lo de ahora (2026-11-22): «de cuánto a cuánto» no se entendía.
+    b, eb = thousands(c.ahora), thousands(c.equilibrio_ahora)
     if c.senal == "precio":
-        return (
-            f"Su precio por comparables pasó de {a} a {b} {moneda} y su precio de "
-            f"equilibrio, de {ea} a {eb} {moneda}."
-        )
+        return f"Vale {b} {moneda}. Para no perder necesitas {eb} {moneda}."
     if c.senal == "maximo":
-        return (
-            f"Lo máximo pagado por un parecido pasó de {a} a {b} {moneda} y su precio de "
-            f"equilibrio, de {ea} a {eb} {moneda}."
-        )
-    return f"La puja más alta abierta es de {b} {moneda}; su precio de equilibrio es {eb} {moneda}."
+        return f"Lo más pagado es {b} {moneda}. Para no perder necesitas {eb} {moneda}."
+    return f"La puja va en {b} {moneda}. Para no perder necesitas {eb} {moneda}."
 
 
 def cruces_del_equilibrio(cruces: Sequence[Cruce], moneda: str) -> list[Insight]:

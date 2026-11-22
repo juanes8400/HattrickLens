@@ -78,9 +78,38 @@ def test_las_alertas_dicen_que_cruzo_y_enlazan_al_comparador() -> None:
     )
     (alerta,) = cruces_del_equilibrio([cruce], "COP")
     assert alerta.severity == Severity.OPPORTUNITY
-    assert "precio de equilibrio" in alerta.title
+    assert alerta.title == "Tommy Vidal ya vale más que su precio de equilibrio"
+    assert alerta.detail == "Vale 520.000 COP. Para no perder necesitas 505.000 COP."
     assert alerta.evidence == {"ht_player_id": 7, "name": "Tommy Vidal", "enlace": "comparador"}
     assert alerta.key.startswith("market.breakeven_cross.")
     assert "market.breakeven_cross" in KNOWN_KEY_ROOTS
     (baja,) = cruces_del_equilibrio([replace(cruce, sentido="baja")], "COP")
     assert baja.severity == Severity.WARNING
+
+
+def test_las_frases_de_lo_mas_pagado_y_de_la_puja() -> None:
+    """Las del estilo «A» que eligió el usuario el 2026-11-22."""
+    cruce = Cruce(
+        ht_player_id=7,
+        nombre="Tommy Vidal",
+        senal="maximo",
+        sentido="sube",
+        antes=486_000,
+        ahora=530_000,
+        equilibrio_antes=498_000,
+        equilibrio_ahora=505_000,
+    )
+    (sube,) = cruces_del_equilibrio([cruce], "COP")
+    assert sube.title == (
+        "Alguien pagó por un jugador como Tommy Vidal más que su precio de equilibrio"
+    )
+    assert sube.detail == "Lo más pagado es 530.000 COP. Para no perder necesitas 505.000 COP."
+    (baja,) = cruces_del_equilibrio([replace(cruce, sentido="baja")], "COP")
+    assert baja.title == (
+        "Lo más pagado por un jugador como Tommy Vidal ya no llega a su precio de equilibrio"
+    )
+    (puja,) = cruces_del_equilibrio([replace(cruce, senal="puja")], "COP")
+    assert puja.title == (
+        "Hay una puja por un jugador como Tommy Vidal más alta que su precio de equilibrio"
+    )
+    assert puja.detail == "La puja va en 530.000 COP. Para no perder necesitas 505.000 COP."

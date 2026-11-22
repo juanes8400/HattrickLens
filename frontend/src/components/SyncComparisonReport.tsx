@@ -1,12 +1,11 @@
 import clsx from "clsx";
-import { Link } from "react-router-dom";
 import { dateTime, money, number } from "../hooks/useFormat";
 import type {
   EquilibriumCrossing,
   NationalMatchAppearance,
   ValueMove,
 } from "../services/api";
-import { TerminoEquilibrio, enlaceAlComparador } from "./PrecioDeEquilibrio";
+import { TextoConEquilibrio } from "./PrecioDeEquilibrio";
 import { Empty, Panel } from "./Panels";
 import { PlayerLink } from "./PlayerLink";
 import type { ClubComparisonChange } from "../services/api";
@@ -337,15 +336,51 @@ export function ValueMovesSection({ moves }: { moves: ValueMove[] }) {
   );
 }
 
-/** Qué decir de cada señal, en el orden en que se pintan. */
-const SENALES_DEL_CRUCE: {
-  senal: EquilibriumCrossing["signal"];
-  titulo: string;
-}[] = [
-  { senal: "precio", titulo: "Su precio por comparables" },
-  { senal: "maximo", titulo: "Lo máximo pagado por un parecido" },
-  { senal: "puja", titulo: "La puja más alta abierta por un parecido" },
+/** El orden en que se pintan las señales. */
+const ORDEN_DEL_CRUCE: EquilibriumCrossing["signal"][] = [
+  "precio",
+  "maximo",
+  "puja",
 ];
+
+/** La misma frase que la alerta (estilo «A», elegido por el usuario el
+ *  2026-11-22). Cada una entera, para que se traduzca entera. */
+function fraseDelCruce(c: EquilibriumCrossing): string {
+  const n = { v0: c.name };
+  if (c.signal === "precio")
+    return c.direction === "sube"
+      ? tx("{{v0}} ya vale más que su precio de equilibrio", n)
+      : tx("{{v0}} ya vale menos que su precio de equilibrio", n);
+  if (c.signal === "maximo")
+    return c.direction === "sube"
+      ? tx(
+          "Alguien pagó por un jugador como {{v0}} más que su precio de equilibrio",
+          n,
+        )
+      : tx(
+          "Lo más pagado por un jugador como {{v0}} ya no llega a su precio de equilibrio",
+          n,
+        );
+  return tx(
+    "Hay una puja por un jugador como {{v0}} más alta que su precio de equilibrio",
+    n,
+  );
+}
+
+function numerosDelCruce(c: EquilibriumCrossing): string {
+  const v = {
+    v0: money(c.after, c.currency),
+    v1: money(c.equilibriumAfter, c.currency),
+  };
+  if (c.signal === "precio")
+    return tx("Vale {{v0}}. Para no perder necesitas {{v1}}.", v);
+  if (c.signal === "maximo")
+    return tx("Lo más pagado es {{v0}}. Para no perder necesitas {{v1}}.", v);
+  const puja = tx("La puja va en {{v0}}. Para no perder necesitas {{v1}}.", v);
+  return c.closesAt
+    ? `${puja} · ${tx("cierra el {{v0}}", { v0: dateTime(c.closesAt) })}`
+    : puja;
+}
 
 function FilaDeCruce({ c }: { c: EquilibriumCrossing }) {
   const sube = c.direction === "sube";
@@ -361,33 +396,14 @@ function FilaDeCruce({ c }: { c: EquilibriumCrossing }) {
       >
         {sube ? tx("↑ cruzó") : tx("↓ cruzó")}
       </span>
-      <span className="font-medium">
-        <Link
-          to={enlaceAlComparador(c.htPlayerId)}
-          className="underline decoration-[var(--border)] underline-offset-2 hover:text-[var(--accent)] hover:decoration-[var(--accent)]"
-        >
-          {c.name}
-        </Link>
-      </span>
       <span>
-        {sube ? tx("ya está por encima del") : tx("quedó por debajo del")}{" "}
-        <TerminoEquilibrio>{tx("precio de equilibrio")}</TerminoEquilibrio>
+        <TextoConEquilibrio
+          texto={fraseDelCruce(c)}
+          jugador={{ htPlayerId: c.htPlayerId, name: c.name }}
+        />
       </span>
       <span className="w-full text-xs tabular-nums text-[var(--muted)]">
-        {c.signal === "puja"
-          ? tx("puja {{v0}}{{v1}} · equilibrio {{v2}}", {
-              v0: money(c.after, c.currency),
-              v1: c.closesAt
-                ? ` · ${tx("cierra el {{v0}}", { v0: dateTime(c.closesAt) })}`
-                : "",
-              v2: money(c.equilibriumAfter, c.currency),
-            })
-          : tx("{{v0}} → {{v1}} · equilibrio {{v2}} → {{v3}}", {
-              v0: money(c.before, c.currency),
-              v1: money(c.after, c.currency),
-              v2: money(c.equilibriumBefore, c.currency),
-              v3: money(c.equilibriumAfter, c.currency),
-            })}
+        {numerosDelCruce(c)}
       </span>
     </li>
   );
@@ -408,22 +424,18 @@ export function EquilibriumCrossingsSection({
       title={tx("Cruces del precio de equilibrio")}
       meta={tx("desde la última vez que entraste")}
     >
-      <div className="divide-y divide-[var(--border)]">
-        {SENALES_DEL_CRUCE.map((g) => {
-          const suyos = crossings.filter((c) => c.signal === g.senal);
-          if (suyos.length === 0) return null;
-          return (
-            <div key={g.senal} className="py-3">
-              <div className="px-3 text-sm font-semibold">{tx(g.titulo)}</div>
-              <ul className="mt-1">
-                {suyos.map((c) => (
-                  <FilaDeCruce key={`${c.htPlayerId}-${c.direction}`} c={c} />
-                ))}
-              </ul>
-            </div>
-          );
-        })}
-      </div>
+      <ul className="py-2">
+        {ORDEN_DEL_CRUCE.flatMap((senal) =>
+          crossings
+            .filter((c) => c.signal === senal)
+            .map((c) => (
+              <FilaDeCruce
+                key={`${c.htPlayerId}-${c.signal}-${c.direction}`}
+                c={c}
+              />
+            )),
+        )}
+      </ul>
     </Panel>
   );
 }

@@ -91,7 +91,9 @@ export function VentaVsCosto({ htPlayerId }: { htPlayerId: number }) {
     xAxis: { type: "category", data: fechas, boundaryGap: false },
     yAxis: {
       type: "value",
-      scale: true,
+      // DESDE 0, SIEMPRE (2026-11-22, pedido del usuario): con el eje
+      // recortado una diferencia pequeña entre venta y costo parecía enorme.
+      min: 0,
       axisLabel: {
         formatter: (v: number) => `${(v / 1_000_000).toFixed(1)} M`,
       },

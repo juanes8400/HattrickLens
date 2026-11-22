@@ -2074,13 +2074,13 @@
   "Ganga que se revaloriza": "Bargain gaining value",
   "{} ya vale más que su precio de equilibrio": "{} is now worth more than his break-even price",
   "{} ya vale menos que su precio de equilibrio": "{} is now worth less than his break-even price",
-  "Ya se pagó por un parecido a {} más que su precio de equilibrio": "A player similar to {} has sold for more than his break-even price",
-  "Ya no se paga por un parecido a {} más que su precio de equilibrio": "Players similar to {} no longer sell for more than his break-even price",
-  "Una puja por un parecido a {} supera su precio de equilibrio": "A bid for a player similar to {} exceeds his break-even price",
-  "Su precio por comparables pasó de {} a {} {} y su precio de equilibrio, de {} a {} {}.": "His comparables price went from {} to {} {} and his break-even price from {} to {} {}.",
-  "Lo máximo pagado por un parecido pasó de {} a {} {} y su precio de equilibrio, de {} a {} {}.": "The most paid for a similar player went from {} to {} {} and his break-even price from {} to {} {}.",
-  "La puja más alta abierta es de {} {}; su precio de equilibrio es {} {}.": "The highest open bid is {} {}; his break-even price is {} {}.",
   "Míralo en su Comparador de transferencias.": "See it in his Transfer comparator.",
   "cambios de clase": "class changes",
-  "precios comparables": "comparables prices"
+  "precios comparables": "comparables prices",
+  "Alguien pagó por un jugador como {} más que su precio de equilibrio": "Someone paid more for a player like {} than his break-even price",
+  "Lo más pagado por un jugador como {} ya no llega a su precio de equilibrio": "The most paid for a player like {} no longer reaches his break-even price",
+  "Hay una puja por un jugador como {} más alta que su precio de equilibrio": "There is a bid for a player like {} higher than his break-even price",
+  "Vale {} {}. Para no perder necesitas {} {}.": "He is worth {} {}. To avoid a loss you need {} {}.",
+  "Lo más pagado es {} {}. Para no perder necesitas {} {}.": "The most paid is {} {}. To avoid a loss you need {} {}.",
+  "La puja va en {} {}. Para no perder necesitas {} {}.": "The bid stands at {} {}. To avoid a loss you need {} {}."
 }
