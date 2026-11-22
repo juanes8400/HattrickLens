@@ -41,7 +41,6 @@ from app.domain.engines.prediccion import (
     marcador_mas_probable,
     probabilidades_de_copa,
     probabilidades_del_motor,
-    proporcion,
 )
 from app.infrastructure.db import models as m
 
@@ -138,17 +137,56 @@ def _favorito(capa: dict[str, Any]) -> Resultado:
     return max(opciones, key=lambda o: o[0])[1]
 
 
-def duelo_decisivo(
-    propio: dict[str, float], rival: dict[str, float], resultado: Resultado
-) -> str | None:
-    """El duelo donde más ventaja sacó quien ganó, nombrado por el sector
-    propio. En un empate no hay quien ganara, así que no hay duelo."""
-    if resultado == "empate":
-        return None
-    reparto = {mio: proporcion(propio[mio], rival[suyo]) for mio, suyo in DUELOS}
-    if resultado == "gana":
-        return max(reparto, key=lambda k: reparto[k])
-    return min(reparto, key=lambda k: reparto[k])
+#: Por debajo de esto un duelo no «pesó»: medio punto de probabilidad.
+PESO_MINIMO = 0.005
+
+
+def lo_que_mas_peso(
+    propio: dict[str, float],
+    rival: dict[str, float],
+    factor_propio: float,
+    factor_rival: float,
+    copa: bool,
+) -> dict[str, dict[str, Any] | None]:
+    """Qué duelo pesó más a favor y cuál frenó más (2026-11-22, pedido del
+    usuario: «¿por qué eso es lo que más afecta?»).
+
+    Antes se nombraba el duelo con el reparto más desigual, que dice dónde
+    hubo más ventaja pero no cuánto importó: un carril por el que apenas se
+    ataca puede ir 77 % – 23 % sin mover el resultado, y el medio campo pesa
+    más que cualquier carril. Ahora se IGUALA cada duelo --los dos sectores a
+    su media, 50 % – 50 %-- y se vuelve a pasar el mismo motor: lo que baja tu
+    probabilidad de ganar al igualarlo es lo que te ayudó, y lo que la sube es
+    lo que te frenó. No se ajusta nada: es el motor de siempre, preguntado.
+    """
+    base = _capa("real", propio, rival, factor_propio, factor_rival, copa)["gana"]
+    pesos: list[tuple[float, str, str, float]] = []
+    for mio, suyo in DUELOS:
+        media = (propio[mio] + rival[suyo]) / 2
+        igualado = _capa(
+            "igualado",
+            {**propio, mio: media},
+            {**rival, suyo: media},
+            factor_propio,
+            factor_rival,
+            copa,
+        )["gana"]
+        pesos.append((base - igualado, mio, suyo, igualado))
+
+    def describir(peso: tuple[float, str, str, float]) -> dict[str, Any]:
+        return {
+            "sector": peso[1],
+            "contra": peso[2],
+            "gana": round(base, 4),
+            "igualado": round(peso[3], 4),
+        }
+
+    a_favor = max(pesos)
+    en_contra = min(pesos)
+    return {
+        "aFavor": describir(a_favor) if a_favor[0] >= PESO_MINIMO else None,
+        "enContra": describir(en_contra) if en_contra[0] <= -PESO_MINIMO else None,
+    }
 
 
 def veredicto(
@@ -158,9 +196,10 @@ def veredicto(
     rival: dict[str, float],
     supuesto: dict[str, Any] | None,
 ) -> dict[str, Any]:
-    """De qué fue el partido, en claves.
+    """De qué fue el partido, en claves. Lo que más pesó va aparte, en
+    `lo_que_mas_peso`, y la pantalla lo pinta detrás en todos los casos.
 
-    · `sinPrediccion`: no guardamos qué dijimos; sólo el duelo decisivo.
+    · `sinPrediccion`: no guardamos qué dijimos.
     · `esperado`: pasó lo que dábamos como más probable.
     · `informacion`: con lo real, lo más probable ERA lo que pasó. El fallo
       estuvo en lo que suponíamos; `culpa` dice de qué lado se movió más la
@@ -168,35 +207,22 @@ def veredicto(
       más distinto de lo supuesto.
     · `azar`: ni con lo real era lo más probable.
     """
-    decisivo = duelo_decisivo(propio, rival, resultado)
-    # EL DUELO ENTERO (2026-11-22, pedido del usuario: «La diferencia estuvo
-    # en: Defensa central» no se entendía). Contra qué sector suyo y cómo
-    # quedó, para poder decir «tu defensa central contra su ataque central
-    # (77 % – 23 %)».
-    duelo: dict[str, Any] = {"contra": None, "reparto": None}
-    if decisivo is not None:
-        suyo = dict(DUELOS)[decisivo]
-        duelo = {
-            "contra": suyo,
-            "reparto": round(proporcion(propio[decisivo], rival[suyo]), 3),
-        }
     dicho = capas.get("dicho")
     if dicho is None:
-        return {"tipo": "sinPrediccion", "culpa": None, "sector": decisivo, **duelo}
+        return {"tipo": "sinPrediccion", "culpa": None, "sector": None}
     if _favorito(dicho) == resultado:
-        return {"tipo": "esperado", "culpa": None, "sector": decisivo, **duelo}
-    sin_duelo = {"contra": None, "reparto": None}
+        return {"tipo": "esperado", "culpa": None, "sector": None}
     if _favorito(capas["real"]) != resultado:
-        return {"tipo": "azar", "culpa": None, "sector": None, **sin_duelo}
+        return {"tipo": "azar", "culpa": None, "sector": None}
     intermedia = capas.get("realPropio")
     if intermedia is None or supuesto is None:
-        return {"tipo": "informacion", "culpa": None, "sector": decisivo, **duelo}
+        return {"tipo": "informacion", "culpa": None, "sector": None}
     lo_mio = abs(intermedia[resultado] - dicho[resultado])
     lo_suyo = abs(capas["real"][resultado] - intermedia[resultado])
     culpa: Literal["propio", "rival"] = "propio" if lo_mio >= lo_suyo else "rival"
     real, antes = (propio, supuesto["propio"]) if culpa == "propio" else (rival, supuesto["rival"])
     sector = max(SECTORES, key=lambda s: abs(real[s] - float(antes.get(s, real[s]))))
-    return {"tipo": "informacion", "culpa": culpa, "sector": sector, **sin_duelo}
+    return {"tipo": "informacion", "culpa": culpa, "sector": sector}
 
 
 async def _por_debajo_de_su_media(
@@ -355,5 +381,6 @@ async def autopsia_del_partido(session: AsyncSession, team_id: int) -> dict[str,
         "capas": list(capas.values()),
         "supuestoVsReal": comparacion,
         "veredicto": veredicto(resultado, capas, real_propio, real_rival, supuesto),
+        "loQueMasPeso": lo_que_mas_peso(real_propio, real_rival, factor_propio, factor_rival, copa),
         "porDebajoDeSuMedia": await _por_debajo_de_su_media(session, team_id, partido.ht_match_id),
     }

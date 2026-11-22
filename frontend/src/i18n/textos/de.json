@@ -2437,7 +2437,6 @@
   "Vale {{v0}}. Para no perder necesitas {{v1}}.": "Er ist {{v0}} wert. Um keinen Verlust zu machen, brauchst du {{v1}}.",
   "Lo más pagado es {{v0}}. Para no perder necesitas {{v1}}.": "Das Höchste, was bezahlt wurde, sind {{v0}}. Um keinen Verlust zu machen, brauchst du {{v1}}.",
   "La puja va en {{v0}}. Para no perder necesitas {{v1}}.": "Das Gebot liegt bei {{v0}}. Um keinen Verlust zu machen, brauchst du {{v1}}.",
-  "No guardamos qué dijimos de este partido, y acabó en empate.": "Was wir zu diesem Spiel gesagt hatten, wurde nicht gespeichert, und es endete unentschieden.",
   "Salió lo que esperábamos: un empate.": "Es kam wie erwartet: ein Unentschieden.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era ganar.": "Das Unwahrscheinliche ist passiert: Mit dem, was auf dem Platz stand, war ein Sieg am wahrscheinlichsten.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era perder.": "Das Unwahrscheinliche ist passiert: Mit dem, was auf dem Platz stand, war eine Niederlage am wahrscheinlichsten.",
@@ -2477,6 +2476,6 @@
   "Veredicto:": "Fazit:",
   "No guardamos qué dijimos de este partido.": "Was wir zu diesem Spiel gesagt hatten, wurde nicht gespeichert.",
   "Salió lo que esperábamos.": "Es kam wie erwartet.",
-  "Donde más ventaja sacaste: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).": "Wo du den größten Vorteil hattest: dein Bereich {{v0}} gegen deren Bereich {{v1}} ({{v2}} – {{v3}}).",
-  "Donde más ventaja te sacó: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).": "Wo der Gegner den größten Vorteil hatte: dein Bereich {{v0}} gegen deren Bereich {{v1}} ({{v2}} – {{v3}})."
+  "Lo que más pesó a tu favor: tu {{v0}} contra su {{v1}}. Si ese duelo hubiera quedado parejo, tu probabilidad de ganar bajaba de {{v2}} a {{v3}}.": "Was dir am meisten geholfen hat: dein Bereich {{v0}} gegen deren Bereich {{v1}}. Wäre dieses Duell ausgeglichen gewesen, wäre deine Siegchance von {{v2}} auf {{v3}} gefallen.",
+  "Lo que más te frenó: tu {{v0}} contra su {{v1}}. Si ese duelo hubiera quedado parejo, subía a {{v2}}.": "Was dich am meisten gebremst hat: dein Bereich {{v0}} gegen deren Bereich {{v1}}. Wäre dieses Duell ausgeglichen gewesen, wäre sie auf {{v2}} gestiegen."
 }

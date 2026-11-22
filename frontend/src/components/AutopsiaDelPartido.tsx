@@ -63,42 +63,48 @@ const enLaFrase = (clave: string): string => {
   return i18n.language.startsWith("es") ? nombre.toLowerCase() : nombre;
 };
 
-/** El duelo que más pesó, entero: qué sector tuyo, contra cuál suyo y cómo
- *  quedó (2026-11-22, pedido del usuario: «La diferencia estuvo en: Defensa
- *  central» no se entendía). */
-function fraseDelDuelo(a: MatchAutopsy): string | null {
-  const v = a.veredicto!;
-  if (!v.sector || !v.contra || v.reparto == null) return null;
-  const datos = {
-    v0: enLaFrase(v.sector),
-    v1: enLaFrase(v.contra),
-    v2: percent(v.reparto * 100, 0),
-    v3: percent((1 - v.reparto) * 100, 0),
-  };
-  return a.resultado === "pierde"
-    ? tx(
-        "Donde más ventaja te sacó: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).",
-        datos,
-      )
-    : tx(
-        "Donde más ventaja sacaste: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).",
-        datos,
-      );
+/** Lo que más pesó a favor y lo que más frenó (2026-11-22, pedido del
+ *  usuario: «¿por qué eso es lo que más afecta?»). Sale de igualar cada
+ *  duelo y volver a pasar el motor, no del reparto más desigual. */
+function frasesDelPeso(a: MatchAutopsy): string[] {
+  const peso = a.loQueMasPeso;
+  const frases: string[] = [];
+  if (peso?.aFavor)
+    frases.push(
+      tx(
+        "Lo que más pesó a tu favor: tu {{v0}} contra su {{v1}}. Si ese duelo hubiera quedado parejo, tu probabilidad de ganar bajaba de {{v2}} a {{v3}}.",
+        {
+          v0: enLaFrase(peso.aFavor.sector),
+          v1: enLaFrase(peso.aFavor.contra),
+          v2: percent(peso.aFavor.gana * 100, 0),
+          v3: percent(peso.aFavor.igualado * 100, 0),
+        },
+      ),
+    );
+  if (peso?.enContra)
+    frases.push(
+      tx(
+        "Lo que más te frenó: tu {{v0}} contra su {{v1}}. Si ese duelo hubiera quedado parejo, subía a {{v2}}.",
+        {
+          v0: enLaFrase(peso.enContra.sector),
+          v1: enLaFrase(peso.enContra.contra),
+          v2: percent(peso.enContra.igualado * 100, 0),
+        },
+      ),
+    );
+  return frases;
 }
 
 function fraseDelVeredicto(a: MatchAutopsy): string {
   const v = a.veredicto!;
   const sector = v.sector ? nombreDelSector(v.sector) : null;
-  const duelo = fraseDelDuelo(a);
   const capa = (clave: string) => a.capas!.find((c) => c.clave === clave);
   if (v.tipo === "sinPrediccion")
-    return duelo
-      ? `${tx("No guardamos qué dijimos de este partido.")} ${duelo}`
-      : tx("No guardamos qué dijimos de este partido, y acabó en empate.");
+    return tx("No guardamos qué dijimos de este partido.");
   if (v.tipo === "esperado")
-    return duelo
-      ? `${tx("Salió lo que esperábamos.")} ${duelo}`
-      : tx("Salió lo que esperábamos: un empate.");
+    return a.resultado === "empate"
+      ? tx("Salió lo que esperábamos: un empate.")
+      : tx("Salió lo que esperábamos.");
   if (v.tipo === "azar") {
     const real = capa("real")!;
     const favorito =
@@ -144,10 +150,9 @@ function fraseDelVeredicto(a: MatchAutopsy): string {
           { v0: sector },
         );
   }
-  const base = tx(
+  return tx(
     "El partido no se jugó como suponíamos: con lo que salió al campo, lo que pasó era lo más probable.",
   );
-  return duelo ? `${base} ${duelo}` : base;
 }
 
 function etiquetaDeLaCapa(clave: CapaDeLaAutopsia["clave"]): string {
@@ -435,7 +440,7 @@ export function AutopsiaDelPartido({ parte }: { parte: LastMatchReport }) {
       <div className="space-y-5 p-4">
         <div className="rounded-lg bg-[var(--surface-2)] px-3 py-2.5 text-sm">
           <span className="font-medium">{tx("Veredicto:")}</span>{" "}
-          {fraseDelVeredicto(a)}
+          {[fraseDelVeredicto(a), ...frasesDelPeso(a)].join(" ")}
         </div>
         <QuePaso detalle={detalle.data} autopsia={a} />
         <LaPrediccion autopsia={a} />
