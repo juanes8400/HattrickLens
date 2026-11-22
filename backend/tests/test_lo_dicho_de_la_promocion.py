@@ -5,6 +5,8 @@ visitante. Si la vuelta se da mal, lo que se enseña después del partido es el
 pronóstico del rival presentado como el tuyo, y nadie lo notaría.
 """
 
+from typing import Any
+
 from app.api.v1.endpoints.rivals import _en_casa_y_fuera
 
 DE_LA_FICHA = {
@@ -41,6 +43,31 @@ def test_el_empate_viaja_siempre_con_un_numero() -> None:
     rompería la escritura en vez de guardar algo raro."""
     sin_empate = {**DE_LA_FICHA, "draw_probability": None}
     assert _en_casa_y_fuera(sin_empate, propio_en_casa=True)["draw"] == 0.0
+
+
+def test_la_copa_guarda_lo_dicho_aunque_no_tenga_sede() -> None:
+    """2026-11-22: en Copa y Masters no hay sede para el motor, y por eso lo
+    dicho no se guardaba nunca. Para guardarlo basta saber quién es local."""
+    from types import SimpleNamespace
+
+    from app.api.v1.endpoints.rivals import _local_para_guardar
+    from app.domain.value_objects.ht_constants import (
+        MATCH_TYPE_CUP,
+        MATCH_TYPE_FRIENDLY,
+        MATCH_TYPE_LEAGUE,
+        MATCH_TYPE_MASTERS,
+    )
+
+    def cruce(tipo: int, local: int) -> Any:
+        return SimpleNamespace(match_type=tipo, home_team_ht_id=local)
+
+    assert _local_para_guardar(cruce(MATCH_TYPE_CUP, 7), 7) is True
+    assert _local_para_guardar(cruce(MATCH_TYPE_CUP, 9), 7) is False
+    assert _local_para_guardar(cruce(MATCH_TYPE_MASTERS, 9), 7) is False
+    # Liga la guarda su pantalla; un amistoso no se guarda.
+    assert _local_para_guardar(cruce(MATCH_TYPE_LEAGUE, 7), 7) is None
+    assert _local_para_guardar(cruce(MATCH_TYPE_FRIENDLY, 7), 7) is None
+    assert _local_para_guardar(None, 7) is None
 
 
 def test_todos_los_oficiales_que_no_son_liga_guardan_lo_dicho() -> None:

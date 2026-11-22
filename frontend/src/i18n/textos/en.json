@@ -2437,9 +2437,7 @@
   "Vale {{v0}}. Para no perder necesitas {{v1}}.": "He is worth {{v0}}. To avoid a loss you need {{v1}}.",
   "Lo más pagado es {{v0}}. Para no perder necesitas {{v1}}.": "The most paid is {{v0}}. To avoid a loss you need {{v1}}.",
   "La puja va en {{v0}}. Para no perder necesitas {{v1}}.": "The bid stands at {{v0}}. To avoid a loss you need {{v1}}.",
-  "No guardamos qué dijimos de este partido. La diferencia estuvo en: {{v0}}.": "We didn't save what we said about this match. The difference was in: {{v0}}.",
   "No guardamos qué dijimos de este partido, y acabó en empate.": "We didn't save what we said about this match, and it ended in a draw.",
-  "Salió lo que esperábamos. La diferencia estuvo en: {{v0}}.": "It went as we expected. The difference was in: {{v0}}.",
   "Salió lo que esperábamos: un empate.": "It went as we expected: a draw.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era ganar.": "The unlikely happened: with what took the field, winning was the most likely outcome.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era perder.": "The unlikely happened: with what took the field, losing was the most likely outcome.",
@@ -2448,7 +2446,6 @@
   "Tu equipo salió más fuerte de lo que suponíamos, sobre todo en: {{v0}}.": "Your team came out stronger than we assumed, above all in: {{v0}}.",
   "El rival vino más fuerte de lo que suponíamos, sobre todo en: {{v0}}.": "The opponent came in stronger than we assumed, above all in: {{v0}}.",
   "El rival vino más flojo de lo que suponíamos, sobre todo en: {{v0}}.": "The opponent came in weaker than we assumed, above all in: {{v0}}.",
-  "El partido no se jugó como suponíamos: con lo que salió al campo, lo que pasó era lo más probable. La diferencia estuvo en: {{v0}}.": "The match wasn't played as we assumed: with what took the field, what happened was the most likely outcome. The difference was in: {{v0}}.",
   "El partido no se jugó como suponíamos: con lo que salió al campo, lo que pasó era lo más probable.": "The match wasn't played as we assumed: with what took the field, what happened was the most likely outcome.",
   "Lo que dijimos": "What we said",
   "Con lo real tuyo y lo supuesto del rival": "Your real ratings, the opponent as assumed",
@@ -2477,5 +2474,9 @@
   "En un solo partido no se puede separar «el motor se equivocó» de «mala suerte». Eso sólo se ve sumando muchos partidos.": "In a single match you can't tell «the engine got it wrong» from «bad luck». That only shows up over many matches.",
   "Autopsia del partido": "Match autopsy",
   "La autopsia necesita las valoraciones del partido, que llegan al sincronizar.": "The autopsy needs the match ratings, which arrive when you sync.",
-  "Veredicto:": "Verdict:"
+  "Veredicto:": "Verdict:",
+  "No guardamos qué dijimos de este partido.": "We didn't save what we said about this match.",
+  "Salió lo que esperábamos.": "It went as we expected.",
+  "Donde más ventaja sacaste: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).": "Where you had the biggest edge: your {{v0}} against their {{v1}} ({{v2}} – {{v3}}).",
+  "Donde más ventaja te sacó: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).": "Where they had the biggest edge over you: your {{v0}} against their {{v1}} ({{v2}} – {{v3}})."
 }

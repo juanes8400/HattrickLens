@@ -2437,9 +2437,7 @@
   "Vale {{v0}}. Para no perder necesitas {{v1}}.": "Vale {{v0}}. Per non perderci ti servono {{v1}}.",
   "Lo más pagado es {{v0}}. Para no perder necesitas {{v1}}.": "Il massimo pagato è {{v0}}. Per non perderci ti servono {{v1}}.",
   "La puja va en {{v0}}. Para no perder necesitas {{v1}}.": "L'offerta è a {{v0}}. Per non perderci ti servono {{v1}}.",
-  "No guardamos qué dijimos de este partido. La diferencia estuvo en: {{v0}}.": "Non abbiamo salvato cosa avevamo detto di questa partita. La differenza è stata in: {{v0}}.",
   "No guardamos qué dijimos de este partido, y acabó en empate.": "Non abbiamo salvato cosa avevamo detto di questa partita, ed è finita in pareggio.",
-  "Salió lo que esperábamos. La diferencia estuvo en: {{v0}}.": "È andata come ci aspettavamo. La differenza è stata in: {{v0}}.",
   "Salió lo que esperábamos: un empate.": "È andata come ci aspettavamo: un pareggio.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era ganar.": "È successo l'improbabile: con ciò che è sceso in campo, la cosa più probabile era vincere.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era perder.": "È successo l'improbabile: con ciò che è sceso in campo, la cosa più probabile era perdere.",
@@ -2448,7 +2446,6 @@
   "Tu equipo salió más fuerte de lo que suponíamos, sobre todo en: {{v0}}.": "La tua squadra è scesa in campo più forte di quanto supponevamo, soprattutto in: {{v0}}.",
   "El rival vino más fuerte de lo que suponíamos, sobre todo en: {{v0}}.": "L'avversario è arrivato più forte di quanto supponevamo, soprattutto in: {{v0}}.",
   "El rival vino más flojo de lo que suponíamos, sobre todo en: {{v0}}.": "L'avversario è arrivato più debole di quanto supponevamo, soprattutto in: {{v0}}.",
-  "El partido no se jugó como suponíamos: con lo que salió al campo, lo que pasó era lo más probable. La diferencia estuvo en: {{v0}}.": "La partita non si è giocata come supponevamo: con ciò che è sceso in campo, quello che è successo era la cosa più probabile. La differenza è stata in: {{v0}}.",
   "El partido no se jugó como suponíamos: con lo que salió al campo, lo que pasó era lo más probable.": "La partita non si è giocata come supponevamo: con ciò che è sceso in campo, quello che è successo era la cosa più probabile.",
   "Lo que dijimos": "Quello che abbiamo detto",
   "Con lo real tuyo y lo supuesto del rival": "Le tue valutazioni reali, l'avversario come supposto",
@@ -2477,5 +2474,9 @@
   "En un solo partido no se puede separar «el motor se equivocó» de «mala suerte». Eso sólo se ve sumando muchos partidos.": "In una sola partita non si può separare «il motore ha sbagliato» da «sfortuna». Si vede solo sommando molte partite.",
   "Autopsia del partido": "Autopsia della partita",
   "La autopsia necesita las valoraciones del partido, que llegan al sincronizar.": "L'autopsia ha bisogno delle valutazioni della partita, che arrivano sincronizzando.",
-  "Veredicto:": "Verdetto:"
+  "Veredicto:": "Verdetto:",
+  "No guardamos qué dijimos de este partido.": "Non abbiamo salvato cosa avevamo detto di questa partita.",
+  "Salió lo que esperábamos.": "È andata come ci aspettavamo.",
+  "Donde más ventaja sacaste: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).": "Dove hai avuto il vantaggio maggiore: il tuo settore {{v0}} contro il loro settore {{v1}} ({{v2}} – {{v3}}).",
+  "Donde más ventaja te sacó: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).": "Dove l'avversario ha avuto il vantaggio maggiore: il tuo settore {{v0}} contro il loro settore {{v1}} ({{v2}} – {{v3}})."
 }
