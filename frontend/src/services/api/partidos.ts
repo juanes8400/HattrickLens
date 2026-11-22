@@ -76,6 +76,10 @@ export interface MatchAutopsy {
     tipo: "sinPrediccion" | "esperado" | "informacion" | "azar";
     culpa: "propio" | "rival" | null;
     sector: string | null;
+    /** El sector suyo con que se cruzó `sector`, y la parte propia del
+     *  duelo (0-1). Sólo cuando `sector` es el duelo decisivo. */
+    contra: string | null;
+    reparto: number | null;
   };
   porDebajoDeSuMedia?: {
     htPlayerId: number;

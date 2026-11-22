@@ -10,6 +10,7 @@ import type {
   MatchAutopsy,
   MatchDetail,
 } from "../services/api";
+import i18n from "../i18n";
 import { terminoOficial } from "../i18n/glosario";
 import { tx } from "../i18n/tx";
 
@@ -54,22 +55,49 @@ const valoracion = (v: number) =>
 
 const conSigno = (v: number) => (v > 0 ? `+${v}` : v < 0 ? `−${-v}` : "0");
 
+/** Dentro de una frase en español el sector va en minúscula; en los demás
+ *  idiomas se deja como lo escribe el glosario (en alemán los sustantivos
+ *  van siempre en mayúscula). */
+const enLaFrase = (clave: string): string => {
+  const nombre = nombreDelSector(clave);
+  return i18n.language.startsWith("es") ? nombre.toLowerCase() : nombre;
+};
+
+/** El duelo que más pesó, entero: qué sector tuyo, contra cuál suyo y cómo
+ *  quedó (2026-11-22, pedido del usuario: «La diferencia estuvo en: Defensa
+ *  central» no se entendía). */
+function fraseDelDuelo(a: MatchAutopsy): string | null {
+  const v = a.veredicto!;
+  if (!v.sector || !v.contra || v.reparto == null) return null;
+  const datos = {
+    v0: enLaFrase(v.sector),
+    v1: enLaFrase(v.contra),
+    v2: percent(v.reparto * 100, 0),
+    v3: percent((1 - v.reparto) * 100, 0),
+  };
+  return a.resultado === "pierde"
+    ? tx(
+        "Donde más ventaja te sacó: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).",
+        datos,
+      )
+    : tx(
+        "Donde más ventaja sacaste: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).",
+        datos,
+      );
+}
+
 function fraseDelVeredicto(a: MatchAutopsy): string {
   const v = a.veredicto!;
   const sector = v.sector ? nombreDelSector(v.sector) : null;
+  const duelo = fraseDelDuelo(a);
   const capa = (clave: string) => a.capas!.find((c) => c.clave === clave);
   if (v.tipo === "sinPrediccion")
-    return sector
-      ? tx(
-          "No guardamos qué dijimos de este partido. La diferencia estuvo en: {{v0}}.",
-          { v0: sector },
-        )
+    return duelo
+      ? `${tx("No guardamos qué dijimos de este partido.")} ${duelo}`
       : tx("No guardamos qué dijimos de este partido, y acabó en empate.");
   if (v.tipo === "esperado")
-    return sector
-      ? tx("Salió lo que esperábamos. La diferencia estuvo en: {{v0}}.", {
-          v0: sector,
-        })
+    return duelo
+      ? `${tx("Salió lo que esperábamos.")} ${duelo}`
       : tx("Salió lo que esperábamos: un empate.");
   if (v.tipo === "azar") {
     const real = capa("real")!;
@@ -116,14 +144,10 @@ function fraseDelVeredicto(a: MatchAutopsy): string {
           { v0: sector },
         );
   }
-  return sector
-    ? tx(
-        "El partido no se jugó como suponíamos: con lo que salió al campo, lo que pasó era lo más probable. La diferencia estuvo en: {{v0}}.",
-        { v0: sector },
-      )
-    : tx(
-        "El partido no se jugó como suponíamos: con lo que salió al campo, lo que pasó era lo más probable.",
-      );
+  const base = tx(
+    "El partido no se jugó como suponíamos: con lo que salió al campo, lo que pasó era lo más probable.",
+  );
+  return duelo ? `${base} ${duelo}` : base;
 }
 
 function etiquetaDeLaCapa(clave: CapaDeLaAutopsia["clave"]): string {

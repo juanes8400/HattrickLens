@@ -895,6 +895,24 @@ OFICIALES_QUE_PRONOSTICA_LA_FICHA: frozenset[int] = frozenset(
 )
 
 
+def _local_para_guardar(cruce: m.Match | None, propio_ht_id: int) -> bool | None:
+    """Si lo dicho de este cruce se guarda, y desde qué lado: `True` si el
+    equipo propio figura como local, `False` si como visitante, `None` si no
+    toca guardarlo.
+
+    SIN MIRAR LA SEDE (2026-11-22, visto por el usuario en la autopsia: «No
+    guardamos qué dijimos de este partido» en un partido de Copa). Se exigía
+    `propio_en_casa`, que es la sede para el MOTOR y sólo existe en Liga y
+    Promoción: en Copa y Masters --campo neutral o desconocido-- era `None` y
+    lo dicho no se guardaba NUNCA, aunque el comentario de encima prometía lo
+    contrario desde el 2026-11-14. Para guardar no hace falta saber la sede:
+    basta con saber de qué lado del marcador va cada uno.
+    """
+    if cruce is None or cruce.match_type not in OFICIALES_QUE_PRONOSTICA_LA_FICHA:
+        return None
+    return cruce.home_team_ht_id == propio_ht_id
+
+
 def _en_casa_y_fuera(prediccion: dict[str, Any], *, propio_en_casa: bool) -> dict[str, Any]:
     """La terna de la ficha, puesta en local y visitante, que es como se guarda.
 
@@ -1496,16 +1514,12 @@ async def rival_scouting(
     # pantalla; los demás oficiales se pronostican aquí --Copa pinta esta misma
     # ficha desde el 2026-11-09-- y se tiraban sin guardar, así que después
     # del partido no había con qué comparar.
-    if (
-        prediccion is not None
-        and cruce_pendiente is not None
-        and cruce_pendiente.match_type in OFICIALES_QUE_PRONOSTICA_LA_FICHA
-        and propio_en_casa is not None
-    ):
+    local = _local_para_guardar(cruce_pendiente, team.ht_team_id)
+    if prediccion is not None and cruce_pendiente is not None and local is not None:
         await guardar_lo_dicho(
             cruce_pendiente.ht_match_id,
             team_id,
-            _en_casa_y_fuera(prediccion, propio_en_casa=propio_en_casa),
+            _en_casa_y_fuera(prediccion, propio_en_casa=local),
             "zonas",
             lo_supuesto(mias, suyas, factor_mio, factor_suyo),
         )

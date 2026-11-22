@@ -2437,9 +2437,7 @@
   "Vale {{v0}}. Para no perder necesitas {{v1}}.": "Er ist {{v0}} wert. Um keinen Verlust zu machen, brauchst du {{v1}}.",
   "Lo más pagado es {{v0}}. Para no perder necesitas {{v1}}.": "Das Höchste, was bezahlt wurde, sind {{v0}}. Um keinen Verlust zu machen, brauchst du {{v1}}.",
   "La puja va en {{v0}}. Para no perder necesitas {{v1}}.": "Das Gebot liegt bei {{v0}}. Um keinen Verlust zu machen, brauchst du {{v1}}.",
-  "No guardamos qué dijimos de este partido. La diferencia estuvo en: {{v0}}.": "Was wir zu diesem Spiel gesagt hatten, wurde nicht gespeichert. Der Unterschied lag hier: {{v0}}.",
   "No guardamos qué dijimos de este partido, y acabó en empate.": "Was wir zu diesem Spiel gesagt hatten, wurde nicht gespeichert, und es endete unentschieden.",
-  "Salió lo que esperábamos. La diferencia estuvo en: {{v0}}.": "Es kam wie erwartet. Der Unterschied lag hier: {{v0}}.",
   "Salió lo que esperábamos: un empate.": "Es kam wie erwartet: ein Unentschieden.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era ganar.": "Das Unwahrscheinliche ist passiert: Mit dem, was auf dem Platz stand, war ein Sieg am wahrscheinlichsten.",
   "Pasó lo improbable: con lo que salió al campo, lo más probable era perder.": "Das Unwahrscheinliche ist passiert: Mit dem, was auf dem Platz stand, war eine Niederlage am wahrscheinlichsten.",
@@ -2448,7 +2446,6 @@
   "Tu equipo salió más fuerte de lo que suponíamos, sobre todo en: {{v0}}.": "Deine Mannschaft war stärker als angenommen, vor allem hier: {{v0}}.",
   "El rival vino más fuerte de lo que suponíamos, sobre todo en: {{v0}}.": "Der Gegner war stärker als angenommen, vor allem hier: {{v0}}.",
   "El rival vino más flojo de lo que suponíamos, sobre todo en: {{v0}}.": "Der Gegner war schwächer als angenommen, vor allem hier: {{v0}}.",
-  "El partido no se jugó como suponíamos: con lo que salió al campo, lo que pasó era lo más probable. La diferencia estuvo en: {{v0}}.": "Das Spiel lief nicht wie angenommen: Mit dem, was auf dem Platz stand, war das Ergebnis das wahrscheinlichste. Der Unterschied lag hier: {{v0}}.",
   "El partido no se jugó como suponíamos: con lo que salió al campo, lo que pasó era lo más probable.": "Das Spiel lief nicht wie angenommen: Mit dem, was auf dem Platz stand, war das Ergebnis das wahrscheinlichste.",
   "Lo que dijimos": "Was wir gesagt haben",
   "Con lo real tuyo y lo supuesto del rival": "Deine echten Bewertungen, der Gegner wie angenommen",
@@ -2477,5 +2474,9 @@
   "En un solo partido no se puede separar «el motor se equivocó» de «mala suerte». Eso sólo se ve sumando muchos partidos.": "In einem einzigen Spiel lässt sich «das Modell lag falsch» nicht von «Pech» trennen. Das zeigt sich erst über viele Spiele.",
   "Autopsia del partido": "Spielanalyse im Detail",
   "La autopsia necesita las valoraciones del partido, que llegan al sincronizar.": "Die Analyse braucht die Bewertungen des Spiels, die beim Synchronisieren ankommen.",
-  "Veredicto:": "Fazit:"
+  "Veredicto:": "Fazit:",
+  "No guardamos qué dijimos de este partido.": "Was wir zu diesem Spiel gesagt hatten, wurde nicht gespeichert.",
+  "Salió lo que esperábamos.": "Es kam wie erwartet.",
+  "Donde más ventaja sacaste: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).": "Wo du den größten Vorteil hattest: dein Bereich {{v0}} gegen deren Bereich {{v1}} ({{v2}} – {{v3}}).",
+  "Donde más ventaja te sacó: tu {{v0}} contra su {{v1}} ({{v2}} – {{v3}}).": "Wo der Gegner den größten Vorteil hatte: dein Bereich {{v0}} gegen deren Bereich {{v1}} ({{v2}} – {{v3}})."
 }

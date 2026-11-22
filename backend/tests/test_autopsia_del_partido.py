@@ -26,7 +26,15 @@ PITIDO = datetime(2027, 3, 7, 21, 40, tzinfo=UTC)
 PARTIDO = 880_000_001
 RIVAL = 600_123
 
-SECTORES = ("midfield", "left_def", "central_def", "right_def", "left_att", "central_att", "right_att")
+SECTORES = (
+    "midfield",
+    "left_def",
+    "central_def",
+    "right_def",
+    "left_att",
+    "central_att",
+    "right_att",
+)
 
 
 def _todos(valor: float, **cambios: float) -> dict[str, float]:
@@ -128,9 +136,7 @@ def test_el_rival_vino_mas_fuerte_de_lo_supuesto() -> None:
     rival_real = _todos(50, central_def=70)
     supuesto = lo_supuesto(supuesto_propio, supuesto_rival, 1.0, 1.0)
     dicho = _capa("dicho", supuesto_propio, supuesto_rival, 1.0, 1.0, False)
-    autopsia = _autopsia(
-        rival=rival_real, dicho=_dicho_desde_el_local(dicho), supuesto=supuesto
-    )
+    autopsia = _autopsia(rival=rival_real, dicho=_dicho_desde_el_local(dicho), supuesto=supuesto)
     assert autopsia is not None
     assert autopsia["resultado"] == "pierde"
     capas = {c["clave"]: c for c in autopsia["capas"]}
@@ -141,6 +147,8 @@ def test_el_rival_vino_mas_fuerte_de_lo_supuesto() -> None:
         "tipo": "informacion",
         "culpa": "rival",
         "sector": "central_def",
+        "contra": None,
+        "reparto": None,
     }
     defensa = next(
         f
@@ -176,6 +184,8 @@ def test_sin_prediccion_queda_el_duelo_decisivo() -> None:
         "tipo": "sinPrediccion",
         "culpa": None,
         "sector": "left_att",
+        "contra": "right_def",
+        "reparto": round(70 / 110, 3),
     }
 
 

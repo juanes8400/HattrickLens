@@ -169,22 +169,34 @@ def veredicto(
     · `azar`: ni con lo real era lo más probable.
     """
     decisivo = duelo_decisivo(propio, rival, resultado)
+    # EL DUELO ENTERO (2026-11-22, pedido del usuario: «La diferencia estuvo
+    # en: Defensa central» no se entendía). Contra qué sector suyo y cómo
+    # quedó, para poder decir «tu defensa central contra su ataque central
+    # (77 % – 23 %)».
+    duelo: dict[str, Any] = {"contra": None, "reparto": None}
+    if decisivo is not None:
+        suyo = dict(DUELOS)[decisivo]
+        duelo = {
+            "contra": suyo,
+            "reparto": round(proporcion(propio[decisivo], rival[suyo]), 3),
+        }
     dicho = capas.get("dicho")
     if dicho is None:
-        return {"tipo": "sinPrediccion", "culpa": None, "sector": decisivo}
+        return {"tipo": "sinPrediccion", "culpa": None, "sector": decisivo, **duelo}
     if _favorito(dicho) == resultado:
-        return {"tipo": "esperado", "culpa": None, "sector": decisivo}
+        return {"tipo": "esperado", "culpa": None, "sector": decisivo, **duelo}
+    sin_duelo = {"contra": None, "reparto": None}
     if _favorito(capas["real"]) != resultado:
-        return {"tipo": "azar", "culpa": None, "sector": None}
+        return {"tipo": "azar", "culpa": None, "sector": None, **sin_duelo}
     intermedia = capas.get("realPropio")
     if intermedia is None or supuesto is None:
-        return {"tipo": "informacion", "culpa": None, "sector": decisivo}
+        return {"tipo": "informacion", "culpa": None, "sector": decisivo, **duelo}
     lo_mio = abs(intermedia[resultado] - dicho[resultado])
     lo_suyo = abs(capas["real"][resultado] - intermedia[resultado])
     culpa: Literal["propio", "rival"] = "propio" if lo_mio >= lo_suyo else "rival"
     real, antes = (propio, supuesto["propio"]) if culpa == "propio" else (rival, supuesto["rival"])
     sector = max(SECTORES, key=lambda s: abs(real[s] - float(antes.get(s, real[s]))))
-    return {"tipo": "informacion", "culpa": culpa, "sector": sector}
+    return {"tipo": "informacion", "culpa": culpa, "sector": sector, **sin_duelo}
 
 
 async def _por_debajo_de_su_media(
