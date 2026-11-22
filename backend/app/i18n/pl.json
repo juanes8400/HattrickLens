@@ -2074,13 +2074,13 @@
   "Ganga que se revaloriza": "Okazja zyskuje na wartości",
   "{} ya vale más que su precio de equilibrio": "{} jest teraz wart więcej niż jego cena progu rentowności",
   "{} ya vale menos que su precio de equilibrio": "{} jest teraz wart mniej niż jego cena progu rentowności",
-  "Ya se pagó por un parecido a {} más que su precio de equilibrio": "Za zawodnika podobnego do {} zapłacono więcej niż jego cena progu rentowności",
-  "Ya no se paga por un parecido a {} más que su precio de equilibrio": "Za zawodników podobnych do {} nie płaci się już więcej niż jego cena progu rentowności",
-  "Una puja por un parecido a {} supera su precio de equilibrio": "Oferta za zawodnika podobnego do {} przekracza jego cenę progu rentowności",
-  "Su precio por comparables pasó de {} a {} {} y su precio de equilibrio, de {} a {} {}.": "Jego cena według porównywalnych zmieniła się z {} na {} {}, a cena progu rentowności z {} na {} {}.",
-  "Lo máximo pagado por un parecido pasó de {} a {} {} y su precio de equilibrio, de {} a {} {}.": "Najwyższa kwota zapłacona za podobnego zawodnika zmieniła się z {} na {} {}, a cena progu rentowności z {} na {} {}.",
-  "La puja más alta abierta es de {} {}; su precio de equilibrio es {} {}.": "Najwyższa otwarta oferta to {} {}; jego cena progu rentowności to {} {}.",
   "Míralo en su Comparador de transferencias.": "Zobacz w jego Porównywarce transferów.",
   "cambios de clase": "zmiany klasy",
-  "precios comparables": "ceny według porównywalnych"
+  "precios comparables": "ceny według porównywalnych",
+  "Alguien pagó por un jugador como {} más que su precio de equilibrio": "Ktoś zapłacił za zawodnika takiego jak {} więcej, niż wynosi jego cena progu rentowności",
+  "Lo más pagado por un jugador como {} ya no llega a su precio de equilibrio": "Najwyższa kwota zapłacona za zawodnika takiego jak {} jest już niższa, niż wynosi jego cena progu rentowności",
+  "Hay una puja por un jugador como {} más alta que su precio de equilibrio": "Jest oferta za zawodnika takiego jak {} wyższa, niż wynosi jego cena progu rentowności",
+  "Vale {} {}. Para no perder necesitas {} {}.": "Jest wart {} {}. Żeby nie stracić, potrzebujesz {} {}.",
+  "Lo más pagado es {} {}. Para no perder necesitas {} {}.": "Najwyższa zapłacona kwota to {} {}. Żeby nie stracić, potrzebujesz {} {}.",
+  "La puja va en {} {}. Para no perder necesitas {} {}.": "Oferta wynosi {} {}. Żeby nie stracić, potrzebujesz {} {}."
 }
