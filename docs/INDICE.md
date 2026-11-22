@@ -60,7 +60,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1753 | 17905 | league | 13 | 72 |
 | `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1070 | 15041 | cup | 16 | 79 |
 | `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 352 | 17252 | cup, league | 18 | 83 |
-| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1633 | 23383 | rivals, dashboard | 17 | 84 |
+| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1620 | 23424 | rivals, dashboard | 17 | 84 |
 | `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1292 | 14834 | economy, precio_comparable | 11 | 38 |
 | `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3900 | arena | 3 | 12 |
 | `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 29936 | alertas | 29 | 104 |
@@ -767,8 +767,8 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/rivals/:rivalHtTeamId`
 
-- **Página:** [frontend/src/pages/RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) (1633 líneas)
-- **Componentes y hooks suyos (19):**
+- **Página:** [frontend/src/pages/RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) (1620 líneas)
+- **Componentes y hooks suyos (20):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
   - [frontend/src/components/Ayuda.tsx](../frontend/src/components/Ayuda.tsx)
@@ -788,6 +788,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)
   - [frontend/src/utils/abreviaturas.ts](../frontend/src/utils/abreviaturas.ts)
+  - [frontend/src/utils/puestoEnCancha.ts](../frontend/src/utils/puestoEnCancha.ts)
 - **Pide a `api.`:** `dashboard`, `rivalScouting`
 - **Donde se escriben esas llamadas:** [frontend/src/services/api/dashboard.ts](../frontend/src/services/api/dashboard.ts), [frontend/src/services/api/rivales.ts](../frontend/src/services/api/rivales.ts)
 - **Rutas HTTP:** `/teams/:x/dashboard`, `/teams/:x/rivals/:x/scouting`
