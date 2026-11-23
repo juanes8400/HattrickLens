@@ -47,6 +47,17 @@ def _int(node: Element, tag: str, default: int = 0) -> int:
         return default
 
 
+def _int_o_nada(node: Element, tag: str) -> int | None:
+    """Un entero que Hattrick puede no publicar: `None` si falta o no se lee."""
+    el = node.find(tag)
+    if el is None or not el.text:
+        return None
+    try:
+        return int(el.text)
+    except ValueError:
+        return None
+
+
 def _is_chpp_error(root: Element) -> bool:
     """CHPP responde HTTP 200 con un `chpperror.xml` (root `<HattrickData>`
     con `<Error>`/`<ErrorCode>`) para un `playerID` que ya no resuelve
@@ -255,6 +266,12 @@ def parse_players(xml: bytes) -> dict[str, Any]:
                 "friendlies_goals": _int(node, "FriendliesGoals"),
                 "career_goals": _int(node, "CareerGoals"),
                 "career_hattricks": _int(node, "CareerHattricks"),
+                # Partidos con el club actual, contados por Hattrick
+                # (2026-11-23, pedido del usuario: la regla del juego no deja
+                # poner en venta a un jugador más veces que partidos ha
+                # jugado). Hattrick no lo publica mientras hay un partido en
+                # juego: entonces `None`, y se conserva el último conocido.
+                "matches_current_team": _int_o_nada(node, "MatchesCurrentTeam"),
                 # CareerAssists NO está en players.xml (comprobado contra el
                 # fixture real: tras CareerHattricks salta directo a
                 # MatchesCurrentTeam), solo en playerdetails.xml, ver abajo.

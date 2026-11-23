@@ -72,6 +72,56 @@ VENTANAS_DE_COMPARACION: tuple[tuple[str, int | None], ...] = (
 MARGEN_DE_VENTANA = timedelta(days=3, hours=12)
 
 
+async def veces_en_venta_en_el_club(session: AsyncSession, player_ids: list[int]) -> dict[int, int]:
+    """Las veces que HT Lens vio a cada jugador en venta desde que llegó al club.
+
+    2026-11-23, pedido del usuario: Hattrick no deja poner en venta a un
+    jugador más veces que partidos ha jugado, y las dos cuentas van desde que
+    llegó. `Player.listing_count` suma todos sus pasos por el club, así que
+    sólo vale tal cual para quien ha estado una vez, que es casi todo el mundo
+    (y además incluye lo contado antes de que existieran los intentos). Para
+    quien se fue y volvió, sólo cuentan los intentos de su paso actual.
+    """
+    if not player_ids:
+        return {}
+    pasos = dict(
+        (
+            await session.execute(
+                select(m.PlayerStint.player_id, func.count())
+                .where(m.PlayerStint.player_id.in_(player_ids))
+                .group_by(m.PlayerStint.player_id)
+            )
+        ).all()
+    )
+    totales = dict(
+        (
+            await session.execute(
+                select(m.Player.id, m.Player.listing_count).where(m.Player.id.in_(player_ids))
+            )
+        ).all()
+    )
+    volvieron = [pid for pid in player_ids if pasos.get(pid, 0) > 1]
+    del_paso_actual: dict[int, int] = {}
+    if volvieron:
+        del_paso_actual = dict(
+            (
+                await session.execute(
+                    select(m.PlayerListingAttempt.player_id, func.count())
+                    .join(m.PlayerStint, m.PlayerStint.id == m.PlayerListingAttempt.stint_id)
+                    .where(
+                        m.PlayerListingAttempt.player_id.in_(volvieron),
+                        m.PlayerStint.left_at.is_(None),
+                    )
+                    .group_by(m.PlayerListingAttempt.player_id)
+                )
+            ).all()
+        )
+    return {
+        pid: (del_paso_actual.get(pid, 0) if pid in volvieron else int(totales.get(pid) or 0))
+        for pid in player_ids
+    }
+
+
 def cierre_de_la_ventana(history: list[SquadHistoryEntry], ventana: str) -> int | None:
     """Contra qué cierre compara una ventana, o `None` si no elige ninguno.
 
@@ -168,6 +218,7 @@ class SquadQueryService:
                 )
             ).all()
         }
+        veces_en_venta = await veces_en_venta_en_el_club(self._s, [i.id for _, i in rows])
         for snap, ident in rows:
             previous = (
                 baseline_by_player.get(snap.player_id)
@@ -282,6 +333,8 @@ class SquadQueryService:
                     last_match_played_minutes=(
                         snap.last_match_played_minutes if last_match_is_recent else None
                     ),
+                    matches_with_club=snap.matches_current_team,
+                    listings_with_club=veces_en_venta.get(ident.id, 0),
                     career_caps=snap.career_caps,
                     career_caps_u20=snap.career_caps_u20,
                     skills=skills,

@@ -29,6 +29,7 @@ import { ETAPAS_DE_CARRERA } from "../utils/etapasDeCarrera";
 import { tx } from "../i18n/tx";
 import { htAge, money, number, relative } from "../hooks/useFormat";
 import { abreviatura } from "../utils/abreviaturas";
+import { explicacionesDeLaHolgura, holgura } from "../utils/holgura";
 import type {
   ClasesDeJugador,
   JugadorDeClases,
@@ -341,6 +342,51 @@ export function TeamPage() {
           {player.isTransferListed ? t("jugadores.enVenta", "en venta") : "-"}
         </span>
       ),
+    },
+    // LA HOLGURA PARA VENDER (2026-11-23, pedido del usuario): siempre a la
+    // vista, no en el selector de columnas. Ver `utils/holgura.ts`.
+    {
+      key: "matchesWithClub",
+      header: tx("Partidos con el club"),
+      headerTitle: explicacionesDeLaHolgura().partidos,
+      value: (player) => player.matchesWithClub ?? -1,
+      render: (player) =>
+        player.matchesWithClub == null ? (
+          <span className="text-[var(--muted)]">-</span>
+        ) : (
+          number(player.matchesWithClub)
+        ),
+    },
+    {
+      key: "listingsWithClub",
+      header: tx("Veces en venta"),
+      headerTitle: explicacionesDeLaHolgura().vecesEnVenta,
+      value: (player) => player.listingsWithClub,
+      render: (player) => number(player.listingsWithClub),
+    },
+    {
+      key: "holgura",
+      header: tx("Holgura"),
+      headerTitle: explicacionesDeLaHolgura().holgura,
+      // Sin el dato de Hattrick va al final al ordenar de menor a mayor,
+      // que es como se busca a quien menos margen le queda.
+      value: (player) =>
+        holgura(player.matchesWithClub, player.listingsWithClub) ?? 9999,
+      render: (player) => {
+        const margen = holgura(player.matchesWithClub, player.listingsWithClub);
+        return margen == null ? (
+          <span className="text-[var(--muted)]">-</span>
+        ) : (
+          <span
+            className={clsx(
+              "font-semibold",
+              margen <= 0 && "text-[var(--danger)]",
+            )}
+          >
+            {number(margen)}
+          </span>
+        );
+      },
     },
     // Edad abre la banda numérica en vez de partir en dos el bloque de texto
     // de la izquierda, que era donde se producían dos de los cuatro quiebres

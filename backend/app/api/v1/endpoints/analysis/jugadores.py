@@ -405,6 +405,16 @@ async def _ficha(session: AsyncSession, team_id: int, ht_player_id: int) -> dict
                 squad_player.confirmed_career_stage_at if squad_player is not None else None
             ),
         },
+        # La holgura para vender (2026-11-23): partidos con el club según
+        # Hattrick y veces en venta vistas desde que llegó.
+        "withClub": (
+            {
+                "matches": squad_player.matches_with_club,
+                "listings": squad_player.listings_with_club,
+            }
+            if squad_player is not None
+            else None
+        ),
         "goals": (
             {
                 "league": squad_player.league_goals,

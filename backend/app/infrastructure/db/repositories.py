@@ -84,6 +84,7 @@ class SqlAlchemyPlayerRepository:
             "career_goals": snap.career_goals,
             "career_hattricks": snap.career_hattricks,
             "career_assists": snap.career_assists,
+            "matches_current_team": snap.matches_current_team,
             "player_trainer_skill_level": snap.player_trainer_skill_level,
             "player_trainer_type": snap.player_trainer_type,
             "skills": {
@@ -157,6 +158,13 @@ class SqlAlchemyPlayerRepository:
                 career_hattricks=data.get("career_hattricks", 0),
                 career_assists=data.get(
                     "career_assists", previous.career_assists if previous else 0
+                ),
+                # Hattrick no lo publica con un partido en juego: entonces se
+                # arrastra el último conocido en vez de borrarlo.
+                matches_current_team=(
+                    data["matches_current_team"]
+                    if data.get("matches_current_team") is not None
+                    else (previous.matches_current_team if previous else None)
                 ),
                 player_trainer_skill_level=data.get("player_trainer_skill_level", 0),
                 player_trainer_type=data.get("player_trainer_type", 0),

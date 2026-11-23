@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Chart } from "../charts/Chart";
 import {
@@ -36,6 +36,8 @@ import type { ActivePlayerDetail, ExPlayerDetail } from "../services/api";
 import { skillLevelLabel } from "../utils/skillLevels";
 
 import { tx } from "../i18n/tx";
+import { Ayuda } from "../components/Ayuda";
+import { explicacionesDeLaHolgura, holgura } from "../utils/holgura";
 import { SusClases } from "../components/clases/SusClases";
 import { ETAPAS_DE_CARRERA } from "../utils/etapasDeCarrera";
 import { nivelOficial, terminoOficial } from "../i18n/glosario";
@@ -687,6 +689,12 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
                           : tx("no disponible")}
                       </dd>
                     </div>
+                    {data.withClub && (
+                      <HolguraEnLaFicha
+                        partidos={data.withClub.matches}
+                        vecesEnVenta={data.withClub.listings}
+                      />
+                    )}
                     {/* Nivel 0 es magullado y SÍ puede jugar: pintarlo en rojo como
                   una baja hacía pensar que estaba descartado. Solo desde 1
                   (semanas de baja) es una lesión de verdad. */}
@@ -1182,6 +1190,51 @@ function ActivePlayerDashboard({ data }: { data: ActivePlayerDetail }) {
  * `usePlayerBalance` (el que alimenta "Detalle" en Transferencias),
  * nunca un cálculo aparte.
  */
+/** La holgura para vender (2026-11-23, pedido del usuario): los mismos tres
+ *  números que las columnas de Jugadores, cada uno con su «?». */
+function HolguraEnLaFicha({
+  partidos,
+  vecesEnVenta,
+}: {
+  partidos: number | null;
+  vecesEnVenta: number;
+}) {
+  const ayuda = explicacionesDeLaHolgura();
+  const margen = holgura(partidos, vecesEnVenta);
+  const filas: [string, string, ReactNode][] = [
+    [
+      tx("Partidos con el club"),
+      ayuda.partidos,
+      partidos == null ? tx("sin sincronizar") : number(partidos),
+    ],
+    [tx("Veces en venta"), ayuda.vecesEnVenta, number(vecesEnVenta)],
+    [
+      tx("Holgura"),
+      ayuda.holgura,
+      margen == null ? (
+        "-"
+      ) : (
+        <span className={margen <= 0 ? "text-[var(--danger)]" : undefined}>
+          {number(margen)}
+        </span>
+      ),
+    ],
+  ];
+  return (
+    <>
+      {filas.map(([etiqueta, explicacion, valor]) => (
+        <div key={etiqueta} className="relative flex justify-between gap-3">
+          <dt className="flex items-center gap-1.5 text-[var(--muted)]">
+            {etiqueta}
+            <Ayuda texto={explicacion} enLaFila />
+          </dt>
+          <dd className="font-semibold tabular-nums">{valor}</dd>
+        </div>
+      ))}
+    </>
+  );
+}
+
 function ExPlayerDashboard({ data }: { data: ExPlayerDetail }) {
   const { data: balance, isLoading, isError, error } = usePlayerBalance();
 
