@@ -166,6 +166,9 @@ def test_parse_transfersteam_real_fixture() -> None:
     data = parse_transfersteam((FIXTURES / "transfersteam.xml").read_bytes())
     transfers = data["transfers"]
     assert len(transfers) == 2
+    # 2026-11-23: sin esto, el aviso de fichajes de rivales salía con el ID
+    # del club en vez de su nombre.
+    assert data["team_name"] == "Pulgas Arrechas"
 
     buy = next(t for t in transfers if t["transfer_type"] == "B")
     assert buy["ht_player_id"] == 468921494
