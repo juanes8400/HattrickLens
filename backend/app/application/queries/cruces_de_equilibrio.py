@@ -33,7 +33,9 @@ async def _equilibrios(
 ) -> dict[int, tuple[int, str]]:
     """El precio de equilibrio de cada jugador activo en `momento`, con su
     nombre. Fuera quien todavía no era del club entonces: no tenía umbral."""
-    balance = await PlayerBalanceQueryService(session).get(team_id, a_la_fecha=momento)
+    balance = await PlayerBalanceQueryService(session).get(
+        team_id, a_la_fecha=momento, solo_activos=True
+    )
     if balance is None:
         return {}
     salida: dict[int, tuple[int, str]] = {}
@@ -62,26 +64,32 @@ async def _precios(session: AsyncSession, team_id: int, momento: datetime) -> di
     lectura hasta entonces, la misma que usa el aviso del ±5 %."""
     equipo = await session.get(m.Team, team_id)
     tasa = (equipo.currency_rate or 1.0) if equipo else 1.0
+    # Una consulta para todos, no una por jugador (2026-11-23): la última
+    # lectura de cada uno hasta `momento`.
     ultimas = (
+        select(
+            m.MarketEstimate.ht_player_id.label("pid"),
+            func.max(m.MarketEstimate.captured_at).label("cuando"),
+        )
+        .where(m.MarketEstimate.team_id == team_id, m.MarketEstimate.captured_at <= momento)
+        .group_by(m.MarketEstimate.ht_player_id)
+        .subquery()
+    )
+    filas = (
         await session.execute(
-            select(m.MarketEstimate.ht_player_id, func.max(m.MarketEstimate.captured_at))
-            .where(m.MarketEstimate.team_id == team_id, m.MarketEstimate.captured_at <= momento)
-            .group_by(m.MarketEstimate.ht_player_id)
+            select(m.MarketEstimate.ht_player_id, m.MarketEstimate.mean_price)
+            .join(
+                ultimas,
+                (m.MarketEstimate.ht_player_id == ultimas.c.pid)
+                & (m.MarketEstimate.captured_at == ultimas.c.cuando),
+            )
+            .where(m.MarketEstimate.team_id == team_id)
         )
     ).all()
     salida: dict[int, int] = {}
-    for pid, cuando in ultimas:
-        fila = (
-            await session.execute(
-                select(m.MarketEstimate.mean_price).where(
-                    m.MarketEstimate.team_id == team_id,
-                    m.MarketEstimate.ht_player_id == pid,
-                    m.MarketEstimate.captured_at == cuando,
-                )
-            )
-        ).scalar()
-        if fila is not None:
-            salida[int(pid)] = int(round(fila / tasa)) if tasa else int(fila)
+    for pid, precio in filas:
+        if precio is not None:
+            salida[int(pid)] = int(round(precio / tasa)) if tasa else int(precio)
     return salida
 
 

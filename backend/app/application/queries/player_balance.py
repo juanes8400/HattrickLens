@@ -407,6 +407,7 @@ class PlayerBalanceQueryService:
         team_id: int,
         season: str | None = None,
         a_la_fecha: datetime | None = None,
+        solo_activos: bool = False,
     ) -> PlayerBalanceResponse | None:
         """`season`: filtro general de temporadas, pedido explícitamente
         2026-08-04, `None`/"all" trae todo (comportamiento de siempre); un
@@ -420,7 +421,13 @@ class PlayerBalanceQueryService:
         `a_la_fecha`: el balance de los jugadores ACTIVOS como si fuera ese
         momento, con los sueldos cobrados hasta entonces y la comisión del
         agente de entonces. Lo usan los avisos del precio de equilibrio
-        (2026-11-21) para saber cuál era en la visita anterior."""
+        (2026-11-21) para saber cuál era en la visita anterior.
+
+        `solo_activos`: sólo los que siguen en el club (2026-11-23, pedido del
+        usuario: Novedades tardaba). Los avisos del precio de equilibrio sólo
+        miran a los activos, y calculaban el balance de los cientos que han
+        pasado por el club --sus sueldos semana a semana-- para tirarlo. Los
+        agregados de la respuesta salen entonces sólo de ellos."""
         team = await self._s.get(m.Team, team_id)
         if team is None:
             return None
@@ -447,7 +454,10 @@ class PlayerBalanceQueryService:
             (
                 await self._s.execute(
                     select(m.Player)
-                    .where(m.Player.team_id == team_id)
+                    .where(
+                        m.Player.team_id == team_id,
+                        *((m.Player.left_team_at.is_(None),) if solo_activos else ()),
+                    )
                     .options(
                         load_only(
                             m.Player.ht_player_id,
