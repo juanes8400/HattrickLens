@@ -660,6 +660,43 @@ def de_la_temporada_de_la_tabla(matches: list[Any], *, rondas_jugadas: int) -> l
     ]
 
 
+def jornadas_ya_jugadas(
+    matches: list[Any], *, rondas_jugadas: int, equipos: int
+) -> dict[int, list[Any]]:
+    """Las jornadas de ESTA temporada que ya se jugaron enteras, con sus partidos.
+
+    Para el selector de «Mejor alineación» (2026-11-23, pedido del usuario:
+    «que las fechas seleccionables sean única y exclusivamente las que ya han
+    sucedido»). Ofrecía jornadas que aún no se habían jugado: eran las de la
+    temporada pasada de la misma serie, y una jornada ya jugada mezclaba los
+    partidos de los dos años. Tres candados, y cualquiera basta:
+
+      · La temporada de la tabla, la misma regla que el resto de Liga
+        (`de_la_temporada_de_la_tabla`).
+      · Ninguna jornada por encima de las que la tabla da por jugadas.
+      · Dentro de cada jornada, sólo los partidos de su fecha más reciente.
+        Una jornada de liga se juega entera el mismo día; lo que quede a más
+        de una semana de esa fecha es otra temporada que llegó sin etiqueta.
+
+    Una jornada cuenta cuando tiene todos sus partidos (la mitad de los
+    equipos), igual que antes.
+    """
+    por_jornada: dict[int, list[Any]] = {}
+    for mt in de_la_temporada_de_la_tabla(matches, rondas_jugadas=rondas_jugadas):
+        if mt.home_goals < 0 or mt.away_goals < 0 or mt.match_round is None:
+            continue
+        if not 1 <= mt.match_round <= rondas_jugadas:
+            continue
+        por_jornada.setdefault(mt.match_round, []).append(mt)
+    completas: dict[int, list[Any]] = {}
+    for jornada, partidos in sorted(por_jornada.items()):
+        ultima = max(mt.played_at for mt in partidos)
+        de_esa_fecha = [mt for mt in partidos if (ultima - mt.played_at).days < 7]
+        if equipos and len(de_esa_fecha) >= equipos // 2:
+            completas[jornada] = de_esa_fecha
+    return completas
+
+
 class LeagueQueryService:
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
