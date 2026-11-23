@@ -387,6 +387,7 @@ HASH_FIELDS = (
     "friendlies_goals",
     "career_goals",
     "career_hattricks",
+    "matches_current_team",
     "player_trainer_skill_level",
     "player_trainer_type",
 )

@@ -58,6 +58,11 @@ export interface SquadPlayer {
   lastMatchPosition: string | null;
   lastMatchRating: number | null;
   lastMatchPlayedMinutes: number | null;
+  /** Partidos con el club según Hattrick; null hasta que una sincronización
+   *  lo lea. Ver `utils/holgura.ts`. */
+  matchesWithClub: number | null;
+  /** Veces que HT Lens lo vio en venta desde que llegó. */
+  listingsWithClub: number;
   skills: Record<string, number>;
   deltas: Record<string, number>;
   bestPosition: PositionRating;

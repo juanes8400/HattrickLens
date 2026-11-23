@@ -2479,5 +2479,12 @@
   "El rival sacó valoraciones más altas de lo que suponíamos, sobre todo en: {{v0}}.": "The opponent got higher ratings than we assumed, above all in: {{v0}}.",
   "El rival sacó valoraciones más bajas de lo que suponíamos, sobre todo en: {{v0}}.": "The opponent got lower ratings than we assumed, above all in: {{v0}}.",
   "ataca hacia aquí": "attacks this way",
-  "su portería": "their goal"
+  "su portería": "their goal",
+  "Partidos con el club": "Matches with the club",
+  "Veces en venta": "Times for sale",
+  "Holgura": "Margin",
+  "sin sincronizar": "not synced",
+  "Partidos que ha jugado con tu club desde que llegó, según Hattrick. Hattrick no deja ponerlo en venta más veces que este número.": "Matches he has played for your club since he arrived, according to Hattrick. Hattrick does not let you put him up for sale more times than this number.",
+  "Veces que HT Lens lo vio en venta desde que llegó a tu club. Depende de lo seguido que sincronices: si estuvo en venta y no sincronizaste mientras tanto, ese intento no se cuenta.": "Times HT Lens saw him for sale since he joined your club. It depends on how often you sync: if he was for sale and you did not sync in the meantime, that attempt is not counted.",
+  "Partidos con el club menos veces en venta: cuántas veces más puedes ponerlo en venta. Con 0 no puedes volver a ponerlo hasta que juegue otro partido.": "Matches with the club minus times for sale: how many more times you can put him up for sale. At 0 you cannot list him again until he plays another match."
 }

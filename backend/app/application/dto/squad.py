@@ -61,6 +61,15 @@ class SquadPlayer(Base):
     # playerdetails.xml para este jugador, distinto de 0 caps reales.
     career_caps: int | None
     career_caps_u20: int | None
+    # LA HOLGURA PARA VENDER (2026-11-23, pedido del usuario). Hattrick no deja
+    # poner en venta a un jugador más veces que partidos ha jugado, y las dos
+    # cuentas son desde que llegó al club.
+    #: Partidos con el club según Hattrick. None hasta la primera sincronización
+    #: que lo lea.
+    matches_with_club: int | None = None
+    #: Veces que HT Lens lo vio en venta desde que llegó. Depende de lo seguido
+    #: que se sincronice: un intento entre dos sincronizaciones no se ve.
+    listings_with_club: int = 0
     skills: dict[str, int]
     # HTMS: valor acumulado de las siete habilidades segun la tabla de la
     # comunidad; HTMS28, lo que tendria a los 28 entrenando sin parar. Se

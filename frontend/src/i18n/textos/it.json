@@ -2479,5 +2479,12 @@
   "El rival sacó valoraciones más altas de lo que suponíamos, sobre todo en: {{v0}}.": "L'avversario ha ottenuto valutazioni più alte di quanto supponevamo, soprattutto in: {{v0}}.",
   "El rival sacó valoraciones más bajas de lo que suponíamos, sobre todo en: {{v0}}.": "L'avversario ha ottenuto valutazioni più basse di quanto supponevamo, soprattutto in: {{v0}}.",
   "ataca hacia aquí": "attacca da questa parte",
-  "su portería": "la loro porta"
+  "su portería": "la loro porta",
+  "Partidos con el club": "Partite con il club",
+  "Veces en venta": "Volte in vendita",
+  "Holgura": "Margine",
+  "sin sincronizar": "non sincronizzato",
+  "Partidos que ha jugado con tu club desde que llegó, según Hattrick. Hattrick no deja ponerlo en venta más veces que este número.": "Partite che ha giocato con il tuo club da quando è arrivato, secondo Hattrick. Hattrick non permette di metterlo in vendita più volte di questo numero.",
+  "Veces que HT Lens lo vio en venta desde que llegó a tu club. Depende de lo seguido que sincronices: si estuvo en venta y no sincronizaste mientras tanto, ese intento no se cuenta.": "Volte in cui HT Lens lo ha visto in vendita da quando è arrivato nel tuo club. Dipende da quanto spesso sincronizzi: se è stato in vendita e nel frattempo non hai sincronizzato, quel tentativo non viene contato.",
+  "Partidos con el club menos veces en venta: cuántas veces más puedes ponerlo en venta. Con 0 no puedes volver a ponerlo hasta que juegue otro partido.": "Partite con il club meno volte in vendita: quante altre volte puoi metterlo in vendita. Con 0 non puoi rimetterlo in vendita finché non gioca un'altra partita."
 }

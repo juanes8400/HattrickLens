@@ -907,6 +907,9 @@ class PlayerSnapshot(Base):
     career_goals: Mapped[int] = mapped_column(Integer, default=0)
     career_hattricks: Mapped[int] = mapped_column(Integer, default=0)
     career_assists: Mapped[int] = mapped_column(Integer, default=0)
+    # Partidos con el club actual según Hattrick (`MatchesCurrentTeam` de
+    # players.xml, 2026-11-23). None en las fotos de antes.
+    matches_current_team: Mapped[int | None] = mapped_column(Integer)
     player_trainer_skill_level: Mapped[int] = mapped_column(Integer, default=0)
     player_trainer_type: Mapped[int] = mapped_column(Integer, default=0)
     # De playerdetails.xml (nunca llamado en el sync normal, HL-15x fase B,

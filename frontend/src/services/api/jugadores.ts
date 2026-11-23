@@ -114,6 +114,8 @@ export interface ActivePlayerDetail {
     confirmedStage: string | null;
     confirmedAt: string | null;
   };
+  /** La holgura para vender, ver `utils/holgura.ts`. */
+  withClub: { matches: number | null; listings: number } | null;
   goals: {
     league: number;
     cup: number;
