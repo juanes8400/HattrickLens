@@ -21,6 +21,7 @@ from app.application.commands.sync_team.comun import (
     _nombre_legible,
     _report,
     _tras_fallo,
+    equipos_de_tu_serie,
 )
 from app.domain.engines import caza_de_comisiones as caza
 from app.domain.ports.repositories import UnitOfWork
@@ -1215,18 +1216,9 @@ class TransferenciasMixin(BaseDeSync):
         if desde.tzinfo is None:
             desde = desde.replace(tzinfo=UTC)
 
-        vigilados: dict[int, str] = {}
-        if equipo.series_ht_id is not None:
-            filas = (
-                await uow.session.execute(
-                    select(m.Standing.team_ht_id)
-                    .where(m.Standing.series_ht_id == equipo.series_ht_id)
-                    .distinct()
-                )
-            ).all()
-            for fila in filas:
-                if fila.team_ht_id != ht_team_id:
-                    vigilados[fila.team_ht_id] = "tu liga"
+        vigilados: dict[int, str] = dict.fromkeys(
+            await equipos_de_tu_serie(uow.session, ht_team_id), "tu liga"
+        )
 
         competiciones = {
             MATCH_TYPE_CUP,
