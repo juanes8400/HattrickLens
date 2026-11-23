@@ -23,6 +23,7 @@ from app.application.queries.league import (
     LEAGUE_MATCH_TYPE,
     LeagueQueryService,
     de_la_temporada_de_la_tabla,
+    jornadas_ya_jugadas,
 )
 from app.application.queries.prediccion_liga import lecturas_de_la_serie
 from app.domain.engines.lineup_optimizer import best_formation
@@ -939,16 +940,12 @@ async def _team_of_the_week_sin_cache(
         ).scalars()
     )
 
-    # Solo cuentan jornadas TERMINADAS (todos sus partidos jugados), igual
-    # que `_history_from_matches`: una jornada a medias no es un rango
-    # comparable de "mejor alineación".
-    by_round: dict[int, list[m.Match]] = {}
-    for mt in matches:
-        if mt.match_round is not None:
-            by_round.setdefault(mt.match_round, []).append(mt)
-    complete_rounds = sorted(
-        rnd for rnd, mts in by_round.items() if teams_in_series and len(mts) >= teams_in_series // 2
+    # Solo jornadas TERMINADAS de ESTA temporada: ver `jornadas_ya_jugadas`
+    # (2026-11-23, salían las de la temporada pasada de la misma serie).
+    by_round = jornadas_ya_jugadas(
+        matches, rondas_jugadas=own_standing.match_round, equipos=teams_in_series
     )
+    complete_rounds = sorted(by_round)
 
     if scope == "week":
         target_round = (
