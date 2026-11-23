@@ -81,9 +81,9 @@ async def test_post_match_training_counts_real_forward_minutes() -> None:
     assert result["recommendation"]["recommendable"] is True
     assert result["recommendation"]["trainingType"] != 1
     scoring = next(o for o in result["options"] if o["trainingType"] == 4)
-    stamina = next(o for o in result["options"] if o["trainingType"] == 1)
     keeper = next(o for o in result["options"] if o["trainingType"] == 9)
-    assert stamina["recommendable"] is False
+    # Los que Hattrick ya retiró no salen, ni como referencia (2026-11-23).
+    assert not any(o["trainingType"] in (0, 1) for o in result["options"])
     assert scoring["equivalentMinutes"] == 90
     assert keeper["equivalentMinutes"] == 0
 
