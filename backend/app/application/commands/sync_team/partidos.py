@@ -30,6 +30,7 @@ from app.application.commands.sync_team.comun import (
     _report,
     _tras_fallo,
     aforo_del_estadio,
+    equipos_de_tu_serie,
 )
 from app.domain.engines.sync_diff import MatchState, diff_match
 from app.domain.engines.youth_arrival import cuando_cumplio_diecisiete
@@ -848,16 +849,7 @@ class PartidosMixin(BaseDeSync):
         # incluida. Un amistoso no entra, y es lo que pidió el usuario: se
         # elige a mano entre millones de equipos, así que precargarlo sería
         # adivinar contra quién vas a querer mirar.
-        rivales: set[int] = set()
-        if equipo.series_ht_id is not None:
-            filas = (
-                await uow.session.execute(
-                    select(m.Standing.team_ht_id)
-                    .where(m.Standing.series_ht_id == equipo.series_ht_id)
-                    .distinct()
-                )
-            ).all()
-            rivales.update(f.team_ht_id for f in filas if f.team_ht_id != ht_team_id)
+        rivales: set[int] = await equipos_de_tu_serie(uow.session, ht_team_id)
 
         proximos = (
             await uow.session.execute(

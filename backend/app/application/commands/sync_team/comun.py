@@ -435,6 +435,40 @@ def _sin_placeholders_de_animo(
     return limpio
 
 
+async def equipos_de_tu_serie(session: Any, ht_team_id: int) -> set[int]:
+    """Los otros equipos de tu serie ESTA temporada, sacados de tu tabla actual.
+
+    2026-11-23: los fichajes de rivales y la precarga de sus partidos pedían
+    cualquier equipo que hubiera salido alguna vez en una tabla de tu serie,
+    de todas las temporadas. Quedándote en la serie, los que ascienden o
+    descienden seguían vigilados para siempre: avisos de clubes que ya no son
+    rivales y llamadas a Hattrick de más. Ahora son los de tu última
+    clasificación, la misma tabla que enseña Liga.
+    """
+    from sqlalchemy import select
+
+    from app.infrastructure.db import models as m
+
+    propia = await session.scalar(
+        select(m.Standing)
+        .where(m.Standing.team_ht_id == ht_team_id)
+        .order_by(m.Standing.captured_at.desc(), m.Standing.match_round.desc())
+        .limit(1)
+    )
+    if propia is None:
+        return set()
+    filas = (
+        await session.execute(
+            select(m.Standing.team_ht_id).where(
+                m.Standing.series_ht_id == propia.series_ht_id,
+                m.Standing.season == propia.season,
+                m.Standing.match_round == propia.match_round,
+            )
+        )
+    ).scalars()
+    return {ht_id for ht_id in filas if ht_id != ht_team_id}
+
+
 async def trasladar_equipo_reemplazado(
     session: Any, series_ht_id: int, equipos: list[dict[str, Any]]
 ) -> int:
