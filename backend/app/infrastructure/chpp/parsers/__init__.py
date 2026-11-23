@@ -455,6 +455,11 @@ def parse_transfersteam(xml: bytes) -> dict[str, Any]:
     root = ElementTree.fromstring(xml)
     stats = root.find(".//Stats")
     transfers_node = root.find(".//Transfers")
+    # 2026-11-23: el nombre del club consultado. Los fichajes de tus rivales
+    # lo esperaban y, al no venir nunca, el aviso decía «1099103 (Liga)
+    # fichó a…» en vez del nombre. `<Team>` cuelga directamente de la raíz;
+    # `Buyer`/`Seller` tienen sus propios `BuyerTeamName`/`SellerTeamName`.
+    team = root.find("Team")
     transfers = []
     for node in root.iterfind(".//Transfer"):
         player = node.find("Player")
@@ -479,6 +484,7 @@ def parse_transfersteam(xml: bytes) -> dict[str, Any]:
             }
         )
     return {
+        "team_name": _txt(team, "TeamName", "") if team is not None else "",
         "transfers": transfers,
         "page_index": _int(transfers_node, "PageIndex") if transfers_node is not None else 1,
         "pages": _int(transfers_node, "Pages") if transfers_node is not None else 1,

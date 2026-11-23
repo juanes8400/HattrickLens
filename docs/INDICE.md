@@ -42,8 +42,8 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/cookies` | [PrivacidadPage.tsx](../frontend/src/pages/PrivacidadPage.tsx) | 202 | - | - | 0 | 0 |
 | `/apoyar` | [ApoyarPage.tsx](../frontend/src/pages/ApoyarPage.tsx) | 159 | 9111 | dashboard | 10 | 40 |
 | `/setup` | [SetupPage.tsx](../frontend/src/pages/SetupPage.tsx) | 428 | 9647 | auth_chpp, dashboard | 10 | 40 |
-| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 919 | 43385 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard, partidos | 36 | 124 |
-| `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 37883 | alertas, alineacion, league, dashboard | 33 | 113 |
+| `/dashboard` | [DashboardNuevo.tsx](../frontend/src/pages/DashboardNuevo.tsx) | 919 | 43391 | alertas, alineacion, cup, economy, league, matches, cambios, dashboard, partidos | 36 | 124 |
+| `/dashboard-anterior` | [DashboardPage.tsx](../frontend/src/pages/DashboardPage.tsx) | 622 | 37889 | alertas, alineacion, league, dashboard | 33 | 113 |
 | `/club` | [ClubPage.tsx](../frontend/src/pages/ClubPage.tsx) | 601 | 6538 | club | 5 | 10 |
 | `/overview` | [TeamOverviewPage.tsx](../frontend/src/pages/TeamOverviewPage.tsx) | 509 | 10749 | clases, resumen | 12 | 37 |
 | `/team` | [TeamPage.tsx](../frontend/src/pages/TeamPage.tsx) | 639 | 8987 | clases, plantilla | 11 | 34 |
@@ -57,13 +57,13 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1215 | libro | 0 | 1 |
 | `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4039 | 16401 | academy | 13 | 31 |
 | `/matches` | [MatchesPage.tsx](../frontend/src/pages/MatchesPage.tsx) | 748 | 9594 | matches, partidos | 5 | 23 |
-| `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1753 | 17905 | league | 13 | 72 |
-| `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1070 | 15041 | cup | 16 | 79 |
-| `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 352 | 17252 | cup, league | 18 | 83 |
-| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1620 | 23424 | rivals, dashboard | 17 | 84 |
+| `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1753 | 17911 | league | 13 | 72 |
+| `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1070 | 15047 | cup | 16 | 79 |
+| `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 352 | 17258 | cup, league | 18 | 83 |
+| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1620 | 23430 | rivals, dashboard | 17 | 84 |
 | `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1292 | 14834 | economy, precio_comparable | 11 | 38 |
 | `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3900 | arena | 3 | 12 |
-| `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 29936 | alertas | 29 | 104 |
+| `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 29942 | alertas | 29 | 104 |
 | `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 219 | 19751 | cambios, dashboard | 18 | 64 |
 | `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 884 | 23127 | clases, player_balance, cambios, partidos, plantilla | 21 | 66 |
 | `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 1022 | 16560 | entrenamiento, modelos, modelos | 14 | 34 |
@@ -1046,7 +1046,7 @@ pantalla no estorba; uno mediano que leen veintiséis, sí.
 | 13608 | 1512 | 9 | [backend/app/application/queries/economy.py](../backend/app/application/queries/economy.py) |
 | 13520 | 520 | 26 | [backend/app/domain/value_objects/ht_constants.py](../backend/app/domain/value_objects/ht_constants.py) |
 | 12958 | 589 | 22 | [backend/app/application/queries/squad.py](../backend/app/application/queries/squad.py) |
-| 12789 | 1827 | 7 | [backend/app/infrastructure/chpp/parsers/__init__.py](../backend/app/infrastructure/chpp/parsers/__init__.py) |
+| 12831 | 1833 | 7 | [backend/app/infrastructure/chpp/parsers/__init__.py](../backend/app/infrastructure/chpp/parsers/__init__.py) |
 | 12656 | 452 | 28 | [frontend/src/components/Panels.tsx](../frontend/src/components/Panels.tsx) |
 | 11760 | 1176 | 10 | [backend/app/domain/engines/prediccion.py](../backend/app/domain/engines/prediccion.py) |
 | 11496 | 1437 | 8 | [backend/app/domain/engines/criterios_hattrick.py](../backend/app/domain/engines/criterios_hattrick.py) |
