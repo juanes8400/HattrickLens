@@ -205,7 +205,10 @@ class PostMatchTrainingService:
         options = [
             self._score_training_type(type_id, players, by_player, setup, trainer_ht_id)
             for type_id in sorted(TRAINING_TARGET_SKILL)
-            if type_id != 0
+            # Ni General ni Resistencia: Hattrick ya no deja ponerlos, y salían
+            # al final de la tabla como «referencia» (2026-11-23, pedido del
+            # usuario: «eso no debe existir»).
+            if type_id not in DEPRECATED_TRAINING_TYPES
         ]
         options = [o for o in options if o["trainedSkill"] is not None]
         # POR VALOR, NO POR SUBIDAS (2026-09-13, pedido del usuario). Antes
@@ -677,8 +680,6 @@ class PostMatchTrainingService:
         ]
         if pops_soon:
             rationale.append(f"{pops_soon} posible(s) subida(s) en <= 3 semanas")
-        if training_type in DEPRECATED_TRAINING_TYPES:
-            rationale.append("tipo obsoleto: no compite y sus semanas usan un motor separado")
         return {
             "trainingType": training_type,
             "name": training_name(training_type),
