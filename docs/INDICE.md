@@ -52,7 +52,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1570 | 22641 | clases, jugadores, player_balance, precio_comparable | 20 | 59 |
 | `/positions` | [PositionsPage.tsx](../frontend/src/pages/PositionsPage.tsx) | 355 | 4477 | plantilla | 4 | 17 |
 | `/lineup` | [LineupPage.tsx](../frontend/src/pages/LineupPage.tsx) | 1019 | 9682 | alineacion, plantilla | 10 | 25 |
-| `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 2154 | 14897 | entrenamiento, jugadores, club | 11 | 43 |
+| `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 2166 | 14909 | entrenamiento, jugadores, club | 11 | 43 |
 | `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3734 | 23544 | clases, economy, player_balance, precio_comparable, jugadores, plantilla | 19 | 60 |
 | `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1235 | libro | 0 | 1 |
 | `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4039 | 16431 | academy | 13 | 31 |
@@ -525,7 +525,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/training`
 
-- **Página:** [frontend/src/pages/TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) (2154 líneas)
+- **Página:** [frontend/src/pages/TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) (2166 líneas)
 - **Componentes y hooks suyos (21):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)
