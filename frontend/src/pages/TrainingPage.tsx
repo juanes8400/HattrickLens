@@ -2048,11 +2048,23 @@ export function TrainingPage() {
                           "entrenamiento.noEntra",
                           "el entrenamiento puesto no entra en la comparación",
                         )
-                      : t(
-                          "entrenamiento.minPerdidos",
-                          "y {{min}} min equivalentes",
-                          { min: Math.abs(minutosPerdidos).toFixed(0) },
-                        )
+                      : // CON SU SIGNO (2026-11-23, visto por el usuario): lo
+                        // puesto puede repartir MÁS minutos que lo que convenía
+                        // y aun así aportar menos. Antes se quitaba el signo y
+                        // 452 minutos de más salían como una pérdida.
+                        minutosPerdidos > 0
+                        ? t(
+                            "entrenamiento.minPerdidos",
+                            "y {{min}} min equivalentes menos",
+                            { min: minutosPerdidos.toFixed(0) },
+                          )
+                        : minutosPerdidos < 0
+                          ? t(
+                              "entrenamiento.minDeMas",
+                              "aunque repartía {{min}} min equivalentes más",
+                              { min: Math.abs(minutosPerdidos).toFixed(0) },
+                            )
+                          : undefined
                 }
                 tone={
                   acerto ? "positive" : aportePerdido ? "danger" : undefined
