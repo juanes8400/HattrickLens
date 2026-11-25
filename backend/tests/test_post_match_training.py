@@ -1,5 +1,7 @@
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
 from sqlalchemy import select
@@ -287,3 +289,209 @@ async def test_el_partido_de_su_club_anterior_NO_entrena_aqui() -> None:
         team_id, now - timedelta(days=7), now + timedelta(days=1)
     )
     assert all(seg.ht_match_id != 900002 for seg in segmentos)
+
+
+def test_los_mejores_90_de_la_semana_y_nada_mas() -> None:
+    """Regla del usuario, 2026-11-25, con su ejemplo: 90 minutos de delantero
+    el miércoles y 45 de portero el domingo. Hattrick coge los mejores 90
+    minutos entrenables de la semana para cada entrenamiento: con Anotación
+    cuentan los 90 de delantero, y con Portería, los 45 de portero."""
+    service = PostMatchTrainingService(None)  # type: ignore[arg-type]
+    miercoles = replace(_fila(1, 112, 90), ht_match_id=1)
+    domingo = replace(_fila(1, 100, 45), ht_match_id=2)
+    semana = [miercoles, domingo]
+
+    assert service._exposicion(4, semana) == 1.0
+    assert service._exposicion(9, semana) == 0.5
+    # Balón parado lo reciben los dos puestos: aun así el tope es de 90.
+    assert service._exposicion(2, semana) == 1.0
+
+
+async def _sembrar_copa_y_liga(*, con_ficha_de_copa: bool) -> tuple[Any, int, list[int]]:
+    """Copa el miércoles y liga el domingo, con dos jugadores de la plantilla.
+
+    De la copa queda la alineación entera. Las fichas sólo recuerdan el último
+    partido de cada uno: la liga. Es lo que pasa cuando no se sincroniza entre
+    los dos partidos.
+    """
+    factory, team_id = await seeded_session()
+    now = datetime.now(UTC)
+    async with factory() as s:
+        team = await s.get(m.Team, team_id)
+        assert team is not None
+        jugadores = (
+            (
+                await s.execute(
+                    select(m.Player)
+                    .where(m.Player.team_id == team_id, m.Player.left_team_at.is_(None))
+                    .limit(2)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        uno, otro = jugadores
+        world = (await s.execute(select(m.WorldContext).limit(1))).scalar_one()
+        world.training_date = now + timedelta(days=1)
+        world.refreshed_at = now
+        for ht_match_id, cuando, tipo in (
+            (910001, now - timedelta(days=4), 3),
+            (910002, now - timedelta(days=1), 1),
+        ):
+            s.add(
+                m.Match(
+                    ht_match_id=ht_match_id,
+                    played_at=cuando,
+                    match_type=tipo,
+                    status="FINISHED",
+                    home_team_ht_id=team.ht_team_id,
+                    away_team_ht_id=123,
+                    home_team_name=team.name,
+                    away_team_name="Rival",
+                    home_goals=1,
+                    away_goals=0,
+                    played_lineup_json=json.dumps(
+                        [
+                            {"ht_player_id": uno.ht_player_id, "role_id": 112, "behaviour": 0},
+                            {"ht_player_id": otro.ht_player_id, "role_id": 103, "behaviour": 0},
+                        ]
+                        if tipo == 3
+                        else [
+                            {"ht_player_id": uno.ht_player_id, "role_id": 100, "behaviour": 0},
+                            {"ht_player_id": otro.ht_player_id, "role_id": 103, "behaviour": 0},
+                        ]
+                    ),
+                    # En la copa, el central se va en el 60 y no vuelve.
+                    played_events_json=json.dumps(
+                        {
+                            "cambios": (
+                                [
+                                    {
+                                        "minuto": 60,
+                                        "sale": otro.ht_player_id,
+                                        "entra": 999999999,
+                                        "nuevo_puesto": 103,
+                                        "order_type": 1,
+                                    }
+                                ]
+                                if tipo == 3
+                                else []
+                            ),
+                            "cobrador": 0,
+                        }
+                    ),
+                )
+            )
+        # La liga, en la ficha de los dos: su último partido.
+        for jugador, puesto, minutos in ((uno, 100, 45), (otro, 103, 90)):
+            s.add(
+                m.PlayerMatchRating(
+                    player_id=jugador.id,
+                    ht_match_id=910002,
+                    position_code=puesto,
+                    played_minutes=minutos,
+                    rating=6.0,
+                    captured_at=now,
+                )
+            )
+        if con_ficha_de_copa:
+            s.add(
+                m.PlayerMatchRating(
+                    player_id=uno.id,
+                    ht_match_id=910001,
+                    position_code=112,
+                    played_minutes=90,
+                    rating=7.0,
+                    captured_at=now - timedelta(days=3),
+                )
+            )
+        await s.commit()
+    return factory, team_id, [uno.ht_player_id, otro.ht_player_id]
+
+
+@pytest.mark.asyncio
+async def test_la_copa_no_se_pierde_aunque_no_se_sincronice_entre_partidos() -> None:
+    """2026-11-25, la copa del 18-nov: entre ella y la liga no hubo
+    sincronización y de once jugadores sólo uno conservaba la copa en su ficha.
+    La alineación guardada la reconstruye: el delantero de la copa cobra sus 90
+    minutos de Anotación aunque su ficha sólo diga «portero, 45»."""
+    factory, team_id, (delantero, central) = await _sembrar_copa_y_liga(con_ficha_de_copa=False)
+    now = datetime.now(UTC)
+    async with factory() as s:
+        service = PostMatchTrainingService(s)
+        segmentos, _ = await service._played_segments(
+            team_id, now - timedelta(days=7), now + timedelta(days=1)
+        )
+
+    suyos = [seg for seg in segmentos if seg.ht_player_id == delantero]
+    assert sorted((seg.ht_match_id, seg.position_code, seg.played_minutes) for seg in suyos) == [
+        (910001, 112, 90),
+        (910002, 100, 45),
+    ]
+    assert service._exposicion(4, suyos) == 1.0
+    assert service._exposicion(9, suyos) == 0.5
+    # El central se fue en el 60 de la copa: la alineación lo dice, sin ficha.
+    del_central = sorted(
+        (seg.ht_match_id, seg.played_minutes) for seg in segmentos if seg.ht_player_id == central
+    )
+    assert del_central == [(910001, 60), (910002, 90)]
+    # Y el que entró por él no es de la plantilla: no se le inventa nada.
+    assert all(seg.ht_player_id != 999999999 for seg in segmentos)
+
+
+@pytest.mark.asyncio
+async def test_con_ficha_de_copa_no_se_cuenta_dos_veces() -> None:
+    factory, team_id, (delantero, _) = await _sembrar_copa_y_liga(con_ficha_de_copa=True)
+    now = datetime.now(UTC)
+    async with factory() as s:
+        segmentos, _ = await PostMatchTrainingService(s)._played_segments(
+            team_id, now - timedelta(days=7), now + timedelta(days=1)
+        )
+    de_copa = [s for s in segmentos if s.ht_player_id == delantero and s.ht_match_id == 910001]
+    assert [(s.position_code, s.played_minutes) for s in de_copa] == [(112, 90)]
+
+
+@pytest.mark.asyncio
+async def test_la_ventana_es_un_ciclo_de_siete_dias() -> None:
+    """Domingo de liga + partido entre semana, y al corte vuelve a empezar
+    (regla del usuario, 2026-11-25). Un partido de hace siete días y medio ya
+    se entrenó en el ciclo anterior y no entra."""
+    factory, team_id = await seeded_session()
+    now = datetime.now(UTC)
+    async with factory() as s:
+        team = await s.get(m.Team, team_id)
+        assert team is not None
+        player = (
+            await s.execute(
+                select(m.Player)
+                .where(m.Player.team_id == team_id, m.Player.left_team_at.is_(None))
+                .limit(1)
+            )
+        ).scalar_one()
+        world = (await s.execute(select(m.WorldContext).limit(1))).scalar_one()
+        world.training_date = now
+        world.refreshed_at = now
+        s.add(
+            m.Match(
+                ht_match_id=920001,
+                played_at=now - timedelta(days=7, hours=12),
+                match_type=1,
+                status="FINISHED",
+                home_team_ht_id=team.ht_team_id,
+                away_team_ht_id=123,
+                home_team_name=team.name,
+                away_team_name="Rival",
+                home_goals=0,
+                away_goals=0,
+                played_lineup_json=json.dumps(
+                    [{"ht_player_id": player.ht_player_id, "role_id": 112, "behaviour": 0}]
+                ),
+                played_events_json=json.dumps({"cambios": [], "cobrador": 0}),
+            )
+        )
+        await s.commit()
+        result = await PostMatchTrainingService(s).get(team_id)
+
+    assert result is not None
+    row = next(p for p in result["players"] if p["htPlayerId"] == player.ht_player_id)
+    assert all(seg["matchId"] != 920001 for seg in row["segments"])

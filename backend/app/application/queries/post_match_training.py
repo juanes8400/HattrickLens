@@ -65,6 +65,12 @@ DEPRECATED_TRAINING_TYPES = frozenset({0, 1})
 #: completo: su cobrador de tiros libres recibe el 125 %.
 TRAINING_SET_PIECES = 2
 PESO_DEL_COBRADOR = 1.25
+#: El `source` de un jugador que salió en la alineación guardada de un partido
+#: pero cuya ficha ya no lo recuerda. Sus minutos los pone la alineación.
+FUENTE_SIN_FICHA = "matchlineup-sin-ficha"
+#: Lo que dura un ciclo de entrenamiento: del corte anterior al siguiente.
+#: Domingo de liga + partido entre semana (copa o amistoso) y vuelve a empezar.
+DIAS_DEL_CICLO = 7
 #: La etiqueta de `training.yaml`, en numero. Vive aqui porque elegir los
 #: mejores minutos obliga a COMPARAR pesos, y las etiquetas no se ordenan.
 PESOS: dict[str, float] = {"full": 1.0, "partial": 0.5, "none": 0.0}
@@ -194,7 +200,11 @@ class PostMatchTrainingService:
         )
 
         deadline = await self._training_deadline(team_id)
-        since = deadline - timedelta(days=8)
+        # UN CICLO, NO OCHO DÍAS (2026-11-25, regla del usuario): la semana de
+        # entrenamiento es el domingo de liga más el partido entre semana, y
+        # al corte vuelve a empezar. Con ocho días entraba el día anterior al
+        # corte pasado, que ya se entrenó en el ciclo anterior.
+        since = deadline - timedelta(days=DIAS_DEL_CICLO)
         segments, data_notes = await self._played_segments(team_id, since, deadline)
         by_player: dict[int, list[PlayedSegment]] = {}
         for seg in segments:
@@ -550,6 +560,13 @@ class PostMatchTrainingService:
             )
             alineaciones[ht_match_id] = (fila.played_lineup_json, fila.played_events_json)
 
+        sin_ficha, sus_alineaciones = await self._jugadores_sin_ficha(
+            team_id, propio, since, deadline, segments
+        )
+        segments.extend(sin_ficha)
+        for ht_match_id, alineacion in sus_alineaciones.items():
+            alineaciones.setdefault(ht_match_id, alineacion)
+
         segments = _repartidos_por_puesto(segments, alineaciones)
 
         notes: list[str] = []
@@ -569,6 +586,100 @@ class PostMatchTrainingService:
             "para activar esta recomendación."
         )
         return [], notes
+
+    async def _jugadores_sin_ficha(
+        self,
+        team_id: int,
+        propio: int | None,
+        since: datetime,
+        deadline: datetime,
+        ya: list[PlayedSegment],
+    ) -> tuple[list[PlayedSegment], dict[int, tuple[str | None, str | None]]]:
+        """Los que jugaron un partido de la semana que su ficha ya olvidó.
+
+        EL FALLO (2026-11-25, copa del 18-nov). La ficha de cada jugador sólo
+        guarda su ÚLTIMO partido. Si entre la copa del miércoles y la liga del
+        domingo no hubo sincronización, la ficha de la copa se pisa con la de
+        la liga y la copa desaparece de los minutos: de once jugadores quedó
+        uno. Hattrick, en cambio, entrena con los mejores 90 minutos de TODOS
+        los partidos del ciclo.
+
+        LO QUE SE HACE. La alineación de cada partido (el once y los cambios)
+        sí se guarda entera. Por cada partido de este equipo dentro del ciclo,
+        a quien aparece en ella y no trae fila de ese partido se le añade una
+        fila vacía marcada con `FUENTE_SIN_FICHA`; `_repartidos_por_puesto` la
+        convierte en sus tramos reales. Sólo jugadores que siguen en la
+        plantilla, igual que el resto de esta consulta.
+        """
+        if propio is None:
+            return [], {}
+        partidos = (
+            await self._s.execute(
+                select(
+                    m.Match.ht_match_id,
+                    m.Match.match_type,
+                    m.Match.played_at,
+                    m.Match.status,
+                    m.Match.played_lineup_json,
+                    m.Match.played_events_json,
+                ).where(
+                    (m.Match.home_team_ht_id == propio) | (m.Match.away_team_ht_id == propio),
+                    m.Match.played_lineup_json.is_not(None),
+                )
+            )
+        ).all()
+        if not partidos:
+            return [], {}
+        plantilla = {
+            fila.ht_player_id: f"{fila.first_name} {fila.last_name}"
+            for fila in (
+                await self._s.execute(
+                    select(m.Player.ht_player_id, m.Player.first_name, m.Player.last_name).where(
+                        m.Player.team_id == team_id, m.Player.left_team_at.is_(None)
+                    )
+                )
+            ).all()
+        }
+        tenidos = {(s.ht_match_id, s.ht_player_id) for s in ya}
+        nuevos: list[PlayedSegment] = []
+        alineaciones: dict[int, tuple[str | None, str | None]] = {}
+        for partido in partidos:
+            if partido.played_at is None or partido.match_type in NON_OFFICIAL_MATCH_TYPES:
+                continue
+            played_at = _aware(partido.played_at)
+            if not (since <= played_at <= deadline):
+                continue
+            if partido.status and partido.status.lower() not in {"finished", "finished_available"}:
+                continue
+            titulares, ordenes, _ = _leer_la_alineacion(
+                partido.played_lineup_json, partido.played_events_json
+            )
+            if not titulares:
+                continue
+            alineaciones[partido.ht_match_id] = (
+                partido.played_lineup_json,
+                partido.played_events_json,
+            )
+            en_el_campo = {t.ht_player_id for t in titulares} | {o.entra for o in ordenes}
+            for ht_player_id in sorted(en_el_campo):
+                if ht_player_id not in plantilla:
+                    continue
+                if (partido.ht_match_id, ht_player_id) in tenidos:
+                    continue
+                nuevos.append(
+                    PlayedSegment(
+                        ht_player_id=ht_player_id,
+                        player_name=plantilla[ht_player_id],
+                        ht_match_id=partido.ht_match_id,
+                        position_code=0,
+                        played_minutes=0,
+                        rating=None,
+                        played_at=played_at,
+                        match_type=partido.match_type,
+                        source=FUENTE_SIN_FICHA,
+                    )
+                )
+        return nuevos, alineaciones
 
     async def _fallback_last_match_segments(self, team_id: int) -> list[PlayedSegment]:
         rows = await SquadQueryService(self._s)._latest(team_id)
@@ -829,7 +940,10 @@ def _repartidos_por_puesto(
         tramos = tramos_del_partido(
             titulares,
             ordenes,
-            minutos_totales={f.ht_player_id: f.played_minutes for f in filas},
+            # Una fila sin ficha no trae total: la cierra la alineación.
+            minutos_totales={
+                f.ht_player_id: f.played_minutes for f in filas if f.source != FUENTE_SIN_FICHA
+            },
         )
         de_cada_uno: dict[int, list[Tramo]] = {}
         for tramo in tramos:
@@ -838,8 +952,10 @@ def _repartidos_por_puesto(
             suyos = de_cada_uno.get(fila.ht_player_id)
             if not suyos:
                 # No sale en el once ni en ningun cambio: no hay nada que
-                # repartir, y su fila de siempre es lo mas fiel que hay.
-                salida.append(fila)
+                # repartir, y su fila de siempre es lo mas fiel que hay. La
+                # fila sin ficha no tiene nada propio: sin tramos, no jugó.
+                if fila.source != FUENTE_SIN_FICHA:
+                    salida.append(fila)
                 continue
             es_cobrador = bool(cobrador) and fila.ht_player_id == cobrador
             salida.extend(
