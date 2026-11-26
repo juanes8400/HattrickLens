@@ -1189,5 +1189,13 @@
   "apoyo": {
     "boton": "Buy me a coffee",
     "mensaje": "Keeping this page online costs me <b>US$7 a month</b>, and I pay for it myself. If it's useful to you, support me or write to me in the guestbook: we can work together on new features."
+  },
+  "modulos": {
+    "jugadores": {
+      "tabla": "Table",
+      "clasificacion": "Classification",
+      "salario": "Wage by group",
+      "evolucion": "Evolution"
+    }
   }
 }

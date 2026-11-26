@@ -3,12 +3,14 @@
  *
  *  Es una suma, no un modelo: el salario de cada jugador, tal como lo da su
  *  ficha, repartido según la clase que ya calcula `/player-classes`. Vive en
- *  Profundidad de plantilla, en su tercera pestaña. */
+ *  Jugadores, pestaña «Salario por grupo», desde la 8.0.0 (2026-11-26); antes
+ *  era la tercera pestaña de Profundidad de plantilla. */
 import { useState } from "react";
 import { ErrorState, Loading, Panel } from "../Panels";
 import { Tabs } from "../Tabs";
 import { money, number } from "../../hooks/useFormat";
 import { usePlayerClasses } from "../../hooks/useTeam";
+import i18n from "../../i18n";
 import { tx } from "../../i18n/tx";
 import { clasificacionesElegibles } from "./filtro";
 import { Punto } from "./comun";
@@ -33,7 +35,7 @@ export function DistribucionDelSalario() {
       acciones={
         <Tabs
           modo="filtro"
-          label={tx("Clasificación")}
+          label={i18n.t("modulos.jugadores.clasificacion", "Clasificación")}
           tabs={lista.map((c) => ({ key: c.clave, label: c.nombre }))}
           active={elegida.clave}
           onChange={setClave}

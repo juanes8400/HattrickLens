@@ -14,6 +14,13 @@
 const MODULOS: [RegExp, string][] = [
   [/^\/academy/, "Juveniles"],
   [/^\/team$|^\/players\//, "Jugadores"],
+  // Desde la 8.0.0 (2026-11-26) Jugadores es un módulo con pestañas, cada una
+  // en su dirección. Cada pestaña sigue contando con el nombre de la pantalla
+  // que era, para que el historial de uso no se parta en dos al juntarlas.
+  [/^\/team\/classes/, "Clasificación de jugadores"],
+  [/^\/team\/evolution/, "Habilidades"],
+  // Era la pestaña «Distribución del salario» de Profundidad (`/skills`).
+  [/^\/team\/salary/, "Equipo"],
   // Hasta el 2026-11-18 era una pestaña de Habilidades y contaba allí.
   [/^\/classes/, "Clasificación de jugadores"],
   [/^\/skills/, "Equipo"],

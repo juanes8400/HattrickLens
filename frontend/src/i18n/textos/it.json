@@ -2478,5 +2478,10 @@
   "Partidos que ha jugado con tu club desde que llegó, según Hattrick. Hattrick no deja ponerlo en venta más veces que este número.": "Partite che ha giocato con il tuo club da quando è arrivato, secondo Hattrick. Hattrick non permette di metterlo in vendita più volte di questo numero.",
   "Veces que HT Lens lo vio en venta desde que llegó a tu club. Depende de lo seguido que sincronices: si estuvo en venta y no sincronizaste mientras tanto, ese intento no se cuenta.": "Volte in cui HT Lens lo ha visto in vendita da quando è arrivato nel tuo club. Dipende da quanto spesso sincronizzi: se è stato in vendita e nel frattempo non hai sincronizzato, quel tentativo non viene contato.",
   "Partidos con el club menos veces en venta: cuántas veces más puedes ponerlo en venta. Con 0 no puedes volver a ponerlo hasta que juegue otro partido.": "Partite con il club meno volte in vendita: quante altre volte puoi metterlo in vendita. Con 0 non puoi rimetterlo in vendita finché non gioca un'altra partita.",
-  "Top 11 TSI": "Top 11 per TSI"
+  "Top 11 TSI": "Top 11 per TSI",
+  "A qué grupo de cada clasificación se va el salario semanal de la plantilla.": "A quale gruppo di ogni classificazione va lo stipendio settimanale della rosa.",
+  "Cada jugador uno a uno, en qué grupo cae y cómo cambia la plantilla semana a semana. Cuatro pestañas: Tabla, Clasificación, Salario por grupo y Evolución.": "Ogni giocatore uno per uno, in quale gruppo rientra e come cambia la rosa settimana dopo settimana. Quattro schede: Tabella, Classificazione, Stipendio per gruppo ed Evoluzione.",
+  "Pestaña {{v0}}": "Scheda {{v0}}",
+  "A quién va el salario": "A chi va lo stipendio",
+  "El salario semanal de cada jugador, tal como lo da su ficha, sumado por grupo, con lo que pesa cada grupo sobre el total. Arriba se elige la clasificación que parte la plantilla: Rentabilidad deportiva, Titularidad, Etapa de carrera o una tuya. Es una suma, no un modelo.": "Lo stipendio settimanale di ogni giocatore, come appare nella sua scheda, sommato per gruppo, con il peso di ogni gruppo sul totale. In alto si sceglie la classificazione che divide la rosa: Rendimento sportivo, Titolarità, Fase della carriera o una tua. È una somma, non un modello."
 }

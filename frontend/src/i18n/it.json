@@ -1189,5 +1189,13 @@
   "apoyo": {
     "boton": "Offrimi un caffè",
     "mensaje": "Tenere online questa pagina mi costa <b>7 US$ al mese</b>, e li pago di tasca mia. Se ti è utile, sostienimi o scrivimi sul guestbook: possiamo lavorare insieme a nuove funzioni."
+  },
+  "modulos": {
+    "jugadores": {
+      "tabla": "Tabella",
+      "clasificacion": "Classificazione",
+      "salario": "Stipendio per gruppo",
+      "evolucion": "Evoluzione"
+    }
   }
 }

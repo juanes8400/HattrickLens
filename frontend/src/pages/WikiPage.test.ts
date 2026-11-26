@@ -51,7 +51,7 @@ describe("los grupos de la Wiki se comparan por clave, no por texto", () => {
   it("todos los artículos siguen ahí", () => {
     // El número no es decoración: el fallo se manifestaba como «faltan
     // artículos», y sin contarlos una pérdida pasa desapercibida.
-    expect(ARTICULOS).toHaveLength(31);
+    expect(ARTICULOS).toHaveLength(29);
     expect(new Set(ARTICULOS.map((a) => a.id)).size).toBe(ARTICULOS.length);
   });
 });

@@ -29,7 +29,7 @@ export function SusClases({ htPlayerId }: { htPlayerId: number }) {
       title={tx("Sus clases")}
       meta={
         <Link
-          to="/classes"
+          to="/team/classes"
           className="underline decoration-[var(--border)] underline-offset-2 hover:text-[var(--accent)]"
         >
           {tx("Ver en Clasificación de jugadores")}
