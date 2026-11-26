@@ -1,9 +1,8 @@
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import clsx from "clsx";
 import { DataTable, type Column } from "../components/DataTable";
-import { ErrorState, Loading, Panel, SinDatos } from "../components/Panels";
+import { ErrorState, Loading, SinDatos } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
 import { CountryFlag } from "../components/CountryFlag";
 import { useSquad } from "../hooks/useTeam";
@@ -103,6 +102,9 @@ const ROLE_TABS: RoleTab[] = [
     ],
   },
 ];
+
+const SELECT =
+  "rounded border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm";
 
 const SKILL_COLUMNS = [
   "playmaking",
@@ -268,9 +270,6 @@ export function PositionsPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">
-          {t("nav.posiciones", "Posiciones")}
-        </h1>
         <p className="text-sm text-[var(--muted)]">
           {t(
             "posiciones.intro",
@@ -280,48 +279,47 @@ export function PositionsPage() {
         <EnlaceATransparencia seccion="posiciones" calculo="aporte" />
       </header>
 
-      <nav
-        aria-label={t("posiciones.familias", "Familias de posición")}
-        className="flex overflow-x-auto border-b border-[var(--border)]"
-      >
-        {ROLE_TABS.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => chooseTab(tab)}
-            className={clsx(
-              "whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors",
-              tab.id === activeTab.id
-                ? "border-[var(--accent)] text-[var(--text)]"
-                : "border-transparent text-[var(--muted)] hover:text-[var(--text)]",
-            )}
+      {/* DOS DESPLEGABLES, uno al lado del otro (8.1.0, 2026-11-26, decisión
+          del usuario): eran una fila de pestañas por familia y otra de
+          botones por orden, y dentro del módulo Puestos habrían sido tres
+          filas de botones apiladas. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <label className="flex items-center gap-2">
+          <span className="text-[var(--muted)]">
+            {t("posiciones.posicion", "Posición")}
+          </span>
+          <select
+            className={SELECT}
+            value={activeTab.id}
+            onChange={(e) => {
+              const tab = ROLE_TABS.find((r) => r.id === e.target.value);
+              if (tab) chooseTab(tab);
+            }}
           >
-            {familia(tab)}
-          </button>
-        ))}
-      </nav>
-
-      <Panel
-        title={t("posiciones.ordenes", "Órdenes individuales")}
-        meta={familia(activeTab)}
-      >
-        <div className="flex flex-wrap gap-x-6 gap-y-3 p-4">
-          {activeTab.orders.map((order) => (
-            <label
-              key={order.key}
-              className="flex cursor-pointer items-center gap-2 text-sm"
-            >
-              <input
-                type="radio"
-                name="position-order"
-                checked={order.key === activeOrder.key}
-                onChange={() => setOrderKey(order.key)}
-                className="accent-[var(--accent)]"
-              />
-              {orden(order)}
-            </label>
-          ))}
-        </div>
-      </Panel>
+            {ROLE_TABS.map((tab) => (
+              <option key={tab.id} value={tab.id}>
+                {familia(tab)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-2">
+          <span className="text-[var(--muted)]">
+            {t("posiciones.ordenIndividual", "Orden individual")}
+          </span>
+          <select
+            className={SELECT}
+            value={activeOrder.key}
+            onChange={(e) => setOrderKey(e.target.value)}
+          >
+            {activeTab.orders.map((order) => (
+              <option key={order.key} value={order.key}>
+                {orden(order)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
 
       {veteranos.length > 0 && (
         <label className="flex items-center gap-2 text-sm text-[var(--muted)]">

@@ -23,6 +23,10 @@ const MODULOS: [RegExp, string][] = [
   [/^\/team\/salary/, "Equipo"],
   // Hasta el 2026-11-18 era una pestaña de Habilidades y contaba allí.
   [/^\/classes/, "Clasificación de jugadores"],
+  // Puestos (8.1.0): «Por puesto» sigue contando como Posiciones, y va antes
+  // que `/skills` a secas, que se lo comería. Mejor posición era una pestaña
+  // de `/skills` y sigue contando allí, como Profundidad.
+  [/^\/skills\/positions/, "Posiciones"],
   [/^\/skills/, "Equipo"],
   [/^\/transfers/, "Transferencias"],
   [/^\/sync/, "Sincronización"],

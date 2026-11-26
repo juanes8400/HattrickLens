@@ -494,15 +494,18 @@ export const ARTICULOS: Articulo[] = [
     ],
   },
   {
-    id: "habilidades",
+    // Un artículo por módulo desde la 8.1.0 (2026-11-26): Puestos junta lo que
+    // eran Profundidad de plantilla y Posiciones, más Mejor posición.
+    id: "puestos",
     grupo: "club",
-    titulo: tx("Equipo"),
+    titulo: tx("Puestos"),
     ruta: "/skills",
     resumen: tx(
-      "Qué tiene la plantilla habilidad por habilidad, qué hueco deja cada titular si falta y qué sector te frena frente a tu serie.",
+      "Dónde rinde cada jugador en la cancha y dónde le falta gente a la plantilla. Tres pestañas: Profundidad, Mejor posición y Por puesto.",
     ),
     secciones: [
       {
+        pestana: "profundidad",
         titulo: tx("Qué pregunta responde"),
         texto: [
           tx(
@@ -511,6 +514,7 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
       {
+        pestana: "profundidad",
         titulo: tx("Indicadores"),
         puntos: [
           tx(
@@ -526,6 +530,7 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
       {
+        pestana: "profundidad",
         titulo: tx("Mapa de la plantilla"),
         texto: [
           tx(
@@ -537,6 +542,7 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
       {
+        pestana: "profundidad",
         titulo: tx("Profundidad: la formación"),
         texto: [
           tx(
@@ -545,6 +551,7 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
       {
+        pestana: "profundidad",
         titulo: tx("Profundidad: el cálculo"),
         texto: [
           tx(
@@ -568,6 +575,7 @@ export const ARTICULOS: Articulo[] = [
         ),
       },
       {
+        pestana: "profundidad",
         titulo: tx("Profundidad: ejemplo"),
         texto: [
           tx(
@@ -579,6 +587,7 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
       {
+        pestana: "profundidad",
         titulo: tx("Cuello de botella"),
         texto: [
           tx(
@@ -593,6 +602,7 @@ export const ARTICULOS: Articulo[] = [
         ),
       },
       {
+        pestana: "profundidad",
         titulo: tx("Qué subir primero"),
         texto: [
           tx(
@@ -603,18 +613,17 @@ export const ARTICULOS: Articulo[] = [
           ),
         ],
       },
-    ],
-  },
-  {
-    id: "posiciones",
-    grupo: "club",
-    titulo: tx("Posiciones"),
-    ruta: "/positions",
-    resumen: tx(
-      "Dónde rinde cada jugador: toda la plantilla comparada en un puesto y una orden individual.",
-    ),
-    secciones: [
       {
+        pestana: "mejor",
+        titulo: tx("Qué hay en pantalla"),
+        texto: [
+          tx(
+            "Cuántos jugadores tienen cada puesto como su mejor posición, sobre la cancha y de portería a delantera: es la columna «Mejor posición» de la tabla de Jugadores, contada. Capitán y lanzador de faltas van aparte, fuera del campo. Es el reparto de hoy, no un promedio.",
+          ),
+        ],
+      },
+      {
+        pestana: "por-puesto",
         titulo: tx("Qué hay en pantalla"),
         texto: [
           tx(
@@ -623,6 +632,7 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
       {
+        pestana: "por-puesto",
         titulo: tx("Cómo se calcula el rendimiento en el puesto"),
         texto: [
           tx(
@@ -634,6 +644,7 @@ export const ARTICULOS: Articulo[] = [
         ),
       },
       {
+        pestana: "por-puesto",
         titulo: tx("Los roles especiales"),
         puntos: [
           tx(
@@ -646,6 +657,7 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
       {
+        pestana: "por-puesto",
         titulo: tx("Cómo usarlo y hasta dónde vale"),
         texto: [
           tx(

@@ -1070,7 +1070,8 @@
     "transparencia": "Przejrzystość",
     "uso": "Użycie",
     "wiki": "Wiki",
-    "clasificacion": "Klasyfikacja zawodników"
+    "clasificacion": "Klasyfikacja zawodników",
+    "puestos": "Pozycje"
   },
   "posiciones": {
     "aporteDe": "{{orden}} · wkład",
@@ -1114,7 +1115,9 @@
     },
     "ordenes": "Ustawienia indywidualne",
     "ultimoPartido": "Ostatni mecz",
-    "vacia": "Brak zawodników w kadrze."
+    "vacia": "Brak zawodników w kadrze.",
+    "posicion": "Pozycja",
+    "ordenIndividual": "Ustawienie indywidualne"
   },
   "serie": {
     "compras": "zakupy",
@@ -1196,6 +1199,11 @@
       "clasificacion": "Klasyfikacja",
       "salario": "Pensja według grup",
       "evolucion": "Ewolucja"
+    },
+    "puestos": {
+      "profundidad": "Głębokość kadry",
+      "mejor": "Najlepsza pozycja",
+      "por-puesto": "Według pozycji"
     }
   }
 }
