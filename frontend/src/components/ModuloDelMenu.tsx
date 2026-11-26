@@ -6,7 +6,8 @@
  *    salario y la evolución semanal (antes «Habilidades»). El salario y la
  *    evolución van aquí porque se parten por los grupos de las
  *    clasificaciones; decisión del usuario.
- *  - Puestos: Profundidad, Mejor posición y Posiciones («Por puesto»).
+ *  - Puestos: Posiciones, Profundidad, Cuello de botella (8.2.0) y Mejor
+ *    posición.
  *
  *  Las pestañas y sus direcciones viven en `layouts/modulos`. Las direcciones
  *  viejas (`/classes`, `/overview`, `/positions`) redirigen a su pestaña. */

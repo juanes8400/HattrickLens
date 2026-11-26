@@ -55,6 +55,8 @@ describe("a qué módulo pertenece cada ruta", () => {
       "/skills",
       "/skills/best",
       "/skills/positions",
+      "/skills/depth",
+      "/skills/bottleneck",
       "/lineup",
       "/training",
       "/academy",

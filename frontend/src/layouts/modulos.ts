@@ -28,9 +28,12 @@ export const MODULOS = {
     nombre: "Puestos",
     clave: "puestos",
     pestanas: [
-      { key: "profundidad", to: "/skills", texto: "Profundidad" },
+      // Posiciones primero y en la raíz, para que la entrada del menú abra
+      // en ella (8.2.0, 2026-11-26, pedido del usuario).
+      { key: "posiciones", to: "/skills", texto: "Posiciones" },
+      { key: "profundidad", to: "/skills/depth", texto: "Profundidad" },
+      { key: "cuello", to: "/skills/bottleneck", texto: "Cuello de botella" },
       { key: "mejor", to: "/skills/best", texto: "Mejor posición" },
-      { key: "por-puesto", to: "/skills/positions", texto: "Por puesto" },
     ],
   },
 } as const;

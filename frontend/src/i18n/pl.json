@@ -560,7 +560,7 @@
     },
     "hueco": "Największa luka",
     "huecoAyuda": "Pozycja w ustawieniu wybranym w Głębokości kadry, na której tracisz najwięcej wydajności, gdy brakuje najlepszego podstawowego zawodnika i wchodzi najlepszy z ławki.",
-    "intro": "Co kadra ma, czego jej brakuje i który wzrost opłaca się najbardziej",
+    "intro": "Co kadra ma i czego jej brakuje",
     "laUltimaOficial": "{{f}} · ostatni oficjalny",
     "leSacas": "Masz {{pct}} % przewagi",
     "lesionado": "kontuzjowany",
@@ -1201,9 +1201,10 @@
       "evolucion": "Ewolucja"
     },
     "puestos": {
+      "posiciones": "Pozycje",
       "profundidad": "Głębokość kadry",
-      "mejor": "Najlepsza pozycja",
-      "por-puesto": "Według pozycji"
+      "cuello": "Wąskie gardło",
+      "mejor": "Najlepsza pozycja"
     }
   }
 }

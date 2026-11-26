@@ -23,10 +23,11 @@ const MODULOS: [RegExp, string][] = [
   [/^\/team\/salary/, "Equipo"],
   // Hasta el 2026-11-18 era una pestaña de Habilidades y contaba allí.
   [/^\/classes/, "Clasificación de jugadores"],
-  // Puestos (8.1.0): «Por puesto» sigue contando como Posiciones, y va antes
-  // que `/skills` a secas, que se lo comería. Mejor posición era una pestaña
-  // de `/skills` y sigue contando allí, como Profundidad.
-  [/^\/skills\/positions/, "Posiciones"],
+  // Puestos. Desde la 8.2.0 la raíz `/skills` es Posiciones (antes era
+  // Profundidad) y sigue contando como Posiciones; Profundidad, Cuello de
+  // botella y Mejor posición, que vivían en `/skills`, siguen como «Equipo».
+  // Van antes que `/skills` a secas, que se los comería.
+  [/^\/skills\/?$|^\/skills\/positions/, "Posiciones"],
   [/^\/skills/, "Equipo"],
   [/^\/transfers/, "Transferencias"],
   [/^\/sync/, "Sincronización"],
