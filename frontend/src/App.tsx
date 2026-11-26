@@ -17,6 +17,7 @@ import { hasActiveTeam, useDashboard } from "./hooks/useTeam";
 import { ErrorState, Loading } from "./components/Panels";
 import { BarraDeConsentimiento } from "./components/Consentimiento";
 import { PrivacidadPage } from "./pages/PrivacidadPage";
+import { ModuloJugadores } from "./components/ModuloJugadores";
 
 /** Una pantalla que se descarga al abrirla, no al entrar en la app.
  *
@@ -46,6 +47,10 @@ const PositionsPage = diferida(
   "PositionsPage",
 );
 const SkillsPage = diferida(() => import("./pages/SkillsPage"), "SkillsPage");
+const SalarioPorGrupoPage = diferida(
+  () => import("./pages/SalarioPorGrupoPage"),
+  "SalarioPorGrupoPage",
+);
 const WikiPage = diferida(() => import("./pages/WikiPage"), "WikiPage");
 const GuiaPage = diferida(() => import("./pages/GuiaPage"), "GuiaPage");
 const LineupPage = diferida(() => import("./pages/LineupPage"), "LineupPage");
@@ -228,29 +233,59 @@ export function App() {
               </Espera>
             }
           />
-          <Route
-            path="overview"
-            element={
-              <Espera>
-                <TeamOverviewPage />
-              </Espera>
-            }
-          />
+          {/* JUGADORES, un módulo de cuatro pestañas desde la 8.0.0
+              (2026-11-26). Cada pestaña es su dirección, colgada de `/team`,
+              y el marco del módulo va FUERA de la espera: al cambiar de
+              pestaña no parpadean ni el título ni la barra. */}
           <Route
             path="team"
             element={
-              <Espera>
-                <TeamPage />
-              </Espera>
+              <ModuloJugadores activa="tabla">
+                <Espera>
+                  <TeamPage />
+                </Espera>
+              </ModuloJugadores>
             }
           />
           <Route
-            path="classes"
+            path="team/classes"
             element={
-              <Espera>
-                <ClasificacionPage />
-              </Espera>
+              <ModuloJugadores activa="clasificacion">
+                <Espera>
+                  <ClasificacionPage />
+                </Espera>
+              </ModuloJugadores>
             }
+          />
+          <Route
+            path="team/salary"
+            element={
+              <ModuloJugadores activa="salario">
+                <Espera>
+                  <SalarioPorGrupoPage />
+                </Espera>
+              </ModuloJugadores>
+            }
+          />
+          <Route
+            path="team/evolution"
+            element={
+              <ModuloJugadores activa="evolucion">
+                <Espera>
+                  <TeamOverviewPage />
+                </Espera>
+              </ModuloJugadores>
+            }
+          />
+          {/* Las direcciones de antes siguen llevando a su sitio: romper
+              marcadores por juntar pantallas, no. */}
+          <Route
+            path="classes"
+            element={<Navigate to="/team/classes" replace />}
+          />
+          <Route
+            path="overview"
+            element={<Navigate to="/team/evolution" replace />}
           />
           <Route
             path="skills"

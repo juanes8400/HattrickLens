@@ -2478,5 +2478,10 @@
   "Partidos que ha jugado con tu club desde que llegó, según Hattrick. Hattrick no deja ponerlo en venta más veces que este número.": "Mecze rozegrane dla twojego klubu od przyjścia, według Hattricka. Hattrick nie pozwala wystawić go na sprzedaż więcej razy, niż wynosi ta liczba.",
   "Veces que HT Lens lo vio en venta desde que llegó a tu club. Depende de lo seguido que sincronices: si estuvo en venta y no sincronizaste mientras tanto, ese intento no se cuenta.": "Ile razy HT Lens widział go na sprzedaż od przyjścia do twojego klubu. Zależy od tego, jak często synchronizujesz: jeśli był na sprzedaż, a w tym czasie nie synchronizowałeś, ta próba nie jest liczona.",
   "Partidos con el club menos veces en venta: cuántas veces más puedes ponerlo en venta. Con 0 no puedes volver a ponerlo hasta que juegue otro partido.": "Mecze w klubie minus razy na sprzedaż: ile jeszcze razy możesz wystawić go na sprzedaż. Przy 0 nie możesz go ponownie wystawić, dopóki nie zagra kolejnego meczu.",
-  "Top 11 TSI": "Top 11 wg TSI"
+  "Top 11 TSI": "Top 11 wg TSI",
+  "A qué grupo de cada clasificación se va el salario semanal de la plantilla.": "Do której grupy każdej klasyfikacji trafia tygodniowa pensja kadry.",
+  "Cada jugador uno a uno, en qué grupo cae y cómo cambia la plantilla semana a semana. Cuatro pestañas: Tabla, Clasificación, Salario por grupo y Evolución.": "Każdy zawodnik z osobna, do której grupy należy i jak kadra zmienia się z tygodnia na tydzień. Cztery zakładki: Tabela, Klasyfikacja, Pensja według grup i Ewolucja.",
+  "Pestaña {{v0}}": "Zakładka {{v0}}",
+  "A quién va el salario": "Do kogo trafia pensja",
+  "El salario semanal de cada jugador, tal como lo da su ficha, sumado por grupo, con lo que pesa cada grupo sobre el total. Arriba se elige la clasificación que parte la plantilla: Rentabilidad deportiva, Titularidad, Etapa de carrera o una tuya. Es una suma, no un modelo.": "Tygodniowa pensja każdego zawodnika, tak jak podaje ją jego profil, zsumowana według grup, z udziałem każdej grupy w całości. Na górze wybierasz klasyfikację, która dzieli kadrę: Opłacalność sportowa, Skład, Etap kariery albo własna. To suma, nie model."
 }

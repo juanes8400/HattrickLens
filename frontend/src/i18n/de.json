@@ -1189,5 +1189,13 @@
   "apoyo": {
     "boton": "Lad mich auf einen Kaffee ein",
     "mensaje": "Diese Seite online zu halten kostet mich <b>7 US$ im Monat</b>, und ich zahle sie selbst. Wenn sie dir nützt, unterstütze mich oder schreib mir ins Gästebuch: wir können gemeinsam an neuen Funktionen arbeiten."
+  },
+  "modulos": {
+    "jugadores": {
+      "tabla": "Tabelle",
+      "clasificacion": "Klassifizierung",
+      "salario": "Gehalt nach Gruppe",
+      "evolucion": "Entwicklung"
+    }
   }
 }

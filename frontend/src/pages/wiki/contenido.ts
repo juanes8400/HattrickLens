@@ -23,6 +23,11 @@ export type Seccion = {
   puntos?: string[];
   /** Una fórmula o una cuenta, en letra de ancho fijo. */
   formula?: string;
+  /** La pestaña del módulo que documenta, cuando el módulo tiene varias
+   *  (8.0.0): su clave en `PESTANAS` de `layouts/modulos`, bajo el `id` del
+   *  artículo. Las secciones seguidas de la misma pestaña van bajo un solo
+   *  rótulo con su nombre. */
+  pestana?: string;
 };
 
 export type Articulo = {
@@ -346,63 +351,19 @@ export const ARTICULOS: Articulo[] = [
     ],
   },
   {
-    id: "equipo",
-    grupo: "club",
-    titulo: tx("Habilidades"),
-    ruta: "/overview",
-    resumen: tx(
-      "La media de la plantilla semana a semana: si el equipo mejora, envejece o se encarece.",
-    ),
-    secciones: [
-      {
-        titulo: tx("Qué hay en pantalla"),
-        puntos: [
-          tx(
-            "Habilidades: la media de las siete habilidades de la plantilla, cada semana.",
-          ),
-          tx(
-            "Experiencia y Fidelidad, en la misma escala de 0 a 20 que las habilidades.",
-          ),
-          tx("Resistencia y Forma, en su propia escala corta (de 1 a 9)."),
-          tx(
-            "Salario medio, TSI medio, suma de TSI y salario por punto de TSI.",
-          ),
-          tx(
-            "HTMS y HTMS28 de la plantilla: lo que vale hoy y lo que valdría a los 28.",
-          ),
-          tx(
-            "La plantilla por líneas del campo: Portería, Defensa Central, Defensa Lateral, Mediocentro, Extremo y Delantero.",
-          ),
-        ],
-      },
-      {
-        titulo: tx("Salario y TSI"),
-        texto: [
-          tx(
-            "Los jugadores con TSI 0 (canteranos sin índice todavía) no cuentan en el salario por punto de TSI, pero sí en las medias.",
-          ),
-        ],
-      },
-      {
-        titulo: tx("Cómo usarlo"),
-        texto: [
-          tx(
-            "Si la suma de TSI sube pero el HTMS28 baja, estás comprando rendimiento de hoy a costa de futuro (jugadores mayores). Si el salario por punto de TSI sube semana a semana, cada punto de calidad te está costando más: es momento de revisar renovaciones y ventas.",
-          ),
-        ],
-      },
-    ],
-  },
-  {
+    // Un artículo por módulo desde la 8.0.0 (2026-11-26): Jugadores junta lo
+    // que eran Jugadores, Clasificación de jugadores y Habilidades. Cada
+    // sección dice de qué pestaña es.
     id: "jugadores",
     grupo: "club",
     titulo: tx("Jugadores"),
     ruta: "/team",
     resumen: tx(
-      "La tabla maestra de la plantilla y la ficha de cada jugador, presente y pasado.",
+      "Cada jugador uno a uno, en qué grupo cae y cómo cambia la plantilla semana a semana. Cuatro pestañas: Tabla, Clasificación, Salario por grupo y Evolución.",
     ),
     secciones: [
       {
+        pestana: "tabla",
         titulo: tx("La tabla"),
         texto: [
           tx(
@@ -414,6 +375,7 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
       {
+        pestana: "tabla",
         titulo: tx("La ficha de un jugador actual"),
         puntos: [
           tx(
@@ -436,6 +398,7 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
       {
+        pestana: "tabla",
         titulo: tx("La ficha de un ex jugador"),
         texto: [
           tx(
@@ -444,6 +407,7 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
       {
+        pestana: "tabla",
         titulo: tx("Juveniles"),
         texto: [
           tx(
@@ -451,18 +415,8 @@ export const ARTICULOS: Articulo[] = [
           ),
         ],
       },
-    ],
-  },
-  {
-    id: "clasificacion",
-    grupo: "club",
-    titulo: tx("Clasificación de jugadores"),
-    ruta: "/classes",
-    resumen: tx(
-      "La plantilla partida de cuatro formas, cada una con la gráfica que explica por qué cada jugador cae donde cae.",
-    ),
-    secciones: [
       {
+        pestana: "clasificacion",
         titulo: tx("Las pestañas"),
         puntos: [
           tx(
@@ -480,10 +434,60 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
       {
+        pestana: "clasificacion",
         titulo: tx("Cómo leerlo"),
         texto: [
           tx(
             "Ninguna clase es una recomendación: cada una dice dónde cae el jugador según una regla fija, y la decisión es tuya. Cada nombre, también los de las gráficas, abre su ficha.",
+          ),
+        ],
+      },
+      {
+        pestana: "salario",
+        titulo: tx("A quién va el salario"),
+        texto: [
+          tx(
+            "El salario semanal de cada jugador, tal como lo da su ficha, sumado por grupo, con lo que pesa cada grupo sobre el total. Arriba se elige la clasificación que parte la plantilla: Rentabilidad deportiva, Titularidad, Etapa de carrera o una tuya. Es una suma, no un modelo.",
+          ),
+        ],
+      },
+      {
+        pestana: "evolucion",
+        titulo: tx("Qué hay en pantalla"),
+        puntos: [
+          tx(
+            "Habilidades: la media de las siete habilidades de la plantilla, cada semana.",
+          ),
+          tx(
+            "Experiencia y Fidelidad, en la misma escala de 0 a 20 que las habilidades.",
+          ),
+          tx("Resistencia y Forma, en su propia escala corta (de 1 a 9)."),
+          tx(
+            "Salario medio, TSI medio, suma de TSI y salario por punto de TSI.",
+          ),
+          tx(
+            "HTMS y HTMS28 de la plantilla: lo que vale hoy y lo que valdría a los 28.",
+          ),
+          tx(
+            "La plantilla por líneas del campo: Portería, Defensa Central, Defensa Lateral, Mediocentro, Extremo y Delantero.",
+          ),
+        ],
+      },
+      {
+        pestana: "evolucion",
+        titulo: tx("Salario y TSI"),
+        texto: [
+          tx(
+            "Los jugadores con TSI 0 (canteranos sin índice todavía) no cuentan en el salario por punto de TSI, pero sí en las medias.",
+          ),
+        ],
+      },
+      {
+        pestana: "evolucion",
+        titulo: tx("Cómo usarlo"),
+        texto: [
+          tx(
+            "Si la suma de TSI sube pero el HTMS28 baja, estás comprando rendimiento de hoy a costa de futuro (jugadores mayores). Si el salario por punto de TSI sube semana a semana, cada punto de calidad te está costando más: es momento de revisar renovaciones y ventas.",
           ),
         ],
       },

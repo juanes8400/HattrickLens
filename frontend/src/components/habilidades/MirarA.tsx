@@ -3,6 +3,7 @@
  *  Habilidades con varios marcados, el dato que se compara. Sólo se marcan
  *  grupos de la clasificación activa, para que cada línea sea gente distinta. */
 import type { ReactNode } from "react";
+import i18n from "../../i18n";
 import { tx } from "../../i18n/tx";
 import { Tabs } from "../Tabs";
 import type {
@@ -93,10 +94,12 @@ export function SelectorMirarA({
 }) {
   return (
     <div className="space-y-2">
-      <Fila etiqueta={tx("Clasificación")}>
+      <Fila
+        etiqueta={i18n.t("modulos.jugadores.clasificacion", "Clasificación")}
+      >
         <Tabs<ClaveDeClasificacion>
           modo="filtro"
-          label={tx("Clasificación")}
+          label={i18n.t("modulos.jugadores.clasificacion", "Clasificación")}
           active={activa.clave}
           onChange={onClasificacion}
           tabs={clasificaciones.map((c) => ({

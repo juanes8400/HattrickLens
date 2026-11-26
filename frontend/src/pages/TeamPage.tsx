@@ -593,9 +593,6 @@ export function TeamPage() {
     <div className="space-y-4">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold">
-            {t("nav.jugadores", "Jugadores")}
-          </h1>
           <p className="text-sm text-[var(--muted)]">
             {t(
               "jugadores.intro",

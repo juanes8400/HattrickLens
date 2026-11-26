@@ -391,9 +391,6 @@ export function TeamOverviewPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">
-          {t("nav.equipo", "Habilidades")}
-        </h1>
         <p className="text-sm text-[var(--muted)]">
           {elegido
             ? tx(

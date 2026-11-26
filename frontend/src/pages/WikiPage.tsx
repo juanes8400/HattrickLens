@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { tx } from "../i18n/tx";
 import type { Articulo } from "./wiki/contenido";
 import { ARTICULOS, GRUPOS } from "./wiki/contenido";
+import { nombreDePestana } from "../layouts/modulos";
 
 /**
  * Wiki (2026-09-14, pedido del usuario): la documentación de todo Hattrick Lens,
@@ -133,8 +134,16 @@ export function WikiPage() {
                       {a.resumen}
                     </p>
                     <div className="mt-4 space-y-4">
-                      {a.secciones.map((s) => (
-                        <div key={s.titulo}>
+                      {a.secciones.map((s, i) => (
+                        <div key={`${s.pestana ?? ""}${s.titulo}`}>
+                          {s.pestana &&
+                            s.pestana !== a.secciones[i - 1]?.pestana && (
+                              <p className="mb-2 border-b border-[var(--border)] pb-1 text-xs font-semibold uppercase tracking-wide text-[var(--muted)]">
+                                {tx("Pestaña {{v0}}", {
+                                  v0: nombreDePestana(a.id, s.pestana),
+                                })}
+                              </p>
+                            )}
                           <h4 className="text-sm font-medium">{s.titulo}</h4>
                           {s.texto?.map((parrafo, i) => (
                             <p

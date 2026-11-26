@@ -15,16 +15,11 @@ export const NAV = [
   { section: "Club", clave: "seccion.club" },
   { to: "/dashboard", label: "Dashboard", clave: "dashboard" },
   { to: "/club", label: "Club y cuerpo técnico", clave: "club" },
-  { to: "/overview", label: "Habilidades", clave: "equipo" },
+  // Jugadores es un módulo de cuatro pestañas desde la 8.0.0 (2026-11-26):
+  // Tabla, Clasificación, Salario por grupo y Evolución. Habilidades y
+  // Clasificación de jugadores dejaron de ser entradas propias; ver
+  // `components/ModuloJugadores`.
   { to: "/team", label: "Jugadores", clave: "jugadores" },
-  // Su propio módulo desde el 2026-11-18 (antes, una pestaña de Habilidades).
-  // Justo debajo de Jugadores, por decisión del usuario: clasificar es mirar
-  // la plantilla.
-  {
-    to: "/classes",
-    label: "Clasificación de jugadores",
-    clave: "clasificacion",
-  },
   // «Equipo» no decía lo que hay dentro: profundidad por puesto, hueco más
   // serio, mejor cubierto y el sector cuello de botella. Y chocaba con
   // «Jugadores» y «Club» sin que ninguno explicara la diferencia

@@ -3,18 +3,17 @@
  *  Antes era una pestaña de Habilidades. El usuario la quiso con entrada
  *  propia en el menú, en «Club» y justo debajo de Jugadores, y que dejara de
  *  estar en Habilidades («una pantalla, un sitio»). Lo que se ve dentro no
- *  cambia: las mismas cuatro pestañas de `components/clases`. */
+ *  cambia: las mismas cuatro pestañas de `components/clases`.
+ *
+ *  Desde la 8.0.0 (2026-11-26) es la pestaña «Clasificación» del módulo
+ *  Jugadores, en `/team/classes`: el título lo pone el módulo. */
 import { ClasesDeJugador } from "../components/clases/ClasesDeJugador";
 import { tx } from "../i18n/tx";
-import { nombreNav } from "../layouts/navegacion";
 
 export function ClasificacionPage() {
   return (
     <div className="space-y-4">
       <header>
-        <h1 className="text-xl font-semibold">
-          {nombreNav("Clasificación de jugadores", "clasificacion")}
-        </h1>
         <p className="text-sm text-[var(--muted)]">
           {tx(
             "Cuatro formas de partir la plantilla: quién juega, quién rinde lo que cobra, en qué momento de su carrera está cada uno y los grupos que tú decidas.",

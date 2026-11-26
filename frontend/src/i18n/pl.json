@@ -1189,5 +1189,13 @@
   "transparencia": {
     "enlace": "jak to jest liczone",
     "enlaceTitle": "Zobacz w Przejrzystości, jak to jest liczone"
+  },
+  "modulos": {
+    "jugadores": {
+      "tabla": "Tabela",
+      "clasificacion": "Klasyfikacja",
+      "salario": "Pensja według grup",
+      "evolucion": "Ewolucja"
+    }
   }
 }
