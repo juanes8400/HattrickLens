@@ -15,7 +15,6 @@ import {
   ErrorState,
   Kpi,
   Loading,
-  Note,
   Panel,
   ProjectionPanel,
 } from "../components/Panels";
@@ -519,26 +518,21 @@ export function RivalPage() {
           hasta el 2026-09-09. Los dos comen de los mismos dos selectores
           --«Tu fuente» y «Fuente rival»-- así que ponerlos separados dejaba a
           quien tocaba un botón sin ver que el otro panel también se movía. */}
-      <ProjectionPanel
-        title={
-          data.prediction
-            ? tx("Pronóstico contra {{v0}}", { v0: data.rivalName })
-            : tx("Proyección de victoria por TSI")
-        }
-        meta={
-          data.prediction
-            ? tx("{{v0}} contra {{v1}}", {
-                v0:
-                  ETIQUETA_DE_METODO[data.prediction.metodoPropio] ??
-                  data.prediction.metodoPropio,
-                v1:
-                  ETIQUETA_DE_METODO[data.prediction.metodoRival] ??
-                  data.prediction.metodoRival,
-              })
-            : tx("modelo simple por TSI, no calibrado")
-        }
-      >
-        {data.prediction ? (
+      {/* Sin los duelos que el modelo necesita no hay pronóstico, y el panel
+          no se pinta: la proyección por TSI que lo sustituía se retiró el
+          2026-11-25. */}
+      {data.prediction && (
+        <ProjectionPanel
+          title={tx("Pronóstico contra {{v0}}", { v0: data.rivalName })}
+          meta={tx("{{v0}} contra {{v1}}", {
+            v0:
+              ETIQUETA_DE_METODO[data.prediction.metodoPropio] ??
+              data.prediction.metodoPropio,
+            v1:
+              ETIQUETA_DE_METODO[data.prediction.metodoRival] ??
+              data.prediction.metodoRival,
+          })}
+        >
           <div className="space-y-3 p-4">
             <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
               <span>
@@ -577,38 +571,8 @@ export function RivalPage() {
               </p>
             )}
           </div>
-        ) : (
-          <div className="p-4">
-            <div className="flex items-center gap-4">
-              <div className="text-3xl font-semibold tabular-nums text-[var(--accent)]">
-                {(data.winProbability.ownProbability * 100).toFixed(0)}%
-              </div>
-              <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--surface-2)]">
-                <div
-                  className="h-full bg-[var(--accent)]"
-                  style={{
-                    width: `${data.winProbability.ownProbability * 100}%`,
-                  }}
-                />
-              </div>
-            </div>
-            <Note>
-              {tx(
-                "Con lo que hay marcado arriba no salen los nueve duelos que el modelo necesita, así que esto es el modelo por TSI.",
-              )}{" "}
-              {data.comparisonReference.ownSource === "submitted_orders"
-                ? tx("Tu alineación enviada")
-                : tx("Tus 11 probables")}{" "}
-              ({number(data.winProbability.ownTsiTotal)} {tx("TSI) contra")}{" "}
-              {data.comparisonReference.rivalSource ===
-              "probable_recent_starters"
-                ? tx("el once probable del rival")
-                : tx("los 11 de mayor TSI del rival")}{" "}
-              ({number(data.winProbability.rivalTsiTotal)}).
-            </Note>
-          </div>
-        )}
-      </ProjectionPanel>
+        </ProjectionPanel>
+      )}
 
       {data.tacticHistory && (
         <Panel

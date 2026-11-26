@@ -78,7 +78,6 @@ from app.domain.engines.rival_scouting import (
     analyse_defense_rotation,
     analyse_side_rotation,
     es_puesto_de_campo,
-    estimate_win_probability,
     lecturas_completas,
     objetivo_partido_a_partido,
     pitch_zone_duels,
@@ -1391,14 +1390,6 @@ async def rival_scouting(
         for row in rival_probable_rows
         if int(row["ht_player_id"]) in rival_by_id
     ]
-    # La referencia de la proyección por TSI: con órdenes enviadas para ESTE
-    # rival, tu once real contra su once probable; sin ellas, las plantillas.
-    reference_own_players = submitted_own_players or own_players
-    reference_rival_players = (
-        rival_probable_players
-        if submitted_own_players and rival_probable_players
-        else rival_players_raw
-    )
     # Las barras de comparación (TSI, forma, resistencia, experiencia) miden
     # SIEMPRE el top 11 por TSI de cada lado, haya órdenes o no (pedido del
     # 2026-11-25): antes comparaban el once enviado con órdenes y la plantilla
@@ -1433,27 +1424,6 @@ async def rival_scouting(
         for p in rival_players_for_tsi
     ]
     histogram = tsi_kde_comparison(own_for_tsi, rival_for_tsi, log_transform=log_tsi)
-
-    # HL-144: PROYECCIÓN, no un hecho, siempre sobre los 11 probables de cada
-    # lado (independiente del toggle `top11`, que solo afecta al histograma),
-    # para no comparar bancas completas de tamaño distinto.
-    if submitted_own_players:
-        own_best11_tsi = sum(p["tsi"] for p in submitted_own_players)
-        rival_best11_tsi = sum(p["tsi"] for p in rival_probable_players)
-    else:
-        try:
-            own_best11_ids = {
-                a.player["ht_player_id"] for a in best_formation(own_players)[0].assignments
-            }
-            own_best11_tsi = sum(
-                p["tsi"] for p in own_players if p["ht_player_id"] in own_best11_ids
-            )
-        except ValueError:
-            own_best11_tsi = sum(p["tsi"] for p in own_players)
-        rival_best11_tsi = sum(
-            p["tsi"] for p in sorted(rival_players_raw, key=lambda p: -p["tsi"])[:11]
-        )
-    win_probability = estimate_win_probability(own_best11_tsi, rival_best11_tsi)
 
     # El cruce pendiente, resuelto arriba, solo decide DOS cosas: si es de
     # copa --allí no hay empate-- y si de verdad hay algo pendiente o el
@@ -1712,24 +1682,6 @@ async def rival_scouting(
                     "own": _with_last_position(ultima_compra_propia, own_position_by_id),
                     "rival": _with_last_position(ultima_compra_rival, rival_position_by_id),
                 },
-                "comparison_reference": {
-                    "own_source": ("submitted_orders" if submitted_own_players else "full_roster"),
-                    "own_label": (
-                        f"Alineación enviada · partido {submitted_match.ht_match_id}"
-                        if submitted_own_players and submitted_match
-                        else "Plantilla actual"
-                    ),
-                    "own_players": len(reference_own_players),
-                    "rival_source": (
-                        "probable_recent_starters" if submitted_own_players else "full_roster"
-                    ),
-                    "rival_label": (
-                        "Once probable · recurrencia reciente"
-                        if submitted_own_players
-                        else "Plantilla pública actual"
-                    ),
-                    "rival_players": len(reference_rival_players),
-                },
                 "tsi_histogram": {
                     "grid": histogram.grid,
                     "own_density": histogram.own_density,
@@ -1765,12 +1717,6 @@ async def rival_scouting(
                     ],
                 },
                 "prediction": prediccion,
-                "win_probability": {
-                    "own_probability": win_probability.own_probability,
-                    "own_tsi_total": win_probability.own_tsi_total,
-                    "rival_tsi_total": win_probability.rival_tsi_total,
-                    "confidence": win_probability.confidence,
-                },
                 "side_rotation": None
                 if rotation is None
                 else {

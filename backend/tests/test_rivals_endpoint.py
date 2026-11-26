@@ -352,14 +352,9 @@ def test_scouting_returns_real_tsi_and_real_lineup_names(
     assert body["defenseRotation"]["matchesAnalysed"] == len(por_partido)
     assert body["defenseRotation"]["weakSide"] in {"izquierda", "centro", "derecha"}
 
-    # HL-144: proyección explícita, separada de los hechos de arriba.
-    wp = body["winProbability"]
-    assert 0.0 <= wp["ownProbability"] <= 1.0
-    assert wp["ownTsiTotal"] > 0
-    assert wp["rivalTsiTotal"] == sum(
-        sorted((p["tsi"] for p in RIVAL_PLAYERS["players"]), reverse=True)[:11]
-    )
-    assert "baja" in wp["confidence"]
+    # La proyección por TSI se retiró (2026-11-25): no queda rastro en la respuesta.
+    assert "winProbability" not in body
+    assert "comparisonReference" not in body
 
 
 def test_submitted_orders_drive_general_comparison_and_pitch_prediction(
@@ -431,14 +426,6 @@ def test_submitted_orders_drive_general_comparison_and_pitch_prediction(
 
     assert resp.status_code == 200
     body = resp.json()
-    assert body["comparisonReference"] == {
-        "ownSource": "submitted_orders",
-        "ownLabel": "Alineación enviada · partido 900000001",
-        "ownPlayers": 11,
-        "rivalSource": "probable_recent_starters",
-        "rivalLabel": "Once probable · recurrencia reciente",
-        "rivalPlayers": 11,
-    }
     assert body["pitchZoneSources"]["own"]["kind"] == "submitted_chpp_prediction"
     assert body["pitchZoneSources"]["own"]["tacticSkill"] == 19
     assert body["pitchZoneSources"]["rival"]["kind"] == "historical_observed"
@@ -482,7 +469,6 @@ def test_sin_ordenes_las_barras_tambien_son_el_top_11_por_tsi(
     with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: FakeCHPP()):
         body = client.get(f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting").json()
 
-    assert body["comparisonReference"]["ownSource"] == "full_roster"
     plantilla = body["tsiHistogram"]["ownValues"]
     assert len(plantilla) > 11
     top_propio = sorted(plantilla, reverse=True)[:11]

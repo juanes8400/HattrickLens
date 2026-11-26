@@ -97,14 +97,6 @@ export interface RivalScouting {
      * managercompendium.xml. Cero significa que el manager entró hoy. */
     lastLoginDays: { own: number | null; rival: number | null };
   };
-  comparisonReference: {
-    ownSource: "submitted_orders" | "full_roster";
-    ownLabel: string;
-    ownPlayers: number;
-    rivalSource: "probable_recent_starters" | "full_roster";
-    rivalLabel: string;
-    rivalPlayers: number;
-  };
   tsiHistogram: {
     grid: number[];
     ownDensity: number[];
@@ -225,12 +217,6 @@ export interface RivalScouting {
     ownMatches: number;
     rivalMatches: number;
   } | null;
-  winProbability: {
-    ownProbability: number;
-    ownTsiTotal: number;
-    rivalTsiTotal: number;
-    confidence: string;
-  };
   /** Táctica, nivel de táctica y formación, los tres son públicos para
    * cualquier equipo (verificado en vivo). La actitud (TeamAttitude) queda
    * fuera a propósito: CHPP nunca la incluye para un equipo que no es el

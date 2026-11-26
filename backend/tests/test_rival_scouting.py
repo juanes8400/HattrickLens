@@ -6,7 +6,6 @@ from app.domain.engines.rival_scouting import (
     analyse_defense_rotation,
     analyse_side_rotation,
     es_puesto_de_campo,
-    estimate_win_probability,
     gaussian_kde,
     objetivo_partido_a_partido,
     suggest_man_marking,
@@ -178,27 +177,6 @@ def test_detects_rotating_attack() -> None:
 
 def test_no_matches_returns_none() -> None:
     assert analyse_side_rotation([]) is None
-
-
-def test_win_probability_is_fifty_fifty_when_tsi_is_equal() -> None:
-    out = estimate_win_probability(100_000, 100_000)
-    assert out.own_probability == 0.5
-
-
-def test_win_probability_favours_the_stronger_tsi() -> None:
-    out = estimate_win_probability(150_000, 50_000)
-    assert out.own_probability == 0.75
-
-
-def test_win_probability_handles_zero_total_without_crashing() -> None:
-    out = estimate_win_probability(0, 0)
-    assert out.own_probability == 0.5
-
-
-def test_win_probability_declares_low_confidence() -> None:
-    out = estimate_win_probability(100, 50)
-    assert "baja" in out.confidence
-    assert "no" in out.confidence.lower()
 
 
 def test_summarise_tactics_none_with_no_matches() -> None:
