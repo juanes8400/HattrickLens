@@ -38,7 +38,8 @@
     "conectar": "Verbind deinen Verein",
     "configuracion": "Einstellungen deines Vereins",
     "conectado": "Verein verbunden",
-    "clasificacion": "Spielerklassifizierung"
+    "clasificacion": "Spielerklassifizierung",
+    "puestos": "Positionen"
   },
   "layout": {
     "secciones": "Bereiche von Hattrick Lens",
@@ -690,7 +691,9 @@
     "ordenes": "Einzelanweisungen",
     "mostrarTodos": "Alle anzeigen ({{n}} Veteranen ohne Feldfähigkeiten)",
     "vacia": "Keine Spieler im Kader.",
-    "filtrar": "Spieler oder Fähigkeit filtern…"
+    "filtrar": "Spieler oder Fähigkeit filtern…",
+    "posicion": "Position",
+    "ordenIndividual": "Einzelanweisung"
   },
   "habilidades": {
     "grupo": {
@@ -1196,6 +1199,11 @@
       "clasificacion": "Klassifizierung",
       "salario": "Gehalt nach Gruppe",
       "evolucion": "Entwicklung"
+    },
+    "puestos": {
+      "profundidad": "Kadertiefe",
+      "mejor": "Beste Position",
+      "por-puesto": "Nach Position"
     }
   }
 }

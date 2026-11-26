@@ -1,32 +1,48 @@
 import i18n from "../i18n";
 
-/** Las pestañas de los módulos que juntan varias pantallas (8.0.0,
- *  2026-11-26): su dirección y su nombre.
+/** Los módulos del menú que juntan varias pantallas (8.0.0 y 8.1.0,
+ *  2026-11-26): su nombre, y el de cada pestaña con su dirección.
  *
  *  Vive aparte, como `NAV`, porque lo leen dos sitios: la barra del módulo y
  *  la Wiki, que rotula cada sección con la pestaña que documenta. Una sola
  *  lista hace que no puedan llamarla de dos formas.
  *
- *  Cada nombre se traduce en `modulos.<módulo>.<pestaña>`; el texto de aquí es
- *  el español y el valor por defecto. Con clave propia, y no con `tx()`,
+ *  Cada pestaña se traduce en `modulos.<módulo>.<pestaña>`; el texto de aquí
+ *  es el español y el valor por defecto. Con clave propia, y no con `tx()`,
  *  porque «Clasificación» a secas ya está traducida como la tabla de una liga
  *  («Table»), y aquí es la de los jugadores. */
-export const PESTANAS = {
-  jugadores: [
-    { key: "tabla", to: "/team", texto: "Tabla" },
-    { key: "clasificacion", to: "/team/classes", texto: "Clasificación" },
-    { key: "salario", to: "/team/salary", texto: "Salario por grupo" },
-    { key: "evolucion", to: "/team/evolution", texto: "Evolución" },
-  ],
+export const MODULOS = {
+  // Quién es cada uno, en qué grupo cae y cómo cambia la plantilla.
+  jugadores: {
+    nombre: "Jugadores",
+    clave: "jugadores",
+    pestanas: [
+      { key: "tabla", to: "/team", texto: "Tabla" },
+      { key: "clasificacion", to: "/team/classes", texto: "Clasificación" },
+      { key: "salario", to: "/team/salary", texto: "Salario por grupo" },
+      { key: "evolucion", to: "/team/evolution", texto: "Evolución" },
+    ],
+  },
+  // Dónde rinde cada uno en la cancha y dónde falta gente.
+  puestos: {
+    nombre: "Puestos",
+    clave: "puestos",
+    pestanas: [
+      { key: "profundidad", to: "/skills", texto: "Profundidad" },
+      { key: "mejor", to: "/skills/best", texto: "Mejor posición" },
+      { key: "por-puesto", to: "/skills/positions", texto: "Por puesto" },
+    ],
+  },
 } as const;
 
-export type Modulo = keyof typeof PESTANAS;
-export type PestanaDe<M extends Modulo> = (typeof PESTANAS)[M][number]["key"];
+export type Modulo = keyof typeof MODULOS;
+export type PestanaDe<M extends Modulo> =
+  (typeof MODULOS)[M]["pestanas"][number]["key"];
 
 /** El nombre de una pestaña en el idioma de la app. */
 export function nombreDePestana(modulo: string, key: string): string {
   const lista: readonly { key: string; texto: string }[] =
-    PESTANAS[modulo as Modulo] ?? [];
+    MODULOS[modulo as Modulo]?.pestanas ?? [];
   const pestana = lista.find((p) => p.key === key);
   return i18n.t(`modulos.${modulo}.${key}`, pestana?.texto ?? key);
 }

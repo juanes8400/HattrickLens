@@ -17,7 +17,7 @@ import { hasActiveTeam, useDashboard } from "./hooks/useTeam";
 import { ErrorState, Loading } from "./components/Panels";
 import { BarraDeConsentimiento } from "./components/Consentimiento";
 import { PrivacidadPage } from "./pages/PrivacidadPage";
-import { ModuloJugadores } from "./components/ModuloJugadores";
+import { ModuloDelMenu } from "./components/ModuloDelMenu";
 
 /** Una pantalla que se descarga al abrirla, no al entrar en la app.
  *
@@ -47,6 +47,10 @@ const PositionsPage = diferida(
   "PositionsPage",
 );
 const SkillsPage = diferida(() => import("./pages/SkillsPage"), "SkillsPage");
+const MejorPosicionPage = diferida(
+  () => import("./pages/MejorPosicionPage"),
+  "MejorPosicionPage",
+);
 const SalarioPorGrupoPage = diferida(
   () => import("./pages/SalarioPorGrupoPage"),
   "SalarioPorGrupoPage",
@@ -240,41 +244,41 @@ export function App() {
           <Route
             path="team"
             element={
-              <ModuloJugadores activa="tabla">
+              <ModuloDelMenu de="jugadores" activa="tabla">
                 <Espera>
                   <TeamPage />
                 </Espera>
-              </ModuloJugadores>
+              </ModuloDelMenu>
             }
           />
           <Route
             path="team/classes"
             element={
-              <ModuloJugadores activa="clasificacion">
+              <ModuloDelMenu de="jugadores" activa="clasificacion">
                 <Espera>
                   <ClasificacionPage />
                 </Espera>
-              </ModuloJugadores>
+              </ModuloDelMenu>
             }
           />
           <Route
             path="team/salary"
             element={
-              <ModuloJugadores activa="salario">
+              <ModuloDelMenu de="jugadores" activa="salario">
                 <Espera>
                   <SalarioPorGrupoPage />
                 </Espera>
-              </ModuloJugadores>
+              </ModuloDelMenu>
             }
           />
           <Route
             path="team/evolution"
             element={
-              <ModuloJugadores activa="evolucion">
+              <ModuloDelMenu de="jugadores" activa="evolucion">
                 <Espera>
                   <TeamOverviewPage />
                 </Espera>
-              </ModuloJugadores>
+              </ModuloDelMenu>
             }
           />
           {/* Las direcciones de antes siguen llevando a su sitio: romper
@@ -287,12 +291,36 @@ export function App() {
             path="overview"
             element={<Navigate to="/team/evolution" replace />}
           />
+          {/* PUESTOS, un módulo de tres pestañas desde la 8.1.0 (2026-11-26):
+              Profundidad, Mejor posición y Por puesto (antes Posiciones). */}
           <Route
             path="skills"
             element={
-              <Espera>
-                <SkillsPage />
-              </Espera>
+              <ModuloDelMenu de="puestos" activa="profundidad">
+                <Espera>
+                  <SkillsPage />
+                </Espera>
+              </ModuloDelMenu>
+            }
+          />
+          <Route
+            path="skills/best"
+            element={
+              <ModuloDelMenu de="puestos" activa="mejor">
+                <Espera>
+                  <MejorPosicionPage />
+                </Espera>
+              </ModuloDelMenu>
+            }
+          />
+          <Route
+            path="skills/positions"
+            element={
+              <ModuloDelMenu de="puestos" activa="por-puesto">
+                <Espera>
+                  <PositionsPage />
+                </Espera>
+              </ModuloDelMenu>
             }
           />
           <Route
@@ -305,11 +333,7 @@ export function App() {
           />
           <Route
             path="positions"
-            element={
-              <Espera>
-                <PositionsPage />
-              </Espera>
-            }
+            element={<Navigate to="/skills/positions" replace />}
           />
           <Route
             path="lineup"

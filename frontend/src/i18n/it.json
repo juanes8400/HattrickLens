@@ -38,7 +38,8 @@
     "conectar": "Collega il tuo club",
     "configuracion": "Configurazione del club",
     "conectado": "Club collegato",
-    "clasificacion": "Classificazione dei giocatori"
+    "clasificacion": "Classificazione dei giocatori",
+    "puestos": "Posizioni"
   },
   "layout": {
     "secciones": "Sezioni di Hattrick Lens",
@@ -690,7 +691,9 @@
     "ordenes": "Ordini individuali",
     "mostrarTodos": "Mostra tutti ({{n}} veterani senza abilità di campo)",
     "vacia": "Nessun giocatore in rosa.",
-    "filtrar": "Filtra giocatore o abilità…"
+    "filtrar": "Filtra giocatore o abilità…",
+    "posicion": "Posizione",
+    "ordenIndividual": "Ordine individuale"
   },
   "habilidades": {
     "comoSeMiran": "Come si guardano i ruoli",
@@ -1196,6 +1199,11 @@
       "clasificacion": "Classificazione",
       "salario": "Stipendio per gruppo",
       "evolucion": "Evoluzione"
+    },
+    "puestos": {
+      "profundidad": "Profondità",
+      "mejor": "Posizione migliore",
+      "por-puesto": "Per posizione"
     }
   }
 }

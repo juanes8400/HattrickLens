@@ -38,7 +38,8 @@
     "conectar": "Connect your club",
     "configuracion": "Club setup",
     "conectado": "Club connected",
-    "clasificacion": "Player classification"
+    "clasificacion": "Player classification",
+    "puestos": "Positions"
   },
   "layout": {
     "secciones": "Hattrick Lens sections",
@@ -690,7 +691,9 @@
     "ordenes": "Individual orders",
     "mostrarTodos": "Show everyone ({{n}} veterans without field skills)",
     "vacia": "No players in the squad.",
-    "filtrar": "Filter player or skill…"
+    "filtrar": "Filter player or skill…",
+    "posicion": "Position",
+    "ordenIndividual": "Individual order"
   },
   "habilidades": {
     "grupo": {
@@ -1196,6 +1199,11 @@
       "clasificacion": "Classification",
       "salario": "Wage by group",
       "evolucion": "Evolution"
+    },
+    "puestos": {
+      "profundidad": "Depth",
+      "mejor": "Best position",
+      "por-puesto": "By position"
     }
   }
 }

@@ -18,16 +18,13 @@ export const NAV = [
   // Jugadores es un módulo de cuatro pestañas desde la 8.0.0 (2026-11-26):
   // Tabla, Clasificación, Salario por grupo y Evolución. Habilidades y
   // Clasificación de jugadores dejaron de ser entradas propias; ver
-  // `components/ModuloJugadores`.
+  // `layouts/modulos`.
   { to: "/team", label: "Jugadores", clave: "jugadores" },
-  // «Equipo» no decía lo que hay dentro: profundidad por puesto, hueco más
-  // serio, mejor cubierto y el sector cuello de botella. Y chocaba con
-  // «Jugadores» y «Club» sin que ninguno explicara la diferencia
-  // (2026-11-02, dicho por el usuario). La `clave` NO cambia: es la que
-  // nombra la traducción y la serie de uso, y renombrarla partiría el
-  // histórico en dos.
-  { to: "/skills", label: "Profundidad de plantilla", clave: "habilidades" },
-  { to: "/positions", label: "Posiciones", clave: "posiciones" },
+  // Puestos es un módulo de tres pestañas desde la 8.1.0 (2026-11-26):
+  // Profundidad, Mejor posición y Por puesto. Profundidad de plantilla y
+  // Posiciones dejaron de ser entradas propias. No se llama «Plantilla»
+  // porque chocaría con «Jugadores», como chocó «Equipo» (2026-11-02).
+  { to: "/skills", label: "Puestos", clave: "puestos" },
   { to: "/lineup", label: "Alineación", clave: "alineacion" },
   { section: "Desarrollo", clave: "seccion.desarrollo" },
   { to: "/training", label: "Entrenamiento", clave: "entrenamiento" },
