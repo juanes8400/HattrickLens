@@ -454,6 +454,41 @@ def test_submitted_orders_drive_general_comparison_and_pitch_prediction(
     # Los 11, arquero incluido: el histograma ya no esconde a nadie.
     assert len(body["tsiHistogram"]["rivalValues"]) == 11
 
+    # Las barras, en cambio, NO usan el once enviado: siempre el top 11 por
+    # TSI de cada lado (2026-11-25). Sin `top11`, el histograma trae la
+    # plantilla entera, que es de donde sale ese top 11.
+    with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: FakeCHPP()):
+        sin_toggle = client.get(f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting")
+    plantilla = sin_toggle.json()["tsiHistogram"]["ownValues"]
+    assert len(plantilla) > 11, "sin suplentes la prueba no distingue nada"
+    top_propio = sorted(plantilla, reverse=True)[:11]
+    top_rival = sorted((p["tsi"] for p in RIVAL_PLAYERS["players"]), reverse=True)[:11]
+    for respuesta in (body, sin_toggle.json()):
+        assert respuesta["comparison"]["tsi"] == {
+            "own": round(sum(top_propio) / 11, 1),
+            "rival": round(sum(top_rival) / 11, 1),
+        }
+
+
+def test_sin_ordenes_las_barras_tambien_son_el_top_11_por_tsi(
+    seeded: tuple[TestClient, int, int, async_sessionmaker],
+) -> None:
+    """Sin órdenes enviadas la muestra es la misma que con ellas: el top 11
+    por TSI de cada lado, no la plantilla entera (antes 17 contra 18)."""
+    from unittest.mock import patch
+
+    client, user_id, team_id, _ = seeded
+    client.cookies.set("htlens_session", create_session_token(user_id))
+    with patch("app.api.v1.endpoints.rivals.CHPPClient", lambda *_a, **_kw: FakeCHPP()):
+        body = client.get(f"/api/v1/teams/{team_id}/rivals/{RIVAL_HT_TEAM_ID}/scouting").json()
+
+    assert body["comparisonReference"]["ownSource"] == "full_roster"
+    plantilla = body["tsiHistogram"]["ownValues"]
+    assert len(plantilla) > 11
+    top_propio = sorted(plantilla, reverse=True)[:11]
+    assert body["comparison"]["tsi"]["own"] == round(sum(top_propio) / 11, 1)
+    assert body["comparison"]["tsi"]["own"] > round(sum(plantilla) / len(plantilla), 1)
+
 
 def test_comparison_reads_trainer_leadership_from_rival_stafflist(
     seeded: tuple[TestClient, int, int, async_sessionmaker],

@@ -1052,14 +1052,9 @@ function ComparisonPanel({
   ];
 
   return (
-    <Panel
-      title={
-        data.comparisonReference.ownSource === "submitted_orders"
-          ? tx("Comparación para el partido")
-          : tx("Comparación de plantilla")
-      }
-      meta={tx("{{v0}} vs. {{v1}}", { v0: ownLabel, v1: rivalLabel })}
-    >
+    // Siempre el top 11 por TSI de cada lado, haya órdenes o no (2026-11-25):
+    // la muestra no cambia de un rival a otro, así que el título tampoco.
+    <Panel title={tx("Comparación de plantilla")} meta={tx("Top 11 TSI")}>
       <div className="space-y-5 p-4">
         <div className="flex items-center justify-center gap-6 text-xs">
           <span className="flex items-center gap-1.5">

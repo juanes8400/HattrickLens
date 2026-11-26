@@ -246,7 +246,6 @@
   "Como amistoso": "Wie ein Freundschaftsspiel",
   "Compara a tu equipo con los otros siete de la serie en ocho pétalos. Cada pétalo se normaliza entre el peor y el mejor de la serie, así que 0 es el peor, 1 el mejor y el tamaño del pétalo dice dónde estás tú.": "Vergleicht deine Mannschaft mit den anderen sieben der Liga über acht Blütenblätter. Jedes Blatt wird zwischen dem schlechtesten und dem besten der Liga normiert, also ist 0 der schlechteste, 1 der beste, und die Größe des Blattes sagt, wo du stehst.",
   "Comparación de plantilla": "Kadervergleich",
-  "Comparación para el partido": "Vergleich für das Spiel",
   "Comparador de transferencias": "Transfer-Vergleich",
   "Comparando zona por zona": "Zone für Zone verglichen",
   "Comparativa": "Vergleich",
@@ -2486,5 +2485,6 @@
   "sin sincronizar": "nicht synchronisiert",
   "Partidos que ha jugado con tu club desde que llegó, según Hattrick. Hattrick no deja ponerlo en venta más veces que este número.": "Spiele, die er seit seiner Ankunft für deinen Verein bestritten hat, laut Hattrick. Hattrick erlaubt nicht, ihn öfter zum Verkauf anzubieten, als diese Zahl angibt.",
   "Veces que HT Lens lo vio en venta desde que llegó a tu club. Depende de lo seguido que sincronices: si estuvo en venta y no sincronizaste mientras tanto, ese intento no se cuenta.": "Wie oft HT Lens ihn seit seiner Ankunft in deinem Verein zum Verkauf gesehen hat. Hängt davon ab, wie oft du synchronisierst: Stand er zum Verkauf und du hast in der Zeit nicht synchronisiert, wird dieser Versuch nicht gezählt.",
-  "Partidos con el club menos veces en venta: cuántas veces más puedes ponerlo en venta. Con 0 no puedes volver a ponerlo hasta que juegue otro partido.": "Spiele für den Verein minus Mal zum Verkauf: wie oft du ihn noch zum Verkauf anbieten kannst. Bei 0 kannst du ihn erst wieder anbieten, wenn er ein weiteres Spiel bestritten hat."
+  "Partidos con el club menos veces en venta: cuántas veces más puedes ponerlo en venta. Con 0 no puedes volver a ponerlo hasta que juegue otro partido.": "Spiele für den Verein minus Mal zum Verkauf: wie oft du ihn noch zum Verkauf anbieten kannst. Bei 0 kannst du ihn erst wieder anbieten, wenn er ein weiteres Spiel bestritten hat.",
+  "Top 11 TSI": "Top 11 nach TSI"
 }

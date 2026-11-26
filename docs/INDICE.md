@@ -60,7 +60,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/league` | [LeaguePage.tsx](../frontend/src/pages/LeaguePage.tsx) | 1753 | 18079 | league | 13 | 74 |
 | `/cup` | [CupPage.tsx](../frontend/src/pages/CupPage.tsx) | 1070 | 15181 | cup | 16 | 80 |
 | `/rivals` | [RivalPickerPage.tsx](../frontend/src/pages/RivalPickerPage.tsx) | 352 | 17426 | cup, league | 18 | 84 |
-| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1620 | 23681 | rivals, dashboard | 17 | 85 |
+| `/rivals/:rivalHtTeamId` | [RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) | 1615 | 23687 | rivals, dashboard | 17 | 85 |
 | `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1292 | 14916 | economy, precio_comparable | 11 | 39 |
 | `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3920 | arena | 3 | 12 |
 | `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 30131 | alertas | 29 | 105 |
@@ -769,7 +769,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/rivals/:rivalHtTeamId`
 
-- **Página:** [frontend/src/pages/RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) (1620 líneas)
+- **Página:** [frontend/src/pages/RivalPage.tsx](../frontend/src/pages/RivalPage.tsx) (1615 líneas)
 - **Componentes y hooks suyos (20):**
   - [frontend/src/charts/Chart.tsx](../frontend/src/charts/Chart.tsx)
   - [frontend/src/charts/chartOptions.ts](../frontend/src/charts/chartOptions.ts)

@@ -299,6 +299,12 @@ def _avg(values: Any) -> float | None:
     return round(sum(vals) / len(vals), 1) if vals else None
 
 
+def _top_por_tsi(players: list[dict[str, Any]], n: int = 11) -> list[dict[str, Any]]:
+    """Los `n` jugadores de mayor TSI. La muestra de las barras de comparación:
+    la misma para los dos lados y para todos los rivales."""
+    return sorted(players, key=lambda p: -(p.get("tsi") or 0))[:n]
+
+
 async def _last_purchase(client: Any, ht_team_id: int) -> dict[str, Any] | None:
     """La última compra de un equipo: quién, por cuánto y con qué TSI.
 
@@ -1385,15 +1391,20 @@ async def rival_scouting(
         for row in rival_probable_rows
         if int(row["ht_player_id"]) in rival_by_id
     ]
-    # Cuando existen órdenes enviadas para ESTE rival, todos los indicadores
-    # deportivos comparan ese once real contra el once rival probable. Sin
-    # órdenes se conserva el comportamiento anterior de plantilla completa.
-    comparison_own_players = submitted_own_players or own_players
-    comparison_rival_players = (
+    # La referencia de la proyección por TSI: con órdenes enviadas para ESTE
+    # rival, tu once real contra su once probable; sin ellas, las plantillas.
+    reference_own_players = submitted_own_players or own_players
+    reference_rival_players = (
         rival_probable_players
         if submitted_own_players and rival_probable_players
         else rival_players_raw
     )
+    # Las barras de comparación (TSI, forma, resistencia, experiencia) miden
+    # SIEMPRE el top 11 por TSI de cada lado, haya órdenes o no (pedido del
+    # 2026-11-25): antes comparaban el once enviado con órdenes y la plantilla
+    # entera sin ellas, y el mismo número cambiaba de muestra de un rival a otro.
+    comparison_own_players = _top_por_tsi(own_players)
+    comparison_rival_players = _top_por_tsi(rival_players_raw)
 
     own_players_for_tsi = own_players
     rival_players_for_tsi = rival_players_raw
@@ -1708,7 +1719,7 @@ async def rival_scouting(
                         if submitted_own_players and submitted_match
                         else "Plantilla actual"
                     ),
-                    "own_players": len(comparison_own_players),
+                    "own_players": len(reference_own_players),
                     "rival_source": (
                         "probable_recent_starters" if submitted_own_players else "full_roster"
                     ),
@@ -1717,7 +1728,7 @@ async def rival_scouting(
                         if submitted_own_players
                         else "Plantilla pública actual"
                     ),
-                    "rival_players": len(comparison_rival_players),
+                    "rival_players": len(reference_rival_players),
                 },
                 "tsi_histogram": {
                     "grid": histogram.grid,

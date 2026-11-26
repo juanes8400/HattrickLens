@@ -246,7 +246,6 @@
   "Como amistoso": "Come un'amichevole",
   "Compara a tu equipo con los otros siete de la serie en ocho pétalos. Cada pétalo se normaliza entre el peor y el mejor de la serie, así que 0 es el peor, 1 el mejor y el tamaño del pétalo dice dónde estás tú.": "Confronta la tua squadra con le altre sette della serie su otto petali. Ogni petalo si normalizza tra il peggiore e il migliore della serie, quindi 0 è il peggiore, 1 il migliore e la dimensione del petalo dice dove sei tu.",
   "Comparación de plantilla": "Confronto tra rose",
-  "Comparación para el partido": "Confronto per la partita",
   "Comparador de transferencias": "Comparatore di trasferimenti",
   "Comparando zona por zona": "Confronto zona per zona",
   "Comparativa": "Confronto",
@@ -2486,5 +2485,6 @@
   "sin sincronizar": "non sincronizzato",
   "Partidos que ha jugado con tu club desde que llegó, según Hattrick. Hattrick no deja ponerlo en venta más veces que este número.": "Partite che ha giocato con il tuo club da quando è arrivato, secondo Hattrick. Hattrick non permette di metterlo in vendita più volte di questo numero.",
   "Veces que HT Lens lo vio en venta desde que llegó a tu club. Depende de lo seguido que sincronices: si estuvo en venta y no sincronizaste mientras tanto, ese intento no se cuenta.": "Volte in cui HT Lens lo ha visto in vendita da quando è arrivato nel tuo club. Dipende da quanto spesso sincronizzi: se è stato in vendita e nel frattempo non hai sincronizzato, quel tentativo non viene contato.",
-  "Partidos con el club menos veces en venta: cuántas veces más puedes ponerlo en venta. Con 0 no puedes volver a ponerlo hasta que juegue otro partido.": "Partite con il club meno volte in vendita: quante altre volte puoi metterlo in vendita. Con 0 non puoi rimetterlo in vendita finché non gioca un'altra partita."
+  "Partidos con el club menos veces en venta: cuántas veces más puedes ponerlo en venta. Con 0 no puedes volver a ponerlo hasta que juegue otro partido.": "Partite con il club meno volte in vendita: quante altre volte puoi metterlo in vendita. Con 0 non puoi rimetterlo in vendita finché non gioca un'altra partita.",
+  "Top 11 TSI": "Top 11 per TSI"
 }
