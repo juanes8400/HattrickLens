@@ -279,48 +279,6 @@ def objetivo_partido_a_partido(
     return salida
 
 
-# ── Probabilidad de ganar ───────────────────────────────────────────────────
-#
-# HL-140 aclarado por el usuario: "no presentar el futuro como cierto" no
-# significa nunca proyectar, significa no MEZCLAR hechos con proyecciones
-# sin avisar. Esto SÍ es una proyección, y se presenta siempre separada
-# visualmente de los paneles de hechos, con su propio rótulo.
-#
-# Modelo deliberadamente simple: una función de contienda (contest success
-# function) de exponente 1 sobre el TSI total de los probables 11 de cada
-# lado, own = tu mejor once real (motor de posiciones), rival = sus 11 de
-# mayor TSI (única aproximación honesta, CHPP oculta sus skills). No es la
-# fórmula del motor de partido de Hattrick (esa necesita habilidades reales
-# de ambos equipos, clima, táctica...) y NO está calibrada contra resultados
-# reales, a diferencia de `position_engine`, que sí lo está. Se declara con
-# confianza "baja" a propósito.
-
-
-@dataclass
-class WinProbability:
-    own_probability: float
-    own_tsi_total: int
-    rival_tsi_total: int
-    confidence: str = (
-        "baja, estimación gruesa por TSI total, no la fórmula real del motor de partido "
-        "(que necesita habilidades reales de ambos equipos) ni está calibrada contra "
-        "resultados reales"
-    )
-
-
-def estimate_win_probability(own_tsi_total: int, rival_tsi_total: int) -> WinProbability:
-    """Proyección, no un hecho, HL-144. `own_tsi_total`/`rival_tsi_total`
-    deben venir del TSI real de los 11 probables de cada lado (no la
-    plantilla completa), calculados por quien llama."""
-    total = own_tsi_total + rival_tsi_total
-    probability = own_tsi_total / total if total > 0 else 0.5
-    return WinProbability(
-        own_probability=round(probability, 3),
-        own_tsi_total=own_tsi_total,
-        rival_tsi_total=rival_tsi_total,
-    )
-
-
 # ── Rotación de lado fuerte ─────────────────────────────────────────────────
 
 
@@ -663,10 +621,9 @@ class ZoneDuel:
 def pitch_zone_duels(own: PitchZoneValues, rival: PitchZoneValues) -> list[ZoneDuel]:
     """7 duelos cabeza a cabeza: 3 en tu campo (tu defensa contra su ataque
     reflejado), 3 en el campo rival (tu ataque contra su defensa reflejada) y
-    el de medio campo (posesión). El % es la misma función de contienda
-    simple que `estimate_win_probability` (rating / (rating + rating)), una
-    aproximación declarada, no la fórmula real (mucho más rica) del motor de
-    partido de Hattrick."""
+    el de medio campo (posesión). El % es una función de contienda simple
+    (rating / (rating + rating)), una aproximación declarada, no la fórmula
+    real (mucho más rica) del motor de partido de Hattrick."""
 
     def duel(zone: str, half: str, own_value: float, rival_value: float) -> ZoneDuel:
         total = own_value + rival_value
