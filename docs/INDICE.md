@@ -70,7 +70,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 219 | 19968 | cambios, dashboard | 18 | 65 |
 | `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 884 | 23227 | clases, player_balance, cambios, partidos, plantilla | 21 | 67 |
 | `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 1022 | 16644 | entrenamiento, modelos, modelos | 14 | 35 |
-| `/wiki` | [WikiPage.tsx](../frontend/src/pages/WikiPage.tsx) | 180 | - | - | 0 | 0 |
+| `/wiki` | [WikiPage.tsx](../frontend/src/pages/WikiPage.tsx) | 182 | - | - | 0 | 0 |
 | `/uso` | [UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) | 1637 | 4903 | uso | 1 | 6 |
 | `/autor` | [AutorPage.tsx](../frontend/src/pages/AutorPage.tsx) | 331 | - | - | 0 | 0 |
 | `/*` | [frontend/src/components/Consentimiento.tsx](../frontend/src/components/Consentimiento.tsx) | 77 | - | - | 0 | 0 |
@@ -1030,7 +1030,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 
 ### `/wiki`
 
-- **Página:** [frontend/src/pages/WikiPage.tsx](../frontend/src/pages/WikiPage.tsx) (180 líneas)
+- **Página:** [frontend/src/pages/WikiPage.tsx](../frontend/src/pages/WikiPage.tsx) (182 líneas)
 - **Componentes y hooks suyos (4):**
   - [frontend/src/i18n/index.ts](../frontend/src/i18n/index.ts)
   - [frontend/src/i18n/tx.ts](../frontend/src/i18n/tx.ts)

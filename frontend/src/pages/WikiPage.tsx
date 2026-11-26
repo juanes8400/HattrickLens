@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { tx } from "../i18n/tx";
 import type { Articulo } from "./wiki/contenido";
 import { ARTICULOS, GRUPOS } from "./wiki/contenido";
-import { nombreDePestana } from "../layouts/modulos";
+import { nombreDeModulo, nombreDePestana } from "../layouts/modulos";
 
 /**
  * Wiki (2026-09-14, pedido del usuario): la documentación de todo Hattrick Lens,
@@ -22,7 +22,7 @@ function normalizar(texto: string) {
 function textoDe(a: Articulo) {
   return normalizar(
     [
-      a.titulo,
+      nombreDeModulo(a.id) ?? a.titulo,
       a.resumen,
       ...a.secciones.flatMap((s) => [
         s.titulo,
@@ -87,7 +87,7 @@ export function WikiPage() {
                         href={`#${a.id}`}
                         className="block rounded px-1.5 py-0.5 hover:bg-[var(--accent-soft)]"
                       >
-                        {a.titulo}
+                        {nombreDeModulo(a.id) ?? a.titulo}
                       </a>
                     </li>
                   ))}
@@ -120,7 +120,9 @@ export function WikiPage() {
                     className="scroll-mt-4 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4"
                   >
                     <div className="flex flex-wrap items-baseline justify-between gap-2">
-                      <h3 className="text-base font-semibold">{a.titulo}</h3>
+                      <h3 className="text-base font-semibold">
+                        {nombreDeModulo(a.id) ?? a.titulo}
+                      </h3>
                       {a.ruta && a.ruta !== "/wiki" && (
                         <Link
                           to={a.ruta}

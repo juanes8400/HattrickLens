@@ -49,3 +49,17 @@ export function nombreDePestana(modulo: string, key: string): string {
   const pestana = lista.find((p) => p.key === key);
   return i18n.t(`modulos.${modulo}.${key}`, pestana?.texto ?? key);
 }
+
+/** El nombre de un módulo en el idioma de la app, el mismo del menú; `null`
+ *  si `id` no es un módulo.
+ *
+ *  La Wiki titula con esto su artículo de cada módulo, y no con `tx()`: en
+ *  inglés, alemán, italiano y polaco «Puestos» se llamaba igual que su
+ *  pestaña «Posiciones» (Positions, Positionen…), así que el módulo tiene
+ *  nombre propio en el menú (Roles, Rollen…), mientras que «Puestos» en el
+ *  glosario sigue siendo «Positions» (8.2.0, 2026-11-26, pedido del
+ *  usuario). */
+export function nombreDeModulo(id: string): string | null {
+  const modulo = MODULOS[id as Modulo];
+  return modulo ? i18n.t(`nav.${modulo.clave}`, modulo.nombre) : null;
+}
