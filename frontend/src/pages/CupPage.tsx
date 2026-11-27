@@ -425,7 +425,6 @@ export function CupPage() {
             </Panel>
 
             <ReferenceElevenPanels data={data} />
-            <RivalReadinessPanel data={data} />
           </>
         )}
 
@@ -729,16 +728,21 @@ function ReferenceElevenPanels({ data }: { data: Cup }) {
   const active = variants.find((v) => v.mode === mode) ?? variants[0];
   return (
     <div className="grid items-start gap-4 xl:grid-cols-2">
-      <ProjectionPanel
-        title={tx("Preparación para 120 minutos")}
-        meta={tx("elige el once de referencia")}
-      >
-        <StaminaReadiness
-          variants={variants}
-          mode={mode}
-          onModeChange={setMode}
-        />
-      </ProjectionPanel>
+      {/* La del rival, justo debajo de la tuya y no tras los penaltis
+          (2026-11-27, pedido del usuario): había que bajar mucho para verla. */}
+      <div className="space-y-4">
+        <ProjectionPanel
+          title={tx("Preparación para 120 minutos")}
+          meta={tx("elige el once de referencia")}
+        >
+          <StaminaReadiness
+            variants={variants}
+            mode={mode}
+            onModeChange={setMode}
+          />
+        </ProjectionPanel>
+        <RivalReadinessPanel data={data} />
+      </div>
       <ProjectionPanel
         title={tx("Orden orientativo de penaltis")}
         meta={active ? active.label.toLowerCase() : ""}
@@ -766,20 +770,18 @@ function RivalReadinessPanel({ data }: { data: Cup }) {
   );
   if (!rival) return null;
   return (
-    <div className="grid items-start gap-4 xl:grid-cols-2">
-      <ProjectionPanel
-        title={tx("Preparación para 120 minutos de {{v0}}", {
-          v0: rival.opponent,
-        })}
-        meta={tx("tu próximo rival de Copa")}
-      >
-        <StaminaReadiness
-          variants={rival.referenceVariants}
-          mode={mode}
-          onModeChange={setMode}
-        />
-      </ProjectionPanel>
-    </div>
+    <ProjectionPanel
+      title={tx("Preparación para 120 minutos de {{v0}}", {
+        v0: rival.opponent,
+      })}
+      meta={tx("tu próximo rival de Copa")}
+    >
+      <StaminaReadiness
+        variants={rival.referenceVariants}
+        mode={mode}
+        onModeChange={setMode}
+      />
+    </ProjectionPanel>
   );
 }
 
