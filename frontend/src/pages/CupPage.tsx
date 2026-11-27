@@ -27,6 +27,7 @@ import type {
   CupNextMatch,
   CupPenaltyCandidate,
   CupPrizeStage,
+  CupReadinessVariant,
   PitchZoneMethod,
 } from "../services/api";
 
@@ -424,6 +425,7 @@ export function CupPage() {
             </Panel>
 
             <ReferenceElevenPanels data={data} />
+            <RivalReadinessPanel data={data} />
           </>
         )}
 
@@ -731,7 +733,11 @@ function ReferenceElevenPanels({ data }: { data: Cup }) {
         title={tx("Preparación para 120 minutos")}
         meta={tx("elige el once de referencia")}
       >
-        <StaminaReadiness data={data} mode={mode} onModeChange={setMode} />
+        <StaminaReadiness
+          variants={variants}
+          mode={mode}
+          onModeChange={setMode}
+        />
       </ProjectionPanel>
       <ProjectionPanel
         title={tx("Orden orientativo de penaltis")}
@@ -749,17 +755,43 @@ function ReferenceElevenPanels({ data }: { data: Cup }) {
 }
 
 type ReferenceMode = Cup["readiness"]["defaultMode"];
+type VarianteDePreparacion = Omit<CupReadinessVariant, "penaltyCandidates">;
+
+/** La preparación del próximo rival de Copa (2026-11-27, pedido del usuario):
+ *  la misma ficha que la tuya, con su propio selector de referencia. */
+function RivalReadinessPanel({ data }: { data: Cup }) {
+  const rival = data.rivalReadiness;
+  const [mode, setMode] = useState<ReferenceMode>(
+    rival?.defaultMode ?? "top_tsi",
+  );
+  if (!rival) return null;
+  return (
+    <div className="grid items-start gap-4 xl:grid-cols-2">
+      <ProjectionPanel
+        title={tx("Preparación para 120 minutos de {{v0}}", {
+          v0: rival.opponent,
+        })}
+        meta={tx("tu próximo rival de Copa")}
+      >
+        <StaminaReadiness
+          variants={rival.referenceVariants}
+          mode={mode}
+          onModeChange={setMode}
+        />
+      </ProjectionPanel>
+    </div>
+  );
+}
 
 function StaminaReadiness({
-  data,
+  variants,
   mode,
   onModeChange,
 }: {
-  data: Cup;
+  variants: VarianteDePreparacion[];
   mode: ReferenceMode;
   onModeChange: (v: ReferenceMode) => void;
 }) {
-  const variants = data.readiness.referenceVariants;
   const active = variants.find((v) => v.mode === mode) ?? variants[0];
   const colors = ["var(--danger)", "var(--warning)", "var(--positive)"];
   if (!active)

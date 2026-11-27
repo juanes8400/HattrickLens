@@ -160,6 +160,15 @@ export interface Cup {
     goalkeeper: { htPlayerId: number; name: string; keeper: number } | null;
     penaltyMethod: string;
   };
+  /** La misma preparación, del próximo rival de Copa (2026-11-27): sus 11
+   *  con mayor TSI y sus últimas formaciones en Liga y en Copa. `null` sin
+   *  cruce pendiente o si Hattrick no da su resistencia. */
+  rivalReadiness: {
+    referenceVariants: Omit<CupReadinessVariant, "penaltyCandidates">[];
+    defaultMode: "top_tsi" | "last_cup" | "last_league";
+    opponent: string;
+    opponentHtTeamId: number;
+  } | null;
   ladder: CupLadderStep[];
   history: CupHistoryRow[];
   nextMatches: CupNextMatch[];
