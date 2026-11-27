@@ -2374,22 +2374,6 @@ export function PlayerBalancePage() {
 
         {section === "desgloses" && (
           <div className="space-y-3">
-            <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
-              <MapaDePaises
-                filas={desglosesRows}
-                campo="destino"
-                modo="absoluto"
-                moneda={data.currency}
-                isDark={isDark}
-              />
-              <MapaDePaises
-                filas={desglosesRows}
-                campo="nacionalidad"
-                modo="absoluto"
-                moneda={data.currency}
-                isDark={isDark}
-              />
-            </div>
             <WaterfallPanel
               title={tx("De la compra a la venta")}
               ayuda={tx(
@@ -2506,27 +2490,28 @@ export function PlayerBalancePage() {
                 isDark={isDark}
               />
             </div>
-          </div>
-        )}
-
-        {section === "roi" && (
-          <div className="space-y-4">
+            {/* Los mapas, al final (2026-11-27, pedido del usuario). */}
             <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
               <MapaDePaises
                 filas={desglosesRows}
                 campo="destino"
-                modo="roi"
+                modo="absoluto"
                 moneda={data.currency}
                 isDark={isDark}
               />
               <MapaDePaises
                 filas={desglosesRows}
                 campo="nacionalidad"
-                modo="roi"
+                modo="absoluto"
                 moneda={data.currency}
                 isDark={isDark}
               />
             </div>
+          </div>
+        )}
+
+        {section === "roi" && (
+          <div className="space-y-4">
             <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
               <RoiPanel
                 title={tx("ROI por temporada")}
@@ -2598,6 +2583,22 @@ export function PlayerBalancePage() {
                   (a, b) => b[1].saldo / b[1].coste - a[1].saldo / a[1].coste,
                 )}
                 horizontal
+                isDark={isDark}
+              />
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+              <MapaDePaises
+                filas={desglosesRows}
+                campo="destino"
+                modo="roi"
+                moneda={data.currency}
+                isDark={isDark}
+              />
+              <MapaDePaises
+                filas={desglosesRows}
+                campo="nacionalidad"
+                modo="roi"
+                moneda={data.currency}
                 isDark={isDark}
               />
             </div>

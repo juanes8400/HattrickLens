@@ -2786,3 +2786,38 @@ def test_rebuilding_stints_keeps_what_cannot_be_recalculated() -> None:
             assert etapa.top_skill_manual == "scoring"
 
     asyncio.run(run())
+
+
+def test_la_nacionalidad_se_reconoce_por_el_nombre_de_la_liga() -> None:
+    """2026-11-27, visto por el usuario: 27 jugadores con la nacionalidad a la
+    vista en el Detalle caían en «sin determinar» del mapa. El país de
+    nacimiento llega a veces con el nombre de la LIGA en su idioma
+    («Alemania») y sólo se buscaba el del país en el suyo («Deutschland»)."""
+
+    async def run() -> None:
+        uow, _, team_id, ht_player_id = await _setup_with_player(468921494)
+        async with uow as u:
+            u.session.add(
+                m.WorldContext(
+                    ht_league_id=3,
+                    country_id=3,
+                    country_code="DE",
+                    country_name="Deutschland",
+                    league_name="Alemania",
+                )
+            )
+            jugador = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == ht_player_id)
+            )
+            jugador.native_country = "Alemania"
+            jugador.sold_at = datetime.now(UTC).replace(tzinfo=None)
+            await u.session.execute(
+                delete(m.PlayerSnapshot).where(m.PlayerSnapshot.player_id == jugador.id)
+            )
+            await u.session.commit()
+            balance = await PlayerBalanceQueryService(u.session).get(team_id)
+        fila = next(r for r in balance.players if r.ht_player_id == ht_player_id)
+        assert fila.native_region == "de"
+        assert fila.native_country_code == "DE"
+
+    asyncio.run(run())
