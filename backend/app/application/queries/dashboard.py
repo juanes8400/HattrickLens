@@ -33,7 +33,11 @@ from app.infrastructure.db import models as m
 # La temporada de Hattrick dura 112 días: 27 años y 56 días son 27,5.
 DAYS_PER_HT_YEAR = 112
 
-STALE_AFTER = timedelta(hours=12)
+# Cuándo los datos se dan por viejos: UN DÍA, lo mismo que dicen los textos
+# («Tus datos tienen más de un día») y la alerta `sync.stale`. Eran 12 horas
+# y la pantalla de Sincronización decía «más de un día» con sólo 12 (8.3.4,
+# 2026-11-27, visto por el usuario).
+STALE_AFTER = timedelta(hours=24)
 # columna en DB → clave camelCase en la API (consistencia de contrato)
 SKILL_COLS = {
     "keeper": "keeper",
@@ -334,7 +338,7 @@ class DashboardQueryService:
                 Alert(
                     kind="sync",
                     severity="info",
-                    message="Los datos no se sincronizan hace más de 12 horas.",
+                    message="Los datos no se sincronizan hace más de un día.",
                 )
             )
         if resp.squad and resp.squad.injured_count:

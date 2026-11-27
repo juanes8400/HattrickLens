@@ -1,4 +1,5 @@
 """Costura completa: sync (fixtures reales) → DB → query service → DTO."""
+
 import asyncio
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -25,16 +26,22 @@ class FakeCHPP:
 
 async def _seeded() -> tuple[async_sessionmaker, int]:
     engine = create_async_engine(
-        "sqlite+aiosqlite://", poolclass=StaticPool,
+        "sqlite+aiosqlite://",
+        poolclass=StaticPool,
         connect_args={"check_same_thread": False},
     )
     async with engine.begin() as conn:
         await conn.run_sync(m.Base.metadata.create_all)
     factory = async_sessionmaker(engine, expire_on_commit=False)
     async with factory() as s:
-        team = m.Team(ht_team_id=537758, name="Pulgas Arrechas",
-                      league_name="Colombia", series_name="V.92",
-                      currency_rate=10.0, currency_name="US$")
+        team = m.Team(
+            ht_team_id=537758,
+            name="Pulgas Arrechas",
+            league_name="Colombia",
+            series_name="V.92",
+            currency_rate=10.0,
+            currency_name="US$",
+        )
         s.add(team)
         await s.commit()
         team_id = team.id
@@ -52,7 +59,7 @@ def test_dashboard_reflects_synced_data() -> None:
         assert d is not None
         assert d.team_name == "Pulgas Arrechas"
         assert d.series_name == "V.92"
-        assert d.stale is False          # sync recién hecho
+        assert d.stale is False  # sync recién hecho
         assert d.sync_id is not None
 
         assert d.squad is not None
@@ -69,7 +76,7 @@ def test_dashboard_reflects_synced_data() -> None:
         assert d.finance.cash == 21034174
         assert d.finance.weekly_delta == 1351393
         assert d.finance.currency == "US$"
-        assert d.finance.fan_club_size == 2406        # cantidad, no dinero
+        assert d.finance.fan_club_size == 2406  # cantidad, no dinero
         # La operación pierde dinero cada semana aunque el titular sea positivo
         assert d.finance.structural_balance < 0
 
@@ -147,6 +154,25 @@ def test_dashboard_marks_stale_when_sync_is_old() -> None:
     asyncio.run(run())
 
 
+def test_los_datos_son_viejos_a_partir_de_un_dia_y_no_de_12_horas() -> None:
+    """8.3.4: la pantalla decía «Tus datos tienen más de un día» con sólo 12
+    horas, porque el corte era de 12. Ahora es un día, como dicen los textos."""
+
+    async def run() -> None:
+        factory, team_id = await _seeded()
+        async with factory() as s:
+            a_las_13 = await DashboardQueryService(s).get(
+                team_id, now=datetime.now(UTC) + timedelta(hours=13)
+            )
+            a_las_25 = await DashboardQueryService(s).get(
+                team_id, now=datetime.now(UTC) + timedelta(hours=25)
+            )
+        assert a_las_13 is not None and a_las_13.stale is False
+        assert a_las_25 is not None and a_las_25.stale is True
+
+    asyncio.run(run())
+
+
 def test_dashboard_returns_none_for_unknown_team() -> None:
     async def run() -> None:
         factory, _ = await _seeded()
@@ -182,8 +208,14 @@ def test_sin_los_salarios_de_la_semana_anterior_no_se_inventa_un_cero() -> None:
 
     # El contrato: los dos campos admiten "no se sabe", y por defecto lo dicen.
     resumen = FinanceSummary(
-        cash=0, expected_cash=0, weekly_delta=0, income_sum=0, costs_sum=0,
-        costs_players=0, fan_club_size=0, last_weeks_total=0,
+        cash=0,
+        expected_cash=0,
+        weekly_delta=0,
+        income_sum=0,
+        costs_sum=0,
+        costs_players=0,
+        fan_club_size=0,
+        last_weeks_total=0,
     )
     assert resumen.biweekly_salaries is None
     assert resumen.salary_share_pct is None
@@ -199,13 +231,17 @@ async def _con_dos_cierres() -> tuple[async_sessionmaker, int]:
     factory, team_id = await _seeded()
     async with factory() as s:
         vieja = (
-            await s.execute(
-                m.EconomySnapshot.__table__.select()
-                .where(m.EconomySnapshot.team_id == team_id)
-                .order_by(m.EconomySnapshot.captured_at.desc())
-                .limit(1)
+            (
+                await s.execute(
+                    m.EconomySnapshot.__table__.select()
+                    .where(m.EconomySnapshot.team_id == team_id)
+                    .order_by(m.EconomySnapshot.captured_at.desc())
+                    .limit(1)
+                )
             )
-        ).mappings().one()
+            .mappings()
+            .one()
+        )
 
         campos = {k: v for k, v in vieja.items() if k != "id"}
         campos["captured_at"] = vieja["captured_at"] + timedelta(days=7)
