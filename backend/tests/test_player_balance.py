@@ -559,6 +559,92 @@ def test_destination_country_backfill_uses_teamdetails_of_the_buyer() -> None:
     asyncio.run(run())
 
 
+def test_la_liga_de_los_compradores_se_resuelve_de_una_vez_y_por_club() -> None:
+    """2026-11-27, pedido del usuario: el código del país de destino sale de la
+    LIGA del comprador, que casa siempre (el nombre llega en su idioma y no).
+    Se piden todas las pendientes de una vez, una ficha por CLUB comprador
+    aunque le haya comprado varios jugadores, y lo ya preguntado no se repite."""
+
+    class Contador(FakeCHPP):
+        def __init__(self) -> None:
+            self.clubes: list[int] = []
+
+        async def fetch(self, file: str, version: str, **params: Any) -> dict[str, Any]:
+            if file == "teamdetails":
+                self.clubes.append(int(params["teamID"]))
+            return await super().fetch(file, version, **params)
+
+    async def run() -> None:
+        uow, _, team_id, ht_player_id = await _setup_with_player(468921494)
+        async with uow as u:
+            primero = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == ht_player_id)
+            )
+            primero.sold_at = datetime.now(UTC).replace(tzinfo=None)
+            primero.buyer_team_id = 999999
+            primero.destination_country = "Alemania"  # ya tenía nombre, le falta la liga
+            for i, club in enumerate((999999, 888888)):
+                u.session.add(
+                    m.Player(
+                        ht_player_id=500 + i,
+                        team_id=team_id,
+                        first_name="Otro",
+                        last_name=str(i),
+                        sold_at=datetime.now(UTC).replace(tzinfo=None),
+                        buyer_team_id=club,
+                    )
+                )
+            await u.session.commit()
+
+        chpp = Contador()
+        handler = SyncTeamHandler(uow, chpp)
+        resueltas, errores = await handler.execute_ligas_de_los_compradores(team_id)
+        assert errores == []
+        assert resueltas == 3
+        assert sorted(chpp.clubes) == [888888, 999999]  # una ficha por club, no por venta
+
+        async with uow as u:
+            jugadores = (
+                (await u.session.execute(select(m.Player).where(m.Player.team_id == team_id)))
+                .scalars()
+                .all()
+            )
+            assert {p.destination_league_id for p in jugadores} == {19}
+            assert {p.destination_country_id for p in jugadores} == {18}
+            assert all(p.destination_league_attempted for p in jugadores)
+            # El nombre que ya estaba no se pisa; el que faltaba se rellena.
+            nombres = {p.ht_player_id: p.destination_country for p in jugadores}
+            assert nombres[ht_player_id] == "Alemania"
+            assert nombres[500] and nombres[501]
+
+        # Lo preguntado no se vuelve a preguntar.
+        chpp.clubes.clear()
+        assert await handler.execute_ligas_de_los_compradores(team_id) == (0, [])
+        assert chpp.clubes == []
+
+        # El código del país sale del PAÍS del club, aunque su liga no sea de
+        # ningún país (LeagueID 1000, internacional): el balance lo pinta.
+        async with uow as u:
+            if not await u.session.scalar(
+                select(m.WorldContext).where(m.WorldContext.ht_league_id == 19)
+            ):
+                u.session.add(
+                    m.WorldContext(
+                        ht_league_id=19, country_id=18, country_code="CO", country_name="Colombia"
+                    )
+                )
+            internacional = await u.session.scalar(
+                select(m.Player).where(m.Player.ht_player_id == 500)
+            )
+            internacional.destination_league_id = 1000
+            await u.session.commit()
+            balance = await PlayerBalanceQueryService(u.session).get(team_id)
+        codigos = {r.ht_player_id: r.destination_country_code for r in balance.players if r.is_sold}
+        assert codigos and set(codigos.values()) == {"CO"}
+
+    asyncio.run(run())
+
+
 def test_the_backfill_batch_fills_in_a_sold_players_profile() -> None:
     """Edad, país, carácter y especialidad de un jugador vendido.
 

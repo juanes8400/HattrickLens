@@ -1304,11 +1304,84 @@ class TransferenciasMixin(BaseDeSync):
         # cada lote y el relleno no terminaria jamas.
         player.destination_attempted = True
         team = next(iter(payload.get("teams", [])), None)
+        # La liga, de la misma ficha y sin llamada extra (2026-11-27).
+        player.destination_league_attempted = True
+        if team and team.get("ht_league_id"):
+            player.destination_league_id = int(team["ht_league_id"])
+        if team and team.get("country_id"):
+            player.destination_country_id = int(team["country_id"])
         country_name = team.get("country_name") if team else None
         if not country_name:
             return False
         player.destination_country = country_name
         return True
+
+    async def execute_ligas_de_los_compradores(
+        self, team_id: int, on_progress: ProgressReporter | None = None
+    ) -> tuple[int, list[str]]:
+        """La liga del comprador de TODAS las ventas que aún no la tienen, de una
+        vez (2026-11-27, pedido del usuario: «no esperes unas sincronizaciones,
+        hazlo de una vez»).
+
+        Una ficha por CLUB comprador, no por venta: varios ex-jugadores se
+        fueron al mismo club y la respuesta vale para todos. Se guarda cada
+        pocos clubes, para que un corte a medias no pierda lo ya preguntado.
+        Un error de Hattrick no marca nada: ese club se vuelve a intentar en la
+        siguiente sincronización. Devuelve (ventas resueltas, errores).
+        """
+        from sqlalchemy import select
+
+        from app.infrastructure.db import models as m
+
+        resueltas = 0
+        errores: list[str] = []
+        async with self._uow as uow:
+            pendientes = (
+                (
+                    await uow.session.execute(
+                        select(m.Player).where(
+                            m.Player.team_id == team_id,
+                            m.Player.buyer_team_id.is_not(None),
+                            m.Player.destination_league_id.is_(None),
+                            ~m.Player.destination_league_attempted,
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            por_club: dict[int, list[Any]] = {}
+            for p in pendientes:
+                por_club.setdefault(int(p.buyer_team_id), []).append(p)
+            total = len(por_club)
+            for i, (club, ventas) in enumerate(por_club.items(), start=1):
+                if i == 1 or i % 10 == 0 or i == total:
+                    await _report(on_progress, f"País de los compradores: {i} de {total}")
+                try:
+                    payload = await self._chpp.fetch(
+                        "teamdetails", version=FILE_VERSIONS["teamdetails"], teamID=club
+                    )
+                except Exception as exc:  # noqa: BLE001, se reintenta en la próxima
+                    errores.append(f"país del comprador {club}: {exc}")
+                    continue
+                team = next(iter(payload.get("teams", [])), None)
+                liga = int(team["ht_league_id"]) if team and team.get("ht_league_id") else None
+                pais_id = int(team["country_id"]) if team and team.get("country_id") else None
+                pais = team.get("country_name") if team else None
+                for p in ventas:
+                    p.destination_league_attempted = True
+                    if pais_id:
+                        p.destination_country_id = pais_id
+                    if liga:
+                        p.destination_league_id = liga
+                    if liga or pais_id:
+                        resueltas += 1
+                    if pais and not p.destination_country:
+                        p.destination_country = pais
+                if i % 20 == 0:
+                    await uow.commit()
+            await uow.commit()
+        return resueltas, errores
 
     async def execute_destination_country_backfill(
         self, cmd: SyncPlayerEnrichmentCommand

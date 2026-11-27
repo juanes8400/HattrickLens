@@ -94,6 +94,7 @@ async def trigger_sync(
             SyncTeamCommand(user_id=user.id, team_id=team_id, ht_team_id=team.ht_team_id)
         )
         await _revisar_comisiones(handler, user.id, team_id, result)
+        await _ligas_de_los_compradores(handler, team_id, result)
         lanzar_precalentado(team_id)
     except CHPPAuthError as exc:
         token_row.status = "revoked"
@@ -185,6 +186,20 @@ async def _revisar_comisiones(
             await s.commit()
 
 
+async def _ligas_de_los_compradores(
+    handler: Any, team_id: int, result: Any, on_progress: Any = None
+) -> None:
+    """La liga del club comprador de todas las ventas que no la tienen, en esta
+    misma sincronización (2026-11-27). La primera vez son unos 430 clubes; las
+    siguientes, sólo los compradores nuevos. NUNCA TUMBA LA SINCRONIZACIÓN."""
+    try:
+        _, errores = await handler.execute_ligas_de_los_compradores(team_id, on_progress)
+    except Exception as exc:  # noqa: BLE001, un fallo aquí no tumba la sincronización
+        result.errors.append(f"país de los compradores: {exc}")
+        return
+    result.errors.extend(errores[:5])
+
+
 def _result_payload(result: Any) -> dict[str, Any]:
     return {
         "syncId": result.sync_id,
@@ -254,6 +269,7 @@ async def trigger_sync_stream(
                     on_progress=on_progress,
                 )
                 await _revisar_comisiones(handler, user_id, team_id, result, on_progress)
+                await _ligas_de_los_compradores(handler, team_id, result, on_progress)
                 lanzar_precalentado(team_id)
                 await queue.put(("done", result))
             except CHPPAuthError:

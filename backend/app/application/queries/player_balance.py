@@ -481,6 +481,8 @@ class PlayerBalanceQueryService:
                             m.Player.age_days_at_sale,
                             m.Player.native_country,
                             m.Player.destination_country,
+                            m.Player.destination_country_id,
+                            m.Player.destination_league_id,
                             m.Player.buyer_team_id,
                             m.Player.mother_club_team_id,
                             m.Player.games_played_for_us,
@@ -753,21 +755,29 @@ class PlayerBalanceQueryService:
                     m.WorldContext.country_id,
                     m.WorldContext.country_code,
                     m.WorldContext.country_name,
+                    m.WorldContext.ht_league_id,
                 ).where(m.WorldContext.country_code != "")
             )
         ).all()
+        # De la LIGA del comprador al código del país (2026-11-27): casa
+        # siempre, a diferencia del nombre, que llega en el idioma del usuario.
+        country_codes_by_league = {
+            int(league_id): str(country_code).upper()
+            for _cid, country_code, _cname, league_id in country_rows
+            if league_id
+        }
         country_codes_by_id = {
             int(country_id): str(country_code).upper()
-            for country_id, country_code, _country_name in country_rows
+            for country_id, country_code, _country_name, _league in country_rows
         }
         country_names_by_id = {
             int(country_id): str(country_name)
-            for country_id, _country_code, country_name in country_rows
+            for country_id, _country_code, country_name, _league in country_rows
             if country_name
         }
         country_codes_by_name = {
             str(country_name).strip().casefold(): str(country_code).upper()
-            for _country_id, country_code, country_name in country_rows
+            for _country_id, country_code, country_name, _league in country_rows
             if country_name
         }
 
@@ -1162,9 +1172,21 @@ class PlayerBalanceQueryService:
                 else None
             )
             destination_country_code = (
-                country_codes_by_name.get(p.destination_country.strip().casefold())
-                if p.destination_country
-                else None
+                (
+                    country_codes_by_id.get(int(p.destination_country_id))
+                    if p.destination_country_id
+                    else None
+                )
+                or (
+                    country_codes_by_league.get(int(p.destination_league_id))
+                    if p.destination_league_id
+                    else None
+                )
+                or (
+                    country_codes_by_name.get(p.destination_country.strip().casefold())
+                    if p.destination_country
+                    else None
+                )
             )
             age_at_purchase: float | str = "?"
             if at_purchase is not None:

@@ -360,6 +360,15 @@ class Player(Base):
     # hace falta guardarlo para poder resolver el país destino después.
     buyer_team_id: Mapped[int | None] = mapped_column(BigInteger)
     destination_country: Mapped[str | None] = mapped_column(String(64))
+    # La LIGA del comprador (2026-11-27, pedido del usuario). El nombre de
+    # arriba viene en el idioma del usuario y no casa con la lista de países;
+    # el `LeagueID` sí, y de él sale el código del país para el mapa de
+    # destinos. `..._attempted`: preguntado queda preguntado.
+    destination_league_id: Mapped[int | None] = mapped_column(BigInteger)
+    destination_country_id: Mapped[int | None] = mapped_column(Integer)
+    destination_league_attempted: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default="0"
+    )
     # HL-161: cuántas veces se ha puesto en el mercado. CHPP no da un
     # historial de esto, solo pujas ACTUALES (currentbids.xml), así que
     # se cuenta hacia adelante desde que existe esta columna, detectando

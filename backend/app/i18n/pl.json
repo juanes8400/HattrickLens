@@ -2115,5 +2115,8 @@
   "sin dato": "brak danych",
   "{} a los 17 · 1 a los 28 · 0 a los {}": "{} w wieku 17 · 1 w wieku 28 · 0 w wieku {}",
   "Él solo llena el {} / {} = {} % del total; el aprovechado de Defensa es la suma de todos los que entrenaron.": "Sam wypełnia {} / {} = {} % całości; wykorzystanie Defensywy to suma wszystkich, którzy trenowali.",
-  "Los datos no se sincronizan hace más de un día.": "Dane nie są synchronizowane od ponad doby."
+  "Los datos no se sincronizan hace más de un día.": "Dane nie są synchronizowane od ponad doby.",
+  "País de los compradores: {} de {}": "Kraj kupujących: {} z {}",
+  "país de los compradores: {}": "kraj kupujących: {}",
+  "país del comprador {}: {}": "kraj kupującego {}: {}"
 }
