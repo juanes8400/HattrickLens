@@ -47,6 +47,10 @@ const PositionsPage = diferida(
   "PositionsPage",
 );
 const SkillsPage = diferida(() => import("./pages/SkillsPage"), "SkillsPage");
+const CuelloDeBotellaPage = diferida(
+  () => import("./pages/CuelloDeBotellaPage"),
+  "CuelloDeBotellaPage",
+);
 const MejorPosicionPage = diferida(
   () => import("./pages/MejorPosicionPage"),
   "MejorPosicionPage",
@@ -291,14 +295,35 @@ export function App() {
             path="overview"
             element={<Navigate to="/team/evolution" replace />}
           />
-          {/* PUESTOS, un módulo de tres pestañas desde la 8.1.0 (2026-11-26):
-              Profundidad, Mejor posición y Por puesto (antes Posiciones). */}
+          {/* PUESTOS: Posiciones, Profundidad, Cuello de botella y Mejor
+              posición (8.2.0, 2026-11-26). Posiciones va en la raíz para que
+              la entrada del menú abra en ella. */}
           <Route
             path="skills"
+            element={
+              <ModuloDelMenu de="puestos" activa="posiciones">
+                <Espera>
+                  <PositionsPage />
+                </Espera>
+              </ModuloDelMenu>
+            }
+          />
+          <Route
+            path="skills/depth"
             element={
               <ModuloDelMenu de="puestos" activa="profundidad">
                 <Espera>
                   <SkillsPage />
+                </Espera>
+              </ModuloDelMenu>
+            }
+          />
+          <Route
+            path="skills/bottleneck"
+            element={
+              <ModuloDelMenu de="puestos" activa="cuello">
+                <Espera>
+                  <CuelloDeBotellaPage />
                 </Espera>
               </ModuloDelMenu>
             }
@@ -313,15 +338,10 @@ export function App() {
               </ModuloDelMenu>
             }
           />
+          {/* Donde estuvo Posiciones en la 8.1.0. */}
           <Route
             path="skills/positions"
-            element={
-              <ModuloDelMenu de="puestos" activa="por-puesto">
-                <Espera>
-                  <PositionsPage />
-                </Espera>
-              </ModuloDelMenu>
-            }
+            element={<Navigate to="/skills" replace />}
           />
           <Route
             path="players/:htPlayerId"
@@ -331,10 +351,7 @@ export function App() {
               </Espera>
             }
           />
-          <Route
-            path="positions"
-            element={<Navigate to="/skills/positions" replace />}
-          />
+          <Route path="positions" element={<Navigate to="/skills" replace />} />
           <Route
             path="lineup"
             element={

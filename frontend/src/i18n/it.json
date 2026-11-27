@@ -39,7 +39,7 @@
     "configuracion": "Configurazione del club",
     "conectado": "Club collegato",
     "clasificacion": "Classificazione dei giocatori",
-    "puestos": "Posizioni"
+    "puestos": "Ruoli"
   },
   "layout": {
     "secciones": "Sezioni di Hattrick Lens",
@@ -718,7 +718,7 @@
     "frenteA": "{{ventaja}} contro {{rival}}",
     "hueco": "Vuoto più serio",
     "huecoAyuda": "Il ruolo del modulo scelto in Profondità dove perdi più rendimento se manca il miglior titolare ed entra il migliore della panchina.",
-    "intro": "Cosa ha la rosa, dove le manca e quale aumento rende di più",
+    "intro": "Cosa ha la rosa e dove le manca",
     "laUltimaOficial": "{{f}} · l'ultima ufficiale",
     "leSacas": "Hai il {{pct}} % di vantaggio",
     "lesionado": "infortunato",
@@ -1201,9 +1201,10 @@
       "evolucion": "Evoluzione"
     },
     "puestos": {
+      "posiciones": "Posizioni",
       "profundidad": "Profondità",
-      "mejor": "Posizione migliore",
-      "por-puesto": "Per posizione"
+      "cuello": "Collo di bottiglia",
+      "mejor": "Posizione migliore"
     }
   }
 }

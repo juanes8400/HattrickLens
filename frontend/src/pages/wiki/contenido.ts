@@ -495,15 +495,62 @@ export const ARTICULOS: Articulo[] = [
   },
   {
     // Un artículo por módulo desde la 8.1.0 (2026-11-26): Puestos junta lo que
-    // eran Profundidad de plantilla y Posiciones, más Mejor posición.
+    // eran Profundidad de plantilla y Posiciones, más Mejor posición; y desde
+    // la 8.2.0, el Cuello de botella como pestaña propia.
     id: "puestos",
     grupo: "club",
     titulo: tx("Puestos"),
     ruta: "/skills",
     resumen: tx(
-      "Dónde rinde cada jugador en la cancha y dónde le falta gente a la plantilla. Tres pestañas: Profundidad, Mejor posición y Por puesto.",
+      "Dónde rinde cada jugador en la cancha y dónde le falta gente a la plantilla. Cuatro pestañas: Posiciones, Profundidad, Cuello de botella y Mejor posición.",
     ),
     secciones: [
+      {
+        pestana: "posiciones",
+        titulo: tx("Qué hay en pantalla"),
+        texto: [
+          tx(
+            "Eliges un puesto y su orden individual y la plantilla se ordena por rendimiento en él. Son 19 variantes de campo (Portero; Defensa Central normal, hacia la banda y ofensivo; Defensa Lateral normal, hacia el medio, ofensivo y defensivo; Mediocentro normal, hacia la banda, ofensivo y defensivo; Extremo normal, hacia el medio, ofensivo y defensivo; Delantero normal, defensivo y hacia la banda) más tres roles especiales: capitán, lanzador de faltas y lanzador de penaltis.",
+          ),
+        ],
+      },
+      {
+        pestana: "posiciones",
+        titulo: tx("Cómo se calcula el rendimiento en el puesto"),
+        texto: [
+          tx(
+            "Cada puesto con su orden tiene una tabla de coeficientes del Manual no Escrito que dice cuánto aporta cada habilidad a cada sector del campo. Por ejemplo, un Mediocentro normal aporta al mediocampo con Jugadas × 1,00, a la defensa central con Defensa × 0,40 y al ataque central con Anotación × 0,22 y Pases × 0,33. Se suman todos los aportes y se dividen entre la suma de coeficientes, para que un puesto con más columnas no gane sólo por tenerlas. Después se ajusta por forma y resistencia.",
+          ),
+        ],
+        formula: tx(
+          "habilidad efectiva = nivel + ln(experiencia) × 4 ÷ 3 + fidelidad ÷ 19\n\naporte = Σ coeficiente × habilidad efectiva ÷ Σ coeficientes\n         × factor de forma × factor de resistencia\n\nfactor de forma       = ((forma − 0,5) ÷ 7) ^ 0,45\nfactor de resistencia = ((resistencia + 6,5) ÷ 14) ^ 0,6",
+        ),
+      },
+      {
+        pestana: "posiciones",
+        titulo: tx("Los roles especiales"),
+        puntos: [
+          tx(
+            "Capitán: 3 × liderazgo + 2 × experiencia. Según el Manual, elegirlo así da una experiencia de equipo igual o mayor que la del capitán automático.",
+          ),
+          tx("Lanzador de faltas: Balón parado + experiencia."),
+          tx(
+            "Lanzador de penaltis: combina experiencia, Balón parado y Anotación, con un bono si el jugador es Técnico.",
+          ),
+        ],
+      },
+      {
+        pestana: "posiciones",
+        titulo: tx("Cómo usarlo y hasta dónde vale"),
+        texto: [
+          tx(
+            "Es la herramienta para decidir quién juega dónde y para descubrir jugadores que rinden en un puesto que no es el suyo. El mismo número alimenta Alineación y Equipo.",
+          ),
+          tx(
+            "La matriz de coeficientes es comunitaria, no oficial de Hattrick. Mide el aporte posicional, no predice los ratings exactos de un partido: no incluye espíritu, confianza, táctica ni actitud.",
+          ),
+        ],
+      },
       {
         pestana: "profundidad",
         titulo: tx("Qué pregunta responde"),
@@ -587,7 +634,7 @@ export const ARTICULOS: Articulo[] = [
         ],
       },
       {
-        pestana: "profundidad",
+        pestana: "cuello",
         titulo: tx("Cuello de botella"),
         texto: [
           tx(
@@ -602,7 +649,7 @@ export const ARTICULOS: Articulo[] = [
         ),
       },
       {
-        pestana: "profundidad",
+        pestana: "cuello",
         titulo: tx("Qué subir primero"),
         texto: [
           tx(
@@ -619,52 +666,6 @@ export const ARTICULOS: Articulo[] = [
         texto: [
           tx(
             "Cuántos jugadores tienen cada puesto como su mejor posición, sobre la cancha y de portería a delantera: es la columna «Mejor posición» de la tabla de Jugadores, contada. Capitán y lanzador de faltas van aparte, fuera del campo. Es el reparto de hoy, no un promedio.",
-          ),
-        ],
-      },
-      {
-        pestana: "por-puesto",
-        titulo: tx("Qué hay en pantalla"),
-        texto: [
-          tx(
-            "Eliges un puesto y su orden individual y la plantilla se ordena por rendimiento en él. Son 19 variantes de campo (Portero; Defensa Central normal, hacia la banda y ofensivo; Defensa Lateral normal, hacia el medio, ofensivo y defensivo; Mediocentro normal, hacia la banda, ofensivo y defensivo; Extremo normal, hacia el medio, ofensivo y defensivo; Delantero normal, defensivo y hacia la banda) más tres roles especiales: capitán, lanzador de faltas y lanzador de penaltis.",
-          ),
-        ],
-      },
-      {
-        pestana: "por-puesto",
-        titulo: tx("Cómo se calcula el rendimiento en el puesto"),
-        texto: [
-          tx(
-            "Cada puesto con su orden tiene una tabla de coeficientes del Manual no Escrito que dice cuánto aporta cada habilidad a cada sector del campo. Por ejemplo, un Mediocentro normal aporta al mediocampo con Jugadas × 1,00, a la defensa central con Defensa × 0,40 y al ataque central con Anotación × 0,22 y Pases × 0,33. Se suman todos los aportes y se dividen entre la suma de coeficientes, para que un puesto con más columnas no gane sólo por tenerlas. Después se ajusta por forma y resistencia.",
-          ),
-        ],
-        formula: tx(
-          "habilidad efectiva = nivel + ln(experiencia) × 4 ÷ 3 + fidelidad ÷ 19\n\naporte = Σ coeficiente × habilidad efectiva ÷ Σ coeficientes\n         × factor de forma × factor de resistencia\n\nfactor de forma       = ((forma − 0,5) ÷ 7) ^ 0,45\nfactor de resistencia = ((resistencia + 6,5) ÷ 14) ^ 0,6",
-        ),
-      },
-      {
-        pestana: "por-puesto",
-        titulo: tx("Los roles especiales"),
-        puntos: [
-          tx(
-            "Capitán: 3 × liderazgo + 2 × experiencia. Según el Manual, elegirlo así da una experiencia de equipo igual o mayor que la del capitán automático.",
-          ),
-          tx("Lanzador de faltas: Balón parado + experiencia."),
-          tx(
-            "Lanzador de penaltis: combina experiencia, Balón parado y Anotación, con un bono si el jugador es Técnico.",
-          ),
-        ],
-      },
-      {
-        pestana: "por-puesto",
-        titulo: tx("Cómo usarlo y hasta dónde vale"),
-        texto: [
-          tx(
-            "Es la herramienta para decidir quién juega dónde y para descubrir jugadores que rinden en un puesto que no es el suyo. El mismo número alimenta Alineación y Equipo.",
-          ),
-          tx(
-            "La matriz de coeficientes es comunitaria, no oficial de Hattrick. Mide el aporte posicional, no predice los ratings exactos de un partido: no incluye espíritu, confianza, táctica ni actitud.",
           ),
         ],
       },

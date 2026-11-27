@@ -39,7 +39,7 @@
     "configuracion": "Einstellungen deines Vereins",
     "conectado": "Verein verbunden",
     "clasificacion": "Spielerklassifizierung",
-    "puestos": "Positionen"
+    "puestos": "Rollen"
   },
   "layout": {
     "secciones": "Bereiche von Hattrick Lens",
@@ -708,7 +708,7 @@
     "nadie": "niemand",
     "rendimientoDe": "Leistung {{r}} · {{habilidad}} {{nivel}} ({{etiqueta}})",
     "titulo": "Kadertiefe",
-    "intro": "Was der Kader hat, wo ihm etwas fehlt und welche Steigerung am meisten bringt",
+    "intro": "Was der Kader hat und wo ihm etwas fehlt",
     "mejorCubierto": "Am besten abgedeckt",
     "entraYPierdes": "{{suplente}} kommt rein und du verlierst {{pct}} %",
     "mejorCubiertoAyuda": "Die Position des in Kadertiefe gewählten Systems, auf der es am wenigsten auffällt, wenn der beste Stammspieler fehlt: der Ersatz von der Bank spielt fast genauso gut.",
@@ -1201,9 +1201,10 @@
       "evolucion": "Entwicklung"
     },
     "puestos": {
+      "posiciones": "Positionen",
       "profundidad": "Kadertiefe",
-      "mejor": "Beste Position",
-      "por-puesto": "Nach Position"
+      "cuello": "Engpass",
+      "mejor": "Beste Position"
     }
   }
 }
