@@ -1,4 +1,4 @@
-/** Un módulo del menú con sus pestañas: Jugadores (8.0.0) y Puestos (8.1.0),
+/** Un módulo del menú con sus pestañas: Jugadores (8.0.0) y Posiciones (8.1.0),
  *  2026-11-26, pedido del usuario.
  *
  *  Juntan cinco pantallas que eran entradas propias del menú Club:
@@ -6,8 +6,8 @@
  *    salario y la evolución semanal (antes «Habilidades»). El salario y la
  *    evolución van aquí porque se parten por los grupos de las
  *    clasificaciones; decisión del usuario.
- *  - Puestos: Posiciones, Profundidad, Cuello de botella (8.2.0) y Mejor
- *    posición.
+ *  - Posiciones (antes «Puestos»): Por posición, Profundidad, Cuello de
+ *    botella (8.2.0) y Mejor posición.
  *
  *  Las pestañas y sus direcciones viven en `layouts/modulos`. Las direcciones
  *  viejas (`/classes`, `/overview`, `/positions`) redirigen a su pestaña. */

@@ -499,10 +499,10 @@ export const ARTICULOS: Articulo[] = [
     // la 8.2.0, el Cuello de botella como pestaña propia.
     id: "puestos",
     grupo: "club",
-    titulo: tx("Puestos"),
+    titulo: tx("Posiciones"),
     ruta: "/skills",
     resumen: tx(
-      "Dónde rinde cada jugador en la cancha y dónde le falta gente a la plantilla. Cuatro pestañas: Posiciones, Profundidad, Cuello de botella y Mejor posición.",
+      "Dónde rinde cada jugador en la cancha y dónde le falta gente a la plantilla. Cuatro pestañas: Por posición, Profundidad, Cuello de botella y Mejor posición.",
     ),
     secciones: [
       {

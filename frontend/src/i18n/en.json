@@ -39,7 +39,7 @@
     "configuracion": "Club setup",
     "conectado": "Club connected",
     "clasificacion": "Player classification",
-    "puestos": "Roles"
+    "puestos": "Positions"
   },
   "layout": {
     "secciones": "Hattrick Lens sections",
@@ -1201,7 +1201,7 @@
       "evolucion": "Evolution"
     },
     "puestos": {
-      "posiciones": "Positions",
+      "posiciones": "By position",
       "profundidad": "Depth",
       "cuello": "Bottleneck",
       "mejor": "Best position"
