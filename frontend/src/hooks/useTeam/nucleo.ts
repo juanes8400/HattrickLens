@@ -106,7 +106,9 @@ export function useInsightArchiveMutation(
   const activas = ["insights", TEAM_ID] as const;
   const buzon = ["insights-archived", TEAM_ID] as const;
 
+  const clave = ["insights-archive", TEAM_ID] as const;
   return useMutation({
+    mutationKey: clave,
     mutationFn: (key: string) => fn(TEAM_ID, key),
     onMutate: async (key: string) => {
       // Se paran los refrescos en vuelo: si uno aterriza después de quitar la
@@ -130,8 +132,12 @@ export function useInsightArchiveMutation(
       if (contexto?.previoBuzon)
         queryClient.setQueryData(buzon, contexto.previoBuzon);
     },
-    // Pase lo que pase, la verdad la tiene el servidor.
+    // Pase lo que pase, la verdad la tiene el servidor. Pero se le pregunta
+    // cuando acaba el ÚLTIMO archivado en vuelo (8.3.3): si se cierran dos
+    // seguidas, preguntar al terminar la primera trae la lista con la segunda
+    // todavía viva y la hace reaparecer un momento.
     onSettled: () => {
+      if (queryClient.isMutating({ mutationKey: clave }) > 1) return;
       queryClient.invalidateQueries({ queryKey: activas });
       queryClient.invalidateQueries({ queryKey: buzon });
     },

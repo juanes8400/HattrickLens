@@ -592,7 +592,7 @@ async def _insights_del_reloj(session: AsyncSession, team_id: int) -> list[ins.I
         synced_at = last_sync.finished_at or last_sync.started_at
         ref = synced_at if synced_at.tzinfo else synced_at.replace(tzinfo=UTC)
         hours = (datetime.now(UTC) - ref).total_seconds() / 3600
-        groups.append(ins.stale_data(hours))
+        groups.append(ins.stale_data(hours, synced_at=ref))
     # Del club, que ya está leído: el paso del mercado deja ahí lo que
     # Hattrick contestó cuando no pudo correr, y lo borra en cuanto vuelve a
     # salir bien. Va con las del reloj y no con las guardadas por sync porque
@@ -713,6 +713,8 @@ def _fingerprint(insight: ins.Insight) -> str:
     filtro del buzón, archivar es acusar recibo de un hecho concreto, no
     apagar la regla que lo detecta.
     """
+    if insight.huella:
+        return hashlib.sha256(insight.huella.encode("utf-8")).hexdigest()
     raw = "|".join(
         (
             insight.severity.value,
