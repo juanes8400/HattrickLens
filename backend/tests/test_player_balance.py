@@ -641,8 +641,25 @@ def test_la_liga_de_los_compradores_se_resuelve_de_una_vez_y_por_club() -> None:
             balance = await PlayerBalanceQueryService(u.session).get(team_id)
         codigos = {r.ht_player_id: r.destination_country_code for r in balance.players if r.is_sold}
         assert codigos and set(codigos.values()) == {"CO"}
+        assert {r.destination_region for r in balance.players if r.is_sold} == {"co"}
 
     asyncio.run(run())
+
+
+def test_la_zona_del_mapa_separa_las_britanicas_y_junta_oceania() -> None:
+    """2026-11-27, reglas del usuario para el mapa de Transferencias: las cuatro
+    ligas británicas (todas «GB» en Hattrick) van cada una con su color, y todo
+    país de Oceanía, Australia incluida, es una sola zona."""
+    from app.application.queries.player_balance import _region_del_mapa
+
+    assert _region_del_mapa("GB", 2) == "gb-eng"
+    assert _region_del_mapa("GB", 26) == "gb-sct"
+    assert _region_del_mapa("GB", 61) == "gb-wls"
+    assert _region_del_mapa("GB", 93) == "gb-nir"
+    assert _region_del_mapa("AU", 15) == "oc"
+    assert _region_del_mapa("PF", 165) == "oc"
+    assert _region_del_mapa("IT", 4) == "it"
+    assert _region_del_mapa("", 1000) is None
 
 
 def test_the_backfill_batch_fills_in_a_sold_players_profile() -> None:

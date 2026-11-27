@@ -158,6 +158,10 @@ export interface PlayerBalanceRow {
   totalCost: number;
   destinationCountry: string;
   destinationCountryCode: string | null;
+  /** La zona del mapa de países: ISO en minúscula, salvo las cuatro ligas
+   *  británicas («gb-eng»…) y Oceanía entera («oc»). `null`: no se sabe. */
+  destinationRegion: string | null;
+  nativeRegion: string | null;
   ageAtSale: number | "?";
   // 2026-08-05: tabla "Detalle" de transferencias.
   ageAtPurchase: number | "?";
