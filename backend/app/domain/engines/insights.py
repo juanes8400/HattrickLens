@@ -34,6 +34,11 @@ class Insight:
     action: str = ""
     module: str = ""
     evidence: dict[str, Any] = field(default_factory=dict)
+    #: Lo que identifica el CONTENIDO para el buzón, cuando el texto cambia
+    #: solo con el reloj. Sin ella la huella es el texto entero; con ella, se
+    #: archiva el hecho y no la frase (8.3.3: «hace 25 horas» pasaba a «hace
+    #: 26 horas» y la alerta archivada volvía cada hora).
+    huella: str | None = None
 
 
 # Todas las claves que este módulo puede emitir, como raíces: varias reglas le
@@ -940,7 +945,11 @@ def assistant_trainers_below_reference(staff: dict[str, Any], reference: int = 1
 # ── Sincronización ──────────────────────────────────────────────────────────
 
 
-def stale_data(hours_since_sync: float, threshold: float = 24.0) -> list[Insight]:
+def stale_data(
+    hours_since_sync: float, threshold: float = 24.0, synced_at: datetime | None = None
+) -> list[Insight]:
+    """Los datos tienen más de un día. `synced_at` es la huella: archivarla vale
+    hasta la próxima sincronización, aunque las horas del texto sigan subiendo."""
     if hours_since_sync < threshold:
         return []
     return [
@@ -951,6 +960,7 @@ def stale_data(hours_since_sync: float, threshold: float = 24.0) -> list[Insight
             detail=f"Última sincronización hace {hours_since_sync:.0f} horas.",
             action="Pulsa Sincronizar para traer lo último desde Hattrick.",
             module="general",
+            huella=f"sync.stale|{synced_at.isoformat()}" if synced_at else None,
         )
     ]
 

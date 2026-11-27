@@ -440,3 +440,20 @@ def test_structural_deficit_avisa_aunque_haya_caja_de_sobra() -> None:
     ingreso recurrente no se cierra solo por tener el colchón grande."""
     out = structural_deficit(-217_000, 21_034_174, "US$", weekly_income=538_088)
     assert out and out[0].severity is Severity.WARNING
+
+
+def test_la_alerta_de_datos_viejos_no_vuelve_cada_hora() -> None:
+    """8.3.3: «hace 25 horas» pasaba a «hace 26 horas», la huella cambiaba y
+    la alerta archivada volvía sola cada hora; parecía que la X no servía.
+    Ahora la huella es la sincronización: vale hasta que se sincroniza."""
+    from datetime import UTC, datetime
+
+    from app.api.v1.endpoints.analysis.alertas import _fingerprint
+
+    ayer = datetime(2026, 11, 26, 12, 0, tzinfo=UTC)
+    [a] = stale_data(25, synced_at=ayer)
+    [b] = stale_data(26, synced_at=ayer)
+    assert a.detail != b.detail
+    assert _fingerprint(a) == _fingerprint(b)
+    [otra] = stale_data(25, synced_at=datetime(2026, 11, 27, 12, 0, tzinfo=UTC))
+    assert _fingerprint(otra) != _fingerprint(a)

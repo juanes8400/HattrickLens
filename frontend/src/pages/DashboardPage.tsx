@@ -513,7 +513,13 @@ export function AlertsBand({
             key={i.key}
             insight={i}
             onArchive={archive.mutate}
-            busy={archive.isPending}
+            // Sólo la que se está archivando (8.3.3, 2026-11-27). Antes se
+            // apagaban TODAS las X mientras el servidor contestaba, y en
+            // producción eso tarda: cerrar una y enseguida la siguiente --la
+            // última de la lista, en el caso del usuario-- caía sobre un botón
+            // deshabilitado y no hacía nada. Es lo que ya hacía el centro de
+            // alertas.
+            busy={archive.isPending && archive.variables === i.key}
           />
         ))}
       </ul>
