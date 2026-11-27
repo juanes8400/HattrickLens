@@ -3,9 +3,9 @@
  *
  *  Definido con el usuario, texto a texto: el subtítulo dice cuándo, cómo y
  *  por qué se usa; el de debajo, con qué partidos y cuándo se aplica el
- *  entrenamiento. Arranca con dos puntos --el entrenamiento actual y el
- *  mejor-- y los demás se añaden tocando su chip; la mini tabla ordena sólo
- *  los activos. «Entrenamiento actual» y nunca «lo que pusiste» (pedido del
+ *  entrenamiento. Siempre están el entrenamiento actual y el mejor; tocando un
+ *  chip se añade UNO más, que reemplaza al anterior (8.3.1, pedido del
+ *  usuario: con varios, los añadidos salían del mismo color y con un número). «Entrenamiento actual» y nunca «lo que pusiste» (pedido del
  *  usuario). El cálculo está en `app/domain/engines/aprovechamiento.py`. */
 import { useState } from "react";
 import clsx from "clsx";
@@ -31,7 +31,7 @@ import { PlayerLink } from "../PlayerLink";
 import {
   COLOR_ACTUAL,
   COLOR_MEJOR,
-  COLOR_OTRO,
+  COLOR_ELEGIDO,
   GraficaDelAprovechamiento,
 } from "./GraficaDelAprovechamiento";
 
@@ -61,30 +61,26 @@ function Contenido({ datos }: { datos: Aprovechamiento }) {
     null;
   const mejor =
     datos.opciones.find((o) => o.trainingType === datos.mejor) ?? null;
-  const [elegidos, setElegidos] = useState<Set<number> | null>(null);
+  const [elegido, setElegido] = useState<number | null>(null);
   const [abierta, setAbierta] = useState<number | null>(null);
   const fijos = new Set(
     [actual?.trainingType, mejor?.trainingType].filter(
       (n): n is number => n != null,
     ),
   );
-  const activos = elegidos ?? fijos;
-  const alternar = (tipo: number) => {
-    const nuevo = new Set(activos);
-    if (nuevo.has(tipo)) nuevo.delete(tipo);
-    else nuevo.add(tipo);
-    // El entrenamiento actual no se quita: es contra lo que se compara todo.
-    if (actual) nuevo.add(actual.trainingType);
-    setElegidos(nuevo);
-  };
+  // Uno a la vez: tocar otro chip reemplaza al anterior, y tocar el mismo lo
+  // quita.
+  const elegir = (tipo: number) =>
+    setElegido((antes) => (antes === tipo ? null : tipo));
+  const activos = new Set(fijos);
+  if (elegido != null) activos.add(elegido);
   const visibles = datos.opciones.filter((o) => activos.has(o.trainingType));
-  const rango = new Map(visibles.map((o, i) => [o.trainingType, i + 1]));
   const color = (o: AprovechamientoOpcion) =>
     o.trainingType === actual?.trainingType
       ? COLOR_ACTUAL
       : o.trainingType === mejor?.trainingType
         ? COLOR_MEJOR
-        : COLOR_OTRO;
+        : COLOR_ELEGIDO;
 
   const corte = cuando(datos.corte);
   const partidos = datos.partidos
@@ -143,19 +139,20 @@ function Contenido({ datos }: { datos: Aprovechamiento }) {
 
             <div className="space-y-1.5">
               <div className="text-xs text-[var(--muted)]">
-                {tx("Comparar con:")}
+                {tx("Comparar con (uno a la vez):")}
               </div>
               <div className="flex flex-wrap gap-1.5">
                 {datos.opciones.map((o) => {
                   const on = activos.has(o.trainingType);
-                  const esActual = o.trainingType === actual?.trainingType;
+                  const fijo = fijos.has(o.trainingType);
                   return (
                     <button
                       key={o.trainingType}
                       type="button"
                       aria-pressed={on}
-                      disabled={esActual}
-                      onClick={() => alternar(o.trainingType)}
+                      // El actual y el mejor están siempre: no se quitan.
+                      disabled={fijo}
+                      onClick={() => elegir(o.trainingType)}
                       className={clsx(
                         "rounded-full border px-2.5 py-1 text-xs transition-colors",
                         on
@@ -180,7 +177,7 @@ function Contenido({ datos }: { datos: Aprovechamiento }) {
               <GraficaDelAprovechamiento
                 opciones={datos.opciones}
                 activos={visibles}
-                rango={rango}
+                nombre={nombre}
                 color={color}
               />
               <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-[var(--muted)]">
@@ -189,7 +186,12 @@ function Contenido({ datos }: { datos: Aprovechamiento }) {
                   texto={tx("Entrenamiento actual")}
                 />
                 <Muestra color={COLOR_MEJOR} texto={tx("El mejor")} />
-                <Muestra color={COLOR_OTRO} texto={tx("Añadidos")} />
+                {elegido != null && (
+                  <Muestra
+                    color={COLOR_ELEGIDO}
+                    texto={tx("El que comparas")}
+                  />
+                )}
                 <span>{tx("Tamaño: casillas que entrenan")}</span>
               </div>
             </div>
@@ -338,7 +340,7 @@ function MiniTabla({
         <tbody>
           {visibles.map((o, i) => {
             const esActual = o.trainingType === actual?.trainingType;
-            const destacado = esActual || color(o) !== COLOR_OTRO;
+            const destacado = color(o) !== COLOR_ELEGIDO;
             return (
               <FilaConDetalle
                 key={o.trainingType}
@@ -360,7 +362,7 @@ function MiniTabla({
         </tbody>
       </table>
       <p className="text-xs text-[var(--muted)]">
-        {tx("Sólo los que tienes activos. Toca una fila para ver sus datos.")}
+        {tx("Toca una fila para ver sus datos.")}
       </p>
     </div>
   );
