@@ -36,6 +36,17 @@ export const usePostMatchTraining = () =>
     refetchOnWindowFocus: "always",
   });
 
+/** El A posteriori (8.3.0). Sólo con su pestaña abierta; como el de antes,
+ *  se vuelve a pedir al volver: un sync en otra pestaña lo cambia. */
+export const useAprovechamiento = (enabled = true) =>
+  useQuery({
+    queryKey: ["aprovechamiento", TEAM_ID],
+    queryFn: () => api.aprovechamiento(TEAM_ID),
+    enabled,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+  });
+
 export const useTrainingFormula = () =>
   useQuery({
     queryKey: ["training-formula", TEAM_ID],

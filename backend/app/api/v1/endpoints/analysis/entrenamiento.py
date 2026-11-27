@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.cache_por_sync import TTL_CON_RELOJ, por_sync
 from app.api.deps import require_team_owner
 from app.api.v1.endpoints.analysis.plantilla import roster
+from app.application.queries.aprovechamiento import AprovechamientoQueryService
 from app.application.queries.post_match_training import PostMatchTrainingService
 from app.application.queries.training_context import TrainingContextService
 from app.application.queries.training_squad import TrainingSquadQueryService
@@ -365,6 +366,34 @@ async def post_match_training(
     if result is None:
         raise HTTPException(404, f"team {team_id} not found")
     return result
+
+
+@router.get(
+    "/teams/{team_id}/training/aprovechamiento",
+    summary="A posteriori: qué entrenamiento aprovechaba mejor esta semana",
+    dependencies=[Depends(require_team_owner)],
+)
+async def aprovechamiento(
+    team_id: int,
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, Any]:
+    """El A posteriori de la 8.3.0 (2026-11-26): para cada entrenamiento, el %
+    del ideal que aprovecha con los minutos y puestos que ya se jugaron esta
+    semana. Ver `app.domain.engines.aprovechamiento`.
+
+    Guardado por sincronización, con `TTL_CON_RELOJ`: «todavía puedes
+    cambiarlo» depende de la hora, no sólo de los datos."""
+
+    async def calcular() -> dict[str, Any]:
+        result = await AprovechamientoQueryService(session).get(team_id)
+        if result is None:
+            raise HTTPException(404, f"team {team_id} not found")
+        return result
+
+    return cast(
+        dict[str, Any],
+        await por_sync(session, team_id, "aprovechamiento", (), calcular, ttl=TTL_CON_RELOJ),
+    )
 
 
 @router.get(

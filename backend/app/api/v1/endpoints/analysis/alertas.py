@@ -21,6 +21,7 @@ from app.application.queries.alertas_de_cierre import (
     alertas_de_cierre,
     comision_a_la_vista_de,
 )
+from app.application.queries.aprovechamiento import AprovechamientoQueryService
 from app.application.queries.arena import ArenaQueryService
 from app.application.queries.economy import (
     VENTANA_POR_DEFECTO,
@@ -608,7 +609,36 @@ async def _insights_del_reloj(session: AsyncSession, team_id: int) -> list[ins.I
     groups.append(ins.avisos_del_autor(await _avisos_vivos(session, datetime.now(UTC))))
     # La reventa cierra a una hora: pasada, la alerta se va sin esperar al sync.
     groups.append(await comision_a_la_vista_de(session, team_id))
+    # El A posteriori (2026-11-26, pedido del usuario): va con las del reloj
+    # porque deja de valer al aplicarse el entrenamiento, sin que nadie
+    # sincronice. El cálculo caro es el mismo de la pantalla, guardado por sync.
+    groups.append(await _a_posteriori(session, team_id))
     return ins.collect(*groups)
+
+
+async def _a_posteriori(session: AsyncSession, team_id: int) -> list[ins.Insight]:
+    from app.api.cache_por_sync import TTL_CON_RELOJ, por_sync
+
+    async def calcular() -> dict[str, Any] | None:
+        return await AprovechamientoQueryService(session).get(team_id)
+
+    datos = await por_sync(session, team_id, "aprovechamiento", (), calcular, ttl=TTL_CON_RELOJ)
+    if not datos:
+        return []
+    corte = datetime.fromisoformat(datos["corte"])
+    opciones = {o["trainingType"]: o for o in datos["opciones"]}
+    actual = datos["actual"]["trainingType"] if datos["actual"] else None
+    mejor = opciones.get(datos["mejor"]) if datos["mejor"] is not None else None
+    de_actual = opciones.get(actual) if actual is not None else None
+    return ins.entrenamiento_a_posteriori(
+        semana=f"{corte:%Y-%m-%d}",
+        partidos=len(datos["partidos"]),
+        aun_se_puede_cambiar=datetime.now(UTC) < corte,
+        actual=de_actual["name"] if de_actual else None,
+        actual_pct=de_actual["aprovechado"] if de_actual else None,
+        mejor=mejor["name"] if mejor else None,
+        mejor_pct=mejor["aprovechado"] if mejor else None,
+    )
 
 
 async def _avisos_vivos(session: AsyncSession, ahora: datetime) -> list[ins.AvisoDelAutor]:

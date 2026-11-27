@@ -70,6 +70,8 @@ const MODULE_ROUTES: Record<string, string> = {
   alineación: "/lineup",
   clasificación: "/team/classes",
   habilidades: "/team/evolution",
+  // El A posteriori (8.3.0): abre Entrenamiento directamente en su pestaña.
+  "a posteriori": "/training?tab=posteriori",
   general: "/sync",
 };
 

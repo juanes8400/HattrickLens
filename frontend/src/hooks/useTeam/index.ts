@@ -21,6 +21,7 @@ export { useDashboard } from "./dashboard";
 export { useEconomy } from "./economia";
 export {
   usePostMatchTraining,
+  useAprovechamiento,
   useTrainingDevelopment,
   useTrainingForecast,
   useTrainingFormula,

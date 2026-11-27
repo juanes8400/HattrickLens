@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.domain.engines import aprovechamiento as ap
 from app.domain.engines import htms
 from app.domain.engines.economy_engine import HOME_MATCHES_PER_SEASON, SEASON_WEEKS
 from app.domain.engines.metodo_ocho import ESCALERA, UMBRAL_DE_DESCARTE
@@ -42,6 +43,7 @@ from app.domain.engines.prediccion import (
 )
 from app.domain.engines.season_simulator import HOME_ADVANTAGE, SHRINKAGE_K
 from app.domain.engines.training_engine import DAYS_PER_HT_YEAR, parametros
+from app.domain.engines.training_engine import default_setup as default_training_setup
 from app.domain.engines.youth_skill_score import (
     DEFAULT_WEIGHT_BASE,
     EXPONENTS,
@@ -593,6 +595,30 @@ def _tabla_de_resumenes() -> Tabla:
     )
 
 
+def _pasos_del_a_posteriori() -> list[str]:
+    """El ejemplo del A posteriori, con sus números sacados del motor (con la
+    configuración de entrenamiento por defecto), para que no se desfase."""
+    setup = default_training_setup("defending", training_type=3)
+    r = ap.ritmo("defending", {"defending": 16}, 28, 0, setup)
+    g = ap.ideal("defending", setup)
+    total = ap.casillas({"defender": "full", "wingback": "full"}) * ap.PARTIDOS_POR_SEMANA * g
+    aporte = r.por_semana
+    return [
+        "Un central de 28 años con Defensa 16 juega 90′ en liga y en copa.",
+        "m = 1: el cupo es de 90′ por semana; los otros 90′ no entrenan.",
+        f"Defensa 16 → 17 sube su HTMS en {r.delta_htms} y tarda {_coma(r.semanas)} semanas "
+        "con la configuración por defecto: "
+        f"{r.delta_htms} / {_coma(r.semanas)} = {_coma(r.delta_htms / r.semanas)} por semana.",
+        f"A los 28 años, w = {_coma(r.peso_edad)}: aporta 1 · "
+        f"{_coma(r.delta_htms / r.semanas)} · {_coma(r.peso_edad)} = {_coma(aporte)}.",
+        f"El ideal de Defensa vale {_coma(g)} por semana. Con 5 casillas y "
+        f"{ap.PARTIDOS_POR_SEMANA} partidos, el 100 % sería {_coma(total)}.",
+        f"Él solo llena el {_coma(aporte)} / {_coma(total)} = "
+        f"{_coma(100 * aporte / total)} % del total; el aprovechado de Defensa es la suma de "
+        "todos los que entrenaron.",
+    ]
+
+
 def catalogo() -> list[Seccion]:
     """Todo lo que la herramienta calcula, sección por sección."""
     return [
@@ -917,6 +943,80 @@ def catalogo() -> list[Seccion]:
                         "ajustan con tus datos."
                     ),
                     live="trainingFormula",
+                ),
+                Calculo(
+                    id="a-posteriori",
+                    sources=[
+                        Fuente(
+                            "Minutos y puesto de cada jugador en la liga y el partido entre semana",
+                            "Los partidos ya jugados",
+                        ),
+                        Fuente("Quién entrena en cada puesto", "La tabla de Hattrick"),
+                        Fuente(
+                            "Semanas hasta el próximo nivel",
+                            "El cálculo «Semanas hasta el próximo nivel», con tu configuración",
+                        ),
+                        Fuente("HTMS y HTMS28", "La tabla pública de HTMS"),
+                        Fuente(
+                            "La edad en que un jugador deja de contar y el ideal",
+                            "Reglas fijadas por el usuario de la app",
+                        ),
+                    ],
+                    name="A posteriori: cuánto se aprovecha cada entrenamiento",
+                    answers=(
+                        "Con lo que de verdad se jugó esta semana, qué entrenamiento "
+                        "habría sacado más de esos minutos."
+                    ),
+                    formula=(
+                        "aporte del jugador = m · ΔHTMS / T · w\n"
+                        f"w = máx(0, 1 + (HTMS28 − HTMS) / {ap.K_EDAD})\n"
+                        "\n"
+                        "aprovechado = Σ aporte ÷ (casillas · "
+                        f"{ap.PARTIDOS_POR_SEMANA} · G_ideal)\n"
+                        f"G_ideal = el aporte de un jugador de {ap.EDAD_DEL_IDEAL} años con "
+                        f"nivel {ap.NIVEL_DEL_IDEAL} en la habilidad"
+                    ),
+                    constants=[
+                        Constante(
+                            "m",
+                            "0 – 1",
+                            "La parte de la semana que entrena: minutos en un puesto que "
+                            "entrena, con su peso, hasta 90′ por semana.",
+                        ),
+                        Constante(
+                            "w",
+                            f"{ap.peso_por_edad(17, 0):.2f} a los 17 · 1 a los 28 · "
+                            f"0 a los {ap.EDAD_EN_QUE_DEJA_DE_SERVIR}",
+                            "El peso por edad: la misma subida vale más en un jugador joven.",
+                        ),
+                        Constante(
+                            str(ap.K_EDAD),
+                            str(ap.K_EDAD),
+                            f"Lo que vale HTMS − HTMS28 a los {ap.EDAD_EN_QUE_DEJA_DE_SERVIR} "
+                            "años: con él, w llega a 0 justo a esa edad.",
+                        ),
+                        Constante(
+                            "casillas",
+                            "1 – 11",
+                            "Los puestos que entrena ese entrenamiento en un partido; un "
+                            "puesto que entrena a medias cuenta medio.",
+                        ),
+                        Constante(
+                            "partidos",
+                            str(ap.PARTIDOS_POR_SEMANA),
+                            "Liga y partido entre semana. Sin el segundo, sus casillas "
+                            "cuentan como vacías.",
+                        ),
+                    ],
+                    steps=_pasos_del_a_posteriori(),
+                    limits=[
+                        "Mira una semana, no el plan: cambiar una semana puede rendir más "
+                        "y frenar un entrenamiento de largo plazo.",
+                        "Las tácticas no entran.",
+                        "Si falta la alineación de un partido, ese partido no cuenta.",
+                        "El ideal es una referencia, no un techo: un juvenil puede pasar "
+                        "del 100 %.",
+                    ],
                 ),
                 Calculo(
                     id="individual",
