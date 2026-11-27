@@ -39,7 +39,7 @@
     "configuracion": "Einstellungen deines Vereins",
     "conectado": "Verein verbunden",
     "clasificacion": "Spielerklassifizierung",
-    "puestos": "Rollen"
+    "puestos": "Positionen"
   },
   "layout": {
     "secciones": "Bereiche von Hattrick Lens",
@@ -1201,7 +1201,7 @@
       "evolucion": "Entwicklung"
     },
     "puestos": {
-      "posiciones": "Positionen",
+      "posiciones": "Nach Position",
       "profundidad": "Kadertiefe",
       "cuello": "Engpass",
       "mejor": "Beste Position"

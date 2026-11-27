@@ -20,11 +20,13 @@ export const NAV = [
   // Clasificación de jugadores dejaron de ser entradas propias; ver
   // `layouts/modulos`.
   { to: "/team", label: "Jugadores", clave: "jugadores" },
-  // Puestos es un módulo con pestañas desde la 8.1.0 (2026-11-26):
-  // Posiciones, Profundidad, Cuello de botella y Mejor posición (8.2.0). Profundidad de plantilla y
-  // Posiciones dejaron de ser entradas propias. No se llama «Plantilla»
-  // porque chocaría con «Jugadores», como chocó «Equipo» (2026-11-02).
-  { to: "/skills", label: "Puestos", clave: "puestos" },
+  // Posiciones es un módulo con pestañas desde la 8.1.0 (2026-11-26): Por
+  // posición, Profundidad, Cuello de botella y Mejor posición. Se llamó
+  // «Puestos» hasta la 8.2.1, en que el usuario lo renombró. La `clave`
+  // sigue siendo `puestos`: es la de su traducción en `nav.puestos`. No se
+  // llama «Plantilla» porque chocaría con «Jugadores», como chocó «Equipo»
+  // (2026-11-02).
+  { to: "/skills", label: "Posiciones", clave: "puestos" },
   { to: "/lineup", label: "Alineación", clave: "alineacion" },
   { section: "Desarrollo", clave: "seccion.desarrollo" },
   { to: "/training", label: "Entrenamiento", clave: "entrenamiento" },

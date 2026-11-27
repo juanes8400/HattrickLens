@@ -1071,7 +1071,7 @@
     "uso": "Użycie",
     "wiki": "Wiki",
     "clasificacion": "Klasyfikacja zawodników",
-    "puestos": "Role"
+    "puestos": "Pozycje"
   },
   "posiciones": {
     "aporteDe": "{{orden}} · wkład",
@@ -1201,7 +1201,7 @@
       "evolucion": "Ewolucja"
     },
     "puestos": {
-      "posiciones": "Pozycje",
+      "posiciones": "Według pozycji",
       "profundidad": "Głębokość kadry",
       "cuello": "Wąskie gardło",
       "mejor": "Najlepsza pozycja"
