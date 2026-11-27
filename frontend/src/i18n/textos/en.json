@@ -2528,5 +2528,6 @@
   "A posteriori: después del segundo partido de la semana y antes de que se aplique el entrenamiento, qué entrenamiento aprovecha mejor los minutos y puestos que de verdad se jugaron, en % de un ideal (un jugador de 17 años con nivel 8). Si otro aprovecha más, lo avisa en Alertas.": "A posteriori: after the second match of the week and before the training update, which training makes the most of the minutes and positions actually played, as a % of an ideal (a 17-year-old player with level 8). If another one does better, it warns you in Alerts.",
   "Comparar con (uno a la vez):": "Compare with (one at a time):",
   "El que comparas": "The one you compare",
-  "Toca una fila para ver sus datos.": "Tap a row to see its data."
+  "Toca una fila para ver sus datos.": "Tap a row to see its data.",
+  "Ver los {{n}} restantes": "Show the remaining {{n}}"
 }

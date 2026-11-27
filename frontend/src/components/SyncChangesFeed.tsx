@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { useState } from "react";
 import { PlayerLink } from "./PlayerLink";
 import { number } from "../hooks/useFormat";
 import type {
@@ -480,6 +481,9 @@ function groupByCategory(changes: SyncChange[]): [string, SyncChange[]][] {
   return [...known, ...rest].map((cat) => [cat, byCategory.get(cat) ?? []]);
 }
 
+/** Cuántos cambios de jugadores se enseñan antes del botón «Ver los N restantes». */
+const PRIMERAS = 15;
+
 export function SyncChangesFeed({
   changes,
   onDismiss,
@@ -490,6 +494,16 @@ export function SyncChangesFeed({
   playerLinks?: Record<string, number>;
 }) {
   const playerChanges = changes.filter((c) => c.category === "jugadores");
+  // SIN CAJA CON SCROLL PROPIO (8.3.2, 2026-11-27, pedido del usuario: «es
+  // muy difícil hacer scroll, mucho»). La lista era una caja de hasta 32rem
+  // --casi la pantalla entera-- con su propio scroll y `overscroll-contain`:
+  // con el ratón o el dedo encima sólo se movía la lista, y al llegar a su
+  // final la página no seguía. Ahora es parte de la página, y para que una
+  // sincronización de día de entrenamiento no la alargue sin fin se enseñan
+  // las primeras y un botón para el resto.
+  const [todas, setTodas] = useState(false);
+  const visibles = todas ? playerChanges : playerChanges.slice(0, PRIMERAS);
+  const restantes = playerChanges.length - visibles.length;
   const skillPops = playerChanges.filter((c) => {
     const lower = c.summary.toLowerCase();
     return (
@@ -543,8 +557,8 @@ export function SyncChangesFeed({
               {tx("Sin cambios de jugadores en esta sincronización.")}
             </p>
           ) : (
-            <ul className="max-h-[32rem] divide-y divide-[var(--border)] overflow-y-auto overscroll-contain">
-              {playerChanges.map((change, index) => {
+            <ul className="divide-y divide-[var(--border)]">
+              {visibles.map((change, index) => {
                 const parsed = splitPlayerSummary(change.summary);
                 // El nombre del jugador viene en `detail.subject` cuando el
                 // cambio es nuevo; en las filas viejas hay que sacarlo de la
@@ -608,6 +622,16 @@ export function SyncChangesFeed({
                 );
               })}
             </ul>
+          )}
+          {restantes > 0 && (
+            <button
+              type="button"
+              onClick={() => setTodas(true)}
+              data-track="Cambios: ver todos los de jugadores"
+              className="w-full border-t border-[var(--border)] px-3 py-2 text-left text-xs text-[var(--accent)] hover:underline"
+            >
+              {tx("Ver los {{n}} restantes", { n: restantes })}
+            </button>
           )}
         </div>
 

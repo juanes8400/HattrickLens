@@ -2528,5 +2528,6 @@
   "A posteriori: después del segundo partido de la semana y antes de que se aplique el entrenamiento, qué entrenamiento aprovecha mejor los minutos y puestos que de verdad se jugaron, en % de un ideal (un jugador de 17 años con nivel 8). Si otro aprovecha más, lo avisa en Alertas.": "A posteriori: dopo la seconda partita della settimana e prima dell'aggiornamento dell'allenamento, quale allenamento sfrutta meglio i minuti e i ruoli davvero giocati, in % di un ideale (un giocatore di 17 anni con livello 8). Se un altro rende di più, te lo segnala negli Avvisi.",
   "Comparar con (uno a la vez):": "Confronta con (uno alla volta):",
   "El que comparas": "Quello che confronti",
-  "Toca una fila para ver sus datos.": "Tocca una riga per vederne i dati."
+  "Toca una fila para ver sus datos.": "Tocca una riga per vederne i dati.",
+  "Ver los {{n}} restantes": "Vedi i restanti {{n}}"
 }
