@@ -55,7 +55,7 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/skills/best` | [MejorPosicionPage.tsx](../frontend/src/pages/MejorPosicionPage.tsx) | 53 | 4889 | resumen | 5 | 20 |
 | `/players/:htPlayerId` | [PlayerPage.tsx](../frontend/src/pages/PlayerPage.tsx) | 1570 | 22642 | clases, jugadores, player_balance, precio_comparable | 20 | 60 |
 | `/lineup` | [LineupPage.tsx](../frontend/src/pages/LineupPage.tsx) | 1019 | 9683 | alineacion, plantilla | 10 | 25 |
-| `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 1895 | 14213 | entrenamiento, jugadores, club | 11 | 44 |
+| `/training` | [TrainingPage.tsx](../frontend/src/pages/TrainingPage.tsx) | 1895 | 14243 | entrenamiento, jugadores, club | 11 | 44 |
 | `/transfers/balance` | [PlayerBalancePage.tsx](../frontend/src/pages/PlayerBalancePage.tsx) | 3734 | 23545 | clases, economy, player_balance, precio_comparable, jugadores, plantilla | 19 | 60 |
 | `/libro` | [LibroDeVisitasPage.tsx](../frontend/src/pages/LibroDeVisitasPage.tsx) | 136 | 1235 | libro | 0 | 1 |
 | `/academy` | [AcademyPage.tsx](../frontend/src/pages/AcademyPage.tsx) | 4039 | 16432 | academy | 13 | 31 |

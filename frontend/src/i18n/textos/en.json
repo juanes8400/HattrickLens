@@ -2525,5 +2525,8 @@
   "Casillas que entrenan": "Slots that train",
   "Minutos que no entrenan por el cupo de 90′": "Minutes that don't train because of the 90′ cap",
   "Semanas por nivel (media)": "Weeks per level (average)",
-  "A posteriori: después del segundo partido de la semana y antes de que se aplique el entrenamiento, qué entrenamiento aprovecha mejor los minutos y puestos que de verdad se jugaron, en % de un ideal (un jugador de 17 años con nivel 8). Si otro aprovecha más, lo avisa en Alertas.": "A posteriori: after the second match of the week and before the training update, which training makes the most of the minutes and positions actually played, as a % of an ideal (a 17-year-old player with level 8). If another one does better, it warns you in Alerts."
+  "A posteriori: después del segundo partido de la semana y antes de que se aplique el entrenamiento, qué entrenamiento aprovecha mejor los minutos y puestos que de verdad se jugaron, en % de un ideal (un jugador de 17 años con nivel 8). Si otro aprovecha más, lo avisa en Alertas.": "A posteriori: after the second match of the week and before the training update, which training makes the most of the minutes and positions actually played, as a % of an ideal (a 17-year-old player with level 8). If another one does better, it warns you in Alerts.",
+  "Comparar con (uno a la vez):": "Compare with (one at a time):",
+  "El que comparas": "The one you compare",
+  "Toca una fila para ver sus datos.": "Tap a row to see its data."
 }

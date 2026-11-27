@@ -2525,5 +2525,8 @@
   "Casillas que entrenan": "Miejsca, które trenują",
   "Minutos que no entrenan por el cupo de 90′": "Minuty, które nie trenują przez limit 90′",
   "Semanas por nivel (media)": "Tygodnie na poziom (średnia)",
-  "A posteriori: después del segundo partido de la semana y antes de que se aplique el entrenamiento, qué entrenamiento aprovecha mejor los minutos y puestos que de verdad se jugaron, en % de un ideal (un jugador de 17 años con nivel 8). Si otro aprovecha más, lo avisa en Alertas.": "A posteriori: po drugim meczu tygodnia i przed aktualizacją treningu — który trening najlepiej wykorzystuje naprawdę rozegrane minuty i pozycje, w % ideału (17-letni zawodnik z poziomem 8). Jeśli inny daje więcej, ostrzega w Alertach."
+  "A posteriori: después del segundo partido de la semana y antes de que se aplique el entrenamiento, qué entrenamiento aprovecha mejor los minutos y puestos que de verdad se jugaron, en % de un ideal (un jugador de 17 años con nivel 8). Si otro aprovecha más, lo avisa en Alertas.": "A posteriori: po drugim meczu tygodnia i przed aktualizacją treningu — który trening najlepiej wykorzystuje naprawdę rozegrane minuty i pozycje, w % ideału (17-letni zawodnik z poziomem 8). Jeśli inny daje więcej, ostrzega w Alertach.",
+  "Comparar con (uno a la vez):": "Porównaj z (po jednym):",
+  "El que comparas": "Porównywany",
+  "Toca una fila para ver sus datos.": "Dotknij wiersza, aby zobaczyć jego dane."
 }
