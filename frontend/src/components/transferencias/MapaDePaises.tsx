@@ -270,7 +270,6 @@ function Lamina({
             fill={relleno(SIN_ZONA)}
             stroke={paleta.raya}
             strokeWidth={activa === SIN_ZONA ? 1.8 : 1}
-            strokeDasharray="3 2"
             vectorEffect="non-scaling-stroke"
           />
           <text
