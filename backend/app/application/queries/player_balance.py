@@ -125,6 +125,11 @@ _PAISES_DE_OCEANIA = frozenset(
 )
 
 
+# Nombres con los que Hattrick llama a un país y que no salen en la lista de
+# países: el de la liga en su propio idioma.
+_OTROS_NOMBRES: dict[str, tuple[str, ...]] = {"MG": ("Madagasikara",)}
+
+
 def _region_del_mapa(country_code: str, league_id: int) -> str | None:
     """La zona del mapa de un país de Hattrick, ver `PlayerBalanceRow`."""
     if league_id in _LIGAS_BRITANICAS:
@@ -786,6 +791,7 @@ class PlayerBalanceQueryService:
                     m.WorldContext.country_code,
                     m.WorldContext.country_name,
                     m.WorldContext.ht_league_id,
+                    m.WorldContext.league_name,
                 ).where(m.WorldContext.country_code != "")
             )
         ).all()
@@ -793,39 +799,50 @@ class PlayerBalanceQueryService:
         # siempre, a diferencia del nombre, que llega en el idioma del usuario.
         country_codes_by_league = {
             int(league_id): str(country_code).upper()
-            for _cid, country_code, _cname, league_id in country_rows
+            for _cid, country_code, _cname, league_id, _lname in country_rows
             if league_id
         }
         country_codes_by_id = {
             int(country_id): str(country_code).upper()
-            for country_id, country_code, _country_name, _league in country_rows
+            for country_id, country_code, _country_name, _league, _lname in country_rows
         }
         country_names_by_id = {
             int(country_id): str(country_name)
-            for country_id, _country_code, country_name, _league in country_rows
+            for country_id, _country_code, country_name, _league, _lname in country_rows
             if country_name
         }
+        # EL NOMBRE, POR LOS DOS LADOS (2026-11-27). El país de nacimiento se
+        # guarda a veces con el nombre del país en su idioma («Deutschland»,
+        # del snapshot) y a veces con el de la LIGA en el idioma del usuario
+        # («Alemania», de `NativeLeagueName`). Sólo se buscaba el primero, y en
+        # producción 27 jugadores con nacionalidad a la vista acababan en el
+        # círculo de «sin determinar» del mapa.
+        nombres_de_pais: list[tuple[str, str, int]] = []
+        for _cid, country_code, country_name, league_id, league_name in country_rows:
+            for nombre in (country_name, league_name, *_OTROS_NOMBRES.get(str(country_code), ())):
+                if nombre:
+                    nombres_de_pais.append(
+                        (str(nombre).strip().casefold(), str(country_code), int(league_id or 0))
+                    )
         country_codes_by_name = {
-            str(country_name).strip().casefold(): str(country_code).upper()
-            for _country_id, country_code, country_name, _league in country_rows
-            if country_name
+            nombre: country_code.upper() for nombre, country_code, _league in nombres_de_pais
         }
         # La zona del mapa sale de la LIGA y no del código: las cuatro ligas
         # británicas comparten «GB» y en el mapa van cada una con su color.
         region_by_league = {
             int(league_id): _region_del_mapa(str(country_code), int(league_id))
-            for _cid, country_code, _cname, league_id in country_rows
+            for _cid, country_code, _cname, league_id, _lname in country_rows
             if league_id
         }
         region_by_country_id = {
             int(country_id): region_by_league[int(league_id)]
-            for country_id, _code, _cname, league_id in country_rows
+            for country_id, _code, _cname, league_id, _lname in country_rows
             if country_id and league_id
         }
         region_by_name = {
-            str(country_name).strip().casefold(): region_by_league[int(league_id)]
-            for _cid, _code, country_name, league_id in country_rows
-            if country_name and league_id
+            nombre: region_by_league[league_id]
+            for nombre, _code, league_id in nombres_de_pais
+            if league_id
         }
 
         def week_number(when: datetime | None) -> int | None:

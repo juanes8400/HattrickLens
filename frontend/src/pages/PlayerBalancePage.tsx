@@ -2374,6 +2374,7 @@ export function PlayerBalancePage() {
 
         {section === "desgloses" && (
           <div className="space-y-3">
+            <MasAbajo cuantas={8} />
             <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
               <MapaDePaises
                 filas={desglosesRows}
@@ -2511,6 +2512,7 @@ export function PlayerBalancePage() {
 
         {section === "roi" && (
           <div className="space-y-4">
+            <MasAbajo cuantas={6} />
             <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
               <MapaDePaises
                 filas={desglosesRows}
@@ -2761,6 +2763,33 @@ function techoDeEscala(magnitudes: number[]): number | null {
   const techo = Math.max(100, mediana * 3);
   if (mayor <= techo) return null;
   return redondeaBonito(techo);
+}
+
+/** Encima de los mapas, que ocupan más de una pantalla: que se vea desde el
+ *  principio que la pestaña sigue (2026-11-27, pedido del usuario). Al
+ *  tocarlo, salta los mapas y baja hasta la primera gráfica de debajo. */
+function MasAbajo({ cuantas }: { cuantas: number }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        // Por encima queda la barra fija de arriba: sin el margen, el título
+        // de la gráfica se esconde detrás.
+        const destino = e.currentTarget.nextElementSibling?.nextElementSibling;
+        if (!destino) return;
+        window.scrollTo({
+          top: destino.getBoundingClientRect().top + window.scrollY - 80,
+          behavior: "smooth",
+        });
+      }}
+      className="ml-auto flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-1.5 text-xs text-[var(--muted)] shadow-sm hover:text-[var(--text)]"
+    >
+      <span aria-hidden className="animate-bounce">
+        ↓
+      </span>
+      {tx("Debajo, {{v0}} gráficas más", { v0: cuantas })}
+    </button>
+  );
 }
 
 function RoiPanel({
