@@ -2115,5 +2115,8 @@
   "sin dato": "nessun dato",
   "{} a los 17 · 1 a los 28 · 0 a los {}": "{} a 17 · 1 a 28 · 0 a {}",
   "Él solo llena el {} / {} = {} % del total; el aprovechado de Defensa es la suma de todos los que entrenaron.": "Da solo riempie {} / {} = {} % del totale; lo sfruttamento di Difesa è la somma di tutti quelli che si sono allenati.",
-  "Los datos no se sincronizan hace más de un día.": "I dati non si sincronizzano da più di un giorno."
+  "Los datos no se sincronizan hace más de un día.": "I dati non si sincronizzano da più di un giorno.",
+  "País de los compradores: {} de {}": "Paese degli acquirenti: {} di {}",
+  "país de los compradores: {}": "paese degli acquirenti: {}",
+  "país del comprador {}: {}": "paese dell'acquirente {}: {}"
 }

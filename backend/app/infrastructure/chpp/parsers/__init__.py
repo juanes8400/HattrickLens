@@ -131,6 +131,10 @@ def parse_teamdetails(xml: bytes) -> dict[str, Any]:
                 else "",
                 "series_ht_id": _int(series, "LeagueLevelUnitID") if series is not None else 0,
                 "country_name": _txt(country, "CountryName", "") if country is not None else "",
+                # El PAÍS del club, que no siempre es el de su liga: un club de
+                # una liga internacional (LeagueID 1000, 1002) sigue teniendo
+                # país (2026-11-27, ocho compradores así en la copia local).
+                "country_id": _int(country, "CountryID") if country is not None else 0,
                 "ht_region_id": _int(region, "RegionID") if region is not None else 0,
                 "region_name": _txt(region, "RegionName", "") if region is not None else "",
                 # La academia de ESTE equipo, 2026-09-19. Hattrick la nombra
