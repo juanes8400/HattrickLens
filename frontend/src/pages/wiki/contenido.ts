@@ -793,7 +793,7 @@ export const ARTICULOS: Articulo[] = [
             "Experiencia, fidelidad y resistencia, cada una con su propio modelo.",
           ),
           tx(
-            "Entrenamiento decidido a posteriori: con los minutos reales de la semana, qué entrenamiento habría aprovechado mejor esos mismos partidos.",
+            "A posteriori: después del segundo partido de la semana y antes de que se aplique el entrenamiento, qué entrenamiento aprovecha mejor los minutos y puestos que de verdad se jugaron, en % de un ideal (un jugador de 17 años con nivel 8). Si otro aprovecha más, lo avisa en Alertas.",
           ),
         ],
       },

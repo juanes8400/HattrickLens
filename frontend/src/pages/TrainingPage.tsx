@@ -1,6 +1,6 @@
 import { EnlaceATransparencia } from "../components/EnlaceATransparencia";
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import i18n from "../i18n";
 import {
@@ -24,16 +24,14 @@ import {
   ProjectionPanel,
 } from "../components/Panels";
 import { PlayerLink } from "../components/PlayerLink";
+import { APosteriori } from "../components/entrenamiento/APosteriori";
 import { Tabs, PanelDePestanas } from "../components/Tabs";
-import { Chart } from "../charts/Chart";
-import { barOption } from "../charts/chartOptions";
 import type {
   ClubStaffRole,
   ClubStaffRoleEffect,
   ConfirmedLevelUp,
   LevelForecastMilestone,
   PlayerTrainingLevels,
-  PostMatchTrainingOption,
   TrainingExperienceRow,
   TrainingLoyaltyRow,
   TrainingSquadPlayerRow,
@@ -959,58 +957,6 @@ function PanelDePrevision({ datos }: { datos: PlayerTrainingLevels }) {
   );
 }
 
-function optionColumns(): Column<PostMatchTrainingOption>[] {
-  return [
-    {
-      key: "name",
-      header: t("nav.entrenamiento", "Entrenamiento"),
-      align: "left",
-      value: (r) => r.name,
-      render: (r) => (
-        <span className={r.recommendable ? "" : "text-[var(--muted)]"}>
-          {r.name}
-          {!r.recommendable &&
-            ` · ${t("entrenamiento.referencia", "referencia")}`}
-        </span>
-      ),
-    },
-    {
-      // Lo que ordena desde el 2026-09-13: cuánto sube, por semana, el mejor
-      // aporte posicional de la plantilla. Sustituye a «Score», que contaba
-      // subidas y minutos y ponía primero a Balón parado.
-      key: "value",
-      header: t("entrenamiento.aporteSem", "Aporte/sem"),
-      value: (r) => r.value,
-      render: (r) => (
-        <span
-          title={t(
-            "entrenamiento.aporteSemTitle",
-            "cuánto sube por semana el mejor aporte posicional de la plantilla",
-          )}
-        >
-          +{r.value.toFixed(2)}
-        </span>
-      ),
-    },
-    {
-      key: "minutes",
-      header: t("entrenamiento.minEquivalentes", "Min. equivalentes"),
-      value: (r) => r.equivalentMinutes,
-    },
-    {
-      key: "players",
-      header: t("nav.jugadores", "Jugadores"),
-      value: (r) => r.trainedPlayers,
-    },
-    { key: "full", header: "Full", value: (r) => r.fullTrainingPlayers },
-    {
-      key: "pops",
-      header: t("entrenamiento.popsPronto", "Pops <=3s"),
-      value: (r) => r.popsSoon,
-    },
-  ];
-}
-
 /** La edad de Hattrick es «años.días», no un decimal.
  *
  *  Un año de Hattrick dura 112 días, así que «28.110» son 28 años y 110 días
@@ -1241,7 +1187,12 @@ export function TrainingPage() {
   // entraba a esta pantalla a ver cómo va su plantilla aterrizaba en la ficha
   // del cuerpo técnico y tenía que dar un clic más. Es el mismo arreglo que se
   // le hizo a Cambios: primero la respuesta, la instrumentación al final.
-  const [section, setSection] = useState<TrainingSection>("plantilla");
+  // `?tab=posteriori` abre directamente en el A posteriori: es a donde lleva
+  // su alerta (8.3.0). Cualquier otro valor se ignora.
+  const [parametros] = useSearchParams();
+  const [section, setSection] = useState<TrainingSection>(
+    parametros.get("tab") === "posteriori" ? "posteriori" : "plantilla",
+  );
   const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
   const [includeThisWeek, setIncludeThisWeek] = useState(true);
   // Veteranos sin habilidades de campo: fuera por defecto (2026-09-13).
@@ -1302,39 +1253,6 @@ export function TrainingPage() {
       </Empty>
     );
 
-  const recommendation = post?.recommendation ?? null;
-
-  // La opción que de verdad se puso, buscada entre las comparables por su
-  // tipo. Puede no estar: hay entrenamientos que el motor no puntúa.
-  const actual =
-    post?.options.find(
-      (o) => o.trainingType === post?.currentTraining?.trainingType,
-    ) ?? null;
-  // El puesto se calcula ORDENANDO, no con la posición en el array: la lista
-  // no llega ordenada y el número salía distinto del que enseña la tabla.
-  //
-  // Y se cuenta sólo entre las elegibles: las marcadas «referencia» son
-  // entrenamientos obsoletos que Hattrick ya no deja poner, así que ocupar un
-  // puesto del ranking con ellas hace parecer peor una decisión que no lo era.
-  const elegibles = (post?.options ?? [])
-    .filter((o) => o.recommendable)
-    .slice()
-    // Mismo orden que el servidor desde el 2026-09-13: aporte, y la
-    // puntuación vieja sólo para desempatar.
-    .sort((a, b) => b.value - a.value || b.score - a.score);
-  const puestoActual = actual
-    ? elegibles.findIndex((o) => o === actual) + 1
-    : null;
-  const acerto =
-    !!actual &&
-    !!recommendation &&
-    actual.trainingType === recommendation.trainingType;
-  const aportePerdido =
-    actual && recommendation ? recommendation.value - actual.value : null;
-  const minutosPerdidos =
-    actual && recommendation
-      ? recommendation.equivalentMinutes - actual.equivalentMinutes
-      : null;
   const sinDato = t("comun.sinDato", "Sin dato");
   const currentName =
     post?.currentTraining?.name ?? t("club.sinDatoMin", "sin dato");
@@ -1966,200 +1884,11 @@ export function TrainingPage() {
           </>
         )}
 
-        {section === "posteriori" && post && (
-          <>
-            {/* Los tres indicadores COMPARAN. Antes describían los tres la
-                misma opción --la recomendada-- y lo que costó la elección real
-                había que sacarlo restando a mano en la tabla de abajo. La
-                pregunta de esta pestaña no es «cuál era la mejor» sino «cuánto
-                me costó no haberla puesto» (2026-09-02). */}
-            <div className="grid gap-4 sm:grid-cols-3 [&>*]:min-w-0">
-              <Kpi
-                label={t("entrenamiento.pusiste", "Pusiste")}
-                value={currentName}
-                hint={
-                  actual
-                    ? t(
-                        "entrenamiento.pusisteHint",
-                        "+{{aporte}} de aporte/sem · {{min}} min · {{puesto}}.º de {{total}}",
-                        {
-                          aporte: actual.value.toFixed(2),
-                          min: actual.equivalentMinutes.toFixed(0),
-                          puesto: puestoActual,
-                          total: elegibles.length,
-                        },
-                      )
-                    : t(
-                        "entrenamiento.noComparable",
-                        "no está entre las opciones comparables",
-                      )
-                }
-              />
-              <Kpi
-                label={t("entrenamiento.convenia", "Convenía")}
-                value={
-                  recommendation?.name ??
-                  t("entrenamiento.sinDatos", "Sin datos")
-                }
-                hint={
-                  recommendation
-                    ? t(
-                        "entrenamiento.conveniaHint",
-                        "+{{aporte}} de aporte/sem · {{min}} min",
-                        {
-                          aporte: recommendation.value.toFixed(2),
-                          min: recommendation.equivalentMinutes.toFixed(0),
-                        },
-                      )
-                    : t(
-                        "entrenamiento.sinMinutos",
-                        "sin minutos que repartir esta semana",
-                      )
-                }
-              />
-              {/* La cifra que da sentido a la pestaña: la diferencia en
-                  APORTE (2026-09-13). Antes eran subidas, y una subida de
-                  balón parado de 2 a 3 contaba igual que una de defensa. */}
-              <Kpi
-                label={
-                  acerto
-                    ? t("entrenamiento.acertaste", "Acertaste")
-                    : t("entrenamiento.loQueCosto", "Lo que costó")
-                }
-                value={
-                  acerto
-                    ? t("habilidades.nada", "nada")
-                    : aportePerdido == null
-                      ? t("entrenamiento.sinComparar", "sin comparar")
-                      : t(
-                          "entrenamiento.aportePerdido",
-                          "-{{aporte}} de aporte/sem",
-                          { aporte: Math.abs(aportePerdido).toFixed(2) },
-                        )
-                }
-                hint={
-                  acerto
-                    ? t(
-                        "entrenamiento.eraLaMejor",
-                        "era la mejor opción con los minutos ya jugados",
-                      )
-                    : minutosPerdidos == null
-                      ? t(
-                          "entrenamiento.noEntra",
-                          "el entrenamiento puesto no entra en la comparación",
-                        )
-                      : // CON SU SIGNO (2026-11-23, visto por el usuario): lo
-                        // puesto puede repartir MÁS minutos que lo que convenía
-                        // y aun así aportar menos. Antes se quitaba el signo y
-                        // 452 minutos de más salían como una pérdida.
-                        minutosPerdidos > 0
-                        ? t(
-                            "entrenamiento.minPerdidos",
-                            "y {{min}} min equivalentes menos",
-                            { min: minutosPerdidos.toFixed(0) },
-                          )
-                        : minutosPerdidos < 0
-                          ? t(
-                              "entrenamiento.minDeMas",
-                              "aunque repartía {{min}} min equivalentes más",
-                              { min: Math.abs(minutosPerdidos).toFixed(0) },
-                            )
-                          : undefined
-                }
-                tone={
-                  acerto ? "positive" : aportePerdido ? "danger" : undefined
-                }
-              />
-            </div>
-
-            <Panel
-              title={t(
-                "entrenamiento.decidido",
-                "Entrenamiento decidido a posteriori",
-              )}
-              meta={t(
-                "entrenamiento.decididoMeta",
-                "elige después de ver quién jugó y dónde",
-              )}
-            >
-              <div className="grid gap-4 p-4 lg:grid-cols-[1.4fr_1fr] [&>*]:min-w-0">
-                <Chart
-                  ariaLabel={t(
-                    "entrenamiento.rankingAria",
-                    "Ranking de entrenamientos por aporte posicional ganado por semana",
-                  )}
-                  height={320}
-                  option={barOption(
-                    post.options.slice(0, 8).map((o) => o.name),
-                    post.options.slice(0, 8).map((o) => o.value),
-                    t("entrenamiento.aporteSem", "Aporte/sem"),
-                  )}
-                />
-                <div className="rounded-lg border border-[var(--border)] p-4">
-                  <h3 className="text-sm font-semibold">
-                    {recommendation
-                      ? t(
-                          "entrenamiento.mejorOpcion",
-                          "Mejor opción: {{nombre}}",
-                          {
-                            nombre: recommendation.name,
-                          },
-                        )
-                      : t(
-                          "entrenamiento.sinRecomendacion",
-                          "Sin recomendación",
-                        )}
-                  </h3>
-                  <p className="mt-2 text-sm text-[var(--muted)]">
-                    {t(
-                      "entrenamiento.explicacionPosteriori",
-                      "La app suma los minutos reales por posición y, para cada entrenamiento, cuánto subiría por semana el mejor aporte posicional de cada jugador. Gana el que más suma: una subida que no mejora a nadie en ningún puesto vale poco, aunque llegue rápido.",
-                    )}
-                  </p>
-                  <ul className="mt-4 space-y-1 text-xs text-[var(--muted)]">
-                    {(recommendation?.rationale ?? []).map((item) => (
-                      <li key={item}>• {item}</li>
-                    ))}
-                  </ul>
-                  <ul className="mt-4 space-y-2 text-sm">
-                    {(recommendation?.topTrainees ?? [])
-                      .slice(0, 5)
-                      .map((p) => (
-                        <li
-                          key={p.htPlayerId}
-                          className="flex items-center justify-between gap-3"
-                        >
-                          <PlayerLink htPlayerId={p.htPlayerId} name={p.name} />
-                          <span className="text-xs tabular-nums text-[var(--muted)]">
-                            {(p.exposure * 100).toFixed(0)}% ·{" "}
-                            {p.weeksToPop == null
-                              ? "-"
-                              : semanas(p.weeksToPop.toFixed(1))}
-                          </span>
-                        </li>
-                      ))}
-                  </ul>
-                </div>
-              </div>
-              <Note>{post.notes.join(" ")}</Note>
-            </Panel>
-
-            <DataTable
-              emptyMessage={t(
-                "entrenamiento.sinOpciones",
-                "Sin opciones que comparar para este partido.",
-              )}
-              rows={post.options}
-              columns={optionColumns()}
-              rowKey={(r) => r.trainingType}
-              initialSort="value"
-              csvName="entrenamiento-a-posteriori"
-              // Marca la fila del entrenamiento que pusiste: sin ella hay que
-              // buscarla por el nombre entre doce.
-              selectedRowKey={post.currentTraining?.trainingType ?? null}
-            />
-          </>
-        )}
+        {/* El A posteriori de la 8.3.0 (2026-11-26): el desperdicio de cada
+            entrenamiento con lo que de verdad se jugó, en su propio componente.
+            Sustituye a «Pusiste / Convenía / Lo que costó» y al ranking por
+            aporte posicional. */}
+        {section === "posteriori" && <APosteriori />}
       </PanelDePestanas>
     </div>
   );

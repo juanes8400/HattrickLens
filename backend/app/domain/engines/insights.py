@@ -115,6 +115,8 @@ KNOWN_KEY_ROOTS: frozenset[str] = frozenset(
         "staff.no_medic",
         "staff.no_psychologist",
         "sync.stale",
+        # El A posteriori (2026-11-26): otro entrenamiento aprovechaba más.
+        "training.a_posteriori",
         "training.inefficient",
     }
 )
@@ -1017,6 +1019,54 @@ def amistoso_sin_programar(
                 "oficial y es la única forma de dar minutos sin arriesgar la liga."
             ),
             module="partidos",
+        )
+    ]
+
+
+def entrenamiento_a_posteriori(
+    *,
+    semana: str,
+    partidos: int,
+    aun_se_puede_cambiar: bool,
+    actual: str | None,
+    actual_pct: float | None,
+    mejor: str | None,
+    mejor_pct: float | None,
+) -> list[Insight]:
+    """Otro entrenamiento aprovecha mejor lo que ya se jugó esta semana.
+
+    2026-11-26, pedido del usuario: «una alerta al sincronizar después del
+    amistoso/copa/copa desafío (el segundo de la semana) que avise la
+    situación». Con CUALQUIER mejora, sin umbral: lo eligió él frente a
+    avisar sólo con un 25 % o más.
+
+    Se calla en tres casos: sin el segundo partido la semana no está
+    completa; pasado el corte el entrenamiento ya se aplicó y avisar sería
+    reprochar; y si el actual ya es el mejor no hay nada que decir.
+
+    `semana` va en la clave (el día del corte): archivar el aviso de una
+    semana no debe esconder el de la siguiente.
+    """
+    if partidos < 2 or not aun_se_puede_cambiar:
+        return []
+    if not mejor or mejor_pct is None or mejor == actual:
+        return []
+    if actual_pct is not None and mejor_pct <= actual_pct:
+        return []
+    actual_txt = (
+        f"{actual}, {actual_pct * 100:.1f}%" if actual and actual_pct is not None else "sin dato"
+    )
+    return [
+        Insight(
+            key=f"training.a_posteriori.{semana}",
+            severity=Severity.OPPORTUNITY,
+            title=f"Con lo jugado esta semana, {mejor} aprovecha más",
+            detail=(
+                f"Entrenamiento actual: {actual_txt}. Con {mejor}: {mejor_pct * 100:.1f}%. "
+                "Todavía puedes cambiarlo antes de que se aplique el entrenamiento."
+            ),
+            action="Compara todos los entrenamientos en A posteriori.",
+            module="a posteriori",
         )
     ]
 

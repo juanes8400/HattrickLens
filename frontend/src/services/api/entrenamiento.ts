@@ -289,11 +289,52 @@ export interface TrainingDevelopment {
   notes: string[];
 }
 
+/** A posteriori (8.3.0): para cada entrenamiento, el % del ideal que
+ *  aprovecha con los minutos y puestos que ya se jugaron esta semana. Ver
+ *  `app/domain/engines/aprovechamiento.py`. */
+export interface AprovechamientoOpcion {
+  trainingType: number;
+  name: string;
+  /** 0–1 (puede pasar de 1: el ideal es una referencia, no un techo). */
+  aprovechado: number;
+  /** La altura del punto en la gráfica: aportePorCasilla / semanasPorNivel = aprovechado. */
+  aportePorCasilla: number;
+  semanasPorNivel: number | null;
+  /** Casillas de los dos partidos juntos. */
+  casillas: number;
+  casillasQueEntrenan: number;
+  jugadores: number;
+  mejorJugador: { htPlayerId: number; name: string; pct: number } | null;
+  minutosSinEntrenar: number;
+}
+
+export interface Aprovechamiento {
+  /** Cuándo se aplica el entrenamiento (UTC). */
+  corte: string;
+  desde: string;
+  aunSePuedeCambiar: boolean;
+  partidos: {
+    htMatchId: number;
+    matchType: number;
+    competicion: string;
+    rival: string | null;
+    jugadoEl: string | null;
+  }[];
+  actual: { trainingType: number; name: string } | null;
+  mejor: number | null;
+  veces: number | null;
+  /** De mejor a peor. */
+  opciones: AprovechamientoOpcion[];
+  notas: string[];
+}
+
 export const apiEntrenamiento = {
   trainingForecast: (teamId: number) =>
     request<TrainingForecast>(`/teams/${teamId}/training/forecast`),
   postMatchTraining: (teamId: number) =>
     request<PostMatchTraining>(`/teams/${teamId}/training/post-match`),
+  aprovechamiento: (teamId: number) =>
+    request<Aprovechamiento>(`/teams/${teamId}/training/aprovechamiento`),
   ultimoEntrenamiento: (teamId: number) =>
     request<UltimoEntrenamiento>(`/teams/${teamId}/training/last`),
   trainingFormula: (teamId: number) =>

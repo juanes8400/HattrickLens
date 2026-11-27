@@ -69,6 +69,8 @@ export type {
   WeeklyBreakdownRow,
 } from "./economia";
 export type {
+  Aprovechamiento,
+  AprovechamientoOpcion,
   FormulaInput,
   PostMatchTraining,
   PostMatchTrainingOption,
