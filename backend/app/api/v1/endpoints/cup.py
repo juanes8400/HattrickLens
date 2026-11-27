@@ -227,6 +227,40 @@ def _loss_destination(
     )
 
 
+def _bandas_de_resistencia(resistencias: list[int]) -> dict[str, Any]:
+    """Resistencia media y los tres grupos de la «Preparación para 120
+    minutos». La misma cuenta para tu once y para el del rival (2026-11-27)."""
+    # Resistencia (Stamina skill) va de 0 a 9, no de 0 a 20, esa era la
+    # escala equivocada que también arrastraba el "/20" mostrado en el
+    # frontend (bug real reportado 2026-08-13).
+    return {
+        "average_stamina": (
+            round(sum(resistencias) / len(resistencias), 1) if resistencias else None
+        ),
+        "stamina_bands": [
+            {
+                "label": "Frágil para 120'",
+                "min": 0,
+                "max": 5,
+                "count": sum(1 for r in resistencias if r <= 5),
+            },
+            {
+                "label": "Intermedia",
+                "min": 6,
+                "max": 7,
+                "count": sum(1 for r in resistencias if 6 <= r <= 7),
+            },
+            {
+                "label": "Preparada",
+                "min": 8,
+                "max": 9,
+                "count": sum(1 for r in resistencias if r >= 8),
+            },
+        ],
+        "starters_count": len(resistencias),
+    }
+
+
 async def _readiness(
     session: AsyncSession,
     team_id: int,
@@ -311,34 +345,8 @@ async def _readiness(
         return filas
 
     def stamina_summary(xi: list[tuple[m.PlayerSnapshot, m.Player]]) -> dict[str, Any]:
-        average_stamina = round(sum(snap.stamina for snap, _ in xi) / len(xi), 1) if xi else None
-        # Resistencia (Stamina skill) va de 0 a 9, no de 0 a 20, esa era la
-        # escala equivocada que también arrastraba el "/20" mostrado en el
-        # frontend (bug real reportado 2026-08-13).
-        stamina_bands = [
-            {
-                "label": "Frágil para 120'",
-                "min": 0,
-                "max": 5,
-                "count": sum(1 for snap, _ in xi if snap.stamina <= 5),
-            },
-            {
-                "label": "Intermedia",
-                "min": 6,
-                "max": 7,
-                "count": sum(1 for snap, _ in xi if 6 <= snap.stamina <= 7),
-            },
-            {
-                "label": "Preparada",
-                "min": 8,
-                "max": 9,
-                "count": sum(1 for snap, _ in xi if snap.stamina >= 8),
-            },
-        ]
         return {
-            "average_stamina": average_stamina,
-            "stamina_bands": stamina_bands,
-            "starters_count": len(xi),
+            **_bandas_de_resistencia([snap.stamina for snap, _ in xi]),
             # Toda la plantilla, marcando a los de ESTE once.
             "penalty_candidates": penalty_order(xi),
         }
@@ -691,6 +699,144 @@ async def _prediccion_de_rivales(
         "metodo_rival": ficha.get("pitchZoneMethodRival") or dicho["metodoRival"],
         "indirectas_prestadas": dicho["indirectasPrestadas"],
     }
+
+
+async def _preparacion_del_rival(
+    session: AsyncSession,
+    team: m.Team,
+    rival_ht_id: int,
+    world: m.WorldContext | None,
+) -> dict[str, Any] | None:
+    """La «Preparación para 120 minutos» del próximo rival de Copa (2026-11-27,
+    pedido del usuario): la misma ficha que la tuya, con tres referencias.
+
+    - Sus 11 jugadores con mayor TSI.
+    - Su última formación en Liga.
+    - Su última formación en Copa, de esta temporada.
+
+    Hattrick sí enseña la resistencia de una plantilla ajena (comprobado ese
+    día con Once Miserables: los 24 jugadores la traían). Si algún día no la
+    trae, la ficha no se pinta: inventarla sería peor que callar.
+
+    Las llamadas salen casi todas de la caché: la predicción del cruce acaba
+    de pedir la ficha de este mismo rival, con su plantilla y sus partidos.
+    Como la predicción, NO REVIENTA: ante cualquier fallo devuelve `None`.
+    """
+    if team.owner_user_id is None or not rival_ht_id:
+        return None
+    from app.api.v1.endpoints.rivals import MATCHLINEUP_POSITION_CODE_VERSION, _CachedCHPP
+    from app.application.commands.partidos_de_rivales import con_puestos_exactos
+    from app.application.commands.sync_team import FILE_VERSIONS
+    from app.domain.engines.rival_scouting import es_puesto_de_campo
+    from app.domain.value_objects.ht_constants import MATCH_TYPE_CUP
+    from app.domain.value_objects.ht_time import ht_to_utc
+    from app.infrastructure.chpp.client import CHPPClient
+    from app.infrastructure.security.tokens import decrypt_token
+
+    token = await session.scalar(
+        select(m.CHPPToken).where(m.CHPPToken.user_id == team.owner_user_id)
+    )
+    if token is None or token.status != "active":
+        return None
+    client = _CachedCHPP(
+        CHPPClient(decrypt_token(token.oauth_token_enc), decrypt_token(token.oauth_secret_enc)),
+        user_id=team.owner_user_id,
+    )
+    try:
+        plantilla = (
+            await client.fetch("players", version=FILE_VERSIONS["players"], teamID=rival_ht_id)
+        )["players"]
+        if not plantilla or not all(p["stamina_is_read"] for p in plantilla):
+            return None
+        por_id = {int(p["ht_player_id"]): p for p in plantilla}
+        partidos = (
+            await client.fetch("matches", version=FILE_VERSIONS["matches"], teamID=rival_ht_id)
+        )["matches"]
+        temporada = world.season if world is not None else None
+
+        def de_esta_temporada(mt: dict[str, Any]) -> bool:
+            cuando = ht_to_utc(mt.get("match_date"))
+            if temporada is None or cuando is None or world is None:
+                return True
+            return season_for_datetime(world, cuando) == temporada
+
+        def ultimo(tipo: int, solo_esta_temporada: bool) -> dict[str, Any] | None:
+            jugados = [
+                mt
+                for mt in partidos
+                if mt["match_type"] == tipo
+                and mt["status"].upper() == "FINISHED"
+                and (not solo_esta_temporada or de_esta_temporada(mt))
+            ]
+            return max(jugados, key=lambda mt: mt["match_date"], default=None)
+
+        async def once_de(mt: dict[str, Any]) -> list[dict[str, Any]] | None:
+            alineacion = con_puestos_exactos(
+                (
+                    await client.fetch(
+                        "matchlineup",
+                        version=MATCHLINEUP_POSITION_CODE_VERSION,
+                        matchID=mt["ht_match_id"],
+                        matchType=mt["match_type"],
+                        teamID=rival_ht_id,
+                    )
+                )["players"]
+            )
+            ids = list(
+                dict.fromkeys(
+                    int(p["ht_player_id"])
+                    for p in alineacion
+                    if es_puesto_de_campo(p["position_code"])
+                )
+            )
+            # Los que ya no están en su plantilla (vendidos) no tienen
+            # resistencia que leer; como en tu once, hacen falta nueve.
+            once = [por_id[i] for i in ids if i in por_id]
+            return once if len(once) >= 9 else None
+
+        def variante(
+            modo: str, etiqueta: str, once: list[dict[str, Any]], mt: dict[str, Any] | None
+        ) -> dict[str, Any]:
+            contrario = None
+            if mt is not None:
+                contrario = (
+                    mt["away_team_name"]
+                    if mt["home_team_id"] == rival_ht_id
+                    else mt["home_team_name"]
+                )
+            cuando = ht_to_utc(mt["match_date"]) if mt is not None else None
+            return {
+                "mode": modo,
+                "label": etiqueta,
+                "source_match_id": mt["ht_match_id"] if mt is not None else None,
+                "source_opponent": contrario,
+                "source_date": cuando.date().isoformat() if cuando is not None else None,
+                **_bandas_de_resistencia([int(p["stamina"]) for p in once]),
+            }
+
+        variantes = [
+            variante(
+                "top_tsi",
+                "11 jugadores activos con mayor TSI",
+                sorted(plantilla, key=lambda p: p["tsi"], reverse=True)[:11],
+                None,
+            )
+        ]
+        for modo, etiqueta, tipo, esta in (
+            ("last_league", "Última formación en Liga", MATCH_TYPE_LEAGUE, False),
+            ("last_cup", "Última formación en Copa", MATCH_TYPE_CUP, True),
+        ):
+            mt = ultimo(tipo, esta)
+            once = await once_de(mt) if mt is not None else None
+            if once:
+                variantes.append(variante(modo, etiqueta, once, mt))
+    except Exception as exc:  # noqa: BLE001, un panel más: no tumba Copa
+        _log.warning("Copa sin preparación del rival %s: %r", rival_ht_id, exc)
+        return None
+    finally:
+        await client.aclose()
+    por_defecto = "last_cup" if any(v["mode"] == "last_cup" for v in variantes) else "top_tsi"
+    return {"reference_variants": variantes, "default_mode": por_defecto}
 
 
 @router.get(
@@ -1112,6 +1258,15 @@ async def _cup_sin_cache(
             metodo_rival=pitch_zone_method_rival,
         )
 
+    preparacion_del_rival = None
+    if next_match is not None and still_in_cup:
+        preparacion_del_rival = await _preparacion_del_rival(
+            session, team, side(next_match)[2], world
+        )
+        if preparacion_del_rival is not None:
+            preparacion_del_rival["opponent"] = side(next_match)[1]
+            preparacion_del_rival["opponent_ht_team_id"] = side(next_match)[2]
+
     economy = await _cup_economy(session, team, next_match, rounds_left, world)
     experience_multiplier = 2.0 if classification["tier"] == "main" else 0.5
     impact = {
@@ -1235,6 +1390,7 @@ async def _cup_sin_cache(
                 "impact": impact,
                 "economy": economy,
                 "readiness": readiness,
+                "rival_readiness": preparacion_del_rival,
                 "ladder": ladder,
                 "history": history,
                 "next_matches": next_matches,
