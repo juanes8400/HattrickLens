@@ -67,8 +67,8 @@ aplicación y sus motores. Es la cuenta que conviene ver bajar.
 | `/economy` | [EconomyPage.tsx](../frontend/src/pages/EconomyPage.tsx) | 1292 | 14917 | economy, precio_comparable | 11 | 39 |
 | `/arena` | [ArenaPage.tsx](../frontend/src/pages/ArenaPage.tsx) | 510 | 3921 | arena | 3 | 12 |
 | `/insights` | [InsightsPage.tsx](../frontend/src/pages/InsightsPage.tsx) | 200 | 31578 | alertas | 30 | 106 |
-| `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 219 | 19969 | cambios, dashboard | 18 | 66 |
-| `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 884 | 23228 | clases, player_balance, cambios, partidos, plantilla | 21 | 67 |
+| `/sync` | [SyncPage.tsx](../frontend/src/pages/SyncPage.tsx) | 219 | 19993 | cambios, dashboard | 18 | 66 |
+| `/news` | [SyncChangesPage.tsx](../frontend/src/pages/SyncChangesPage.tsx) | 884 | 23252 | clases, player_balance, cambios, partidos, plantilla | 21 | 67 |
 | `/transparency` | [TransparencyPage.tsx](../frontend/src/pages/TransparencyPage.tsx) | 1022 | 16826 | entrenamiento, modelos, modelos | 14 | 36 |
 | `/wiki` | [WikiPage.tsx](../frontend/src/pages/WikiPage.tsx) | 182 | - | - | 0 | 0 |
 | `/uso` | [UsagePage.tsx](../frontend/src/pages/UsagePage.tsx) | 1637 | 4905 | uso | 1 | 6 |
