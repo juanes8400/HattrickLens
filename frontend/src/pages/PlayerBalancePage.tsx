@@ -57,6 +57,7 @@ import {
 import { explicacionDelEquilibrio } from "../components/PrecioDeEquilibrio";
 import { ValoracionDelEquipo } from "../components/ValoracionDelEquipo";
 import { terminoOficial } from "../i18n/glosario";
+import { MapaDePaises } from "../components/transferencias/MapaDePaises";
 const UNKNOWN_TRAINING = tx("Sin evidencia suficiente");
 const UNKNOWN_SEASON = tx("Temporada desconocida");
 const UNKNOWN_AGE = tx("Edad desconocida");
@@ -2373,6 +2374,22 @@ export function PlayerBalancePage() {
 
         {section === "desgloses" && (
           <div className="space-y-3">
+            <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+              <MapaDePaises
+                filas={desglosesRows}
+                campo="destino"
+                modo="absoluto"
+                moneda={data.currency}
+                isDark={isDark}
+              />
+              <MapaDePaises
+                filas={desglosesRows}
+                campo="nacionalidad"
+                modo="absoluto"
+                moneda={data.currency}
+                isDark={isDark}
+              />
+            </div>
             <WaterfallPanel
               title={tx("De la compra a la venta")}
               ayuda={tx(
@@ -2494,6 +2511,22 @@ export function PlayerBalancePage() {
 
         {section === "roi" && (
           <div className="space-y-4">
+            <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
+              <MapaDePaises
+                filas={desglosesRows}
+                campo="destino"
+                modo="roi"
+                moneda={data.currency}
+                isDark={isDark}
+              />
+              <MapaDePaises
+                filas={desglosesRows}
+                campo="nacionalidad"
+                modo="roi"
+                moneda={data.currency}
+                isDark={isDark}
+              />
+            </div>
             <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
               <RoiPanel
                 title={tx("ROI por temporada")}

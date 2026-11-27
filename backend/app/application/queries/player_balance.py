@@ -113,6 +113,29 @@ def _bid_hour_bucket(sold_at: datetime) -> str:
 
 _BID_HOUR_LABELS_ORDER = [_format_hour_range(h, h + 2) for h in range(0, 24, 2)]
 
+# Las cuatro ligas británicas comparten el código «GB» en Hattrick; en el mapa
+# de Transferencias cada una lleva su color (2026-11-27). Son los LeagueID.
+_LIGAS_BRITANICAS = {2: "gb-eng", 26: "gb-sct", 61: "gb-wls", 93: "gb-nir"}
+# Regla del usuario (2026-11-27): todo país de Oceanía, Australia incluida,
+# cuenta como una sola zona, «Oceanía». Hattrick tiene allí Oceanía (código
+# AU), Tahití y Guam; el resto de la lista es por si mañana abre otro.
+_PAISES_DE_OCEANIA = frozenset(
+    {"AU", "NZ", "PG", "FJ", "SB", "VU", "NC", "PF", "WS", "TO", "KI"}
+    | {"FM", "MH", "PW", "NR", "TV", "GU", "MP", "AS", "CK", "NU"}
+)
+
+
+def _region_del_mapa(country_code: str, league_id: int) -> str | None:
+    """La zona del mapa de un país de Hattrick, ver `PlayerBalanceRow`."""
+    if league_id in _LIGAS_BRITANICAS:
+        return _LIGAS_BRITANICAS[league_id]
+    code = country_code.strip().upper()
+    if not code:
+        return None
+    if code in _PAISES_DE_OCEANIA:
+        return "oc"
+    return code.lower()
+
 
 @dataclass
 class SalaryWeekSegment:
@@ -227,6 +250,13 @@ class PlayerBalanceRow:
     roi_pct: float | str
     destination_country: str
     destination_country_code: str | None
+    # La zona del mapa de Transferencias (2026-11-27): el código ISO en
+    # minúscula, salvo las cuatro ligas británicas, que van por separado
+    # («gb-eng», «gb-sct», «gb-wls», «gb-nir»), y Oceanía, que es UNA sola
+    # zona aunque sean varios países («oc», regla del usuario). `None` = no se
+    # sabe, y en el mapa va al círculo de «sin determinar».
+    destination_region: str | None
+    native_region: str | None
     # HL-161: edad en la venta como número decimal (años + días/112), para
     # graficar (color por edad, pedido 2026-08-04), no para tabla. Mismo
     # criterio que el desglose "por Edad": snapshot real si existe, si no
@@ -780,6 +810,23 @@ class PlayerBalanceQueryService:
             for _country_id, country_code, country_name, _league in country_rows
             if country_name
         }
+        # La zona del mapa sale de la LIGA y no del código: las cuatro ligas
+        # británicas comparten «GB» y en el mapa van cada una con su color.
+        region_by_league = {
+            int(league_id): _region_del_mapa(str(country_code), int(league_id))
+            for _cid, country_code, _cname, league_id in country_rows
+            if league_id
+        }
+        region_by_country_id = {
+            int(country_id): region_by_league[int(league_id)]
+            for country_id, _code, _cname, league_id in country_rows
+            if country_id and league_id
+        }
+        region_by_name = {
+            str(country_name).strip().casefold(): region_by_league[int(league_id)]
+            for _cid, _code, country_name, league_id in country_rows
+            if country_name and league_id
+        }
 
         def week_number(when: datetime | None) -> int | None:
             """El "05" de 83-05: la semana dentro de la temporada.
@@ -1188,6 +1235,32 @@ class PlayerBalanceQueryService:
                     else None
                 )
             )
+            native_region = (
+                region_by_country_id.get(nationality_snapshot.country_id)
+                if nationality_snapshot is not None
+                else None
+            ) or (
+                region_by_name.get(p.native_country.strip().casefold())
+                if p.native_country
+                else None
+            )
+            destination_region = (
+                (
+                    region_by_country_id.get(int(p.destination_country_id))
+                    if p.destination_country_id
+                    else None
+                )
+                or (
+                    region_by_league.get(int(p.destination_league_id))
+                    if p.destination_league_id
+                    else None
+                )
+                or (
+                    region_by_name.get(p.destination_country.strip().casefold())
+                    if p.destination_country
+                    else None
+                )
+            )
             age_at_purchase: float | str = "?"
             if at_purchase is not None:
                 age_at_purchase = round(at_purchase.age_years + at_purchase.age_days / 112, 2)
@@ -1310,6 +1383,8 @@ class PlayerBalanceQueryService:
                     total_cost=total_cost,
                     destination_country=p.destination_country or "?",
                     destination_country_code=destination_country_code,
+                    destination_region=destination_region,
+                    native_region=native_region,
                     age_at_sale=age_at_sale,
                     age_at_purchase=age_at_purchase,
                     experience_at_purchase=_skill_val(at_purchase, "experience"),
