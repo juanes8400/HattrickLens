@@ -2114,5 +2114,6 @@
   "m = 1: el cupo es de 90′ por semana; los otros 90′ no entrenan.": "m = 1: die Obergrenze liegt bei 90′ pro Woche; die anderen 90′ trainieren nicht.",
   "sin dato": "keine Angabe",
   "{} a los 17 · 1 a los 28 · 0 a los {}": "{} mit 17 · 1 mit 28 · 0 mit {}",
-  "Él solo llena el {} / {} = {} % del total; el aprovechado de Defensa es la suma de todos los que entrenaron.": "Allein füllt er {} / {} = {} % der Summe; die Nutzung von Verteidigung ist die Summe aller, die trainiert haben."
+  "Él solo llena el {} / {} = {} % del total; el aprovechado de Defensa es la suma de todos los que entrenaron.": "Allein füllt er {} / {} = {} % der Summe; die Nutzung von Verteidigung ist die Summe aller, die trainiert haben.",
+  "Los datos no se sincronizan hace más de un día.": "Die Daten sind seit mehr als einem Tag nicht synchronisiert."
 }

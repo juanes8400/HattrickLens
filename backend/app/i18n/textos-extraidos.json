@@ -626,7 +626,7 @@
  "Los criterios con los que Hattrick compara",
  "Los cruces de copa de la validación",
  "Los cuatro resúmenes, con la cuenta delante",
- "Los datos no se sincronizan hace más de 12 horas.",
+ "Los datos no se sincronizan hace más de un día.",
  "Los dos avisos que conviene no saltarse están en el paso 8: el coeficiente del balón parado no se puede leer literalmente, y el empate sale algo más alto de lo que ocurre.",
  "Los dos ratings son iguales.",
  "Los duelos entran en LOGARITMO y el enlace de la regresión también es logarítmico. Eso convierte la suma en producto y cada coeficiente en una ELASTICIDAD: el porcentaje que crecen los goles cuando ese duelo crece un uno por ciento. No se impuso esa forma, salió sola al probar seis maneras de medir un duelo. El término cuadrático y el sumando de balón parado la desvían un poco de un producto puro, pero la lectura sigue valiendo cerca del centro.",

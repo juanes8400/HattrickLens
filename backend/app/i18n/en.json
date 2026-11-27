@@ -2114,5 +2114,6 @@
   "m = 1: el cupo es de 90′ por semana; los otros 90′ no entrenan.": "m = 1: the cap is 90′ per week; the other 90′ don't train.",
   "sin dato": "no data",
   "{} a los 17 · 1 a los 28 · 0 a los {}": "{} at 17 · 1 at 28 · 0 at {}",
-  "Él solo llena el {} / {} = {} % del total; el aprovechado de Defensa es la suma de todos los que entrenaron.": "On his own he fills {} / {} = {} % of the total; Defending's usage is the sum of everyone who trained."
+  "Él solo llena el {} / {} = {} % del total; el aprovechado de Defensa es la suma de todos los que entrenaron.": "On his own he fills {} / {} = {} % of the total; Defending's usage is the sum of everyone who trained.",
+  "Los datos no se sincronizan hace más de un día.": "Data hasn't been synced for more than a day."
 }
